@@ -2143,7 +2143,7 @@ Object.assign(ACTIONS,{
       nutrition:(function(){const pid=uid();return{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:val('na_mode')||'macros',kcal:2500,protein:160,carbs:280,fat:70,mealsPerDay:4,meals:[],notes:''}],supplements:[]};})(),
       logs:{weight:[],workouts:[],nutrition:[]}
     };
-    saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'volumen'});}
+    ensureProgramming(S);ensureProfileExtras(S);saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'volumen'});}
   },
   'ath-del-ask':el=>confirmModal('Eliminar atleta','Se borrará el atleta y todos sus registros. Esta acción no se puede deshacer.','ath-del-do','data-aid="'+el.dataset.aid+'"'),
   'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
