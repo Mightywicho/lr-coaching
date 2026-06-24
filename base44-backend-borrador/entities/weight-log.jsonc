@@ -1,0 +1,12 @@
+{
+  "name": "WeightLog",
+  "type": "object",
+  "description": "Registro de peso corporal.",
+  "properties": {
+    "athlete_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "kg": { "type": "number" },
+    "body_fat": { "type": "number" }
+  },
+  "required": ["athlete_id", "date", "kg"]
+}

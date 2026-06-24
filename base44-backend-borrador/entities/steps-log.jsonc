@@ -1,0 +1,11 @@
+{
+  "name": "StepsLog",
+  "type": "object",
+  "description": "Pasos diarios.",
+  "properties": {
+    "athlete_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "steps": { "type": "integer" }
+  },
+  "required": ["athlete_id", "date", "steps"]
+}

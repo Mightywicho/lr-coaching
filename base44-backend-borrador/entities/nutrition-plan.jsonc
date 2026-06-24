@@ -1,0 +1,20 @@
+{
+  "name": "NutritionPlan",
+  "type": "object",
+  "description": "Plan de nutrición por tipo de día. Un atleta puede tener varios. Propiedad del coach.",
+  "properties": {
+    "athlete_id": { "type": "string" },
+    "name": { "type": "string", "description": "p. ej. Día normal, Día de descanso" },
+    "type": { "type": "string", "description": "normal | entreno | descanso | refeed…" },
+    "mode": { "type": "string", "enum": ["macros", "menu"], "default": "macros" },
+    "kcal": { "type": "number" },
+    "protein": { "type": "number" },
+    "carbs": { "type": "number" },
+    "fat": { "type": "number" },
+    "meals_per_day": { "type": "integer", "default": 4 },
+    "meals": { "type": "array", "description": "[{ name, items:[{food,g,p,c,f}] }]" },
+    "notes": { "type": "string", "format": "richtext" },
+    "is_active": { "type": "boolean", "default": true }
+  },
+  "required": ["athlete_id", "mode"]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Food",
+  "type": "object",
+  "description": "Base de alimentos (macros por 100 g). Compartida; propiedad del coach, lectura para atletas.",
+  "properties": {
+    "name": { "type": "string" },
+    "cat": { "type": "string", "enum": ["Proteínas", "Lácteos", "Carbohidratos", "Frutas", "Verduras", "Grasas", "Suplementos", "Otros"] },
+    "protein": { "type": "number", "description": "g por 100 g" },
+    "carbs": { "type": "number", "description": "g por 100 g" },
+    "fat": { "type": "number", "description": "g por 100 g" }
+  },
+  "required": ["name"]
+}

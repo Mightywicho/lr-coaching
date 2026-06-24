@@ -1,0 +1,12 @@
+{
+  "name": "ChatMessage",
+  "type": "object",
+  "description": "Mensaje del hilo coach<->atleta. created_date = marca de tiempo.",
+  "properties": {
+    "athlete_id": { "type": "string", "description": "Hilo (id de la Athlete)" },
+    "sender": { "type": "string", "enum": ["coach", "athlete"] },
+    "text": { "type": "string" },
+    "read": { "type": "boolean", "default": false }
+  },
+  "required": ["athlete_id", "sender", "text"]
+}

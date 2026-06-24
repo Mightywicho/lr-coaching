@@ -1,0 +1,16 @@
+{
+  "name": "WorkoutLog",
+  "type": "object",
+  "description": "Sesión de entrenamiento registrada por el atleta.",
+  "properties": {
+    "athlete_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "day_id": { "type": "string" },
+    "day_name": { "type": "string" },
+    "sets": { "type": "object", "description": "{ exerciseId: [{w,r,rir}] }" },
+    "rpe": { "type": "number", "description": "RPE de sesión (1-10)" },
+    "duration_min": { "type": "number" },
+    "comment": { "type": "string" }
+  },
+  "required": ["athlete_id", "date"]
+}

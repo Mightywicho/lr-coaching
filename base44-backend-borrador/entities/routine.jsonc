@@ -1,0 +1,16 @@
+{
+  "name": "Routine",
+  "type": "object",
+  "description": "Rutina activa del atleta (días + ejercicios anidados). Propiedad del coach.",
+  "properties": {
+    "athlete_id": { "type": "string", "description": "id de la Athlete" },
+    "name": { "type": "string" },
+    "week_note": { "type": "string", "format": "richtext" },
+    "start_date": { "type": "string", "format": "date" },
+    "days": { "type": "array", "description": "[{ id, name, plan:{grupo:series}, exercises:[{libId,name,sets,reps,rir,rest}] }]" },
+    "baseline": { "type": "object", "description": "{ date, byGroup }" },
+    "snapshots": { "type": "array", "description": "Fotos de volumen por semana" },
+    "changelog": { "type": "array", "description": "Historial de cambios de la rutina" }
+  },
+  "required": ["athlete_id"]
+}

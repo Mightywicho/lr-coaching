@@ -1,0 +1,13 @@
+{
+  "name": "NutritionLog",
+  "type": "object",
+  "description": "Adherencia diaria de nutrición + comidas marcadas.",
+  "properties": {
+    "athlete_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "adherence": { "type": "integer", "description": "1-5" },
+    "comment": { "type": "string" },
+    "meals_done": { "type": "array", "description": "ids/índices de comidas completadas" }
+  },
+  "required": ["athlete_id", "date"]
+}

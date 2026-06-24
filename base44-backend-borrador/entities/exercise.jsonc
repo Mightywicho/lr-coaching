@@ -1,0 +1,16 @@
+{
+  "name": "Exercise",
+  "type": "object",
+  "description": "Biblioteca de ejercicios. Compartida; propiedad del coach, lectura para atletas.",
+  "properties": {
+    "name": { "type": "string" },
+    "group": { "type": "string", "description": "Grupo muscular principal (uno de GROUPS)" },
+    "cat": { "type": "string", "enum": ["I", "II", "III", "IV"], "description": "Categoría por patrón" },
+    "focus": { "type": "string", "description": "Énfasis/especialización" },
+    "secondary": { "type": "array", "description": "Grupos secundarios" },
+    "equipment": { "type": "string" },
+    "cues": { "type": "string", "description": "Indicaciones técnicas" },
+    "video": { "type": "string", "format": "uri" }
+  },
+  "required": ["name", "group"]
+}

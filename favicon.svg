@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LR Coaching">
+  <defs>
+    <linearGradient id="v" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#cdf563"/>
+      <stop offset="1" stop-color="#8fd14f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="#0b0d11"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="13" fill="none" stroke="url(#v)" stroke-width="1.5" opacity="0.30"/>
+  <text x="32" y="34" font-family="'Segoe UI',Arial,sans-serif" font-size="29" font-weight="800" fill="url(#v)" text-anchor="middle" dominant-baseline="central" letter-spacing="-1">LR</text>
+</svg>

@@ -1,0 +1,13 @@
+{
+  "name": "FatigueCheckin",
+  "type": "object",
+  "description": "Check-in de fatiga semanal del atleta.",
+  "properties": {
+    "athlete_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "week": { "type": "integer" },
+    "total": { "type": "integer", "description": "Suma del cuestionario (0-15)" },
+    "items": { "type": "object", "description": "Respuestas por ítem" }
+  },
+  "required": ["athlete_id", "date", "total"]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "Athlete",
+  "type": "object",
+  "description": "Ficha del atleta + perfil. Un documento por atleta. Propiedad del coach (created_by).",
+  "properties": {
+    "user_email": { "type": "string", "format": "email", "description": "Email de login del atleta (vincula su usuario base44 con esta ficha)" },
+    "name": { "type": "string", "description": "Nombre visible" },
+    "initials": { "type": "string", "description": "Iniciales para el avatar" },
+    "color": { "type": "string", "description": "Color del avatar" },
+    "tag": { "type": "string", "description": "Etiqueta corta (objetivo)" },
+    "category": { "type": "string", "description": "Categoría (Culturismo, fitness…)" },
+    "goal": { "type": "string", "description": "Objetivo (hipertrofia, recomposición…)" },
+    "height_cm": { "type": "number" },
+    "sex": { "type": "string", "enum": ["M", "F"], "default": "M" },
+    "age": { "type": "integer" },
+    "body_fat": { "type": "number", "description": "% graso (opcional)" },
+    "notes": { "type": "string", "format": "richtext" },
+    "service": { "type": "string", "enum": ["ambos", "entrenamiento", "nutricion"], "default": "ambos", "description": "Modo de asesoría" },
+    "experience": { "type": "string", "enum": ["principiante", "intermedio", "avanzado"], "default": "intermedio" },
+    "phase": { "type": "string", "enum": ["introduccion", "acumulacion", "mantenimiento", "regeneracion", "perdida"], "default": "acumulacion" },
+    "block": { "type": "integer", "default": 1, "description": "Bloque del período (1-4)" },
+    "priorities": { "type": "object", "description": "Prioridad por grupo muscular { grupo: 0|1|2|3|4 }" },
+    "vol_targets": { "type": "object", "description": "Objetivo de series semanales por grupo { grupo: n }" },
+    "training": { "type": "object", "description": "{ injuries, dislikes, likes }" },
+    "diet_profile": { "type": "object", "description": "{ likes, dislikes, allergies, intolerances, notes }" },
+    "supplements": { "type": "array", "description": "Suplementos asignados" },
+    "mem_start": { "type": "string", "format": "date" },
+    "mem_end": { "type": "string", "format": "date" },
+    "inactive": { "type": "boolean", "default": false }
+  },
+  "required": ["name", "service"]
+}
