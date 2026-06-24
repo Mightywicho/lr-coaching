@@ -1438,7 +1438,7 @@ VIEWS['coach-dash']=function(u){
 /* pestañas visibles según el modo de asesoría del atleta */
 function coachTabList(aid){
   const sv=svcOf(aid);
-  return [['resumen','Resumen',1],['progreso','Progreso','tr'],['rendimiento','Rendimiento','tr'],['rutina','Rutina','tr'],['volumen','Volumen y fase','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['registros','Registros',1]]
+  return [['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['historial','Historial',1]]
     .filter(t=>t[2]===1||(t[2]==='tr'&&sv.tr)||(t[2]==='nu'&&sv.nu));
 }
 function coachTabs(aid,tab){
@@ -1457,13 +1457,10 @@ VIEWS['coach-ath']=function(u){
   if(!coachTabList(aid).some(t=>t[0]===tab))tab='resumen';
   let body=coachTabs(aid,tab);
   if(tab==='resumen')body+=coachTabResumen(aid);
-  else if(tab==='progreso')body+=coachTabProgreso(aid);
-  else if(tab==='rendimiento')body+=coachTabRendimiento(aid);
-  else if(tab==='rutina')body+=coachTabRutina(aid);
-  else if(tab==='volumen')body+=coachTabVolumen(aid);
+  else if(tab==='entrenamiento')body+=coachTabEntrenamiento(aid);
   else if(tab==='semanas')body+=coachTabSemanas(aid);
   else if(tab==='nutricion')body+=coachTabNutri(aid);
-  else body+=coachTabRegistros(aid);
+  else body+=coachTabHistorial(aid);
   return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal),back:{v:'coach-dash'},actions:'<button class="btn btn-g btn-sm" data-act="invite-ath" data-aid="'+aid+'">🔗 Invitar atleta</button>',body};
 };
 
@@ -1499,6 +1496,12 @@ function coachTabResumen(aid){
     '<div class="sect-h"><h2>Comentarios recientes del atleta</h2></div>'+feed;
 }
 
+function coachTabEntrenamiento(aid){
+  return coachTabVolumen(aid)+coachTabRutina(aid);
+}
+function coachTabHistorial(aid){
+  return coachTabRendimiento(aid)+coachTabProgreso(aid)+coachTabRegistros(aid);
+}
 function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
   let days='';
@@ -1551,7 +1554,7 @@ function coachTabRutina(aid){
       Object.keys(cv.focus).forEach(f=>{chips+='<span class="chip" style="border-style:dashed" title="Especialización programada">→ '+esc(f)+' · '+cv.focus[f]+' s</span>';});
       covRows+='<div class="covrow"><span class="gn">'+esc(cv.g)+'</span>'+chips+'</div>';
     });
-    volHTML='<div class="grid g2 mb16"><div class="card" style="margin:0"><h3>Volumen semanal por grupo <span class="hint">series directas · «ind.» = secundario · «rec» = recomendado</span></h3>'+rows2+'<p class="tiny mt8">El recomendado depende de la experiencia, fase y prioridades. Edítalas en <a data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"volumen"}\' style="cursor:pointer">Volumen y fase →</a></p></div>'+
+    volHTML='<div class="grid g2 mb16"><div class="card" style="margin:0"><h3>Volumen semanal por grupo <span class="hint">series directas · «ind.» = secundario · «rec» = recomendado</span></h3>'+rows2+'<p class="tiny mt8">El recomendado depende de la experiencia, fase y prioridades. Edítalas en la sección de Volumen y fase (más arriba en esta pestaña).</p></div>'+
     '<div class="card" style="margin:0"><h3>Cobertura de categorías <span class="hint">cada una es una pieza del rompecabezas</span></h3>'+(covRows||'<div class="empty"><b>Sin categorías aún</b>Vincula ejercicios de la biblioteca para ver qué patrones cubre el programa.</div>')+'<p class="tiny mt8">Las apagadas son patrones del modelo aún sin trabajar en este programa. Pasa el cursor para ver el patrón y las cargas recomendadas.</p></div></div>';
   }else volHTML='<div class="card mb16"><h3>Volumen y cobertura por grupo muscular</h3><div class="empty"><b>Sin ejercicios vinculados</b>Vincula los ejercicios de la rutina con tu biblioteca para ver series por grupo y cobertura de categorías.</div></div>';
   return '<div class="card mb16"><h3>Programa actual</h3><div class="frow2"><div><label>Nombre del programa</label><input id="r_name" value="'+esc(r.name)+'"></div><div><label>Indicación de la semana</label><input id="r_week" value="'+esc(r.weekNote)+'"></div></div>'+
@@ -1652,7 +1655,7 @@ function coachDistSesiones(aid){
   return '<div class="card mt16"><h3>2 · Sesiones y distribución del objetivo <span class="hint">planifica series por sesión antes de elegir ejercicios</span></h3>'+sess+
     '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead>'+head+'</thead><tbody>'+trs2+totRow+'</tbody></table></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center"><button class="btn btn-g" data-act="plan-auto" data-aid="'+aid+'">Repartir objetivos automáticamente</button>'+
-    '<button class="btn btn-p" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"rutina"}\'>3 · Construir la rutina →</button></div>'+
+    '<button class="btn btn-p" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"entrenamiento"}\' onclick="setTimeout(()=>window.scrollTo({top:99999,behavior:\'smooth\'}),100)">3 · Construir la rutina ↓</button></div>'+
     '<p class="tiny mt8">El reparto automático usa la guía del material: 1 sesión por cada 4-10 series del grupo (≈8 por sesión), mínimo 2 estímulos si se busca crecimiento, equilibrando la carga entre días. «prog.» indica lo ya cubierto por ejercicios reales; en la pestaña Rutina cada día muestra qué falta del plan.</p></div>';
 }
 
