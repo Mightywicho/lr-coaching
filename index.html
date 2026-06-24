@@ -24,6 +24,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#0b0d11; --bg2:#11141a; --card:#151921; --card2:#1a202b; --line:#232a36; --line2:#2f3845;
@@ -431,6 +432,11 @@ td.sesion-total.hot{color:var(--orange)}
 'use strict';
 /* ================= DATOS ================= */
 const LS_KEY='lrc_state_v1', LS_SES='lrc_session_v1';
+const SUPABASE_URL='https://vflzzokyaiddsxyeoigu.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbHp6b2t5YWlkZHN4eWVvaWd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDg2MDQsImV4cCI6MjA5Nzg4NDYwNH0.IH9oemMJ3HuqrHsHqWv5EugF_PgxOyPBvB9iN-FJ0vg';
+const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let _supabaseUser=null;
+let _currentUserId=null;
 const uid=()=>Math.random().toString(36).slice(2,9);
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const daysAgoISO=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -852,14 +858,30 @@ function ensureLibrary(st){
 }
 
 let S=null;
-function loadState(){
-  try{const raw=localStorage.getItem(LS_KEY);if(raw){S=JSON.parse(raw);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);saveState();return;}}catch(e){}
-  S=seedState();ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);saveState();
+let _savePending=null;
+async function loadStateFromSupabase(){
+  try{
+    const{data}=await supa.from('app_state').select('state').eq('user_id',_supabaseUser.id).single();
+    if(data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return;}
+  }catch(e){}
+  S=seedState();ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
+  saveState();
 }
-function saveState(){try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}}
-function resetDemo(){localStorage.removeItem(LS_KEY);localStorage.removeItem(LS_SES);location.reload();}
-function getSession(){try{return JSON.parse(localStorage.getItem(LS_SES));}catch(e){return null;}}
-function setSession(s){if(s)localStorage.setItem(LS_SES,JSON.stringify(s));else localStorage.removeItem(LS_SES);}
+function saveState(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+  if(!_supabaseUser)return;
+  clearTimeout(_savePending);
+  _savePending=setTimeout(async()=>{
+    try{await supa.from('app_state').upsert({user_id:_supabaseUser.id,state:S,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
+  },1500);
+}
+async function resetDemo(){
+  localStorage.removeItem(LS_KEY);
+  if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
+  location.reload();
+}
+function getSession(){if(!_supabaseUser)return null;return{userId:_currentUserId||'coach'};}
+function setSession(s){if(s)_currentUserId=s.userId;else _currentUserId=null;}
 const userById=id=>S.users.find(u=>u.id===id);
 const athData=id=>S.athletes[id];
 const athleteUsers=()=>S.users.filter(u=>u.role==='athlete');
@@ -1196,9 +1218,11 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  let aths='';athleteUsers().forEach(u=>{aths+='<button class="userbtn" data-act="login" data-uid="'+u.id+'">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+esc(u.tag)+'</span></span><span class="arr">→</span></button>';});
-  const c=userById('coach');
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Entrar como coach</h3><button class="userbtn" data-act="login" data-uid="coach">'+ava(c)+'<span class="who"><b>'+esc(c.name)+'</b><span>'+esc(c.tag)+'</span></span><span class="arr">→</span></button><h3 style="margin-top:18px">Entrar como atleta</h3>'+aths+'</div><div class="login-foot">Prototipo · build 23-jun-e · los datos se guardan en este navegador · <button data-act="reset-ask">restablecer demo</button></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot">LR Coaching · datos en la nube · <a href="#" data-act="show-signup" style="color:var(--volt)">Crear cuenta</a></div></div></div>';
+  setTimeout(()=>{
+    const em=document.getElementById('l_email');if(em)em.focus();
+    const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
+  },50);
 }
 function navItemsFor(u){
   if(u.role==='coach'){
@@ -1233,13 +1257,45 @@ function render(){
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':()=>{setSession(null);route={view:'home',params:{}};render();},
+  'logout':async()=>{await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;S=null;route={view:'home',params:{}};render();},
+  'auth-login':async()=>{
+    const email=(document.getElementById('l_email')?.value||'').trim();
+    const pass=document.getElementById('l_pass')?.value||'';
+    const err=document.getElementById('l_err');
+    if(err)err.textContent='';
+    if(!email||!pass){if(err)err.textContent='Completa email y contraseña';return;}
+    const btn=document.querySelector('[data-act="auth-login"]');
+    if(btn){btn.disabled=true;btn.textContent='Entrando…';}
+    const{data,error}=await supa.auth.signInWithPassword({email,password:pass});
+    if(error){if(err)err.textContent='Email o contraseña incorrectos';if(btn){btn.disabled=false;btn.textContent='Entrar →';}return;}
+    await initAfterAuth(data.user);
+  },
+  'show-signup':async(el)=>{el.preventDefault();
+    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Crea tu cuenta de coach</p></div><div class="login-card"><h3>Registro</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Nombre</label><input type="text" id="r_name" placeholder="Tu nombre"><label style="margin-top:4px">Email</label><input type="email" id="r_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="r_pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button class="btn btn-p" data-act="auth-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="r_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+    setTimeout(()=>{document.getElementById('r_name')?.focus();},50);
+  },
+  'back-login':()=>render(),
+  'auth-signup':async()=>{
+    const name=(document.getElementById('r_name')?.value||'').trim();
+    const email=(document.getElementById('r_email')?.value||'').trim();
+    const pass=document.getElementById('r_pass')?.value||'';
+    const err=document.getElementById('r_err');
+    if(err)err.textContent='';
+    if(!name||!email||!pass){if(err)err.textContent='Completa todos los campos';return;}
+    if(pass.length<6){if(err)err.textContent='La contraseña debe tener al menos 6 caracteres';return;}
+    const btn=document.querySelector('[data-act="auth-signup"]');
+    if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
+    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'coach'}}});
+    if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
+    if(data.user&&!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
+    if(data.user)await initAfterAuth(data.user);
+  },
   'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;chatOf(aid).push({id:uid(),from,text:txt,ts:Date.now(),read:false});saveState();render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
   'modal-overlay':()=>closeModal(),
   'reset-ask':()=>confirmModal('Restablecer demo','Esto borra todos los cambios y vuelve a los datos de ejemplo. ¿Seguro?','reset-do'),
-  'reset-do':()=>resetDemo(),
+  'reset-do':async()=>await resetDemo(),
   'export':()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lr-coaching-respaldo-'+todayISO()+'.json';a.click();toast('Respaldo descargado');}
 };
 document.addEventListener('click',e=>{
@@ -3755,78 +3811,4 @@ function applyCard(aid){
 Object.assign(ACTIONS,{
   'apply-sets':el=>{
     const aid=el.dataset.aid,g=el.dataset.group,delta=parseInt(el.dataset.d,10);
-    const day=athData(aid).routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
-    const exs=day.exercises.filter(e=>{const l=e.libId?libById(e.libId):null;return l&&l.group===g;});
-    if(!exs.length){toast('Añade primero un ejercicio de '+g+' en ese día');return;}
-    let e2;
-    if(delta>0){e2=exs.reduce((a,b)=>(parseInt(a.sets,10)||0)<=(parseInt(b.sets,10)||0)?a:b);}
-    else{
-      const cand=exs.filter(x=>(parseInt(x.sets,10)||0)>1);
-      if(!cand.length){toast('Todos los ejercicios de '+g+' están en 1 serie; elimina alguno desde Rutina');return;}
-      e2=cand.reduce((a,b)=>(parseInt(a.sets,10)||0)>=(parseInt(b.sets,10)||0)?a:b);
-    }
-    const oldS=parseInt(e2.sets,10)||0,newS=Math.max(1,oldS+delta);
-    if(newS===oldS)return;
-    e2.sets=newS;
-    logChange(aid,'ajuste','Series '+oldS+'→'+newS+' (decisión semanal)',day.name,e2.name);
-    saveState();render();
-  }
-});
-
-/* ================= ACCESIBILIDAD (pase en tiempo de ejecución) ================= */
-/* La UI se regenera con innerHTML; este módulo re-aplica accesibilidad tras cada render:
-   1) asocia <label> con su control (for/id)  2) nombra botones de solo icono
-   3) oculta SVG decorativos a lectores de pantalla  4) Escape cierra el modal */
-let __a11yId=0,__a11yQueued=false;
-const A11Y_ACT={'modal-close':'Cerrar','logout':'Cerrar sesión','export':'Exportar datos (respaldo JSON)','reset-ask':'Restablecer demo','nav':'Volver','wlog-delset':'Eliminar serie','ex-move':'Mover ejercicio','pitem-del':'Quitar alimento','login':'Entrar'};
-function a11yLabels(root){
-  root.querySelectorAll('label:not([for])').forEach(lab=>{
-    if(lab.querySelector('input,select,textarea'))return; // ya envuelve al control
-    let ctrl=null,el=lab.nextElementSibling;
-    if(el){ ctrl=el.matches('input,select,textarea')?el:(el.querySelector?el.querySelector('input,select,textarea'):null); }
-    if(!ctrl && lab.parentElement){ const c=lab.parentElement.querySelectorAll('input,select,textarea'); if(c.length===1)ctrl=c[0]; }
-    if(ctrl){ if(!ctrl.id)ctrl.id='a11y-f'+(++__a11yId); lab.setAttribute('for',ctrl.id); }
-  });
-}
-function a11yButtons(root){
-  root.querySelectorAll('button:not([aria-label])').forEach(b=>{
-    if(b.textContent.trim())return; // tiene texto visible → ya tiene nombre
-    b.setAttribute('aria-label', b.getAttribute('title')||A11Y_ACT[b.dataset.act]||'Acción');
-  });
-}
-function a11ySvg(root){ root.querySelectorAll('svg:not([aria-hidden])').forEach(s=>{ s.setAttribute('aria-hidden','true'); s.setAttribute('focusable','false'); }); }
-function a11yPlaceholders(root){
-  root.querySelectorAll('input[placeholder]:not([aria-label]),textarea[placeholder]:not([aria-label])').forEach(el=>{
-    if(el.id && root.querySelector('label[for="'+(window.CSS&&CSS.escape?CSS.escape(el.id):el.id)+'"]'))return;
-    if(el.closest('label'))return;
-    const ph=el.getAttribute('placeholder');if(ph)el.setAttribute('aria-label',ph);
-  });
-}
-function a11yEnhance(){ a11yLabels(document); a11yButtons(document); a11ySvg(document); a11yPlaceholders(document); }
-function a11yQueue(){ if(__a11yQueued)return; __a11yQueued=true; requestAnimationFrame(()=>{__a11yQueued=false; a11yEnhance();}); }
-(function(){
-  const obs=new MutationObserver(a11yQueue);
-  ['app','modal-root','toast-root'].forEach(id=>{ const el=document.getElementById(id); if(el)obs.observe(el,{childList:true,subtree:true}); });
-  document.addEventListener('keydown',e=>{
-    const ov=document.querySelector('#modal-root .overlay');if(!ov)return;
-    if(e.key==='Escape'){closeModal();return;}
-    if(e.key==='Tab'){
-      const f=ov.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])');
-      if(!f.length)return;const first=f[0],last=f[f.length-1];
-      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
-      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
-    }
-  });
-  a11yQueue();
-})();
-
-/* ================= ARRANQUE ================= */
-loadState();
-(function(){
-  const ses=getSession();
-  if(ses){const u=userById(ses.userId);if(u)route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};else setSession(null);}
-  render();
-})();
-</script>
-</body>
-</html>
+    const day=athData(aid).routine.days.find
