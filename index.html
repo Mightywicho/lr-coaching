@@ -437,6 +437,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let _supabaseUser=null;
 let _currentUserId=null;
+let _coachUid=null;
 const uid=()=>Math.random().toString(36).slice(2,9);
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const daysAgoISO=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -861,22 +862,24 @@ let S=null;
 let _savePending=null;
 async function loadStateFromSupabase(){
   try{
-    const{data}=await supa.from('app_state').select('state').eq('user_id',_supabaseUser.id).single();
+    const{data}=await supa.from('app_state').select('state').eq('user_id',_coachUid).single();
     if(data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return;}
   }catch(e){}
-  const meta=_supabaseUser.user_metadata||{};
-  const coachName=meta.name||_supabaseUser.email||'Coach';
-  const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
-  S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
-  ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
-  saveState();
+  if(_coachUid===_supabaseUser.id){
+    const meta=_supabaseUser.user_metadata||{};
+    const coachName=meta.name||_supabaseUser.email||'Coach';
+    const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
+    S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
+    ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
+    saveState();
+  }
 }
 function saveState(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
   if(!_supabaseUser)return;
   clearTimeout(_savePending);
   _savePending=setTimeout(async()=>{
-    try{await supa.from('app_state').upsert({user_id:_supabaseUser.id,state:S,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
+    try{await supa.from('app_state').upsert({user_id:_coachUid,state:S,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
   },1500);
 }
 async function resetDemo(){
@@ -1222,7 +1225,7 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot">LR Coaching · datos en la nube · <a href="#" data-act="show-signup" style="color:var(--volt)">Crear cuenta</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot">LR Coaching · <a href="#" data-act="show-signup" style="color:var(--volt)">Cuenta coach</a> · <a href="#" data-act="show-ath-signup" style="color:var(--blue)">Soy atleta</a></div></div></div>';
   setTimeout(()=>{
     const em=document.getElementById('l_email');if(em)em.focus();
     const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
@@ -1261,7 +1264,7 @@ function render(){
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':async()=>{await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;S=null;route={view:'home',params:{}};render();},
+  'logout':async()=>{await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;S=null;route={view:'home',params:{}};render();},
   'auth-login':async()=>{
     const email=(document.getElementById('l_email')?.value||'').trim();
     const pass=document.getElementById('l_pass')?.value||'';
@@ -1296,6 +1299,42 @@ const ACTIONS={
     if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
     if(data.user&&!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
     if(data.user)await initAfterAuth(data.user);
+  },
+  'invite-ath':async el=>{
+    const aid=el.dataset.aid;
+    const code=Math.random().toString(36).slice(2,10).toUpperCase();
+    const{error}=await supa.from('athlete_invites').insert({code,coach_uid:_supabaseUser.id,athlete_id:aid});
+    if(error){toast('Error: '+error.message);return;}
+    openModal('Código de acceso del atleta',
+      '<p style="margin-bottom:12px">Comparte este código con el atleta:</p>'+
+      '<div style="background:var(--s2);border-radius:10px;padding:20px;text-align:center;font-size:32px;font-family:monospace;letter-spacing:6px;color:var(--volt);font-weight:bold">'+esc(code)+'</div>'+
+      '<p class="tiny mt8" style="text-align:center">El atleta entra a <b>coachingrvn.netlify.app</b>, hace clic en "Soy atleta" e ingresa este código.</p>',
+      '<button class="btn btn-p" data-act="modal-close">Listo</button>');
+  },
+  'show-ath-signup':()=>{
+    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Nombre</label><input type="text" id="a_name" placeholder="Tu nombre"><label style="margin-top:4px">Email</label><input type="email" id="a_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="a_pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><label style="margin-top:4px">Código de atleta</label><input type="text" id="a_code" placeholder="Código que te dio tu coach" autocomplete="off" style="text-transform:uppercase"><button class="btn btn-p" data-act="auth-ath-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="a_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+    setTimeout(()=>{document.getElementById('a_name')?.focus();},50);
+  },
+  'auth-ath-signup':async()=>{
+    const name=(document.getElementById('a_name')?.value||'').trim();
+    const email=(document.getElementById('a_email')?.value||'').trim();
+    const pass=document.getElementById('a_pass')?.value||'';
+    const code=(document.getElementById('a_code')?.value||'').trim().toUpperCase();
+    const err=document.getElementById('a_err');
+    if(err)err.textContent='';
+    if(!name||!email||!pass||!code){if(err)err.textContent='Completa todos los campos';return;}
+    if(pass.length<6){if(err)err.textContent='La contraseña debe tener al menos 6 caracteres';return;}
+    const{data:inv,error:invErr}=await supa.from('athlete_invites').select('*').eq('code',code).eq('used',false).maybeSingle();
+    if(invErr||!inv){if(err)err.textContent='Código inválido o ya utilizado';return;}
+    const btn=document.querySelector('[data-act="auth-ath-signup"]');
+    if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
+    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'}}});
+    if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
+    if(data.user){
+      await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
+      if(!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
+      await initAfterAuth(data.user);
+    }
   },
   'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;chatOf(aid).push({id:uid(),from,text:txt,ts:Date.now(),read:false});saveState();render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
@@ -1425,7 +1464,7 @@ VIEWS['coach-ath']=function(u){
   else if(tab==='semanas')body+=coachTabSemanas(aid);
   else if(tab==='nutricion')body+=coachTabNutri(aid);
   else body+=coachTabRegistros(aid);
-  return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal),back:{v:'coach-dash'},body};
+  return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal),back:{v:'coach-dash'},actions:'<button class="btn btn-g btn-sm" data-act="invite-ath" data-aid="'+aid+'">🔗 Invitar atleta</button>',body};
 };
 
 function coachTabResumen(aid){
@@ -3834,10 +3873,16 @@ Object.assign(ACTIONS,{
 // ── ARRANQUE ─────────────────────────────────────────────────────────────────
 async function initAfterAuth(user){
   _supabaseUser=user;
+  _coachUid=user.id;
   _currentUserId='coach';
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Cargando datos…</p></div>';
+  try{
+    const{data:access}=await supa.from('athlete_access').select('coach_uid,athlete_id').eq('athlete_uid',user.id).maybeSingle();
+    if(access){_coachUid=access.coach_uid;_currentUserId=access.athlete_id;}
+  }catch(e){}
   await loadStateFromSupabase();
-  route={view:'coach-dash',params:{}};
+  const u=userById(_currentUserId);
+  route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
 }
 (async function(){
@@ -3846,6 +3891,3 @@ async function initAfterAuth(user){
   if(session){await initAfterAuth(session.user);}
   else{render();}
 })();
-</script>
-</body>
-</html>
