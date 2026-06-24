@@ -864,7 +864,11 @@ async function loadStateFromSupabase(){
     const{data}=await supa.from('app_state').select('state').eq('user_id',_supabaseUser.id).single();
     if(data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return;}
   }catch(e){}
-  S=seedState();ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
+  const meta=_supabaseUser.user_metadata||{};
+  const coachName=meta.name||_supabaseUser.email||'Coach';
+  const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
+  S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
+  ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
   saveState();
 }
 function saveState(){
