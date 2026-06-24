@@ -3811,4 +3811,33 @@ function applyCard(aid){
 Object.assign(ACTIONS,{
   'apply-sets':el=>{
     const aid=el.dataset.aid,g=el.dataset.group,delta=parseInt(el.dataset.d,10);
-    const day=athData(aid).routine.days.find
+    const day=athData(aid).routine.days.find(d=>d.id===el.dataset.day);
+    if(!day)return;
+    const exs=day.exercises.filter(e=>{const l=e.libId?libById(e.libId):null;return l&&l.group===g;});
+    if(!exs.length)return;
+    exs.sort((a,b)=>(parseInt(a.sets)||0)-(parseInt(b.sets)||0));
+    const ex=delta>0?exs[0]:exs[exs.length-1];
+    const cur=parseInt(ex.sets)||0;
+    ex.sets=String(Math.max(0,cur+delta));
+    saveState();render();toast(delta>0?'Serie añadida':'Serie reducida');
+  },
+});
+
+// ── ARRANQUE ─────────────────────────────────────────────────────────────────
+async function initAfterAuth(user){
+  _supabaseUser=user;
+  _currentUserId='coach';
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Cargando datos…</p></div>';
+  await loadStateFromSupabase();
+  route={view:'coach-dash',params:{}};
+  render();
+}
+(async function(){
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
+  const{data:{session}}=await supa.auth.getSession();
+  if(session){await initAfterAuth(session.user);}
+  else{render();}
+})();
+</script>
+</body>
+</html>

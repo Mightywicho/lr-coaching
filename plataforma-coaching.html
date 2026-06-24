@@ -3811,82 +3811,29 @@ function applyCard(aid){
 Object.assign(ACTIONS,{
   'apply-sets':el=>{
     const aid=el.dataset.aid,g=el.dataset.group,delta=parseInt(el.dataset.d,10);
-    const day=athData(aid).routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const day=athData(aid).routine.days.find(d=>d.id===el.dataset.day);
+    if(!day)return;
     const exs=day.exercises.filter(e=>{const l=e.libId?libById(e.libId):null;return l&&l.group===g;});
-    if(!exs.length){toast('Añade primero un ejercicio de '+g+' en ese día');return;}
-    let e2;
-    if(delta>0){e2=exs.reduce((a,b)=>(parseInt(a.sets,10)||0)<=(parseInt(b.sets,10)||0)?a:b);}
-    else{
-      const cand=exs.filter(x=>(parseInt(x.sets,10)||0)>1);
-      if(!cand.length){toast('Todos los ejercicios de '+g+' están en 1 serie; elimina alguno desde Rutina');return;}
-      e2=cand.reduce((a,b)=>(parseInt(a.sets,10)||0)>=(parseInt(b.sets,10)||0)?a:b);
-    }
-    const oldS=parseInt(e2.sets,10)||0,newS=Math.max(1,oldS+delta);
-    if(newS===oldS)return;
-    e2.sets=newS;
-    logChange(aid,'ajuste','Series '+oldS+'→'+newS+' (decisión semanal)',day.name,e2.name);
-    saveState();render();
-  }
+    if(!exs.length)return;
+    exs.sort((a,b)=>(parseInt(a.sets)||0)-(parseInt(b.sets)||0));
+    const ex=delta>0?exs[0]:exs[exs.length-1];
+    const cur=parseInt(ex.sets)||0;
+    ex.sets=String(Math.max(0,cur+delta));
+    saveState();render();toast(delta>0?'Serie añadida':'Serie reducida');
+  },
 });
 
-/* ================= ACCESIBILIDAD (pase en tiempo de ejecución) ================= */
-/* La UI se regenera con innerHTML; este módulo re-aplica accesibilidad tras cada render:
-   1) asocia <label> con su control (for/id)  2) nombra botones de solo icono
-   3) oculta SVG decorativos a lectores de pantalla  4) Escape cierra el modal */
-let __a11yId=0,__a11yQueued=false;
-const A11Y_ACT={'modal-close':'Cerrar','logout':'Cerrar sesión','export':'Exportar datos (respaldo JSON)','reset-ask':'Restablecer demo','nav':'Volver','wlog-delset':'Eliminar serie','ex-move':'Mover ejercicio','pitem-del':'Quitar alimento','login':'Entrar'};
-function a11yLabels(root){
-  root.querySelectorAll('label:not([for])').forEach(lab=>{
-    if(lab.querySelector('input,select,textarea'))return; // ya envuelve al control
-    let ctrl=null,el=lab.nextElementSibling;
-    if(el){ ctrl=el.matches('input,select,textarea')?el:(el.querySelector?el.querySelector('input,select,textarea'):null); }
-    if(!ctrl && lab.parentElement){ const c=lab.parentElement.querySelectorAll('input,select,textarea'); if(c.length===1)ctrl=c[0]; }
-    if(ctrl){ if(!ctrl.id)ctrl.id='a11y-f'+(++__a11yId); lab.setAttribute('for',ctrl.id); }
-  });
-}
-function a11yButtons(root){
-  root.querySelectorAll('button:not([aria-label])').forEach(b=>{
-    if(b.textContent.trim())return; // tiene texto visible → ya tiene nombre
-    b.setAttribute('aria-label', b.getAttribute('title')||A11Y_ACT[b.dataset.act]||'Acción');
-  });
-}
-function a11ySvg(root){ root.querySelectorAll('svg:not([aria-hidden])').forEach(s=>{ s.setAttribute('aria-hidden','true'); s.setAttribute('focusable','false'); }); }
-function a11yPlaceholders(root){
-  root.querySelectorAll('input[placeholder]:not([aria-label]),textarea[placeholder]:not([aria-label])').forEach(el=>{
-    if(el.id && root.querySelector('label[for="'+(window.CSS&&CSS.escape?CSS.escape(el.id):el.id)+'"]'))return;
-    if(el.closest('label'))return;
-    const ph=el.getAttribute('placeholder');if(ph)el.setAttribute('aria-label',ph);
-  });
-}
-function a11yEnhance(){ a11yLabels(document); a11yButtons(document); a11ySvg(document); a11yPlaceholders(document); }
-function a11yQueue(){ if(__a11yQueued)return; __a11yQueued=true; requestAnimationFrame(()=>{__a11yQueued=false; a11yEnhance();}); }
-(function(){
-  const obs=new MutationObserver(a11yQueue);
-  ['app','modal-root','toast-root'].forEach(id=>{ const el=document.getElementById(id); if(el)obs.observe(el,{childList:true,subtree:true}); });
-  document.addEventListener('keydown',e=>{
-    const ov=document.querySelector('#modal-root .overlay');if(!ov)return;
-    if(e.key==='Escape'){closeModal();return;}
-    if(e.key==='Tab'){
-      const f=ov.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])');
-      if(!f.length)return;const first=f[0],last=f[f.length-1];
-      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
-      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
-    }
-  });
-  a11yQueue();
-})();
-
-/* ================= ARRANQUE ================= */
+// ── ARRANQUE ─────────────────────────────────────────────────────────────────
 async function initAfterAuth(user){
   _supabaseUser=user;
   _currentUserId='coach';
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--tx2);font-family:var(--font-d);font-size:16px">Cargando datos…</div>';
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Cargando datos…</p></div>';
   await loadStateFromSupabase();
   route={view:'coach-dash',params:{}};
   render();
 }
 (async function(){
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:var(--tx2);font-family:var(--font-d);font-size:16px">Iniciando…</div>';
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
   const{data:{session}}=await supa.auth.getSession();
   if(session){await initAfterAuth(session.user);}
   else{render();}
