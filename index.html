@@ -1533,18 +1533,19 @@ function coachTabRutina(aid){
   if(vol.length){
     const maxd=Math.max(...vol.map(v=>v.d),1);
     let rows2='';vol.forEach(v=>{
-      const prio=pr.priorities[v.m],rec=volumeRec(v.m,pr.experience,pr.phase,pr.block,prio),L=rec?rec.L:null;
+      const prio=pr.priorities[v.m];
+      const mxR=volumeRecMatrix(prio,pr.experience,pr.phase);
       const tgt=(pr.volTargets||{})[v.m],hasTgt=tgt!=null&&tgt!=='';
       let st=null;
-      if(rec&&prio!==0&&hasTgt)st=targetStatus(v.d,+tgt,L);
-      else if(rec)st=volumeStatus(v.d,rec,prio);
-      const recTxt=rec&&prio!==0?'<span class="tiny" style="white-space:nowrap"> · rec '+rec.lo+'–'+rec.hi+(hasTgt?' · obj '+tgt:'')+'</span>':'';
+      if(mxR&&prio!==0&&hasTgt){const dfx=v.d-(+tgt);if(dfx<0)st={cls:'orange',txt:'Faltan '+(-dfx)+' series'};else if(dfx===0)st={cls:'green',txt:'Objetivo cubierto'};else st={cls:'volt',txt:'+'+dfx+' sobre objetivo'};}
+      else if(mxR&&prio!==0){if(v.d<=0)st={cls:'red',txt:'Sin volumen'};else if(v.d<mxR.lo)st={cls:'orange',txt:'Bajo'};else if(v.d>mxR.hi)st={cls:'volt',txt:'Alto'};else st={cls:'green',txt:'En rango'};}
+      const recTxt=mxR&&prio!==0?'<span class="tiny" style="white-space:nowrap"> · rec '+mxR.lo+'–'+mxR.hi+(hasTgt?' · obj '+tgt:'')+'</span>':'';
       const stB=st&&st.cls?' <span class="dot" style="background:var(--'+(st.cls==='volt'?'volt':st.cls)+')" title="'+esc(st.txt)+'"></span>':'';
       let bar;
-      if(rec&&prio!==0&&L){
-        const scale=Math.max(L.vmr,rec.hi,v.d,hasTgt?+tgt:0,1);
-        const left=Math.round(rec.lo/scale*100),w=Math.max(2,Math.round((rec.hi-rec.lo)/scale*100)),ax=Math.min(100,Math.round(v.d/scale*100));
-        bar='<div class="volbar" title="VME '+L.vme+' · VMA '+L.vma+' · VMR '+L.vmr+' · programado '+v.d+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
+      if(mxR&&prio!==0){
+        const scale=Math.max(mxR.hi*1.4,v.d,hasTgt?+tgt:0,1);
+        const left=Math.round(mxR.lo/scale*100),w=Math.max(2,Math.round((mxR.hi-mxR.lo)/scale*100)),ax=Math.min(100,Math.round(v.d/scale*100));
+        bar='<div class="volbar" title="Recomendado: '+mxR.lo+'–'+mxR.hi+' series/sem · programado '+v.d+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
       } else bar='<span class="mb"><i style="width:'+Math.max(4,Math.round(v.d/maxd*100))+'%"></i></span>';
       rows2+='<div class="musrow"><span class="mn">'+esc(v.m)+'</span>'+bar+'<span class="mv">'+v.d+(v.i?' <small>+'+v.i+' ind.</small>':'')+recTxt+stB+'</span></div>';});
     let covRows='';
@@ -1585,24 +1586,30 @@ function coachTabVolumen(aid){
   const rows=GROUPS.slice().sort((a,b)=>(order[p.priorities[a]]-order[p.priorities[b]])||GROUPS.indexOf(a)-GROUPS.indexOf(b));
   let trs='';
   rows.forEach(g=>{
-    const prio=p.priorities[g],rec=volumeRec(g,exp,phase,block,prio),act=directOf(g),L=rec.L;
+    const prio=p.priorities[g],act=directOf(g);
+    const mxRec=volumeRecMatrix(prio,exp,phase);
     let psel='<select class="prio-sel" data-p="'+prio+'" data-change="prio" data-aid="'+aid+'" data-group="'+esc(g)+'">';
     [4,1,2,3,0].forEach(pv=>{psel+='<option value="'+pv+'"'+(prio===pv?' selected':'')+'>'+PRIOS[pv].short+'</option>';});
     psel+='</select>';
     let recCell,bar,stCell;
-    if(prio===0){recCell='<span class="tiny">—</span>';bar='';const st=volumeStatus(act,rec,prio);stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';}
+    if(prio===0||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0?'orange':'')+'">'+( act>0?'Sin prioridad':'—')+'</span>';}
     else{
-      recCell='<b class="num">'+rec.lo+'–'+rec.hi+'</b> <span class="tiny">series/sem</span>';
-      const scale=Math.max(L.vmr,rec.hi,act,1);
-      const left=Math.round(rec.lo/scale*100),w=Math.max(2,Math.round((rec.hi-rec.lo)/scale*100)),ax=Math.min(100,Math.round(act/scale*100));
-      bar='<div class="volbar" title="VME '+L.vme+' · VMA '+L.vma+' · VMR '+L.vmr+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
-      const st=volumeStatus(act,rec,prio);stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';
+      recCell='<b class="num">'+mxRec.lo+'–'+mxRec.hi+'</b> <span class="tiny">series/sem</span>';
+      const scale=Math.max(mxRec.hi*1.4,act,1);
+      const left=Math.round(mxRec.lo/scale*100),w=Math.max(2,Math.round((mxRec.hi-mxRec.lo)/scale*100)),ax=Math.min(100,Math.round(act/scale*100));
+      bar='<div class="volbar" title="Recomendado: '+mxRec.lo+'–'+mxRec.hi+' series/sem"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
+      let st;
+      if(act<=0)st={cls:'red',txt:'Sin volumen'};
+      else if(act<mxRec.lo)st={cls:'orange',txt:'Bajo'};
+      else if(act>mxRec.hi)st={cls:'volt',txt:'Alto (tolerable)'};
+      else st={cls:'green',txt:'En rango'};
+      stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';
     }
     const fq=freqOf(g);
     const tgt=(p.volTargets||{})[g];
     const hasTgt=tgt!=null&&tgt!=='';
-    if(hasTgt&&prio!==0){const ts=targetStatus(act,+tgt,L);stCell='<span class="badge '+ts.cls+'">'+ts.txt+'</span>';}
-    const tgtCell='<td><input type="number" class="vt-input" min="0" max="40" value="'+(hasTgt?tgt:'')+'" placeholder="'+(prio!==0?'rec. '+rec.target:'—')+'" title="Objetivo semanal asignado (series directas). Vacío = guiarse solo por la banda."'+(prio===0?' disabled':'')+' data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'"></td>';
+    if(hasTgt&&prio!==0&&mxRec){const dfx=act-(+tgt);let ts;if(dfx<0)ts={cls:'orange',txt:'Faltan '+(-dfx)+' series'};else if(dfx===0)ts={cls:'green',txt:'Objetivo cubierto'};else ts={cls:'volt',txt:'+'+dfx+' sobre objetivo'};stCell='<span class="badge '+ts.cls+'">'+ts.txt+'</span>';}
+    const tgtCell='<td><input type="number" class="vt-input" min="0" max="40" value="'+(hasTgt?tgt:'')+'" placeholder="'+(prio!==0&&mxRec?'rec. '+mxRec.target:'—')+'" title="Objetivo semanal asignado (series directas)."'+(prio===0?' disabled':'')+' data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'"></td>';
     trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td>'+tgtCell+'<td class="num"><b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'')+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
   const table='<div class="card"><h3>1 · Objetivo semanal por grupo <span class="hint">asigna series/semana guiándote por la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:10px" title="Rellena el objetivo de cada grupo con prioridad usando el punto medio de su banda recomendada" data-act="voltargets-auto" data-aid="'+aid+'">Usar recomendados</button></h3>'+
@@ -2434,16 +2441,19 @@ function exVolCore(aid,exId,nm,sets){
   if(!lib)return '<p class="tiny" style="margin:0;color:var(--tx3)">Escribe el ejercicio y elígelo de tu biblioteca para ver el impacto en el volumen del grupo. Los ejercicios no vinculados no suman volumen.</p>';
   const g=lib.group,p=athData(aid).profile;
   const base=(exGroupDirectExcluding(aid,exId)[g])||0,proj=base+(parseInt(sets,10)||0);
-  const prio=p.priorities[g],rec=volumeRec(g,p.experience,p.phase,p.block,prio),L=rec?rec.L:null;
+  const prio=p.priorities[g];
+  const mxR=volumeRecMatrix(prio,p.experience,p.phase);
   const tgt=(p.volTargets||{})[g],hasTgt=tgt!=null&&tgt!=='';
-  const st=(rec&&prio!==0&&hasTgt)?targetStatus(proj,+tgt,L):(rec?volumeStatus(proj,rec,prio):{cls:'',txt:'—'});
+  let st={cls:'',txt:'—'};
+  if(mxR&&prio!==0&&hasTgt){const dfx=proj-(+tgt);if(dfx<0)st={cls:'orange',txt:'Faltan '+(-dfx)+' series'};else if(dfx===0)st={cls:'green',txt:'Objetivo cubierto'};else st={cls:'volt',txt:'+'+dfx+' sobre objetivo'};}
+  else if(mxR&&prio!==0){if(proj<=0)st={cls:'red',txt:'Sin volumen'};else if(proj<mxR.lo)st={cls:'orange',txt:'Bajo'};else if(proj>mxR.hi)st={cls:'volt',txt:'Alto'};else st={cls:'green',txt:'En rango'};}
   let bar='';
-  if(rec&&prio!==0&&L){
-    const scale=Math.max(L.vmr,rec.hi,proj,hasTgt?+tgt:0,1);
-    const left=Math.round(rec.lo/scale*100),w=Math.max(2,Math.round((rec.hi-rec.lo)/scale*100)),ax=Math.min(100,Math.round(proj/scale*100));
-    bar='<div class="volbar" style="margin:8px 0" title="VME '+L.vme+' · VMA '+L.vma+' · VMR '+L.vmr+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
+  if(mxR&&prio!==0){
+    const scale=Math.max(mxR.hi*1.4,proj,hasTgt?+tgt:0,1);
+    const left=Math.round(mxR.lo/scale*100),w=Math.max(2,Math.round((mxR.hi-mxR.lo)/scale*100)),ax=Math.min(100,Math.round(proj/scale*100));
+    bar='<div class="volbar" style="margin:8px 0" title="Recomendado: '+mxR.lo+'–'+mxR.hi+' series/sem"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
   }
-  const recTxt=(rec&&prio!==0)?('Recomendado '+rec.lo+'–'+rec.hi+' series/sem'+(hasTgt?' · objetivo '+tgt:'')+' · prioridad '+(PRIOS[prio]?PRIOS[prio].lbl:'')):'Este grupo está como «no entrenar» en la fase actual.';
+  const recTxt=(mxR&&prio!==0)?('Recomendado '+mxR.lo+'–'+mxR.hi+' series/sem'+(hasTgt?' · objetivo '+tgt:'')+' · prioridad '+(PRIOS[prio]?PRIOS[prio].lbl:'')):'Este grupo está como «no entrenar» en la fase actual.';
   const sec=(lib.secondary||[]).length?'<p class="tiny" style="margin:6px 0 0;color:var(--tx3)">Indirecto: '+esc(lib.secondary.join(', '))+'</p>':'';
   /* categoría / patrón biomecánico */
   let catTxt='';
@@ -2845,7 +2855,14 @@ document.addEventListener('change',e=>{
   else if(el.dataset.change==='ctx-exp'){athData(el.dataset.aid).profile.experience=el.value;saveState();render();}
   else if(el.dataset.change==='ctx-phase'){athData(el.dataset.aid).profile.phase=el.value;saveState();render();}
   else if(el.dataset.change==='ctx-block'){athData(el.dataset.aid).profile.block=parseInt(el.value,10);saveState();render();}
-  else if(el.dataset.change==='prio'){athData(el.dataset.aid).profile.priorities[el.dataset.group]=parseInt(el.value,10);saveState();render();}
+  else if(el.dataset.change==='prio'){
+    const _pd=athData(el.dataset.aid).profile,_pg=el.dataset.group,_pv=parseInt(el.value,10);
+    _pd.priorities[_pg]=_pv;
+    _pd.volTargets=_pd.volTargets||{};
+    if(_pv===0){delete _pd.volTargets[_pg];}
+    else{const _pr=volumeRecMatrix(_pv,_pd.experience,_pd.phase);if(_pr&&_pr.target)_pd.volTargets[_pg]=_pr.target;}
+    saveState();render();
+  }
   else if(el.dataset.change==='voltarget'){
     const p2=athData(el.dataset.aid).profile;p2.volTargets=p2.volTargets||{};
     const v=el.value.trim();
@@ -3010,6 +3027,14 @@ function refPhaseBand(band,exp,phase){
  if(phase==='regeneracion')return[Math.max(2,Math.round(b[0]*0.4)),Math.max(3,Math.round(b[1]*0.55))];
  return b;
 }
+/* Recomendación basada en la Matriz teórica (prioridad × nivel × fase), no en landmarks por músculo */
+function volumeRecMatrix(prio,exp,phase){
+  const map={4:'maxima',1:'primaria',2:'secundaria',3:'terciaria'};
+  if(prio===0||!map[prio])return null;
+  const entry=REF_PRIO.find(r=>r.id===map[prio]);if(!entry)return null;
+  const[lo,hi]=refPhaseBand(entry.band,exp,phase);
+  return{lo,hi,target:Math.round((lo+hi)/2)};
+}
 function refMatrixCard(){
  const ph=route.params.mphase||'acumulacion';
  let tabs='';REF_MPHASES.forEach(p=>{tabs+='<button class="'+(ph===p[0]?'on':'')+'" data-act="ref-mphase" data-ph="'+p[0]+'">'+p[1]+'</button>';});
@@ -3023,7 +3048,7 @@ function refMatrixCard(){
    const rir=rirFor(ph,e[0]);
    cells+='<td class="cell '+pr.cls+'"><div class="vv">'+vol+'</div><div class="uu">series/sem</div><div class="rr">RIR <b>'+rir+'</b> · '+pr.est+'×</div></td>';
   });
-  rows+='<tr><td class="rowh" title="'+esc(pr.note)+'"><b>'+pr.lbl+'</b><span>'+pr.land+'</span></td>'+cells+'</tr>';
+  rows+='<tr><td class="rowh" title="'+esc(pr.note)+'"><b>'+pr.lbl+'</b></td>'+cells+'</tr>';
  });
  const phNote={acumulacion:'Volumen creciente a lo largo del bloque manteniendo el RIR objetivo (más lejos del fallo). Aquí vive la mayor parte del volumen.',
   mantenimiento:'El volumen se mantiene y se incrementa la proximidad al fallo (baja el RIR). No se añaden series.',
@@ -3072,17 +3097,12 @@ VIEWS['ref']=function(u){
   /* landmarks de volumen */
   const expSel=route.params.exp||'intermedio';
   let exb='';EXPERIENCES.forEach(e=>{exb+='<button class="'+(expSel===e[0]?'on':'')+'" data-act="ref-exp" data-exp="'+e[0]+'">'+e[1]+'</button>';});
-  let lmRows='';GROUPS.forEach(g=>{const L=landmarks(g,expSel);lmRows+='<tr><td class="exname">'+esc(g)+'</td><td><span class="kpill vm">'+L.vm+'</span></td><td><span class="kpill vme">'+L.vme+'</span></td><td><span class="kpill vma">'+L.vma+'</span></td><td><span class="kpill vmr">'+L.vmr+'</span></td></tr>';});
-  const lmCard='<div class="card"><h3>Landmarks de volumen semanal <span class="hint">series directas por grupo</span></h3>'+
-    '<div class="seg mb16">'+exb+'</div>'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th>Grupo</th><th>VM</th><th>VME</th><th>VMA</th><th>VMR</th></tr></thead><tbody>'+lmRows+'</tbody></table></div>'+
-    '<p class="tiny mt8"><b>VM</b> mantenimiento · <b>VME</b> mínimo efectivo · <b>VMA</b> máximo adaptativo · <b>VMR</b> máximo recuperable. El VME y el techo suben con la experiencia. Referencia general 10-20 series/semana (David Sifuentes · ETTO); el tríceps suele beneficiarse de >20.</p></div>';
   const sessionCard='<div class="card"><h3>Volumen por sesión y semana</h3><p class="muted">'+esc(SESSION_REF)+'</p>'+
-    '<hr class="hr"><p class="tiny">Bajo &lt;12 · Moderado 12-20 · Alto &gt;20 series semanales por grupo. La respuesta es dosis-dependiente hasta cierto punto, con estancamiento general pasadas ~12 series por sesión y regresión por encima del VMR.</p></div>';
+    '<hr class="hr"><p class="tiny">Bajo &lt;12 · Moderado 12-20 · Alto &gt;20 series semanales por grupo. La respuesta es dosis-dependiente hasta cierto punto, con estancamiento general pasadas ~12 series por sesión.</p></div>';
   return{title:'Referencias de programación',crumb:'Volumen, RIR y cargas · síntesis del material de Jay Ehrenstein y David Sifuentes',
     body:refMatrixCard()+
     '<div class="sect-h"><h2>Tablas base de la literatura</h2></div>'+
-    '<div class="refgrid"><div>'+loadCard+rirCard+sessionCard+'</div><div>'+distCard+lmCard+'</div></div>'+
+    '<div class="refgrid"><div>'+loadCard+rirCard+sessionCard+'</div><div>'+distCard+'</div></div>'+
     '<p class="tiny mt16">Valores de referencia configurables, no reglas rígidas. El propio material insiste en individualizar: monitorea adaptaciones, fatiga y RIR promedio por atleta y grupo para encontrar los rangos óptimos de cada quien.</p>'};
 };
 
