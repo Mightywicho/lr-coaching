@@ -257,6 +257,32 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .login-foot{text-align:center;margin-top:18px;font-size:12px;color:var(--tx3)}
 .login-foot button{color:var(--tx3);text-decoration:underline}
 
+/* ---------- athlete "Hoy": foco, resumen, pendientes, acordeones ---------- */
+.hero{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line2);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.hero-h{display:flex;align-items:center;gap:8px;font-family:var(--font-d);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--volt);margin-bottom:4px}
+.hero-sub{color:var(--tx2);font-size:13px;margin-bottom:14px}
+.coachnote{background:rgba(124,208,251,.07);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:var(--r-s);padding:11px 14px;font-size:13px;color:var(--tx);margin-bottom:16px}
+.coachnote b{color:var(--blue);font-weight:600;display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.statlink{cursor:pointer;transition:border-color .15s}
+.statlink:hover{border-color:var(--line2)}
+.stat .v small{font-size:13px;font-weight:600;color:var(--tx2)}
+.pend{background:rgba(255,180,92,.06);border:1px solid rgba(255,180,92,.3);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
+.pend-h{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;color:var(--orange);margin-bottom:10px}
+.pend-chips{display:flex;flex-wrap:wrap;gap:8px}
+.pend-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border:1px solid var(--line2);background:var(--card);border-radius:999px;font-size:13px;color:var(--tx);cursor:pointer;transition:border-color .15s,background .15s}
+.pend-chip:hover{border-color:var(--orange);background:var(--card2)}
+.pend-chip .pd{width:7px;height:7px;border-radius:50%;background:var(--orange);flex:0 0 auto}
+.acc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-top:16px;overflow:hidden}
+.acc>summary{list-style:none;cursor:pointer;padding:16px 20px;display:flex;align-items:center;gap:10px;font-family:var(--font-d);font-size:15.5px;font-weight:600;user-select:none}
+.acc>summary::-webkit-details-marker{display:none}
+.acc>summary .chev{margin-left:auto;color:var(--tx3);transition:transform .2s;flex:0 0 auto}
+.acc[open]>summary .chev{transform:rotate(180deg)}
+.acc>summary .acc-tag{font-family:var(--font-b);font-weight:400;font-size:12px;color:var(--tx3)}
+.acc>summary:hover{background:var(--card2)}
+.acc-body{padding:0 20px 20px}
+.acc-body>.card,.acc-body>.card+.card{margin-top:0;border:0;padding:0;background:transparent}
+.acc-done{color:var(--green);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+
 /* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(5,7,10,.7);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;animation:fade .15s}
 .modal{background:var(--card);border:1px solid var(--line2);border-radius:16px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow);animation:pop .18s}
@@ -2488,6 +2514,26 @@ let WDRAFT=null; /* borrador del entreno en curso */
 let ADH_PICK=null; /* selección temporal de adherencia */
 let DIETRES=null; /* último resultado del dietocálculo, para aplicar a objetivos */
 
+/* Resumen de volumen para el atleta — reutiliza muscleVolume + volumeRecMatrix + prioridades del perfil (sin cambiar la lógica) */
+function athVolGlance(aid){
+  const d=athData(aid),p=d.profile||{},exp=p.experience,phase=p.phase;
+  const vol=muscleVolume(aid);
+  let inRange=0,total=0,series=0;const flagged=[];
+  vol.filter(v=>v.d>0).forEach(v=>{
+    const prio=(p.priorities||{})[v.m];
+    if(prio===0||prio==null)return;
+    const mx=volumeRecMatrix(prio,exp,phase);
+    if(!mx)return;
+    total++;series+=v.d;
+    const tgt=(p.volTargets||{})[v.m];
+    const hasTgt=tgt!=null&&tgt!=='';
+    const ok=hasTgt?v.d>=(+tgt):(v.d>=mx.lo&&v.d<=mx.hi);
+    if(ok)inRange++;else flagged.push(v.m);
+  });
+  return{inRange,total,series,flagged};
+}
+/* abre un acordeón <details> por id y lo centra (usado por los chips de «Pendientes») */
+function openAcc(id){var e=document.getElementById(id);if(e){e.open=true;e.scrollIntoView({behavior:'smooth',block:'center'});}}
 function weekStrip(aid){
   const d=athData(aid);
   let h='<div class="week mb16">';
@@ -2531,43 +2577,93 @@ VIEWS['ath-hoy']=function(u){
   let dayPick='';
   if(np.plans.length>1){np.plans.forEach(p=>{const ty=planType(p.type);dayPick+='<button class="planchip'+(p.id===n.id?' on':'')+'" data-act="ath-plan-pick" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+ty.cls+'">'+ty.lbl+'</span>'+esc(p.name)+'</button>';});dayPick='<div style="margin-bottom:12px"><label class="tiny" style="display:block;margin-bottom:6px">¿Qué día te toca hoy?</label><div class="planchips">'+dayPick+'</div></div>';}
   const sv=svcOf(aid);
-  const trainBlock='<div class="card"><h3>'+I.dumbbell+' Entrenamiento de hoy <span class="hint">'+esc(d.routine.name)+'</span></h3><p class="muted mb16">Elige el día que toca y registra tus series.</p>'+daysBtns+'</div>';
-  const nutriBlock='<div class="card"><h3>'+I.food+' Nutrición de hoy <span class="hint">'+(n.mode==='macros'?'macros':'menú')+'</span></h3>'+dayPick+adhUI+'<hr class="hr"><label style="display:block;margin-bottom:8px">Te queda por comer hoy</label>'+remainingBars(aid,n)+'<div class="frow"><input id="adh_comment" placeholder="Comentario para tu coach (opcional)" value="'+esc(todayN?todayN.comment:'')+'"></div><button class="btn btn-p" data-act="adh-save" style="width:100%">'+I.check+' Guardar registro de nutrición</button></div>';
-  const sideBlock='<div class="card"><h3>Peso corporal de hoy <span class="hint">opcional</span></h3><div style="display:flex;gap:10px"><input id="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div><p class="tiny mt8">Pésate siempre en las mismas condiciones (al despertar, en ayunas).</p></div>'+
-    '<div class="card"><h3>Pasos de hoy <span class="hint">opcional</span></h3><div style="display:flex;gap:10px"><input id="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera al final del día. Sirve para valorar tu actividad diaria.</p></div>';
-  return{title:'Hola, '+esc(u.name)+' 👋',crumb:fmtDateFull(todayISO())+' · '+esc(sv.tr?(d.routine.weekNote||d.routine.name):(n.name||'Plan de nutrición')),
-    body:(sv.tr?weekStrip(aid):'')+
-    '<div class="grid g2">'+
-    (sv.tr?trainBlock:nutriBlock)+
-    '<div>'+(sv.tr&&sv.nu?nutriBlock:'')+sideBlock+'</div>'+
-    '</div>'+
-    (sv.nu?(function(){
-      const fm=intakeForDate(aid,todayISO());
-      const dm=doneMealsMacros(aid);
-      const meals=(d.logs.meals||[]).filter(m=>m.date===todayISO());
-      let list='';
-      meals.forEach(m=>{
-        list+='<div class="logitem" style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b>'+esc(m.name)+'</b><div class="tiny">'+mealKcal(m)+' kcal · P '+(m.p||0)+' g · C '+(m.c||0)+' g · G '+(m.f||0)+' g</div></div><button class="btn btn-g btn-sm" title="Eliminar" data-act="meal-del" data-id="'+m.id+'">'+I.trash+'</button></div>';
-      });
-      if(!list)list='<div class="empty"><b>Sin comida libre registrada hoy</b>Lo que comas fuera del plan, añádelo aquí y se restará de lo que te queda arriba.</div>';
-      return '<div class="card mt16"><h3>'+I.food+' Tu comida libre <span class="hint">opcional · lo que comas fuera del plan</span></h3>'+
-      '<p class="tiny mb16">Marca arriba las comidas del plan que cumpliste y completa el resto aquí: las casillas suman '+dm.kcal+' kcal y tu comida libre '+fm.kcal+' kcal. Todo se descuenta de «Te queda por comer hoy».</p>'+
-      '<label>Desde la base de alimentos ('+(S.foods||[]).length+' alimentos)</label>'+
-      '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off"><input id="mf_g" type="number" min="1" step="5" placeholder="gramos"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+
-      '<datalist id="foodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
-      '<label>O entrada manual con macros</label>'+
-      '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px"><input id="m_name" placeholder="Qué comiste (ej. guiso casero)"></div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px"><input id="m_p" type="number" min="0" step="1" placeholder="Prot (g)"><input id="m_c" type="number" min="0" step="1" placeholder="Carb (g)"><input id="m_f" type="number" min="0" step="1" placeholder="Gras (g)"><button class="btn btn-g" data-act="meal-add">Añadir</button></div>'+
-      '<p class="tiny mt8">Las calorías se calculan solas: P×4 + C×4 + G×9.</p>'+list+'</div>';
-    })():'')+
-    (sv.tr?(function(){
-      const pend=fatiguePending(aid),last=fatigueLast(aid);
-      return '<div class="card mt16"><h3>Check-in semanal de fatiga <span class="hint">5 preguntas + sensaciones · 1 vez por semana</span></h3>'+
-      '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
-      (pend?'<span class="badge orange">Pendiente esta semana</span><p class="muted" style="flex:1;min-width:160px">Tu coach lo usa para decidir si subir, mantener o bajar tus series.</p>':
-        '<span class="badge green">Completado · '+(last?last.gs+'/25':'')+'</span><p class="muted" style="flex:1;min-width:160px">Puedes actualizarlo si algo cambió esta semana.</p>')+
-      '<button class="btn '+(pend?'btn-p':'btn-g')+'" data-act="fq-open">'+(pend?'Responder ahora':'Actualizar respuestas')+'</button></div></div>';
-    })():'')};
+
+  /* helper local de acordeón */
+  const chev='<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
+  const acc=(id,title,tag,inner,open)=>'<details class="acc" id="'+id+'"'+(open?' open':'')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+chev+'</summary><div class="acc-body">'+inner+'</div></details>';
+
+  /* indicación de la semana del coach, promovida arriba */
+  const coachnote=(sv.tr&&d.routine.weekNote)?'<div class="coachnote"><b>Indicación de tu coach</b>'+esc(d.routine.weekNote)+'</div>':((!sv.tr&&n.notes)?'<div class="coachnote"><b>Nota de tu coach</b>'+esc(n.notes)+'</div>':'');
+
+  /* FOCO DE HOY */
+  const hero=sv.tr
+    ? '<div class="hero"><div class="hero-h">'+I.dumbbell+' Tu entrenamiento de hoy</div><div class="hero-sub">'+esc(d.routine.name)+' — elige el día que toca y registra tus series.</div>'+daysBtns+'</div>'
+    : '<div class="hero"><div class="hero-h">'+I.food+' Tu nutrición de hoy</div><div class="hero-sub">Esto es lo que te queda por comer.</div>'+remainingBars(aid,n)+'<button class="btn btn-p" style="margin-top:14px" onclick="openAcc(\'acc-nutri\')">'+I.check+' Registrar mis comidas</button></div>';
+
+  /* RESUMEN DE LA SEMANA (de un vistazo) */
+  const stats=[];
+  if(sv.tr){
+    const vg=athVolGlance(aid);
+    const vcls=vg.total===0?'':(vg.inRange===vg.total?'up':(vg.inRange>=Math.ceil(vg.total*0.6)?'':'down'));
+    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-rutina" data-params=\'{}\'><div class="k">Volumen en rango</div><div class="v '+vcls+'">'+(vg.total?vg.inRange+'<small> / '+vg.total+'</small>':'—')+'</div><div class="sub">'+(vg.total?vg.series+' series/sem programadas':'vincula ejercicios para verlo')+'</div></div>');
+    const w7=workoutsInLast(aid,7);
+    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-prog" data-params=\'{}\'><div class="k">Entrenos · 7 días</div><div class="v">'+w7+'<small> / '+d.routine.days.length+'</small></div><div class="sub">registrados esta semana</div></div>');
+  }
+  if(sv.nu){
+    const adh=adherenceAvg(aid,7);
+    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-nutri" data-params=\'{}\'><div class="k">Adherencia · 7 días</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">media de tus registros</div></div>');
+  }
+  if(d.logs.weight.length){
+    const rate=weeklyRate(aid,3),rcls=rate&&rate.delta>0?'up':(rate&&rate.delta<0?'down':'');
+    stats.push('<div class="stat'+(sv.tr?' statlink" data-act="nav" data-view="ath-prog" data-params=\'{}\'':'"')+'><div class="k">Ritmo de peso</div><div class="v '+rcls+'">'+(rate?(rate.delta>0?'+':'')+rate.delta.toFixed(2)+'<small> kg/sem</small>':'—')+'</div><div class="sub">'+(rate?(rate.pct>0?'+':'')+rate.pct.toFixed(2)+'% de tu peso/sem':'necesita 2 semanas con ≥3 pesajes')+'</div></div>');
+  }
+  const statStrip=stats.length?'<div class="grid '+(stats.length>=4?'g4':stats.length===3?'g3':'g2')+' mb16">'+stats.join('')+'</div>':'';
+
+  /* PENDIENTES HOY */
+  const pendList=[];
+  if(sv.nu&&!todayN)pendList.push(['acc-nutri','Registrar nutrición de hoy']);
+  if(sv.tr&&fatiguePending(aid))pendList.push(['acc-fatiga','Check-in de fatiga']);
+  if(!todayW)pendList.push(['acc-peso','Anotar tu peso']);
+  let pendUI='';
+  if(pendList.length){
+    let chips='';pendList.forEach(p2=>{chips+='<button class="pend-chip" onclick="openAcc(\''+p2[0]+'\')"><span class="pd"></span>'+esc(p2[1])+'</button>';});
+    pendUI='<div class="pend"><div class="pend-h">⏳ Pendiente hoy ('+pendList.length+')</div><div class="pend-chips">'+chips+'</div></div>';
+  } else {
+    pendUI='<div class="coachnote" style="border-left-color:var(--green)"><b style="color:var(--green)">Todo al día</b>No tienes nada pendiente hoy. ¡Bien hecho! 💪</div>';
+  }
+
+  /* CONTENIDOS DE LOS ACORDEONES (sin la card exterior) */
+  const nutriInner=dayPick+adhUI+'<hr class="hr"><label style="display:block;margin-bottom:8px">Te queda por comer hoy</label>'+remainingBars(aid,n)+'<div class="frow"><input id="adh_comment" placeholder="Comentario para tu coach (opcional)" value="'+esc(todayN?todayN.comment:'')+'"></div><button class="btn btn-p" data-act="adh-save" style="width:100%">'+I.check+' Guardar registro de nutrición</button>';
+
+  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
+    '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p>';
+
+  const freeInner=sv.nu?(function(){
+    const fm=intakeForDate(aid,todayISO());
+    const dm=doneMealsMacros(aid);
+    const meals=(d.logs.meals||[]).filter(m=>m.date===todayISO());
+    let list='';
+    meals.forEach(m=>{
+      list+='<div class="logitem" style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b>'+esc(m.name)+'</b><div class="tiny">'+mealKcal(m)+' kcal · P '+(m.p||0)+' g · C '+(m.c||0)+' g · G '+(m.f||0)+' g</div></div><button class="btn btn-g btn-sm" title="Eliminar" data-act="meal-del" data-id="'+m.id+'">'+I.trash+'</button></div>';
+    });
+    if(!list)list='<div class="empty"><b>Sin comida libre registrada hoy</b>Lo que comas fuera del plan, añádelo aquí y se restará de lo que te queda arriba.</div>';
+    return '<p class="tiny mb16">Marca arriba las comidas del plan que cumpliste y completa el resto aquí: las casillas suman '+dm.kcal+' kcal y tu comida libre '+fm.kcal+' kcal. Todo se descuenta de «Te queda por comer hoy».</p>'+
+    '<label>Desde la base de alimentos ('+(S.foods||[]).length+' alimentos)</label>'+
+    '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off"><input id="mf_g" type="number" min="1" step="5" placeholder="gramos"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+
+    '<datalist id="foodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
+    '<label>O entrada manual con macros</label>'+
+    '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px"><input id="m_name" placeholder="Qué comiste (ej. guiso casero)"></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px"><input id="m_p" type="number" min="0" step="1" placeholder="Prot (g)"><input id="m_c" type="number" min="0" step="1" placeholder="Carb (g)"><input id="m_f" type="number" min="0" step="1" placeholder="Gras (g)"><button class="btn btn-g" data-act="meal-add">Añadir</button></div>'+
+    '<p class="tiny mt8">Las calorías se calculan solas: P×4 + C×4 + G×9.</p>'+list;
+  })():'';
+
+  const fatInner=sv.tr?(function(){
+    const pf=fatiguePending(aid),last=fatigueLast(aid);
+    return '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    (pf?'<span class="badge orange">Pendiente esta semana</span><p class="muted" style="flex:1;min-width:160px">Tu coach lo usa para decidir si subir, mantener o bajar tus series.</p>':
+      '<span class="badge green">Completado · '+(last?last.gs+'/25':'')+'</span><p class="muted" style="flex:1;min-width:160px">Puedes actualizarlo si algo cambió esta semana.</p>')+
+    '<button class="btn '+(pf?'btn-p':'btn-g')+'" data-act="fq-open">'+(pf?'Responder ahora':'Actualizar respuestas')+'</button></div>';
+  })():'';
+
+  /* ENSAMBLADO DE ACORDEONES */
+  const accs=[];
+  if(sv.nu)accs.push(acc('acc-nutri',I.food+' Nutrición de hoy',(curAdh!=null?'adherencia '+curAdh+'/5':(todayN?'registrada':'sin registrar')),nutriInner,!todayN));
+  if(sv.nu)accs.push(acc('acc-libre',I.food+' Tu comida libre','opcional · fuera del plan',freeInner,false));
+  accs.push(acc('acc-peso','⚖️ Peso y pasos','opcional',pesoPasosInner,false));
+  if(sv.tr)accs.push(acc('acc-fatiga','🩺 Check-in semanal de fatiga','1×/semana',fatInner,fatiguePending(aid)));
+
+  return{title:'Hola, '+esc(u.name)+' 👋',crumb:fmtDateFull(todayISO()),
+    body:coachnote+hero+pendUI+statStrip+(sv.tr?weekStrip(aid):'')+accs.join('')};
 };
 
 VIEWS['ath-wlog']=function(u){
