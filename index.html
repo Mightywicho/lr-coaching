@@ -107,6 +107,15 @@ a{color:var(--blue);text-decoration:none}
 .stat .v small{font-size:13px;color:var(--tx3);font-weight:500}
 .stat .sub{font-size:12px;color:var(--tx3);margin-top:2px}
 .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--tx3)}
+/* volumen — métrica grande de la vista Hoy */
+.volbig{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
+.volbig-k{font-size:12px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:7px}
+.volbig-k svg{width:15px;height:15px}
+.volbig-v{font-family:var(--font-d);font-size:42px;line-height:1.05;font-weight:800;margin-top:6px}
+.volbig-v small{font-size:16px;color:var(--tx3);font-weight:500}
+.volbig-sub{font-size:12.5px;color:var(--tx3);margin-top:2px}
+.volbig-state{font-size:13px;font-weight:600;margin-top:8px;color:var(--tx2)}
+.volbig-state.up{color:var(--green)}.volbig-state.down{color:var(--red)}
 
 /* ---------- athlete cards ---------- */
 .ath-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s;cursor:pointer}
@@ -1774,9 +1783,9 @@ function buildDietCalc(aid){
   '<div><label>Edad</label><input id="dc_age" type="number" value="'+A+'" placeholder="años"></div>'+
   '<div><label>Peso (kg)</label><input id="dc_w" type="number" step="0.1" value="'+W+'" oninput="ffmFromBfInputs()"></div>'+
   '<div><label>Altura (cm)</label><input id="dc_h" type="number" value="'+H+'"></div></div>'+
-  (bf?'<p class="tiny mb8" style="color:var(--tx3)">% grasa corporal del perfil: <b>'+bf+'%</b>'+(ffm0?' · MLG estimada: <b>'+ffm0+' kg</b>':'')+'</p>':'<p class="tiny mb8" style="color:var(--orange)">Sin % grasa en el perfil — agrégalo en Resumen para habilitar MLG y fórmulas que la requieren.</p>')+
-  '<input type="hidden" id="dc_bf" value="'+bf+'"><input type="hidden" id="dc_ffm" value="'+ffm0+'">'+
-  '<div class="frow2"><div><label>Fórmula de TMB</label><select id="dc_eq">'+fopts+'</select></div></div>'+
+  '<div class="frow2"><div><label>% grasa corporal (opcional)</label><input id="dc_bf" type="number" step="0.1" value="'+bf+'" placeholder="ej. 12" oninput="ffmFromBfInputs()"></div>'+
+  '<div><label>Fórmula de TMB</label><select id="dc_eq">'+fopts+'</select></div></div>'+
+  '<input type="hidden" id="dc_ffm" value="'+ffm0+'">'+
   '<hr class="hr"><label style="font-weight:600">Gasto energético total</label>'+
   '<div class="frow2" style="margin-top:8px"><div><label>Factor de actividad (PAL)</label><select id="dc_pal">'+palopts+'</select></div>'+
   '<div><label>O factor manual (opcional)</label><input id="dc_palman" type="number" step="0.01" placeholder="ej. 1.65"></div></div>'+
@@ -2599,12 +2608,24 @@ VIEWS['ath-hoy']=function(u){
     ? '<div class="hero"><div class="hero-h">'+I.dumbbell+' Tu entrenamiento de hoy</div><div class="hero-sub">'+esc(d.routine.name)+' — elige el día que toca y registra tus series.</div>'+daysBtns+'</div>'
     : '<div class="hero"><div class="hero-h">'+I.food+' Tu nutrición de hoy</div><div class="hero-sub">Esto es lo que te queda por comer.</div>'+remainingBars(aid,n)+'<button class="btn btn-p" style="margin-top:14px" onclick="openAcc(\'acc-nutri\')">'+I.check+' Registrar mis comidas</button></div>';
 
-  /* RESUMEN DE LA SEMANA (de un vistazo) */
-  const stats=[];
+  /* VOLUMEN — métrica grande (solo entrenamiento) */
+  let volBig='';
   if(sv.tr){
     const vg=athVolGlance(aid);
     const vcls=vg.total===0?'':(vg.inRange===vg.total?'up':(vg.inRange>=Math.ceil(vg.total*0.6)?'':'down'));
-    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-rutina" data-params=\'{}\'><div class="k">Volumen en rango</div><div class="v '+vcls+'">'+(vg.total?vg.inRange+'<small> / '+vg.total+'</small>':'—')+'</div><div class="sub">'+(vg.total?vg.series+' series/sem programadas':'vincula ejercicios para verlo')+'</div></div>');
+    const vstate=vg.total===0?'Vincula ejercicios a sus músculos para medir tu volumen':
+      (vg.inRange===vg.total?'Todo tu volumen está en rango ✓':
+      (vg.flagged.length?'Revisar: '+vg.flagged.length+' grupo'+(vg.flagged.length>1?'s':'')+' fuera de rango':'En rango'));
+    volBig='<div class="volbig statlink" data-act="nav" data-view="ath-rutina" data-params=\'{}\'>'+
+      '<div class="volbig-k">'+I.dumbbell+' Volumen en rango esta semana</div>'+
+      '<div class="volbig-v '+vcls+'">'+(vg.total?vg.inRange+'<small> / '+vg.total+' grupos</small>':'—')+'</div>'+
+      (vg.total?'<div class="volbig-sub">'+vg.series+' series/semana programadas · toca para ver tu rutina</div>':'')+
+      '<div class="volbig-state '+vcls+'">'+vstate+'</div></div>';
+  }
+
+  /* RESUMEN DE LA SEMANA (de un vistazo) */
+  const stats=[];
+  if(sv.tr){
     const w7=workoutsInLast(aid,7);
     stats.push('<div class="stat statlink" data-act="nav" data-view="ath-prog" data-params=\'{}\'><div class="k">Entrenos · 7 días</div><div class="v">'+w7+'<small> / '+d.routine.days.length+'</small></div><div class="sub">registrados esta semana</div></div>');
   }
@@ -2666,13 +2687,13 @@ VIEWS['ath-hoy']=function(u){
 
   /* ENSAMBLADO DE ACORDEONES */
   const accs=[];
-  if(sv.nu)accs.push(acc('acc-nutri',I.food+' Nutrición de hoy',(curAdh!=null?'adherencia '+curAdh+'/5':(todayN?'registrada':'sin registrar')),nutriInner,!todayN));
+  if(sv.nu)accs.push(acc('acc-nutri',I.food+' Nutrición de hoy',(curAdh!=null?'adherencia '+curAdh+'/5':(todayN?'registrada':'sin registrar')),nutriInner,false));
   if(sv.nu)accs.push(acc('acc-libre',I.food+' Tu comida libre','opcional · fuera del plan',freeInner,false));
   accs.push(acc('acc-peso','⚖️ Peso y pasos','opcional',pesoPasosInner,false));
-  if(sv.tr)accs.push(acc('acc-fatiga','🩺 Check-in semanal de fatiga','1×/semana',fatInner,fatiguePending(aid)));
+  if(sv.tr)accs.push(acc('acc-fatiga','🩺 Check-in semanal de fatiga','1×/semana',fatInner,false));
 
   return{title:'Hola, '+esc(u.name)+' 👋',crumb:fmtDateFull(todayISO()),
-    body:coachnote+hero+pendUI+statStrip+(sv.tr?weekStrip(aid):'')+accs.join('')};
+    body:hero+pendUI+volBig+(sv.tr?weekStrip(aid):'')+statStrip+accs.join('')+coachnote};
 };
 
 VIEWS['ath-wlog']=function(u){
