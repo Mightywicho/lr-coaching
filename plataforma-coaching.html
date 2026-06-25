@@ -4016,4 +4016,9 @@ async function initAfterAuth(user){
 (async function(){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
   const{data:{session}}=await supa.auth.getSession();
-  if(session){await in
+  if(session){await initAfterAuth(session.user);}
+  else{render();}
+})();
+</script>
+</body>
+</html>
