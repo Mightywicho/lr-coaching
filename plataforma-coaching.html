@@ -473,6 +473,8 @@ const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let _supabaseUser=null;
 let _currentUserId=null;
 let _coachUid=null;
+let _athleteUidByAppId={};/* appId -> uid auth */
+let _appIdByAthleteUid={};/* uid auth -> appId */
 const uid=()=>Math.random().toString(36).slice(2,9);
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const daysAgoISO=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -916,6 +918,46 @@ function saveState(){
   _savePending=setTimeout(async()=>{
     try{await supa.from('app_state').upsert({user_id:_coachUid,state:S,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
   },1500);
+}
+/* ---- WeightLog: tabla relacional (primer corte de descomposición del blob) ---- */
+async function buildAthleteUidMaps(){
+  _athleteUidByAppId={};_appIdByAthleteUid={};
+  if(!_supabaseUser)return;
+  try{
+    if(_currentUserId!=='coach'){
+      _athleteUidByAppId[_currentUserId]=_supabaseUser.id;
+      _appIdByAthleteUid[_supabaseUser.id]=_currentUserId;
+    }else{
+      const{data}=await supa.from('athlete_access').select('athlete_uid,athlete_id').eq('coach_uid',_supabaseUser.id);
+      (data||[]).forEach(r=>{_athleteUidByAppId[r.athlete_id]=r.athlete_uid;_appIdByAthleteUid[r.athlete_uid]=r.athlete_id;});
+    }
+  }catch(e){}
+}
+async function backfillWeightLogs(){
+  /* sube el peso que aún vive en el blob a weight_logs (idempotente) para no perder histórico */
+  if(!_supabaseUser||!S||!S.athletes)return;
+  const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{
+    const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.weight))return;
+    const auid=_athleteUidByAppId[appId];
+    ath.logs.weight.forEach(w=>{if(w&&w.date&&w.kg!=null)rows.push({athlete_uid:auid,coach_uid:_coachUid,date:w.date,kg:w.kg});});
+  });
+  if(!rows.length)return;
+  try{await supa.from('weight_logs').upsert(rows,{onConflict:'athlete_uid,date'});}catch(e){}
+}
+async function hydrateWeightLogs(){
+  /* la fuente de verdad del peso pasa a ser weight_logs; rellena logs.weight en memoria */
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{
+    const{data,error}=await supa.from('weight_logs').select('athlete_uid,date,kg').order('date',{ascending:true});
+    if(error||!data)return;
+    const byUid={};
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,kg:+r.kg});});
+    Object.keys(byUid).forEach(uid=>{
+      const appId=_appIdByAthleteUid[uid];
+      if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.weight=byUid[uid];
+    });
+  }catch(e){}
 }
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
@@ -2861,14 +2903,20 @@ Object.assign(ACTIONS,{
   'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);saveState();render();},
   'plan-followed':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.planFollowed=el.dataset.v==='1';recomputeAdherence(aid);saveState();render();},
   'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');recomputeAdherence(aid);saveState();toast('Registro de nutrición guardado');render();},
-  'weight-save':()=>{
+  'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
     if(!kg||kg<25||kg>300){toast('Introduce un peso válido');return;}
     const existing=d.logs.weight.find(w=>w.date===todayISO());
     if(existing)existing.kg=kg;else d.logs.weight.push({date:todayISO(),kg});
     d.logs.weight.sort((a,b)=>a.date<b.date?-1:1);
-    saveState();toast('Peso guardado: '+kg+' kg');render();
+    let synced=true;const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser){
+      try{const{error}=await supa.from('weight_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),kg},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}
+    }
+    saveState();
+    toast(synced?('Peso guardado: '+kg+' kg'):('Peso guardado local (sin conexión): '+kg+' kg'));
+    render();
   },
   'steps-save':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
@@ -4030,6 +4078,9 @@ async function initAfterAuth(user){
     if(access){_coachUid=access.coach_uid;_currentUserId=access.athlete_id;}
   }catch(e){}
   await loadStateFromSupabase();
+  await buildAthleteUidMaps();
+  await backfillWeightLogs();
+  await hydrateWeightLogs();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
