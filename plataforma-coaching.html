@@ -991,6 +991,53 @@ async function hydrateWorkoutLogs(){
     });
   }catch(e){}
 }
+/* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
+function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed)};}
+async function syncNutriRow(aid){if(!_supabaseUser)return;const e=todayNutriEntry(aid);const row=nutriCloudRow(aid,e);if(!row)return;try{await supa.from('nutrition_logs').upsert(row,{onConflict:'athlete_uid,date'});}catch(err){}}
+async function syncMealAdd(aid,m){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;try{await supa.from('meal_logs').upsert({id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0},{onConflict:'id'});}catch(err){}}
+async function syncMealDel(id){if(!_supabaseUser)return;try{await supa.from('meal_logs').delete().eq('id',id);}catch(err){}}
+async function backfillNutritionLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{
+    const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.nutrition))return;
+    const auid=_athleteUidByAppId[appId];
+    ath.logs.nutrition.forEach(n=>{if(n&&n.date)rows.push({athlete_uid:auid,coach_uid:_coachUid,date:n.date,adherence:(n.adherence!=null?n.adherence:null),comment:n.comment||'',meals_done:n.mealsDone||[],plan_followed:(n.planFollowed==null?null:n.planFollowed)});});
+  });
+  if(!rows.length)return;
+  try{await supa.from('nutrition_logs').upsert(rows,{onConflict:'athlete_uid,date'});}catch(e){}
+}
+async function hydrateNutritionLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{
+    const{data,error}=await supa.from('nutrition_logs').select('athlete_uid,date,adherence,comment,meals_done,plan_followed').order('date',{ascending:true});
+    if(error||!data)return;
+    const byUid={};
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,adherence:(r.adherence!=null?+r.adherence:null),comment:r.comment||'',mealsDone:r.meals_done||[],planFollowed:(r.plan_followed==null?null:r.plan_followed)});});
+    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.nutrition=byUid[uid];});
+  }catch(e){}
+}
+async function backfillMealLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{
+    const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.meals))return;
+    const auid=_athleteUidByAppId[appId];
+    ath.logs.meals.forEach(m=>{if(m&&m.id&&m.date)rows.push({id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0});});
+  });
+  if(!rows.length)return;
+  try{await supa.from('meal_logs').upsert(rows,{onConflict:'id'});}catch(e){}
+}
+async function hydrateMealLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{
+    const{data,error}=await supa.from('meal_logs').select('id,athlete_uid,date,name,p,c,f').order('created_at',{ascending:true});
+    if(error||!data)return;
+    const byUid={};
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,name:r.name||'',p:+r.p||0,c:+r.c||0,f:+r.f||0});});
+    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.meals=byUid[uid];});
+  }catch(e){}
+}
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
   if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
@@ -1035,7 +1082,7 @@ function stepsWeekly(aid){return weeklyAvgSeries(athData(aid).logs.steps,'steps'
 /* ritmo semanal fiable: compara las 2 últimas semanas con un mínimo de pesajes */
 function weeklyRate(aid,minN){minN=minN||3;const s=weightWeekly(aid).filter(w=>w.n>=minN);if(s.length<2)return null;const a=s[s.length-2],b=s[s.length-1];return{delta:+(b.avg-a.avg).toFixed(2),pct:+((b.avg-a.avg)/a.avg*100).toFixed(2),from:a.week,to:b.week};}
 function lastSteps(aid){const s=athData(aid).logs.steps||[];return s.length?s[s.length-1]:null;}
-function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];});}
+function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];if(l&&!Array.isArray(l.nutrition))l.nutrition=[];});}
 /* perfil ampliado: modo de asesoría + perfil de entrenamiento (lesiones / preferencias de ejercicios) */
 function ensureProfileExtras(st){Object.keys(st.athletes||{}).forEach(aid=>{const p=st.athletes[aid].profile;if(!p)return;if(!p.service)p.service='ambos';if(!p.training||typeof p.training!=='object')p.training={injuries:'',dislikes:'',likes:''};['injuries','dislikes','likes'].forEach(k=>{if(p.training[k]==null)p.training[k]='';});const n=st.athletes[aid].nutrition;if(n){if(!n.dietProfile||typeof n.dietProfile!=='object')n.dietProfile={likes:'',dislikes:'',allergies:'',intolerances:'',notes:''};['likes','dislikes','allergies','intolerances','notes'].forEach(k=>{if(n.dietProfile[k]==null)n.dietProfile[k]='';});}});}
 /* ingesta de hoy a partir de las comidas registradas */
@@ -2935,11 +2982,11 @@ Object.assign(ACTIONS,{
     }else if(_supabaseUser){toast('No sincronizó: sin athlete_uid (mapa vacío)');}
     WDRAFT=null;saveState();toast('Entrenamiento guardado 💪');nav('ath-hoy');
   },
-  'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);saveState();render();},
-  'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);saveState();render();},
-  'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);saveState();render();},
-  'plan-followed':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.planFollowed=el.dataset.v==='1';recomputeAdherence(aid);saveState();render();},
-  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');recomputeAdherence(aid);saveState();toast('Registro de nutrición guardado');render();},
+  'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
+  'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
+  'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
+  'plan-followed':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.planFollowed=el.dataset.v==='1';recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
+  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveState();toast('Registro de nutrición guardado');render();},
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
@@ -2971,12 +3018,14 @@ Object.assign(ACTIONS,{
     if(!name){toast('Describe qué comiste');return;}
     if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)');return;}
     if(!d.logs.meals)d.logs.meals=[];
-    d.logs.meals.push({id:uid(),date:todayISO(),name,p,c,f});
+    const _m={id:uid(),date:todayISO(),name,p,c,f};
+    d.logs.meals.push(_m);syncMealAdd(u.id,_m);
     saveState();toast('Comida añadida: '+mealKcal({p,c,f})+' kcal');render();
   },
   'meal-del':el=>{
     const u=userById(getSession().userId),d=athData(u.id);
     d.logs.meals=(d.logs.meals||[]).filter(m=>m.id!==el.dataset.id);
+    syncMealDel(el.dataset.id);
     saveState();toast('Comida eliminada');render();
   },
   'meal-add-food':()=>{
@@ -2987,7 +3036,8 @@ Object.assign(ACTIONS,{
     if(!g||g<=0||g>3000){toast('Indica los gramos');return;}
     const k=g/100,p=+(food.p*k).toFixed(1),c=+(food.c*k).toFixed(1),f=+(food.f*k).toFixed(1);
     if(!d.logs.meals)d.logs.meals=[];
-    d.logs.meals.push({id:uid(),date:todayISO(),name:food.name+' · '+g+' g',p,c,f});
+    const _m={id:uid(),date:todayISO(),name:food.name+' · '+g+' g',p,c,f};
+    d.logs.meals.push(_m);syncMealAdd(u.id,_m);
     saveState();toast('Añadido: '+mealKcal({p,c,f})+' kcal');render();
   },
   /* gestión de la base de alimentos (coach) */
@@ -4120,9 +4170,20 @@ async function initAfterAuth(user){
   await hydrateWeightLogs();
   await backfillWorkoutLogs();
   await hydrateWorkoutLogs();
+  await backfillNutritionLogs();
+  await hydrateNutritionLogs();
+  await backfillMealLogs();
+  await hydrateMealLogs();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
 }
 (async function(){
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:ce
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
+  const{data:{session}}=await supa.auth.getSession();
+  if(session){await initAfterAuth(session.user);}
+  else{render();}
+})();
+</script>
+</body>
+</html>
