@@ -915,7 +915,7 @@ function stateForCloud(){
   /* el peso vive en weight_logs (tabla con RLS); se excluye del blob compartido para cerrar la fuga */
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
-  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l)l.weight=[];});
+  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];}});
   return clone;
 }
 function saveState(){
@@ -4125,4 +4125,4 @@ async function initAfterAuth(user){
   render();
 }
 (async function(){
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100v
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:ce
