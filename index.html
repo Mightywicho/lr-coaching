@@ -2931,8 +2931,8 @@ Object.assign(ACTIONS,{
     d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
     const auid=_athleteUidByAppId[u.id];
     if(auid&&_supabaseUser){
-      try{await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment},{onConflict:'id'});}catch(e){}
-    }
+      try{const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment},{onConflict:'id'});if(error){console.error('workout_logs',error);toast('No sincronizó: '+error.message);}}catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
+    }else if(_supabaseUser){toast('No sincronizó: sin athlete_uid (mapa vacío)');}
     WDRAFT=null;saveState();toast('Entrenamiento guardado 💪');nav('ath-hoy');
   },
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);saveState();render();},
