@@ -993,7 +993,7 @@ async function hydrateWorkoutLogs(){
 }
 /* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
 function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed)};}
-async function syncNutriRow(aid){if(!_supabaseUser)return;const e=todayNutriEntry(aid);const row=nutriCloudRow(aid,e);if(!row)return;try{await supa.from('nutrition_logs').upsert(row,{onConflict:'athlete_uid,date'});}catch(err){}}
+async function syncNutriRow(aid){if(!_supabaseUser)return;const e=todayNutriEntry(aid);const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid');return;}try{const{error}=await supa.from('nutrition_logs').upsert(row,{onConflict:'athlete_uid,date'});if(error){console.error('nutrition_logs',error,row);toast('Nutri no sincronizó: '+error.message);}}catch(err){console.error(err);toast('Nutri no sincronizó: '+(err&&err.message||err));}}
 async function syncMealAdd(aid,m){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;try{await supa.from('meal_logs').upsert({id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0},{onConflict:'id'});}catch(err){}}
 async function syncMealDel(id){if(!_supabaseUser)return;try{await supa.from('meal_logs').delete().eq('id',id);}catch(err){}}
 async function backfillNutritionLogs(){
