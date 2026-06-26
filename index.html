@@ -966,6 +966,31 @@ async function hydrateWeightLogs(){
     });
   }catch(e){}
 }
+/* ---- WorkoutLog: tabla relacional (2ª serie migrada del blob) ---- */
+async function backfillWorkoutLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{
+    const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.workouts))return;
+    const auid=_athleteUidByAppId[appId];
+    ath.logs.workouts.forEach(w=>{if(w&&w.id&&w.date)rows.push({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId||null,day_name:w.dayName||null,entries:w.entries||{},done:w.done||[],rpe:(w.rpe!=null?w.rpe:null),dur:(w.dur!=null?w.dur:null),comment:w.comment||null});});
+  });
+  if(!rows.length)return;
+  try{await supa.from('workout_logs').upsert(rows,{onConflict:'id'});}catch(e){}
+}
+async function hydrateWorkoutLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{
+    const{data,error}=await supa.from('workout_logs').select('id,athlete_uid,date,day_id,day_name,entries,done,rpe,dur,comment').order('date',{ascending:true}).order('created_at',{ascending:true});
+    if(error||!data)return;
+    const byUid={};
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,dayId:r.day_id,dayName:r.day_name,entries:r.entries||{},done:r.done||[],rpe:r.rpe,dur:r.dur,comment:r.comment||''});});
+    Object.keys(byUid).forEach(uid=>{
+      const appId=_appIdByAthleteUid[uid];
+      if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.workouts=byUid[uid];
+    });
+  }catch(e){}
+}
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
   if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
@@ -1010,7 +1035,7 @@ function stepsWeekly(aid){return weeklyAvgSeries(athData(aid).logs.steps,'steps'
 /* ritmo semanal fiable: compara las 2 últimas semanas con un mínimo de pesajes */
 function weeklyRate(aid,minN){minN=minN||3;const s=weightWeekly(aid).filter(w=>w.n>=minN);if(s.length<2)return null;const a=s[s.length-2],b=s[s.length-1];return{delta:+(b.avg-a.avg).toFixed(2),pct:+((b.avg-a.avg)/a.avg*100).toFixed(2),from:a.week,to:b.week};}
 function lastSteps(aid){const s=athData(aid).logs.steps||[];return s.length?s[s.length-1]:null;}
-function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];});}
+function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];});}
 /* perfil ampliado: modo de asesoría + perfil de entrenamiento (lesiones / preferencias de ejercicios) */
 function ensureProfileExtras(st){Object.keys(st.athletes||{}).forEach(aid=>{const p=st.athletes[aid].profile;if(!p)return;if(!p.service)p.service='ambos';if(!p.training||typeof p.training!=='object')p.training={injuries:'',dislikes:'',likes:''};['injuries','dislikes','likes'].forEach(k=>{if(p.training[k]==null)p.training[k]='';});const n=st.athletes[aid].nutrition;if(n){if(!n.dietProfile||typeof n.dietProfile!=='object')n.dietProfile={likes:'',dislikes:'',allergies:'',intolerances:'',notes:''};['likes','dislikes','allergies','intolerances','notes'].forEach(k=>{if(n.dietProfile[k]==null)n.dietProfile[k]='';});}});}
 /* ingesta de hoy a partir de las comidas registradas */
@@ -2889,7 +2914,7 @@ Object.assign(ACTIONS,{
   'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});render();},
   'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);render();},
   'wlog-done':el=>{WDRAFT.done=WDRAFT.done||{};WDRAFT.done[el.dataset.ex]=!WDRAFT.done[el.dataset.ex];render();},
-  'wlog-save':()=>{
+  'wlog-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===WDRAFT.dayId);
     const entries={};
@@ -2901,8 +2926,13 @@ Object.assign(ACTIONS,{
     Object.keys(entries).forEach(id=>doneSet.add(id));
     const doneIds=[...doneSet];
     if(!Object.keys(entries).length&&!doneIds.length){toast('Marca algún ejercicio como hecho o registra una serie');return;}
-    d.logs.workouts.push({id:uid(),date:todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,rpe:num('wl_rpe')||null,dur:num('wl_min')||null,comment:val('wl_comment')});
+    const w={id:uid(),date:todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,rpe:num('wl_rpe')||null,dur:num('wl_min')||null,comment:val('wl_comment')};
+    d.logs.workouts.push(w);
     d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
+    const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser){
+      try{await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment},{onConflict:'id'});}catch(e){}
+    }
     WDRAFT=null;saveState();toast('Entrenamiento guardado 💪');nav('ath-hoy');
   },
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);saveState();render();},
@@ -4088,6 +4118,8 @@ async function initAfterAuth(user){
   await buildAthleteUidMaps();
   await backfillWeightLogs();
   await hydrateWeightLogs();
+  await backfillWorkoutLogs();
+  await hydrateWorkoutLogs();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
