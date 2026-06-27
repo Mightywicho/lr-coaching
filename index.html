@@ -1038,6 +1038,25 @@ async function hydrateMealLogs(){
     Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.meals=byUid[uid];});
   }catch(e){}
 }
+/* ---- StepsLog + FatigueCheckin: 4ª y 5ª series migradas del blob ---- */
+async function backfillStepsLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.steps))return;const auid=_athleteUidByAppId[appId];ath.logs.steps.forEach(s2=>{if(s2&&s2.date&&s2.steps!=null)rows.push({athlete_uid:auid,coach_uid:_coachUid,date:s2.date,steps:s2.steps});});});
+  if(!rows.length)return;try{await supa.from('steps_logs').upsert(rows,{onConflict:'athlete_uid,date'});}catch(e){}
+}
+async function hydrateStepsLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{const{data,error}=await supa.from('steps_logs').select('athlete_uid,date,steps').order('date',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,steps:+r.steps});});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.steps=byUid[uid];});}catch(e){}
+}
+async function backfillFatigueLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.fatigue))return;const auid=_athleteUidByAppId[appId];ath.logs.fatigue.forEach(e=>{if(e&&e.week!=null)rows.push({athlete_uid:auid,coach_uid:_coachUid,week:e.week,date:e.date||null,data:e});});});
+  if(!rows.length)return;try{await supa.from('fatigue_logs').upsert(rows,{onConflict:'athlete_uid,week'});}catch(e){}
+}
+async function hydrateFatigueLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{const{data,error}=await supa.from('fatigue_logs').select('athlete_uid,week,data').order('week',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(r.data);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.fatigue=byUid[uid];});}catch(e){}
+}
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
   if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
@@ -1082,7 +1101,7 @@ function stepsWeekly(aid){return weeklyAvgSeries(athData(aid).logs.steps,'steps'
 /* ritmo semanal fiable: compara las 2 últimas semanas con un mínimo de pesajes */
 function weeklyRate(aid,minN){minN=minN||3;const s=weightWeekly(aid).filter(w=>w.n>=minN);if(s.length<2)return null;const a=s[s.length-2],b=s[s.length-1];return{delta:+(b.avg-a.avg).toFixed(2),pct:+((b.avg-a.avg)/a.avg*100).toFixed(2),from:a.week,to:b.week};}
 function lastSteps(aid){const s=athData(aid).logs.steps||[];return s.length?s[s.length-1]:null;}
-function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];if(l&&!Array.isArray(l.nutrition))l.nutrition=[];});}
+function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];if(l&&!Array.isArray(l.nutrition))l.nutrition=[];if(l&&!Array.isArray(l.fatigue))l.fatigue=[];});}
 /* perfil ampliado: modo de asesoría + perfil de entrenamiento (lesiones / preferencias de ejercicios) */
 function ensureProfileExtras(st){Object.keys(st.athletes||{}).forEach(aid=>{const p=st.athletes[aid].profile;if(!p)return;if(!p.service)p.service='ambos';if(!p.training||typeof p.training!=='object')p.training={injuries:'',dislikes:'',likes:''};['injuries','dislikes','likes'].forEach(k=>{if(p.training[k]==null)p.training[k]='';});const n=st.athletes[aid].nutrition;if(n){if(!n.dietProfile||typeof n.dietProfile!=='object')n.dietProfile={likes:'',dislikes:'',allergies:'',intolerances:'',notes:''};['likes','dislikes','allergies','intolerances','notes'].forEach(k=>{if(n.dietProfile[k]==null)n.dietProfile[k]='';});}});}
 /* ingesta de hoy a partir de las comidas registradas */
@@ -3002,7 +3021,7 @@ Object.assign(ACTIONS,{
     toast(synced?('Peso guardado: '+kg+' kg'):('Peso guardado local (sin conexión): '+kg+' kg'));
     render();
   },
-  'steps-save':()=>{
+  'steps-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const st=Math.round(num('s_today'));
     if(!st||st<100||st>100000){toast('Introduce un número de pasos válido');return;}
@@ -3010,7 +3029,9 @@ Object.assign(ACTIONS,{
     const existing=d.logs.steps.find(s=>s.date===todayISO());
     if(existing)existing.steps=st;else d.logs.steps.push({date:todayISO(),steps:st});
     d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
-    saveState();toast('Pasos guardados: '+st.toLocaleString('es-ES'));render();
+    let synced=true;const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    saveState();toast(synced?('Pasos guardados: '+st.toLocaleString('es-ES')):('Pasos guardados local: '+st.toLocaleString('es-ES')));render();
   },
   'meal-add':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
@@ -4062,7 +4083,7 @@ Object.assign(ACTIONS,{
    openModal('Check-in semanal · semana '+w,fqForm(prev&&prev.week===w?prev:null),
      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="fq-save">Guardar check-in</button>');
  },
- 'fq-save':()=>{
+ 'fq-save':async()=>{
    const u=userById(getSession().userId);if(!u)return;
    const g={};FQ_ITEMS.forEach(it=>{g[it[0]]=parseInt(val('fq_'+it[0]),10)||3;});
    const gs=g.f+g.s+g.d+g.st+g.a;
@@ -4076,6 +4097,8 @@ Object.assign(ACTIONS,{
    const i=logs.findIndex(x=>x.week===e.week);
    if(i>=0)logs[i]=e;else logs.push(e);
    logs.sort((a,b)=>a.week-b.week);
+   const auid=_athleteUidByAppId[u.id];
+   if(auid&&_supabaseUser){try{await supa.from('fatigue_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,week:e.week,date:e.date,data:e},{onConflict:'athlete_uid,week'});}catch(err){}}
    saveState();closeModal();toast('Check-in guardado — puntaje '+e.gs+'/25');render();
  }
 });
@@ -4174,6 +4197,10 @@ async function initAfterAuth(user){
   await hydrateNutritionLogs();
   await backfillMealLogs();
   await hydrateMealLogs();
+  await backfillStepsLogs();
+  await hydrateStepsLogs();
+  await backfillFatigueLogs();
+  await hydrateFatigueLogs();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
