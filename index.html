@@ -913,14 +913,14 @@ async function loadStateFromSupabase(){
     data=res.data;error=res.error;
   }catch(e){error=e;}
   if(error){showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;}
-  if(data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return true;}
+  if(data&&data.state){S=data.state;ensurePlanShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return true;}
   const meta=_supabaseUser.user_metadata||{};
   /* C1: solo un coach real bootstrapea estado nuevo */
   if(_coachUid===_supabaseUser.id&&meta.role==='coach'){
     const coachName=meta.name||_supabaseUser.email||'Coach';
     const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
     S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
-    ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
+    ensurePlanShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
     saveState();
     return true;
   }
@@ -928,11 +928,75 @@ async function loadStateFromSupabase(){
   return false;
 }
 function stateForCloud(){
-  /* el peso vive en weight_logs (tabla con RLS); se excluye del blob compartido para cerrar la fuga */
+  /* logs viven en tablas con RLS; rutina y plan de nutrición viven en athlete_plans — se excluyen del blob */
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
-  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];});
+  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;});
   return clone;
+}
+/* ===== rutina y plan de nutrición en tabla athlete_plans (write-through con diff) ===== */
+let _planCache={};
+let _plansHydrated=false;
+function ensurePlanShells(st){
+  /* evita crashes si el blob viene sin rutina/plan (ya viven en athlete_plans); hydratePlans las repone */
+  Object.keys(st.athletes||{}).forEach(aid=>{
+    const a=st.athletes[aid];
+    if(!a.routine)a.routine={name:'Programa',weekNote:'',startDate:todayISO(),days:[]};
+    if(!a.nutrition){const pid=uid();a.nutrition={activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''}],supplements:[]};}
+  });
+}
+async function hydratePlans(){
+  if(!_supabaseUser||!S)return;
+  try{
+    const{data,error}=await supa.from('athlete_plans').select('athlete_id,kind,data');
+    if(error){_plansHydrated=false;return;}
+    (data||[]).forEach(r=>{
+      const a=S.athletes[r.athlete_id];if(!a||!r.data)return;
+      if(r.kind==='routine')a.routine=r.data;
+      else if(r.kind==='nutrition')a.nutrition=r.data;
+      _planCache[r.athlete_id+':'+r.kind]=JSON.stringify(r.data);
+    });
+    _plansHydrated=true;
+  }catch(e){_plansHydrated=false;}
+}
+async function backfillPlans(){
+  /* primer arranque tras la migración: sube al servidor lo que aún viva solo en el blob */
+  if(!_supabaseUser||_currentUserId!=='coach'||!S)return;
+  try{
+    const{data,error}=await supa.from('athlete_plans').select('athlete_id,kind');
+    if(error)return;
+    const have={};(data||[]).forEach(r=>{have[r.athlete_id+':'+r.kind]=1;});
+    const rows=[];
+    Object.keys(S.athletes||{}).forEach(aid=>{
+      const a=S.athletes[aid];if(!a)return;
+      if(a.routine&&!have[aid+':routine'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'routine',data:a.routine});
+      if(a.nutrition&&!have[aid+':nutrition'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'nutrition',data:a.nutrition});
+    });
+    if(rows.length){
+      const res=await supa.from('athlete_plans').upsert(rows,{onConflict:'coach_uid,athlete_id,kind'});
+      if(!res.error)rows.forEach(r=>{_planCache[r.athlete_id+':'+r.kind]=JSON.stringify(r.data);});
+    }
+  }catch(e){}
+}
+function syncPlans(){
+  /* solo el coach escribe, solo lo que cambió, y nunca antes de una hidratación exitosa (no pisar el servidor) */
+  if(!_supabaseUser||_currentUserId!=='coach'||!_plansHydrated||!S)return;
+  const rows=[],keys=[];
+  Object.keys(S.athletes||{}).forEach(aid=>{
+    const a=S.athletes[aid];if(!a)return;
+    [['routine',a.routine],['nutrition',a.nutrition]].forEach(pair=>{
+      const kind=pair[0],v=pair[1];if(!v)return;
+      const j=JSON.stringify(v),k=aid+':'+kind;
+      if(_planCache[k]===j)return;
+      rows.push({coach_uid:_coachUid,athlete_id:aid,kind,data:v,updated_at:new Date().toISOString()});
+      keys.push([k,j]);
+    });
+  });
+  if(!rows.length)return;
+  supa.from('athlete_plans').upsert(rows,{onConflict:'coach_uid,athlete_id,kind'}).then(res=>{
+    if(res.error)return; /* la cache no avanza: se reintenta en el próximo saveState */
+    keys.forEach(p=>{_planCache[p[0]]=p[1];});
+  });
 }
 function saveState(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
@@ -941,6 +1005,7 @@ function saveState(){
   clearTimeout(_savePending);
   _savePending=setTimeout(async()=>{
     try{await supa.from('app_state').upsert({user_id:_coachUid,state:stateForCloud(),updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
+    try{syncPlans();}catch(e){}
   },1500);
 }
 /* ---- WeightLog: tabla relacional (primer corte de descomposición del blob) ---- */
@@ -1138,8 +1203,9 @@ async function refreshAllData(){
   if(!_supabaseUser||!S)return;
   /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
   try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
-    if(!error&&data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);}}catch(e){}
+    if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);}}catch(e){}
   await buildAthleteUidMaps();
+  await hydratePlans();
   await hydrateWeightLogs();await hydrateWorkoutLogs();await hydrateNutritionLogs();
   await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateChat();
 }
@@ -1157,7 +1223,7 @@ function liveRefresh(){
 function subscribeData(){
   if(!_supabaseUser)return;
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
-  const tables=['app_state','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
+  const tables=['app_state','athlete_plans','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
   tables.forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>liveRefresh());});
   ch.subscribe();
@@ -1167,7 +1233,7 @@ function subscribeData(){
 document.addEventListener('focusout',()=>{if(_pendingLiveRender)setTimeout(liveRender,50);});
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
-  if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
+  if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}try{await supa.from('athlete_plans').delete().eq('coach_uid',_supabaseUser.id);}catch(e){}}
   location.reload();
 }
 function getSession(){if(!_supabaseUser)return null;return{userId:_currentUserId||'coach'};}
@@ -2490,7 +2556,7 @@ Object.assign(ACTIONS,{
     ensureProgramming(S);ensureProfileExtras(S);saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'volumen'});}
   },
   'ath-del-ask':el=>confirmModal('Eliminar atleta','Se borrará el atleta y todos sus registros. Esta acción no se puede deshacer.','ath-del-do','data-aid="'+el.dataset.aid+'"'),
-  'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
+  'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];delete _planCache[aid+':routine'];delete _planCache[aid+':nutrition'];try{supa.from('athlete_plans').delete().match({coach_uid:_coachUid,athlete_id:aid}).then(()=>{});}catch(e){}saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
   'profile-save':el=>{const p=athData(el.dataset.aid).profile;p.category=val('f_cat');p.heightCm=num('f_h');p.sex=val('f_sex')||'M';p.age=num('f_age')||null;p.bodyFat=num('f_bf')||null;p.goal=val('f_goal');p.notes=val('f_notes');p.memStart=val('f_mstart')||p.memStart;p.memEnd=val('f_mend')||null;p.inactive=val('f_mact')==='inactivo';if(document.getElementById('f_service'))p.service=val('f_service')||p.service||'ambos';if(document.getElementById('f_inj')){p.training=p.training||{};p.training.injuries=val('f_inj');p.training.dislikes=val('f_exdis');p.training.likes=val('f_exlike');}const u=userById(el.dataset.aid);if(u)u.tag=p.goal;saveState();toast('Perfil guardado');render();},
   'dietprofile-save':el=>{const n=nutriOf(el.dataset.aid);n.dietProfile=n.dietProfile||{};n.dietProfile.likes=val('dp_likes');n.dietProfile.dislikes=val('dp_dislikes');n.dietProfile.allergies=val('dp_allerg');n.dietProfile.intolerances=val('dp_intol');n.dietProfile.notes=val('dp_notes');saveState();toast('Perfil de alimentación guardado');render();},
   'mem-renew':el=>{
@@ -4308,6 +4374,8 @@ async function initAfterAuth(user){
   const ok=await loadStateFromSupabase();
   if(!ok)return;
   await buildAthleteUidMaps();
+  await hydratePlans();
+  await backfillPlans();
   await backfillWeightLogs();
   await hydrateWeightLogs();
   await backfillWorkoutLogs();
