@@ -932,6 +932,8 @@ function stateForCloud(){
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
   Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;clone.athletes[aid].profile=null;});
+  /* la identidad del atleta (nombre/inicial/color/tag) vive en athlete_profiles.shared._u; fuera del blob para que un atleta no vea a los demás por devtools */
+  clone.users=(clone.users||[]).filter(u=>u.role!=='athlete');
   return clone;
 }
 /* ===== rutina y plan de nutrición en tabla athlete_plans (write-through con diff) ===== */
@@ -994,6 +996,19 @@ function splitProfile(p){
   Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training')priv[k]=p[k];else shared[k]=p[k];});
   return{shared:shared,priv:priv};
 }
+/* la identidad del atleta viaja dentro de shared (bajo _u) para que cada atleta solo lea la suya vía RLS */
+function buildSharedData(aid,shared){
+  const out=Object.assign({},shared),u=userById(aid);
+  if(u&&u.role==='athlete')out._u={name:u.name,initials:u.initials,color:u.color,tag:u.tag};
+  return out;
+}
+/* reconstruye/actualiza la entrada de atleta en S.users[] a partir de la identidad guardada en shared._u */
+function upsertAthleteUser(aid,ident){
+  if(!ident)return;
+  let e=S.users.find(u=>u.id===aid);
+  if(!e){e={id:aid};S.users.push(e);}
+  e.role='athlete';e.name=ident.name;e.initials=ident.initials;e.color=ident.color;e.tag=ident.tag;
+}
 async function hydrateProfiles(){
   if(!_supabaseUser||!S)return;
   try{
@@ -1006,8 +1021,11 @@ async function hydrateProfiles(){
       _profileCache[r.athlete_id+':'+r.kind]=JSON.stringify(r.data);
     });
     Object.keys(byAth).forEach(aid=>{
+      const shared=byAth[aid].shared||{};
+      upsertAthleteUser(aid,shared._u); /* repone nombre/inicial/color/tag fuera del blob */
       const a=S.athletes[aid];if(!a)return;
-      a.profile=Object.assign({},byAth[aid].shared||{},byAth[aid].private||{});
+      const sc=Object.assign({},shared);delete sc._u;
+      a.profile=Object.assign({},sc,byAth[aid].private||{});
     });
     ensureProfileExtras(S); /* re-aplica defaults (p.ej. training vacío en el lado del atleta) */
     _profilesHydrated=true;
@@ -1024,7 +1042,7 @@ async function backfillProfiles(){
     Object.keys(S.athletes||{}).forEach(aid=>{
       const a=S.athletes[aid];if(!a||!a.profile)return;
       const sp=splitProfile(a.profile);
-      if(!have[aid+':shared'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'shared',data:sp.shared});
+      if(!have[aid+':shared'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'shared',data:buildSharedData(aid,sp.shared)});
       if(!have[aid+':private'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'private',data:sp.priv});
     });
     if(rows.length){
@@ -1040,7 +1058,7 @@ function syncProfiles(){
   Object.keys(S.athletes||{}).forEach(aid=>{
     const a=S.athletes[aid];if(!a||!a.profile)return;
     const sp=splitProfile(a.profile);
-    [['shared',sp.shared],['private',sp.priv]].forEach(pair=>{
+    [['shared',buildSharedData(aid,sp.shared)],['private',sp.priv]].forEach(pair=>{
       const kind=pair[0],v=pair[1],j=JSON.stringify(v),k=aid+':'+kind;
       if(_profileCache[k]===j)return;
       rows.push({coach_uid:_coachUid,athlete_id:aid,kind:kind,data:v,updated_at:new Date().toISOString()});
@@ -4485,6 +4503,12 @@ async function initAfterAuth(user){
   await hydrateChat();
   subscribeChat();
   subscribeData();
+  /* red de seguridad: si hydrateProfiles no repuso la identidad (p.ej. fallo de red), el atleta no debe caer al panel de coach */
+  if(_currentUserId!=='coach'&&!userById(_currentUserId)){
+    const meta=_supabaseUser.user_metadata||{},nm=meta.name||_supabaseUser.email||'Atleta';
+    const ini=nm.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'AT';
+    S.users.push({id:_currentUserId,role:'athlete',name:nm,initials:ini,color:'#cdf563',tag:'Atleta'});
+  }
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
