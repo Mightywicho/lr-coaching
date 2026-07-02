@@ -972,7 +972,7 @@ async function backfillPlans(){
     Object.keys(S.athletes||{}).forEach(aid=>{
       const a=S.athletes[aid];if(!a)return;
       if(a.routine&&!have[aid+':routine'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'routine',data:a.routine});
-      if(a.nutrition&&!have[aid+':nutrition'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'nutrition',data:a.nutrition});
+      if(a.nutrition&&!have[aid+':nutrition'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'nutrition',data:stripDiet(a.nutrition)});
     });
     if(rows.length){
       const res=await supa.from('athlete_plans').upsert(rows,{onConflict:'coach_uid,athlete_id,kind'});
@@ -1026,6 +1026,8 @@ async function hydrateProfiles(){
       const a=S.athletes[aid];if(!a)return;
       const sc=Object.assign({},shared);delete sc._u;
       a.profile=Object.assign({},sc,byAth[aid].private||{});
+      /* dietProfile coach-only: vuelve a su lugar en nutrition (ya hidratada por hydratePlans, que corre antes) */
+      if(byAth[aid].diet&&a.nutrition)a.nutrition.dietProfile=byAth[aid].diet;
     });
     ensureProfileExtras(S); /* re-aplica defaults (p.ej. training vacío en el lado del atleta) */
     _profilesHydrated=true;
@@ -1044,6 +1046,8 @@ async function backfillProfiles(){
       const sp=splitProfile(a.profile);
       if(!have[aid+':shared'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'shared',data:buildSharedData(aid,sp.shared)});
       if(!have[aid+':private'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'private',data:sp.priv});
+      const diet=(a.nutrition&&a.nutrition.dietProfile)?a.nutrition.dietProfile:null;
+      if(diet&&!have[aid+':diet'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'diet',data:diet});
     });
     if(rows.length){
       const res=await supa.from('athlete_profiles').upsert(rows,{onConflict:'coach_uid,athlete_id,kind'});
@@ -1058,8 +1062,10 @@ function syncProfiles(){
   Object.keys(S.athletes||{}).forEach(aid=>{
     const a=S.athletes[aid];if(!a||!a.profile)return;
     const sp=splitProfile(a.profile);
-    [['shared',buildSharedData(aid,sp.shared)],['private',sp.priv]].forEach(pair=>{
-      const kind=pair[0],v=pair[1],j=JSON.stringify(v),k=aid+':'+kind;
+    const diet=(a.nutrition&&a.nutrition.dietProfile)?a.nutrition.dietProfile:null;
+    [['shared',buildSharedData(aid,sp.shared)],['private',sp.priv],['diet',diet]].forEach(pair=>{
+      const kind=pair[0],v=pair[1];if(v==null)return;
+      const j=JSON.stringify(v),k=aid+':'+kind;
       if(_profileCache[k]===j)return;
       rows.push({coach_uid:_coachUid,athlete_id:aid,kind:kind,data:v,updated_at:new Date().toISOString()});
       keys.push([k,j]);
@@ -1085,13 +1091,15 @@ async function purgeAthleteCloud(aid){
     delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];
   }
 }
+/* el dietProfile (gustos/alergias/notas de alimentación) es coach-only: no viaja en la fila nutrition (que el atleta lee) sino como kind='diet' en athlete_profiles */
+function stripDiet(n){if(!n)return n;const c=Object.assign({},n);delete c.dietProfile;return c;}
 function syncPlans(){
   /* solo el coach escribe, solo lo que cambió, y nunca antes de una hidratación exitosa (no pisar el servidor) */
   if(!_supabaseUser||_currentUserId!=='coach'||!_plansHydrated||!S)return;
   const rows=[],keys=[];
   Object.keys(S.athletes||{}).forEach(aid=>{
     const a=S.athletes[aid];if(!a)return;
-    [['routine',a.routine],['nutrition',a.nutrition]].forEach(pair=>{
+    [['routine',a.routine],['nutrition',stripDiet(a.nutrition)]].forEach(pair=>{
       const kind=pair[0],v=pair[1];if(!v)return;
       const j=JSON.stringify(v),k=aid+':'+kind;
       if(_planCache[k]===j)return;
