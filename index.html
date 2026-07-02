@@ -473,6 +473,7 @@ const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let _supabaseUser=null;
 let _currentUserId=null;
 let _coachUid=null;
+let _chatChannel=null;
 let _athleteUidByAppId={};/* appId -> uid auth */
 let _appIdByAthleteUid={};/* uid auth -> appId */
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -1087,6 +1088,35 @@ async function hydrateChat(){
     Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId])S.athletes[appId].chat=byUid[uid];});
   }catch(e){}
 }
+/* ---- Chat en tiempo real: suscripción a chat_logs (la RLS filtra por suscriptor) ---- */
+function _chatAppIdFor(auid){let appId=_appIdByAthleteUid[auid];if(!appId&&auid===_supabaseUser.id)appId=_currentUserId;return appId;}
+function chatSafeRender(){
+  /* re-render preservando lo que se esté escribiendo en el chat */
+  const inp=document.getElementById('chat_input');
+  const val=inp?inp.value:null,ss=inp?inp.selectionStart:null,focused=(document.activeElement===inp);
+  render();
+  if(val!=null){const n=document.getElementById('chat_input');if(n){n.value=val;if(focused){n.focus();try{n.setSelectionRange(ss,ss);}catch(e){}}}}
+}
+function subscribeChat(){
+  if(!_supabaseUser)return;
+  try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}}catch(e){}
+  _chatChannel=supa.channel('chat_rt_'+_supabaseUser.id)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_logs'},payload=>{
+      const r=payload.new;if(!r)return;const appId=_chatAppIdFor(r.athlete_uid);
+      if(!appId||!S.athletes[appId])return;
+      const arr=(S.athletes[appId].chat=Array.isArray(S.athletes[appId].chat)?S.athletes[appId].chat:[]);
+      if(arr.some(m=>m.id===r.id))return; // eco de mi propio envío
+      arr.push({id:r.id,from:r.sender,text:r.text||'',ts:+r.ts,read:!!r.read});
+      chatSafeRender();
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'chat_logs'},payload=>{
+      const r=payload.new;if(!r)return;const appId=_chatAppIdFor(r.athlete_uid);
+      if(!appId||!S.athletes[appId]||!Array.isArray(S.athletes[appId].chat))return;
+      const m=S.athletes[appId].chat.find(x=>x.id===r.id);
+      if(m&&m.read!==!!r.read){m.read=!!r.read;chatSafeRender();}
+    })
+    .subscribe();
+}
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
   if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
@@ -1469,7 +1499,7 @@ function render(){
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':async()=>{await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;S=null;route={view:'home',params:{}};render();},
+  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;S=null;route={view:'home',params:{}};render();},
   'auth-login':async()=>{
     const email=(document.getElementById('l_email')?.value||'').trim();
     const pass=document.getElementById('l_pass')?.value||'';
@@ -4233,6 +4263,7 @@ async function initAfterAuth(user){
   await hydrateFatigueLogs();
   await backfillChat();
   await hydrateChat();
+  subscribeChat();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
