@@ -978,6 +978,19 @@ async function backfillPlans(){
     }
   }catch(e){}
 }
+async function purgeAthleteCloud(aid){
+  /* al eliminar un atleta: borra del servidor planes, vínculo, invitaciones y logs (evita huérfanos) */
+  if(!_supabaseUser||_currentUserId!=='coach')return;
+  const auid=_athleteUidByAppId[aid];
+  try{await supa.from('athlete_plans').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
+  try{await supa.from('athlete_access').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
+  try{await supa.from('athlete_invites').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
+  if(auid){
+    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
+    for(let i=0;i<tabs.length;i++){try{await supa.from(tabs[i]).delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}}
+    delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];
+  }
+}
 function syncPlans(){
   /* solo el coach escribe, solo lo que cambió, y nunca antes de una hidratación exitosa (no pisar el servidor) */
   if(!_supabaseUser||_currentUserId!=='coach'||!_plansHydrated||!S)return;
@@ -2556,7 +2569,7 @@ Object.assign(ACTIONS,{
     ensureProgramming(S);ensureProfileExtras(S);saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'volumen'});}
   },
   'ath-del-ask':el=>confirmModal('Eliminar atleta','Se borrará el atleta y todos sus registros. Esta acción no se puede deshacer.','ath-del-do','data-aid="'+el.dataset.aid+'"'),
-  'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];delete _planCache[aid+':routine'];delete _planCache[aid+':nutrition'];try{supa.from('athlete_plans').delete().match({coach_uid:_coachUid,athlete_id:aid}).then(()=>{});}catch(e){}saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
+  'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];delete _planCache[aid+':routine'];delete _planCache[aid+':nutrition'];purgeAthleteCloud(aid);saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
   'profile-save':el=>{const p=athData(el.dataset.aid).profile;p.category=val('f_cat');p.heightCm=num('f_h');p.sex=val('f_sex')||'M';p.age=num('f_age')||null;p.bodyFat=num('f_bf')||null;p.goal=val('f_goal');p.notes=val('f_notes');p.memStart=val('f_mstart')||p.memStart;p.memEnd=val('f_mend')||null;p.inactive=val('f_mact')==='inactivo';if(document.getElementById('f_service'))p.service=val('f_service')||p.service||'ambos';if(document.getElementById('f_inj')){p.training=p.training||{};p.training.injuries=val('f_inj');p.training.dislikes=val('f_exdis');p.training.likes=val('f_exlike');}const u=userById(el.dataset.aid);if(u)u.tag=p.goal;saveState();toast('Perfil guardado');render();},
   'dietprofile-save':el=>{const n=nutriOf(el.dataset.aid);n.dietProfile=n.dietProfile||{};n.dietProfile.likes=val('dp_likes');n.dietProfile.dislikes=val('dp_dislikes');n.dietProfile.allergies=val('dp_allerg');n.dietProfile.intolerances=val('dp_intol');n.dietProfile.notes=val('dp_notes');saveState();toast('Perfil de alimentación guardado');render();},
   'mem-renew':el=>{
