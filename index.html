@@ -913,14 +913,14 @@ async function loadStateFromSupabase(){
     data=res.data;error=res.error;
   }catch(e){error=e;}
   if(error){showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;}
-  if(data&&data.state){S=data.state;ensurePlanShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return true;}
+  if(data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return true;}
   const meta=_supabaseUser.user_metadata||{};
   /* C1: solo un coach real bootstrapea estado nuevo */
   if(_coachUid===_supabaseUser.id&&meta.role==='coach'){
     const coachName=meta.name||_supabaseUser.email||'Coach';
     const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
     S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
-    ensurePlanShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
+    ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
     saveState();
     return true;
   }
@@ -928,10 +928,10 @@ async function loadStateFromSupabase(){
   return false;
 }
 function stateForCloud(){
-  /* logs viven en tablas con RLS; rutina y plan de nutrición viven en athlete_plans — se excluyen del blob */
+  /* logs viven en tablas con RLS; rutina, plan de nutrición y perfil viven en tablas — se excluyen del blob */
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
-  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;});
+  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;clone.athletes[aid].profile=null;});
   return clone;
 }
 /* ===== rutina y plan de nutrición en tabla athlete_plans (write-through con diff) ===== */
@@ -978,11 +978,87 @@ async function backfillPlans(){
     }
   }catch(e){}
 }
+/* ===== perfil del atleta en tabla athlete_profiles (kind: shared=visible al atleta / private=coach-only) ===== */
+let _profileCache={};
+let _profilesHydrated=false;
+function ensureProfileShells(st){
+  /* evita crashes si el blob viene sin perfil (ya vive en athlete_profiles); hydrateProfiles lo repone */
+  Object.keys(st.athletes||{}).forEach(aid=>{
+    const a=st.athletes[aid];
+    if(!a.profile||typeof a.profile!=='object')a.profile={category:'',goal:'',service:'ambos',training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false};
+  });
+}
+/* separa el perfil en lo que el atleta puede ver (shared) y las notas internas del coach (private) */
+function splitProfile(p){
+  const shared={},priv={};
+  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training')priv[k]=p[k];else shared[k]=p[k];});
+  return{shared:shared,priv:priv};
+}
+async function hydrateProfiles(){
+  if(!_supabaseUser||!S)return;
+  try{
+    const{data,error}=await supa.from('athlete_profiles').select('athlete_id,kind,data');
+    if(error){_profilesHydrated=false;return;}
+    const byAth={};
+    (data||[]).forEach(r=>{
+      if(!r.data)return;
+      (byAth[r.athlete_id]=byAth[r.athlete_id]||{})[r.kind]=r.data;
+      _profileCache[r.athlete_id+':'+r.kind]=JSON.stringify(r.data);
+    });
+    Object.keys(byAth).forEach(aid=>{
+      const a=S.athletes[aid];if(!a)return;
+      a.profile=Object.assign({},byAth[aid].shared||{},byAth[aid].private||{});
+    });
+    ensureProfileExtras(S); /* re-aplica defaults (p.ej. training vacío en el lado del atleta) */
+    _profilesHydrated=true;
+  }catch(e){_profilesHydrated=false;}
+}
+async function backfillProfiles(){
+  /* primer arranque tras la migración: sube al servidor lo que aún viva solo en el blob */
+  if(!_supabaseUser||_currentUserId!=='coach'||!S)return;
+  try{
+    const{data,error}=await supa.from('athlete_profiles').select('athlete_id,kind');
+    if(error)return;
+    const have={};(data||[]).forEach(r=>{have[r.athlete_id+':'+r.kind]=1;});
+    const rows=[];
+    Object.keys(S.athletes||{}).forEach(aid=>{
+      const a=S.athletes[aid];if(!a||!a.profile)return;
+      const sp=splitProfile(a.profile);
+      if(!have[aid+':shared'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'shared',data:sp.shared});
+      if(!have[aid+':private'])rows.push({coach_uid:_coachUid,athlete_id:aid,kind:'private',data:sp.priv});
+    });
+    if(rows.length){
+      const res=await supa.from('athlete_profiles').upsert(rows,{onConflict:'coach_uid,athlete_id,kind'});
+      if(!res.error)rows.forEach(r=>{_profileCache[r.athlete_id+':'+r.kind]=JSON.stringify(r.data);});
+    }
+  }catch(e){}
+}
+function syncProfiles(){
+  /* solo el coach escribe, solo lo que cambió, y nunca antes de una hidratación exitosa (no pisar el servidor) */
+  if(!_supabaseUser||_currentUserId!=='coach'||!_profilesHydrated||!S)return;
+  const rows=[],keys=[];
+  Object.keys(S.athletes||{}).forEach(aid=>{
+    const a=S.athletes[aid];if(!a||!a.profile)return;
+    const sp=splitProfile(a.profile);
+    [['shared',sp.shared],['private',sp.priv]].forEach(pair=>{
+      const kind=pair[0],v=pair[1],j=JSON.stringify(v),k=aid+':'+kind;
+      if(_profileCache[k]===j)return;
+      rows.push({coach_uid:_coachUid,athlete_id:aid,kind:kind,data:v,updated_at:new Date().toISOString()});
+      keys.push([k,j]);
+    });
+  });
+  if(!rows.length)return;
+  supa.from('athlete_profiles').upsert(rows,{onConflict:'coach_uid,athlete_id,kind'}).then(res=>{
+    if(res.error)return; /* la cache no avanza: se reintenta en el próximo saveState */
+    keys.forEach(p=>{_profileCache[p[0]]=p[1];});
+  });
+}
 async function purgeAthleteCloud(aid){
-  /* al eliminar un atleta: borra del servidor planes, vínculo, invitaciones y logs (evita huérfanos) */
+  /* al eliminar un atleta: borra del servidor planes, perfil, vínculo, invitaciones y logs (evita huérfanos) */
   if(!_supabaseUser||_currentUserId!=='coach')return;
   const auid=_athleteUidByAppId[aid];
   try{await supa.from('athlete_plans').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
+  try{await supa.from('athlete_profiles').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   try{await supa.from('athlete_access').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   try{await supa.from('athlete_invites').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   if(auid){
@@ -1019,6 +1095,7 @@ function saveState(){
   _savePending=setTimeout(async()=>{
     try{await supa.from('app_state').upsert({user_id:_coachUid,state:stateForCloud(),updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
     try{syncPlans();}catch(e){}
+    try{syncProfiles();}catch(e){}
   },1500);
 }
 /* ---- WeightLog: tabla relacional (primer corte de descomposición del blob) ---- */
@@ -1216,9 +1293,10 @@ async function refreshAllData(){
   if(!_supabaseUser||!S)return;
   /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
   try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
-    if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);}}catch(e){}
+    if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);}}catch(e){}
   await buildAthleteUidMaps();
   await hydratePlans();
+  await hydrateProfiles();
   await hydrateWeightLogs();await hydrateWorkoutLogs();await hydrateNutritionLogs();
   await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateChat();
 }
@@ -4389,6 +4467,8 @@ async function initAfterAuth(user){
   await buildAthleteUidMaps();
   await hydratePlans();
   await backfillPlans();
+  await hydrateProfiles();
+  await backfillProfiles();
   await backfillWeightLogs();
   await hydrateWeightLogs();
   await backfillWorkoutLogs();
