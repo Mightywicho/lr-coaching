@@ -915,7 +915,7 @@ function stateForCloud(){
   /* el peso vive en weight_logs (tabla con RLS); se excluye del blob compartido para cerrar la fuga */
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
-  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}});
+  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];});
   return clone;
 }
 function saveState(){
@@ -1057,6 +1057,36 @@ async function hydrateFatigueLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   try{const{data,error}=await supa.from('fatigue_logs').select('athlete_uid,week,data').order('week',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(r.data);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.fatigue=byUid[uid];});}catch(e){}
 }
+/* ---- Chat: tabla chat_logs con RLS (saca el chat del blob compartido; el atleta ya no escribe app_state) ---- */
+async function syncChatAdd(aid,m){
+  if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;
+  try{const{error}=await supa.from('chat_logs').upsert({id:m.id,athlete_uid:auid,coach_uid:_coachUid,sender:m.from,text:m.text||'',ts:m.ts,read:!!m.read},{onConflict:'id'});if(error){console.error('chat_logs',error);toast('Mensaje no sincronizó: '+error.message);}}catch(err){console.error(err);toast('Mensaje no sincronizó: '+(err&&err.message||err));}
+}
+async function syncChatRead(aid,viewerRole){
+  if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;
+  try{await supa.from('chat_logs').update({read:true}).eq('athlete_uid',auid).eq('read',false).neq('sender',viewerRole);}catch(err){}
+}
+async function backfillChat(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  const rows=[];
+  Object.keys(_athleteUidByAppId).forEach(appId=>{
+    const ath=S.athletes[appId];if(!ath||!Array.isArray(ath.chat))return;
+    const auid=_athleteUidByAppId[appId];
+    ath.chat.forEach(m=>{if(m&&m.id&&m.ts&&(m.from==='coach'||m.from==='ath'))rows.push({id:m.id,athlete_uid:auid,coach_uid:_coachUid,sender:m.from,text:m.text||'',ts:m.ts,read:!!m.read});});
+  });
+  if(!rows.length)return;
+  try{await supa.from('chat_logs').upsert(rows,{onConflict:'id'});}catch(e){}
+}
+async function hydrateChat(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{
+    const{data,error}=await supa.from('chat_logs').select('id,athlete_uid,sender,text,ts,read').order('ts',{ascending:true});
+    if(error||!data)return;
+    const byUid={};
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,from:r.sender,text:r.text||'',ts:+r.ts,read:!!r.read});});
+    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId])S.athletes[appId].chat=byUid[uid];});
+  }catch(e){}
+}
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
   if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
@@ -1076,7 +1106,7 @@ function fmtTime(ts){const d=new Date(ts);return String(d.getHours()).padStart(2
 function fmtChatDay(ts){const d=new Date(ts),t=new Date(),y=new Date();y.setDate(t.getDate()-1);const same=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();if(same(d,t))return'Hoy';if(same(d,y))return'Ayer';return DIAS[d.getDay()]+' '+d.getDate()+' '+MESES[d.getMonth()];}
 function chatUnread(aid,viewerRole){return chatOf(aid).filter(m=>m.from!==viewerRole&&!m.read).length;}
 function chatUnreadCoachTotal(){return athleteUsers().reduce((s,u)=>s+chatUnread(u.id,'coach'),0);}
-function chatMarkRead(aid,viewerRole){let ch=false;chatOf(aid).forEach(m=>{if(m.from!==viewerRole&&!m.read){m.read=true;ch=true;}});if(ch)saveState();return ch;}
+function chatMarkRead(aid,viewerRole){let ch=false;chatOf(aid).forEach(m=>{if(m.from!==viewerRole&&!m.read){m.read=true;ch=true;}});if(ch){saveState();syncChatRead(aid,viewerRole);}return ch;}
 function lastMsg(aid){const c=chatOf(aid);return c.length?c[c.length-1]:null;}
 /* hilo reutilizable: aid del atleta, viewerRole 'coach'|'ath' */
 function chatThreadHTML(aid,viewerRole){
@@ -1512,7 +1542,7 @@ const ACTIONS={
     }
   },
   'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
-  'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;chatOf(aid).push({id:uid(),from,text:txt,ts:Date.now(),read:false});saveState();render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
+  'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);saveState();syncChatAdd(aid,m);render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
   'modal-overlay':()=>closeModal(),
   'reset-ask':()=>confirmModal('Restablecer demo','Esto borra todos los cambios y vuelve a los datos de ejemplo. ¿Seguro?','reset-do'),
@@ -4201,6 +4231,8 @@ async function initAfterAuth(user){
   await hydrateStepsLogs();
   await backfillFatigueLogs();
   await hydrateFatigueLogs();
+  await backfillChat();
+  await hydrateChat();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
