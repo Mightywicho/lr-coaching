@@ -937,6 +937,7 @@ function stateForCloud(){
 function saveState(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
   if(!_supabaseUser)return;
+  if(_currentUserId!=='coach')return; /* el atleta no escribe el blob del coach (RLS lo bloquea; evitamos el tráfico) */
   clearTimeout(_savePending);
   _savePending=setTimeout(async()=>{
     try{await supa.from('app_state').upsert({user_id:_coachUid,state:stateForCloud(),updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
@@ -1606,15 +1607,16 @@ const ACTIONS={
     if(err)err.textContent='';
     if(!name||!email||!pass||!code){if(err)err.textContent='Completa todos los campos';return;}
     if(pass.length<6){if(err)err.textContent='La contraseña debe tener al menos 6 caracteres';return;}
-    const{data:inv,error:invErr}=await supa.from('athlete_invites').select('*').eq('code',code).eq('used',false).maybeSingle();
-    if(invErr||!inv){if(err)err.textContent='Código inválido o ya utilizado';return;}
+    /* C4: validar por RPC SECURITY DEFINER; la tabla ya no es legible por anon */
+    const{data:invOk,error:invErr}=await supa.rpc('check_athlete_invite',{p_code:code});
+    if(invErr||!invOk){if(err)err.textContent='Código inválido o ya utilizado';return;}
     const btn=document.querySelector('[data-act="auth-ath-signup"]');
     if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
     const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'}}});
     if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
     if(data.user){
-      const{error:linkErr}=await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
-      if(linkErr){if(err){err.textContent='Tu cuenta se creó pero no se pudo vincular con tu coach. Pídele un código nuevo.';}if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
+      const{data:link,error:linkErr}=await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
+      if(linkErr||!(link&&link.success)){if(err){err.textContent='Tu cuenta se creó pero no se pudo vincular con tu coach. Pídele un código nuevo.';}if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
       if(!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
       await initAfterAuth(data.user);
     }
