@@ -901,19 +901,31 @@ function ensureLibrary(st){
 
 let S=null;
 let _savePending=null;
+window._lrLogout=async function(){try{await supa.auth.signOut();}catch(e){}location.reload();};
+function showBootError(msg){
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
+}
 async function loadStateFromSupabase(){
+  /* C3: maybeSingle + error separado de "sin fila"; jamás bootstrapear ante error (evita pisar el blob del coach) */
+  let data=null,error=null;
   try{
-    const{data}=await supa.from('app_state').select('state').eq('user_id',_coachUid).single();
-    if(data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return;}
-  }catch(e){}
-  if(_coachUid===_supabaseUser.id){
-    const meta=_supabaseUser.user_metadata||{};
+    const res=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
+    data=res.data;error=res.error;
+  }catch(e){error=e;}
+  if(error){showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;}
+  if(data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return true;}
+  const meta=_supabaseUser.user_metadata||{};
+  /* C1: solo un coach real bootstrapea estado nuevo */
+  if(_coachUid===_supabaseUser.id&&meta.role==='coach'){
     const coachName=meta.name||_supabaseUser.email||'Coach';
     const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
     S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
     ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
     saveState();
+    return true;
   }
+  showBootError(_coachUid===_supabaseUser.id?'Tu cuenta no tiene un rol válido. Contacta a tu coach.':'Los datos de tu coach aún no están disponibles. Intenta más tarde.');
+  return false;
 }
 function stateForCloud(){
   /* el peso vive en weight_logs (tabla con RLS); se excluye del blob compartido para cerrar la fuga */
@@ -1601,7 +1613,8 @@ const ACTIONS={
     const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'}}});
     if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
     if(data.user){
-      await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
+      const{error:linkErr}=await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
+      if(linkErr){if(err){err.textContent='Tu cuenta se creó pero no se pudo vincular con tu coach. Pídele un código nuevo.';}if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
       if(!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
       await initAfterAuth(data.user);
     }
@@ -4278,11 +4291,20 @@ async function initAfterAuth(user){
   _coachUid=user.id;
   _currentUserId='coach';
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Cargando datos…</p></div>';
+  /* C1: decidir coach/atleta por user_metadata.role, no solo por la fila de athlete_access */
+  const role=(user.user_metadata||{}).role;
+  let access=null,accessErr=null;
   try{
-    const{data:access}=await supa.from('athlete_access').select('coach_uid,athlete_id').eq('athlete_uid',user.id).maybeSingle();
-    if(access){_coachUid=access.coach_uid;_currentUserId=access.athlete_id;}
-  }catch(e){}
-  await loadStateFromSupabase();
+    const res=await supa.from('athlete_access').select('coach_uid,athlete_id').eq('athlete_uid',user.id).maybeSingle();
+    access=res.data;accessErr=res.error;
+  }catch(e){accessErr=e;}
+  if(role==='athlete'){
+    if(accessErr){showBootError('No se pudo verificar tu acceso. Revisa tu conexión e intenta de nuevo.');return;}
+    if(!access){showBootError('Tu cuenta aún no está vinculada a un coach. Pide a tu coach un código nuevo.');return;}
+  }
+  if(access){_coachUid=access.coach_uid;_currentUserId=access.athlete_id;}
+  const ok=await loadStateFromSupabase();
+  if(!ok)return;
   await buildAthleteUidMaps();
   await backfillWeightLogs();
   await hydrateWeightLogs();
