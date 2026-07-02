@@ -474,6 +474,9 @@ let _supabaseUser=null;
 let _currentUserId=null;
 let _coachUid=null;
 let _chatChannel=null;
+let _dataChannel=null;
+let _liveTimer=null;
+let _pendingLiveRender=false;
 let _athleteUidByAppId={};/* appId -> uid auth */
 let _appIdByAthleteUid={};/* uid auth -> appId */
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -1117,6 +1120,38 @@ function subscribeChat(){
     })
     .subscribe();
 }
+/* ---- Realtime de datos: coach ve logs del atleta al instante; atleta ve cambios de rutina/plan ---- */
+async function refreshAllData(){
+  if(!_supabaseUser||!S)return;
+  /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
+  try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
+    if(!error&&data&&data.state){S=data.state;ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);}}catch(e){}
+  await buildAthleteUidMaps();
+  await hydrateWeightLogs();await hydrateWorkoutLogs();await hydrateNutritionLogs();
+  await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateChat();
+}
+function liveRender(){
+  /* no redibujar si el usuario está escribiendo en un formulario (salvo el chat, que ya se preserva) */
+  const ae=document.activeElement;
+  const editing=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')&&ae.id!=='chat_input';
+  if(editing){_pendingLiveRender=true;return;}
+  _pendingLiveRender=false;chatSafeRender();
+}
+function liveRefresh(){
+  clearTimeout(_liveTimer);
+  _liveTimer=setTimeout(async()=>{await refreshAllData();liveRender();},350);
+}
+function subscribeData(){
+  if(!_supabaseUser)return;
+  try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
+  const tables=['app_state','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
+  let ch=supa.channel('data_rt_'+_supabaseUser.id);
+  tables.forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>liveRefresh());});
+  ch.subscribe();
+  _dataChannel=ch;
+}
+/* si había un refresco pendiente mientras se editaba, redibuja al salir del campo */
+document.addEventListener('focusout',()=>{if(_pendingLiveRender)setTimeout(liveRender,50);});
 async function resetDemo(){
   localStorage.removeItem(LS_KEY);
   if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}}
@@ -1499,7 +1534,7 @@ function render(){
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;S=null;route={view:'home',params:{}};render();},
+  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;S=null;route={view:'home',params:{}};render();},
   'auth-login':async()=>{
     const email=(document.getElementById('l_email')?.value||'').trim();
     const pass=document.getElementById('l_pass')?.value||'';
@@ -4264,6 +4299,7 @@ async function initAfterAuth(user){
   await backfillChat();
   await hydrateChat();
   subscribeChat();
+  subscribeData();
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
