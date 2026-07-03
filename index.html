@@ -490,129 +490,6 @@ const fmtDate=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-').map(Number);
 const fmtDateFull=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-').map(Number);const dt=new Date(y,m-1,d);return DIAS[dt.getDay()]+' '+d+' '+MESES[m-1]+' '+y;};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-function ex(name,sets,reps,rir,rest,notes){return{id:uid(),name,sets,reps,rir,rest,notes:notes||''};}
-
-function seedState(){
-  const jayD1=[ex('Press banca con barra',4,'6-8','2','3 min','Pausa de 1 s en el pecho'),ex('Press inclinado con mancuernas',3,'8-10','2','2-3 min',''),ex('Fondos lastrados',3,'8-10','2','2-3 min','Torso inclinado, rango completo'),ex('Elevaciones laterales con mancuernas',4,'12-15','1','90 s','Última serie: dropset'),ex('Extensión de tríceps en polea',3,'10-12','1','90 s','')];
-  const jayD2=[ex('Jalón al pecho agarre prono',4,'8-10','2','2-3 min',''),ex('Remo con barra',4,'6-8','2','3 min','Torso a 45°, sin balanceo'),ex('Remo en máquina agarre neutro',3,'10-12','1','2 min',''),ex('Face pull en polea',3,'15-20','1','90 s',''),ex('Curl de bíceps con barra Z',3,'8-10','2','2 min',''),ex('Curl martillo',2,'12-15','0','90 s','')];
-  const jayD3=[ex('Sentadilla con barra',4,'5-7','2','3-4 min','Profundidad completa'),ex('Prensa de piernas',3,'10-12','2','3 min',''),ex('Peso muerto rumano',3,'8-10','2','3 min','Control excéntrico 3 s'),ex('Curl femoral sentado',3,'10-12','1','2 min',''),ex('Extensión de cuádriceps',3,'12-15','1','90 s',''),ex('Gemelo de pie en máquina',4,'10-12','1','90 s','Pausa abajo 1 s')];
-  const jayD4=[ex('Press militar con barra de pie',4,'6-8','2','3 min',''),ex('Press banca agarre cerrado',3,'8-10','2','2-3 min',''),ex('Jalón al pecho agarre supino',3,'10-12','1','2 min',''),ex('Elevaciones laterales en polea',4,'12-15','1','90 s',''),ex('Curl bayesian en polea',3,'10-12','1','90 s',''),ex('Extensión tríceps sobre cabeza',3,'12-15','1','90 s','')];
-  const ettoD1=[ex('Sentadilla con barra',4,'6-8','2','3 min',''),ex('Press banca con barra',4,'6-8','2','3 min',''),ex('Remo con barra',3,'8-10','2','2-3 min',''),ex('Elevaciones laterales',3,'12-15','1','90 s',''),ex('Plancha abdominal',3,'45 s','—','60 s','')];
-  const ettoD2=[ex('Peso muerto convencional',3,'5-6','2','3-4 min',''),ex('Press inclinado mancuernas',3,'8-10','2','2-3 min',''),ex('Jalón al pecho',3,'10-12','1','2 min',''),ex('Zancadas con mancuernas',3,'10-12','1','2 min','Por pierna'),ex('Curl de bíceps mancuernas',2,'12-15','1','90 s','')];
-  const ettoD3=[ex('Prensa de piernas',4,'10-12','2','2-3 min',''),ex('Press militar sentado',3,'8-10','2','2-3 min',''),ex('Remo en polea baja',3,'10-12','1','2 min',''),ex('Curl femoral tumbado',3,'12-15','1','90 s',''),ex('Extensión tríceps polea',2,'12-15','1','90 s','')];
-
-  const jayWeights=[[34,89.0],[33,89.2],[31,89.1],[29,89.3],[27,89.2],[26,89.4],[24,89.5],[22,89.4],[20,89.6],[19,89.7],[17,89.8],[15,89.7],[13,89.9],[12,90.0],[10,90.1],[8,90.0],[6,90.2],[5,90.3],[3,90.4],[1,90.6]].map(p=>({date:daysAgoISO(p[0]),kg:p[1]}));
-  const ettoWeights=[[34,77.6],[33,77.5],[31,77.4],[29,77.5],[27,77.3],[26,77.2],[24,77.3],[22,77.1],[20,77.0],[19,77.1],[17,76.9],[15,76.8],[13,76.9],[12,76.7],[10,76.6],[8,76.7],[6,76.5],[5,76.4],[3,76.3],[1,76.2]].map(p=>({date:daysAgoISO(p[0]),kg:p[1]}));
-
-  const jaySteps=[[13,8200],[12,9500],[11,7800],[10,10200],[9,8900],[8,7400],[7,9100],[6,8600],[5,11200],[4,9800],[3,8400],[2,10500],[1,9200]].map(p=>({date:daysAgoISO(p[0]),steps:p[1]}));
-  const ettoSteps=[[13,11800],[12,10400],[11,12500],[10,9800],[9,11200],[8,13000],[7,10800],[6,11500],[5,9600],[4,12200],[3,10900],[2,11700],[1,12400]].map(p=>({date:daysAgoISO(p[0]),steps:p[1]}));
-
-  const wlog=(date,dayId,dayName,entries,rpe,comment,dur)=>({id:uid(),date,dayId,dayName,entries,rpe,comment:comment||'',dur:dur||null});
-
-  return {
-    users:[
-      {id:'coach',name:'Luis Ramírez',role:'coach',initials:'LR',color:'#cdf563',tag:'Coach · Entrenamiento y nutrición'},
-      {id:'jay',name:'Jay',role:'athlete',initials:'JA',color:'#7cd0fb',tag:'Culturismo · Volumen'},
-      {id:'etto',name:'ETTO',role:'athlete',initials:'ET',color:'#ffb45c',tag:'Recomposición corporal'}
-    ],
-    athletes:{
-      jay:{
-        profile:{category:'Culturismo · Classic Physique',goal:'Hipertrofia — fase de volumen',heightCm:178,sex:'M',age:28,bodyFat:11,notes:'Responde bien a volúmenes altos en espalda. Vigilar molestia en hombro izquierdo con presses verticales: calentar manguito antes del Día 4.',
-          service:'ambos',training:{injuries:'Molestia en hombro izquierdo con presses verticales — calentar manguito antes del Día 4.',dislikes:'Sentadilla trasera muy pesada (molestia en cadera).',likes:'Remo con barra, press banca, curl bayesian.'},
-          experience:'avanzado',phase:'acumulacion',block:2,
-          priorities:{'Espalda':4,'Pectoral':1,'Deltoide lateral':1,'Bíceps':2,'Tríceps':2,'Cuádriceps':2,'Deltoide posterior':2,'Deltoide anterior':3,'Trapecio':3,'Antebrazo':3,'Abdomen':3,'Isquiosurales':3,'Glúteo':3,'Aductores':3,'Gemelo / Sóleo':3},
-          volTargets:{'Espalda':16,'Pectoral':10,'Deltoide lateral':10},
-          memStart:daysAgoISO(40),memEnd:daysAgoISO(-9),inactive:false},
-        routine:{name:'Mesociclo 3 · Hipertrofia',weekNote:'Semana 2 de 5 — sube carga si terminas con RIR ≥ 3. Técnicas de intensificación solo donde está indicado.',
-          startDate:daysAgoISO(10),
-          baseline:{date:daysAgoISO(10),byGroup:{'Pectoral':10,'Espalda':13,'Deltoide lateral':8,'Deltoide posterior':3,'Deltoide anterior':4,'Bíceps':8,'Tríceps':9,'Cuádriceps':10,'Isquiosurales':6,'Gemelo / Sóleo':4}},
-          changelog:[{id:uid(),date:daysAgoISO(3),week:2,type:'ajuste',day:'Día 2 · Tracción',ex:'Remo en máquina agarre neutro',detail:'Series 2→3'}],
-          snapshots:[{week:2,date:daysAgoISO(3),byGroup:{'Pectoral':10,'Espalda':14,'Deltoide lateral':8,'Deltoide posterior':3,'Deltoide anterior':4,'Bíceps':8,'Tríceps':9,'Cuádriceps':10,'Isquiosurales':6,'Gemelo / Sóleo':4}}],
-          history:[],days:[
-          {id:'jd1',name:'Día 1 · Empuje',plan:{'Pectoral':10,'Deltoide lateral':4,'Tríceps':3},exercises:jayD1},
-          {id:'jd2',name:'Día 2 · Tracción',plan:{'Espalda':11,'Deltoide posterior':3,'Bíceps':5},exercises:jayD2},
-          {id:'jd3',name:'Día 3 · Pierna',plan:{'Cuádriceps':10,'Isquiosurales':6,'Gemelo / Sóleo':4},exercises:jayD3},
-          {id:'jd4',name:'Día 4 · Torso (énfasis hombro)',plan:{'Espalda':5,'Deltoide anterior':4,'Deltoide lateral':6,'Bíceps':3,'Tríceps':6},exercises:jayD4}
-        ]},
-        nutrition:{mode:'macros',kcal:3400,protein:200,carbs:430,fat:90,mealsPerDay:5,meals:[],notes:'Superávit ~300 kcal. Pre-entreno: 80-100 g de carbo 90 min antes. Post: 40 g proteína + 100 g carbo. Día de descanso: -50 g de carbohidrato.',dietProfile:{likes:'Arroz, pollo, avena, plátano, whey.',dislikes:'Pescado azul, brócoli.',allergies:'',intolerances:'Lactosa leve (tolera whey aislada).',notes:'Prefiere 4-5 comidas. Sin problema con repetir menú.'}},
-        logs:{
-          weight:jayWeights,
-          steps:jaySteps,
-          meals:[
-            {id:uid(),date:todayISO(),name:'Desayuno · avena, plátano y whey',p:42,c:95,f:14},
-            {id:uid(),date:todayISO(),name:'Almuerzo · arroz con pollo y aceite de oliva',p:55,c:120,f:22}
-          ],
-          workouts:[
-            wlog(daysAgoISO(52),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:80,r:8},{w:80,r:8},{w:77.5,r:8}],[jayD2[0].id]:[{w:70,r:10},{w:70,r:10}]},7,'',74),
-            wlog(daysAgoISO(50),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:97.5,r:8},{w:97.5,r:7},{w:95,r:8},{w:95,r:8}],[jayD1[1].id]:[{w:27.5,r:10},{w:27.5,r:10}],[jayD1[3].id]:[{w:9,r:14},{w:9,r:13},{w:9,r:12}]},8,'',70),
-            wlog(daysAgoISO(47),'jd3','Día 3 · Pierna',{[jayD3[0].id]:[{w:127.5,r:6},{w:127.5,r:6},{w:125,r:7}],[jayD3[2].id]:[{w:97.5,r:9},{w:97.5,r:8}]},7,'',78),
-            wlog(daysAgoISO(45),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:82.5,r:8},{w:82.5,r:7},{w:80,r:8}],[jayD2[0].id]:[{w:72.5,r:10},{w:72.5,r:9}]},8,'',72),
-            wlog(daysAgoISO(42),'jd4','Día 4 · Torso (énfasis hombro)',{[jayD4[0].id]:[{w:57.5,r:7},{w:57.5,r:7},{w:55,r:8}],[jayD4[1].id]:[{w:77.5,r:9},{w:77.5,r:8}]},7,'',76),
-            wlog(daysAgoISO(40),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:100,r:8},{w:100,r:7},{w:97.5,r:8},{w:97.5,r:8}],[jayD1[1].id]:[{w:27.5,r:10},{w:27.5,r:10},{w:27.5,r:9}],[jayD1[3].id]:[{w:9,r:15},{w:9,r:14},{w:9,r:13}]},8,'',74),
-            wlog(daysAgoISO(35),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:82.5,r:8},{w:82.5,r:8},{w:80,r:8},{w:80,r:8}],[jayD2[0].id]:[{w:72.5,r:10},{w:72.5,r:10},{w:70,r:10}]},7,'',78),
-            wlog(daysAgoISO(33),'jd3','Día 3 · Pierna',{[jayD3[0].id]:[{w:130,r:6},{w:130,r:6},{w:127.5,r:7},{w:127.5,r:6}],[jayD3[2].id]:[{w:100,r:9},{w:100,r:8},{w:97.5,r:9}]},8,'',70),
-            wlog(daysAgoISO(30),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:100,r:8},{w:100,r:8},{w:97.5,r:8}],[jayD1[1].id]:[{w:30,r:9},{w:30,r:9}],[jayD1[3].id]:[{w:10,r:14},{w:10,r:13},{w:10,r:12}]},7,'',80),
-            wlog(daysAgoISO(26),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:102.5,r:8},{w:102.5,r:8},{w:100,r:8},{w:100,r:7}],[jayD1[1].id]:[{w:30,r:10},{w:30,r:9},{w:27.5,r:10}],[jayD1[3].id]:[{w:10,r:14},{w:10,r:13},{w:10,r:12},{w:9,r:14}]},7,'',78),
-            wlog(daysAgoISO(24),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:85,r:8},{w:85,r:8},{w:82.5,r:8},{w:82.5,r:7}],[jayD2[0].id]:[{w:75,r:10},{w:75,r:10},{w:72.5,r:10}]},8,'',70),
-            wlog(daysAgoISO(22),'jd3','Día 3 · Pierna',{[jayD3[0].id]:[{w:135,r:6},{w:135,r:6},{w:132.5,r:7},{w:132.5,r:6}],[jayD3[2].id]:[{w:102.5,r:9},{w:102.5,r:8},{w:100,r:9}]},7,'',75),
-            wlog(daysAgoISO(19),'jd4','Día 4 · Torso (énfasis hombro)',{[jayD4[0].id]:[{w:60,r:7},{w:60,r:7},{w:57.5,r:8}],[jayD4[1].id]:[{w:80,r:9},{w:80,r:8}]},8,'',72),
-            wlog(daysAgoISO(17),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:105,r:8},{w:105,r:7},{w:102.5,r:8},{w:102.5,r:8}],[jayD1[1].id]:[{w:30,r:10},{w:30,r:10},{w:30,r:9}],[jayD1[3].id]:[{w:11,r:14},{w:11,r:13},{w:11,r:12},{w:10,r:14}]},7,'',74),
-            wlog(daysAgoISO(15),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:87.5,r:8},{w:87.5,r:7},{w:85,r:8},{w:85,r:8}],[jayD2[0].id]:[{w:77.5,r:10},{w:77.5,r:9},{w:75,r:10}]},7,'',76),
-            wlog(daysAgoISO(12),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:107.5,r:8},{w:107.5,r:7},{w:105,r:8},{w:105,r:8}],[jayD1[1].id]:[{w:32.5,r:10},{w:32.5,r:9},{w:30,r:10}],[jayD1[3].id]:[{w:12,r:14},{w:12,r:13},{w:12,r:12},{w:10,r:15}]},8,'',74),
-            wlog(daysAgoISO(10),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:90,r:8},{w:90,r:7},{w:87.5,r:8},{w:87.5,r:8}],[jayD2[0].id]:[{w:80,r:10},{w:80,r:9},{w:77.5,r:10},{w:77.5,r:10}]},8,'',78),
-            wlog(daysAgoISO(5),'jd1','Día 1 · Empuje',{[jayD1[0].id]:[{w:110,r:7},{w:110,r:7},{w:107.5,r:8},{w:107.5,r:7}],[jayD1[1].id]:[{w:32.5,r:10},{w:32.5,r:10},{w:32.5,r:9}],[jayD1[3].id]:[{w:12,r:15},{w:12,r:14},{w:12,r:13},{w:12,r:12}]},8,'Buenas sensaciones, el press banca subió 2.5 kg respecto a la semana pasada.',71),
-            wlog(daysAgoISO(3),'jd2','Día 2 · Tracción',{[jayD2[1].id]:[{w:92.5,r:7},{w:92.5,r:6},{w:90,r:8},{w:90,r:7}],[jayD2[0].id]:[{w:82.5,r:9},{w:82.5,r:9},{w:80,r:10},{w:80,r:10}]},9,'El remo con barra muy pesado al final, llegué a RIR 0 en la última.',83),
-            wlog(daysAgoISO(1),'jd3','Día 3 · Pierna',{[jayD3[0].id]:[{w:142.5,r:6},{w:142.5,r:6},{w:140,r:7},{w:140,r:6}],[jayD3[2].id]:[{w:110,r:9},{w:110,r:8},{w:110,r:8}]},8,'',76)
-          ],
-          nutrition:[
-            {date:daysAgoISO(3),adherence:5,comment:''},
-            {date:daysAgoISO(2),adherence:4,comment:'Me faltaron ~40 g de carbo en la cena.'},
-            {date:daysAgoISO(1),adherence:5,comment:''}
-          ],
-          fatigue:[
-            {id:uid(),date:daysAgoISO(8),week:1,g:{f:4,s:4,d:3,st:3,a:4},gs:18,gl:2,loc:2,rpe:7,rl:2,perf:2,injRaw:2,risk:1,total:9,comment:'Primera semana del bloque, todo controlado.'},
-            {id:uid(),date:daysAgoISO(2),week:2,g:{f:4,s:3,d:3,st:4,a:4},gs:18,gl:2,loc:2,rpe:7,rl:2,perf:1,injRaw:2,risk:1,total:8,comment:'El banca subió; durmiendo un poco peor por trabajo.'}
-          ]
-        }
-      },
-      etto:{
-        profile:{category:'Fitness general',goal:'Recomposición — perder grasa manteniendo músculo',heightCm:172,sex:'M',age:34,bodyFat:18,notes:'Trabaja en turnos, a veces entrena de noche. Priorizar adherencia sobre perfección con el menú.',
-          service:'ambos',training:{injuries:'Sin lesiones activas. Antecedente de lumbalgia: cuidar técnica en peso muerto.',dislikes:'Zancadas (le aburren).',likes:'Prensa, press banca.'},
-          experience:'intermedio',phase:'mantenimiento',block:1,
-          priorities:{'Glúteo':1,'Cuádriceps':1,'Espalda':2,'Pectoral':2,'Deltoide lateral':2,'Isquiosurales':2,'Bíceps':3,'Tríceps':3,'Deltoide anterior':3,'Deltoide posterior':3,'Trapecio':3,'Antebrazo':3,'Abdomen':3,'Aductores':3,'Gemelo / Sóleo':3},
-          memStart:daysAgoISO(70),memEnd:daysAgoISO(5),inactive:false},
-        routine:{name:'Full body 3 días · Fase 2',weekNote:'Semana 3 de 6 — mantener técnicas limpias, el déficit puede bajar el rendimiento un poco.',startDate:daysAgoISO(16),days:[
-          {id:'ed1',name:'Día A · Full body',exercises:ettoD1},
-          {id:'ed2',name:'Día B · Full body',exercises:ettoD2},
-          {id:'ed3',name:'Día C · Full body',exercises:ettoD3}
-        ]},
-        nutrition:{mode:'menu',kcal:2250,protein:175,carbs:215,fat:65,mealsPerDay:4,meals:[
-          {id:uid(),name:'Comida 1 · Desayuno',time:'07:30',items:[{food:'Avena',qty:'80 g'},{food:'Claras de huevo',qty:'250 ml'},{food:'Huevo entero',qty:'2 ud'},{food:'Plátano',qty:'1 ud'}]},
-          {id:uid(),name:'Comida 2 · Almuerzo',time:'13:00',items:[{food:'Pechuga de pollo',qty:'200 g'},{food:'Arroz blanco (cocido)',qty:'250 g'},{food:'Verduras variadas',qty:'200 g'},{food:'Aceite de oliva',qty:'10 g'}]},
-          {id:uid(),name:'Comida 3 · Pre/post entreno',time:'18:30',items:[{food:'Whey protein',qty:'40 g'},{food:'Pan blanco',qty:'100 g'},{food:'Mermelada light',qty:'30 g'}]},
-          {id:uid(),name:'Comida 4 · Cena',time:'21:30',items:[{food:'Merluza o pescado blanco',qty:'250 g'},{food:'Patata cocida',qty:'300 g'},{food:'Ensalada verde',qty:'libre'},{food:'Aceite de oliva',qty:'10 g'}]}
-        ],notes:'Déficit ~400 kcal. Si un día no puedes seguir el menú, sustituye por equivalentes y prioriza la proteína. 2 comidas libres a la semana controladas.',dietProfile:{likes:'Pollo, patata, pan, fruta.',dislikes:'Legumbres en grandes cantidades (digestión pesada).',allergies:'Frutos secos (alergia a la nuez).',intolerances:'',notes:'Turnos de noche: dejar una comida flexible para el trabajo.'}},
-        logs:{
-          weight:ettoWeights,
-          steps:ettoSteps,
-          meals:[{id:uid(),date:todayISO(),name:'Desayuno · tostadas con pavo y queso fresco',p:35,c:60,f:12}],
-          workouts:[
-            wlog(daysAgoISO(9),'ed1','Día A · Full body',{[ettoD1[0].id]:[{w:100,r:8},{w:100,r:7},{w:97.5,r:8},{w:97.5,r:8}],[ettoD1[1].id]:[{w:80,r:7},{w:80,r:7},{w:77.5,r:8},{w:77.5,r:8}]},7,'',64),
-            wlog(daysAgoISO(4),'ed1','Día A · Full body',{[ettoD1[0].id]:[{w:102.5,r:7},{w:102.5,r:7},{w:100,r:8},{w:100,r:7}],[ettoD1[1].id]:[{w:80,r:8},{w:80,r:7},{w:80,r:7},{w:77.5,r:8}]},7,'',61),
-            wlog(daysAgoISO(2),'ed2','Día B · Full body',{[ettoD2[0].id]:[{w:130,r:6},{w:130,r:5},{w:125,r:6}]},8,'El peso muerto costó, dormí poco por el turno de noche.',70)
-          ],
-          nutrition:[
-            {date:daysAgoISO(2),adherence:3,comment:'Comida de trabajo, me salí del menú en el almuerzo.'},
-            {date:daysAgoISO(1),adherence:4,comment:''}
-          ],
-          fatigue:[
-            {id:uid(),date:daysAgoISO(3),week:2,g:{f:2,s:2,d:2,st:2,a:3},gs:11,gl:3,loc:3,rpe:8,rl:2,perf:2,injRaw:3,risk:2,total:12,comment:'Turnos de noche toda la semana, me cuesta recuperar.'}
-          ]
-        }
-      }
-    }
-  };
-}
 
 /* ---------- biblioteca de ejercicios (modelo de selección por categorías — Jay Ehrenstein, Selección de Ejercicios I y II) ---------- */
 const GROUPS=['Pectoral','Espalda','Trapecio','Deltoide anterior','Deltoide lateral','Deltoide posterior','Bíceps','Tríceps','Antebrazo','Abdomen','Cuádriceps','Isquiosurales','Glúteo','Aductores','Gemelo / Sóleo'];
@@ -1348,11 +1225,6 @@ function subscribeData(){
 }
 /* si había un refresco pendiente mientras se editaba, redibuja al salir del campo */
 document.addEventListener('focusout',()=>{if(_pendingLiveRender)setTimeout(liveRender,50);});
-async function resetDemo(){
-  localStorage.removeItem(LS_KEY);
-  if(_supabaseUser){try{await supa.from('app_state').delete().eq('user_id',_supabaseUser.id);}catch(e){}try{await supa.from('athlete_plans').delete().eq('coach_uid',_supabaseUser.id);}catch(e){}}
-  location.reload();
-}
 function getSession(){if(!_supabaseUser)return null;return{userId:_currentUserId||'coach'};}
 function setSession(s){if(s)_currentUserId=s.userId;else _currentUserId=null;}
 const userById=id=>S.users.find(u=>u.id===id);
@@ -1809,8 +1681,6 @@ const ACTIONS={
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);saveState();syncChatAdd(aid,m);render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
   'modal-overlay':()=>closeModal(),
-  'reset-ask':()=>confirmModal('Restablecer demo','Esto borra todos los cambios y vuelve a los datos de ejemplo. ¿Seguro?','reset-do'),
-  'reset-do':async()=>await resetDemo(),
   'export':()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lr-coaching-respaldo-'+todayISO()+'.json';a.click();toast('Respaldo descargado');}
 };
 document.addEventListener('click',e=>{
