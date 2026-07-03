@@ -964,7 +964,7 @@ async function purgeAthleteCloud(aid){
   try{await supa.from('athlete_access').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   try{await supa.from('athlete_invites').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   if(auid){
-    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
+    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs'];
     for(let i=0;i<tabs.length;i++){try{await supa.from(tabs[i]).delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}}
     delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];
   }
@@ -1133,6 +1133,11 @@ async function hydrateFatigueLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   try{const{data,error}=await supa.from('fatigue_logs').select('athlete_uid,week,data').order('week',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(r.data);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.fatigue=byUid[uid];});}catch(e){}
 }
+/* ---- MeasurementLog: circunferencias corporales mensuales (7ª serie con RLS) ---- */
+async function hydrateMeasureLogs(){
+  if(!_supabaseUser||!S||!S.athletes)return;
+  try{const{data,error}=await supa.from('measurement_logs').select('athlete_uid,date,data').order('date',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;const m=Object.assign({},r.data);if(!m.date)m.date=r.date;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(m);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.measures=byUid[uid];});}catch(e){}
+}
 /* ---- Chat: tabla chat_logs con RLS (saca el chat del blob compartido; el atleta ya no escribe app_state) ---- */
 async function syncChatAdd(aid,m){
   if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;
@@ -1202,7 +1207,7 @@ async function refreshAllData(){
   await hydratePlans();
   await hydrateProfiles();
   await hydrateWeightLogs();await hydrateWorkoutLogs();await hydrateNutritionLogs();
-  await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateChat();
+  await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateMeasureLogs();await hydrateChat();
 }
 function liveRender(){
   /* no redibujar si el usuario está escribiendo en un formulario (salvo el chat, que ya se preserva) */
@@ -1218,7 +1223,7 @@ function liveRefresh(){
 function subscribeData(){
   if(!_supabaseUser)return;
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
-  const tables=['app_state','athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
+  const tables=['app_state','athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
   tables.forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>liveRefresh());});
   ch.subscribe();
@@ -1265,7 +1270,7 @@ function stepsWeekly(aid){return weeklyAvgSeries(athData(aid).logs.steps,'steps'
 /* ritmo semanal fiable: compara las 2 últimas semanas con un mínimo de pesajes */
 function weeklyRate(aid,minN){minN=minN||3;const s=weightWeekly(aid).filter(w=>w.n>=minN);if(s.length<2)return null;const a=s[s.length-2],b=s[s.length-1];return{delta:+(b.avg-a.avg).toFixed(2),pct:+((b.avg-a.avg)/a.avg*100).toFixed(2),from:a.week,to:b.week};}
 function lastSteps(aid){const s=athData(aid).logs.steps||[];return s.length?s[s.length-1]:null;}
-function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];if(l&&!Array.isArray(l.nutrition))l.nutrition=[];if(l&&!Array.isArray(l.fatigue))l.fatigue=[];});}
+function ensureDailyLogs(st){Object.keys(st.athletes||{}).forEach(aid=>{const l=st.athletes[aid].logs;if(l&&!l.steps)l.steps=[];if(l&&!l.meals)l.meals=[];if(l&&!Array.isArray(l.weight))l.weight=[];if(l&&!Array.isArray(l.workouts))l.workouts=[];if(l&&!Array.isArray(l.nutrition))l.nutrition=[];if(l&&!Array.isArray(l.fatigue))l.fatigue=[];if(l&&!Array.isArray(l.measures))l.measures=[];});}
 /* perfil ampliado: modo de asesoría + perfil de entrenamiento (lesiones / preferencias de ejercicios) */
 function ensureProfileExtras(st){Object.keys(st.athletes||{}).forEach(aid=>{const p=st.athletes[aid].profile;if(!p)return;if(!p.service)p.service='ambos';if(!p.training||typeof p.training!=='object')p.training={injuries:'',dislikes:'',likes:''};['injuries','dislikes','likes'].forEach(k=>{if(p.training[k]==null)p.training[k]='';});const n=st.athletes[aid].nutrition;if(n){if(!n.dietProfile||typeof n.dietProfile!=='object')n.dietProfile={likes:'',dislikes:'',allergies:'',intolerances:'',notes:''};['likes','dislikes','allergies','intolerances','notes'].forEach(k=>{if(n.dietProfile[k]==null)n.dietProfile[k]='';});}});}
 /* ingesta de hoy a partir de las comidas registradas */
@@ -2280,7 +2285,7 @@ function coachTabRegistros(aid){
   d.logs.weight.slice().reverse().slice(0,10).forEach(w=>{wt+='<tr><td>'+fmtDateFull(w.date)+'</td><td class="num">'+w.kg+' kg</td></tr>';});
   return '<div class="grid g2"><div><div class="sect-h" style="margin-top:0"><h2>Entrenamientos</h2></div>'+wk+'</div>'+
   '<div><div class="sect-h" style="margin-top:0"><h2>Nutrición</h2></div>'+nut+
-  '<div class="sect-h"><h2>Peso corporal</h2></div><div class="tblwrap"><table class="tbl" style="min-width:auto"><thead><tr><th>Fecha</th><th>Peso</th></tr></thead><tbody>'+(wt||'<tr><td colspan="2" class="tiny">Sin registros</td></tr>')+'</tbody></table></div></div></div>';
+  '<div class="sect-h"><h2>Peso corporal</h2></div><div class="tblwrap"><table class="tbl" style="min-width:auto"><thead><tr><th>Fecha</th><th>Peso</th></tr></thead><tbody>'+(wt||'<tr><td colspan="2" class="tiny">Sin registros</td></tr>')+'</tbody></table>'+measuresCard(aid)+'</div></div></div>';
 }
 
 /* ================= PESTAÑA RENDIMIENTO (1RM · comparación de sesiones) ================= */
@@ -3010,6 +3015,14 @@ VIEWS['ath-hoy']=function(u){
   const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
     '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p>';
 
+  const todayM=measureLogs(aid).find(m=>m.date===todayISO());
+  const lm=lastMeasure(aid);
+  const measuresInner='<p class="tiny mb16">Mídete relajado y por la mañana. Ideal 1×/mes, con la misma cinta y en el mismo punto. Deja en blanco lo que no midas.</p>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">'+
+    MEASURE_SET.map(ms=>'<div><label style="display:block;margin-bottom:6px">'+ms[1]+' <span class="hint">cm</span></label><input id="ms_'+ms[0]+'" type="number" step="0.1" min="0" placeholder="'+(lm&&lm[ms[0]]!=null?lm[ms[0]]:'cm')+'" value="'+(todayM&&todayM[ms[0]]!=null?todayM[ms[0]]:'')+'"></div>').join('')+
+    '</div><button class="btn btn-p mt16" data-act="measures-save" style="width:100%">'+I.check+' Guardar medidas</button>'+
+    (lm?'<p class="tiny mt8">Último registro: '+fmtDate(lm.date)+'</p>':'');
+
   const freeInner=sv.nu?(function(){
     const fm=intakeForDate(aid,todayISO());
     const dm=doneMealsMacros(aid);
@@ -3042,6 +3055,7 @@ VIEWS['ath-hoy']=function(u){
   if(sv.nu)accs.push(acc('acc-nutri',I.food+' Nutrición de hoy',(curAdh!=null?'adherencia '+curAdh+'/5':(todayN?'registrada':'sin registrar')),nutriInner,false));
   if(sv.nu)accs.push(acc('acc-libre',I.food+' Tu comida libre','opcional · fuera del plan',freeInner,false));
   accs.push(acc('acc-peso','⚖️ Peso y pasos','opcional',pesoPasosInner,false));
+  accs.push(acc('acc-medidas','📏 Medidas corporales','1×/mes · opcional',measuresInner,false));
   if(sv.tr)accs.push(acc('acc-fatiga','🩺 Check-in semanal de fatiga','1×/semana',fatInner,false));
 
   return{title:'Hola, '+esc(u.name)+' 👋',crumb:fmtDateFull(todayISO()),
@@ -3245,6 +3259,19 @@ Object.assign(ACTIONS,{
     let synced=true;const auid=_athleteUidByAppId[u.id];
     if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
     saveState();toast(synced?('Pasos guardados: '+st.toLocaleString('es-ES')):('Pasos guardados local: '+st.toLocaleString('es-ES')));render();
+  },
+  'measures-save':async()=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const m={date:todayISO()};let any=false;
+    for(const ms of MEASURE_SET){const v=num('ms_'+ms[0]);if(v){if(v<ms[2]||v>ms[3]){toast(ms[1]+': valor fuera de rango ('+ms[2]+'-'+ms[3]+' cm)');return;}m[ms[0]]=v;any=true;}}
+    if(!any){toast('Introduce al menos una medida');return;}
+    if(!d.logs.measures)d.logs.measures=[];
+    const i=d.logs.measures.findIndex(x=>x.date===todayISO());
+    if(i>=0)d.logs.measures[i]=m;else d.logs.measures.push(m);
+    d.logs.measures.sort((a,b)=>a.date<b.date?-1:1);
+    let synced=true;const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser){try{const{error}=await supa.from('measurement_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),data:m},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    saveState();toast(synced?'Medidas guardadas 📏':'Medidas guardadas local (sin conexión)');render();
   },
   'meal-add':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
@@ -4281,6 +4308,50 @@ function fqDecision(total){
  return{k:'reduce',lbl:'Reduce el volumen 10-20%',short:'Reducir 10-20%',cls:'red'};
 }
 function fatigueLogs(aid){const lg=athData(aid).logs;lg.fatigue=lg.fatigue||[];return lg.fatigue;}
+/* ===== MEDIDAS CORPORALES (circunferencias mensuales · % grasa Navy · relación cintura-cadera) ===== */
+const MEASURE_SET=[['waist','Cintura',40,200],['hip','Cadera',50,200],['neck','Cuello',20,80],['arm','Brazo',15,80],['thigh','Muslo',25,110]];
+function measureLogs(aid){const lg=athData(aid).logs;lg.measures=lg.measures||[];return lg.measures;}
+function lastMeasure(aid){const a=measureLogs(aid);return a.length?a[a.length-1]:null;}
+function navyBF(p,m){
+  if(!p||!m)return null;
+  const H=+p.heightCm;if(!H)return null;
+  const waist=+m.waist,neck=+m.neck,hip=+m.hip;
+  if(!waist||!neck)return null;
+  let bf;
+  if(p.sex==='F'){if(!hip||(waist+hip-neck)<=0)return null;bf=495/(1.29579-0.35004*Math.log10(waist+hip-neck)+0.22100*Math.log10(H))-450;}
+  else{if((waist-neck)<=0)return null;bf=495/(1.0324-0.19077*Math.log10(waist-neck)+0.15456*Math.log10(H))-450;}
+  if(!isFinite(bf)||bf<3||bf>65)return null;
+  return +bf.toFixed(1);
+}
+function whrInterp(whr,sex){const f=sex==='F';if(whr<(f?0.80:0.90))return'riesgo cardiometabólico bajo';if(whr<(f?0.85:1.00))return'riesgo moderado';return'riesgo alto';}
+function measuresCard(aid){
+  const logs=measureLogs(aid),p=athData(aid).profile||{};
+  let body='';
+  if(!logs.length){
+    body='<div class="empty"><b>Sin medidas todavía</b>El atleta registra cintura, cadera, cuello, brazo y muslo desde su panel (1×/mes). Aquí verás la tendencia, la relación cintura-cadera y el % grasa estimado.</div>';
+  }else{
+    const last=logs[logs.length-1],prev=logs.length>1?logs[logs.length-2]:null;
+    const pill=(cur,pv,inv)=>{if(cur==null||pv==null)return'';const d=+(cur-pv).toFixed(1);if(d===0)return' <span class="delta-pill flat">=</span>';const good=inv?d<0:d>0;return' <span class="delta-pill '+(good?'up':'down')+'">'+(d>0?'+':'')+d+'</span>';};
+    const whr=(last.waist&&last.hip)?+(last.waist/last.hip).toFixed(2):null;
+    const whrPrev=(prev&&prev.waist&&prev.hip)?+(prev.waist/prev.hip).toFixed(2):null;
+    const bf=navyBF(p,last),bfPrev=prev?navyBF(p,prev):null;
+    let strip='<div class="grid g3 mb16">';
+    strip+='<div class="stat" style="margin:0"><div class="k">Cintura</div><div class="v">'+(last.waist!=null?last.waist:'—')+'<small> cm</small></div><div class="sub">'+(prev&&prev.waist!=null?('vs anterior'+pill(last.waist,prev.waist,true)):'primer registro')+'</div></div>';
+    strip+='<div class="stat" style="margin:0"><div class="k">% grasa estim. <span class="hint">Navy</span></div><div class="v">'+(bf!=null?bf+'<small> %</small>':'—')+'</div><div class="sub">'+(bf!=null?(bfPrev!=null?('vs anterior'+pill(bf,bfPrev,true)):'primer registro'):(p.heightCm?'falta cuello/cintura':'añade la altura en el perfil'))+'</div></div>';
+    strip+='<div class="stat" style="margin:0"><div class="k">Cintura-cadera <span class="hint">WHR</span></div><div class="v">'+(whr!=null?whr:'—')+(whr!=null?pill(whr,whrPrev,true):'')+'</div><div class="sub">'+(whr!=null?whrInterp(whr,p.sex):'falta cintura o cadera')+'</div></div>';
+    strip+='</div>';
+    let rows='';
+    MEASURE_SET.forEach(ms=>{const c=last[ms[0]],pv=prev?prev[ms[0]]:null;if(c==null&&pv==null)return;rows+='<tr><td class="exname">'+ms[1]+'</td><td class="num"><b>'+(c!=null?c:'—')+'</b></td><td class="num">'+(pv!=null?pv:'—')+'</td><td>'+(c!=null&&pv!=null?pill(c,pv,ms[0]==='waist'):'')+'</td></tr>';});
+    const table='<div class="tblwrap mt16"><table class="tbl" style="min-width:auto"><thead><tr><th>Medida (cm)</th><th>Último</th><th>Anterior</th><th>Δ</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    const wpts=logs.filter(m=>m.waist!=null).map(m=>({x:m.date,y:m.waist}));
+    const bpts=logs.map(m=>({x:m.date,y:navyBF(p,m)})).filter(pt=>pt.y!=null);
+    let charts='';
+    if(wpts.length>=2)charts+='<h4 class="mg-h mt16">Cintura (cm)</h4>'+svgLine(wpts,{color:'#ffb45c',unit:'cm',h:150});
+    if(bpts.length>=2)charts+='<h4 class="mg-h mt16">% grasa estimado (Navy)</h4>'+svgLine(bpts,{color:'#7cd0fb',unit:'%',h:150});
+    body='<div class="sub" style="margin-bottom:8px">Último registro · '+fmtDate(last.date)+'</div>'+strip+table+charts;
+  }
+  return '<div class="card mb16"><h3>Medidas corporales <span class="hint">circunferencias · 1×/mes · % grasa por método Navy</span></h3>'+body+'</div>';
+}
 const fatigueLast=aid=>{const f=fatigueLogs(aid);return f.length?f[f.length-1]:null;};
 const fatiguePending=aid=>{const w=weekOf(aid);return !fatigueLogs(aid).some(e=>e.week===w);};
 function fqForm(prev){
@@ -4544,6 +4615,7 @@ async function initAfterAuth(user){
   await hydrateStepsLogs();
   await backfillFatigueLogs();
   await hydrateFatigueLogs();
+  await hydrateMeasureLogs();
   await backfillChat();
   await hydrateChat();
   subscribeChat();
