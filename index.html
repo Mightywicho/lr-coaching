@@ -1340,7 +1340,7 @@ function liveRefresh(){
 function subscribeData(){
   if(!_supabaseUser)return;
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
-  const tables=['app_state','athlete_plans','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
+  const tables=['app_state','athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
   tables.forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>liveRefresh());});
   ch.subscribe();
