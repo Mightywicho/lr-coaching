@@ -4268,6 +4268,9 @@ const FQ_ITEMS=[
 const FQ_INJ=[[1,'Nunca'],[2,'Raramente'],[3,'En ocasiones'],[4,'A menudo'],[5,'Con mayor frecuencia'],[6,'Mucha frecuencia'],[7,'Siempre']];
 const FQ_LOC=[[1,'No se presentó dolor muscular'],[2,'Se presentó, pero se redujo antes de la sesión siguiente'],[3,'El dolor continuó hasta la sesión posterior']];
 const FQ_PERF=[[1,'Incrementó'],[2,'Se mantuvo'],[3,'Se redujo']];
+/* Hambre/apetito: señal de nutrición, escala descriptiva (NO se suma al puntaje de fatiga) */
+const FQ_HUNGER=[[1,'Sin apetito'],[2,'Poco apetito'],[3,'Normal / saciado'],[4,'Con hambre frecuente'],[5,'Hambre intensa / con ansiedad']];
+const hungerLabel=v=>{const o=FQ_HUNGER.find(x=>x[0]===v);return o?o[1]:'—';};
 function fqGlobalLevel(gs){return gs>=21?1:gs>=16?2:3;}
 function fqRiskLevel(inj){return inj<=2?1:inj<=4?2:3;}
 function fqRpeLevel(rpe){return rpe<6?1:rpe<=8?2:3;}
@@ -4288,6 +4291,7 @@ function fqForm(prev){
  h+='<div class="frow"><label>En los pasados 7 días/noches me he sentido vulnerable a lesiones…</label><select id="fq_inj">'+FQ_INJ.map(o=>'<option value="'+o[0]+'"'+((prev.injRaw||2)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>';
  h+='<div class="frow"><label>Dolor muscular tras las sesiones (fatiga local)</label><select id="fq_loc">'+FQ_LOC.map(o=>'<option value="'+o[0]+'"'+((prev.loc||2)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>';
  h+='<div class="frow2"><div><label>RPE medio de las sesiones (1-10)</label><input id="fq_rpe" type="number" min="1" max="10" step="0.5" value="'+(prev.rpe||7)+'"></div><div><label>Tu rendimiento esta semana</label><select id="fq_perf">'+FQ_PERF.map(o=>'<option value="'+o[0]+'"'+((prev.perf||2)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div></div>';
+ h+='<div class="frow"><label>Hambre / apetito esta semana</label><select id="fq_hunger">'+FQ_HUNGER.map(o=>'<option value="'+o[0]+'"'+((prev.hunger||3)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>';
  h+='<div class="frow"><label>Comentario para tu coach (opcional)</label><input id="fq_c" value="'+esc(prev.comment||'')+'" placeholder="Contexto: trabajo, viajes, molestias…"></div>';
  return h;
 }
@@ -4381,7 +4385,8 @@ function fatigueCard(aid){
      '<span class="chip" title="Dolor muscular entre sesiones">Local '+last.loc+'/3</span>'+
      '<span class="chip" title="RPE medio reportado">RPE '+last.rpe+' · '+last.rl+'/3</span>'+
      '<span class="chip" title="Rendimiento">Rendimiento '+last.perf+'/3</span>'+
-     '<span class="chip'+(last.risk>=3?' orange':'')+'" title="Vulnerabilidad a lesiones">Riesgo lesión '+last.risk+'/3</span></div>';
+     '<span class="chip'+(last.risk>=3?' orange':'')+'" title="Vulnerabilidad a lesiones">Riesgo lesión '+last.risk+'/3</span>'+
+     (last.hunger!=null?'<span class="chip" title="Hambre/apetito reportado (señal de nutrición, no afecta el puntaje de fatiga)">🍽 Hambre: '+esc(hungerLabel(last.hunger))+'</span>':'')+'</div>';
    let flags='';
    if(last.risk>=3)flags+='<div class="notebox mt16" style="border-left-color:var(--red)"><b>Riesgo de lesión en 3:</b> considera un microciclo de descarga o reducir 1-2 series en el grupo afectado; cuidado especial con lesiones previas.</div>';
    if(dec.k==='sube2')flags+='<p class="tiny mt8">Si el 20% supone más de 4 series, limita el incremento a +4 semanales; si el riesgo de lesión marca más de 1, mantén el volumen.</p>';
@@ -4415,7 +4420,8 @@ Object.assign(ACTIONS,{
    const loc=parseInt(val('fq_loc'),10)||2;
    const rpe=parseFloat(val('fq_rpe'))||7;
    const perf=parseInt(val('fq_perf'),10)||2;
-   const e={id:uid(),date:todayISO(),week:weekOf(u.id),g,gs,gl:fqGlobalLevel(gs),loc,rpe,rl:fqRpeLevel(rpe),perf,injRaw,risk:fqRiskLevel(injRaw),comment:val('fq_c')};
+   const hunger=parseInt(val('fq_hunger'),10)||3;
+   const e={id:uid(),date:todayISO(),week:weekOf(u.id),g,gs,gl:fqGlobalLevel(gs),loc,rpe,rl:fqRpeLevel(rpe),perf,injRaw,risk:fqRiskLevel(injRaw),hunger,comment:val('fq_c')};
    e.total=e.gl+e.loc+e.rl+e.perf+e.risk;
    const logs=fatigueLogs(u.id);
    const i=logs.findIndex(x=>x.week===e.week);
