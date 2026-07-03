@@ -1581,7 +1581,11 @@ function navItemsFor(u){
   if(sv.tr)items.push({v:'ath-prog',icon:I.chart,label:'Progreso'});
   return items;
 }
+let _lastRenderView=null;
 function render(){
+  /* conservar acordeones abiertos y scroll al re-dibujar la misma vista */
+  const _openAccs=Array.from(document.querySelectorAll('details.acc[open]')).map(x=>x.id).filter(Boolean);
+  const _scrollY=window.scrollY;
   const ses=getSession();
   if(!ses){renderLogin();return;}
   const u=userById(ses.userId);
@@ -1597,6 +1601,11 @@ function render(){
   '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div></aside>'+
   '<div class="main"><header class="topbar">'+(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div></header><div class="content">'+page.body+'</div></div></div>';
   if(route.view==='ath-chat'||route.view==='coach-chat'){const sc=document.getElementById('chatscroll');if(sc)sc.scrollTop=sc.scrollHeight;}
+  if(_lastRenderView===route.view){
+    _openAccs.forEach(id=>{const el=document.getElementById(id);if(el&&el.tagName==='DETAILS')el.open=true;});
+    window.scrollTo(0,_scrollY);
+  }
+  _lastRenderView=route.view;
 }
 
 /* ---------- registro de acciones ---------- */
@@ -1681,6 +1690,8 @@ const ACTIONS={
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);saveState();syncChatAdd(aid,m);render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
   'modal-overlay':()=>closeModal(),
+  'cal-config':()=>openModal('Link de videollamada','<div class="frow"><label>Tu link de Calendly (u otro agendador)</label><input id="cal_url" value="'+esc(S.coachCalendly||'')+'" placeholder="calendly.com/tu-usuario/seguimiento"><p class="tiny" style="margin-top:6px">Tus atletas verán un botón «Agendar videollamada» en su chat. Déjalo vacío para ocultarlo.</p></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="cal-save">Guardar</button>'),
+  'cal-save':()=>{S.coachCalendly=normUrl(val('cal_url'));saveState();closeModal();render();toast(S.coachCalendly?'Link de videollamada guardado':'Link de videollamada eliminado');},
   'export':()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lr-coaching-respaldo-'+todayISO()+'.json';a.click();toast('Respaldo descargado');}
 };
 document.addEventListener('click',e=>{
@@ -1695,7 +1706,10 @@ const VIEWS={};
 VIEWS['ath-chat']=function(u){
   const aid=u.id;chatMarkRead(aid,'ath');
   const coach=userById(COACH_ID);
-  return{title:'Mensajes',crumb:'Habla con tu coach'+(coach?' · '+esc(coach.name):''),body:chatThreadHTML(aid,'ath')};
+  const cal=(S.coachCalendly||'').trim();
+  return{title:'Mensajes',crumb:'Habla con tu coach'+(coach?' · '+esc(coach.name):''),
+    actions:(cal?'<a class="btn btn-p" href="'+esc(cal)+'" target="_blank" rel="noopener">📅 Agendar videollamada</a>':''),
+    body:chatThreadHTML(aid,'ath')};
 };
 VIEWS['coach-chats']=function(u){
   let rows='';
@@ -1706,7 +1720,9 @@ VIEWS['coach-chats']=function(u){
       (un?'<span class="cdot">'+un+'</span>':'')+'</div>';
   });
   if(!rows)rows='<div class="empty"><b>Sin atletas</b>Añade atletas para poder chatear con ellos.</div>';
-  return{title:'Mensajes',crumb:'Tus conversaciones con atletas',body:'<div class="chatlist">'+rows+'</div>'};
+  return{title:'Mensajes',crumb:'Tus conversaciones con atletas',
+    actions:'<button class="btn btn-g" data-act="cal-config" title="Link que verán tus atletas para agendar videollamada">📅 Videollamada</button>',
+    body:'<div class="chatlist">'+rows+'</div>'};
 };
 VIEWS['coach-chat']=function(u){
   const aid=route.params.aid,a=userById(aid);
@@ -1849,7 +1865,7 @@ function coachTabRutina(aid){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button> <span class="mini-chip" title="'+esc(lib.focus||'Trabajo general del grupo')+'">'+esc(lib.group+(lib.cat?' · '+lib.cat:''))+'</span>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Tiene video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+exFlagChips(exFlags(aid,e.name))+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
+      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
       '<td><div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></td></tr>';
     });
     if(!rows)rows='<tr><td colspan="7" class="tiny" style="text-align:center;padding:18px">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</td></tr>';
@@ -2570,14 +2586,14 @@ Object.assign(ACTIONS,{
     const name=val('e_name');if(!name){toast('Escribe el nombre del ejercicio');return;}
     const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);
     const lib=libByName(name);
-    const data={name:lib?lib.name:name,sets:num('e_sets')||3,reps:val('e_reps')||'8-10',rir:val('e_rir')||'2',rest:val('e_rest')||'2 min',notes:val('e_notes'),libId:lib?lib.id:null};
+    const data={name:lib?lib.name:name,sets:num('e_sets')||3,reps:val('e_reps')||'8-10',rir:val('e_rir')||'2',rest:val('e_rest')||'2 min',notes:val('e_notes'),libId:lib?lib.id:null,revLink:normUrl(val('e_rev'))};
     if(el.dataset.ex){
       const e=day.exercises.find(x=>x.id===el.dataset.ex);
       const det=exDiff(e,data);
-      Object.assign(e,data);if(!data.libId)delete e.libId;
+      Object.assign(e,data);if(!data.libId)delete e.libId;if(!data.revLink)delete e.revLink;
       if(det)logChange(el.dataset.aid,'ajuste',det,day.name,data.name);
     }
-    else{if(!data.libId)delete data.libId;day.exercises.push(Object.assign({id:uid()},data));
+    else{if(!data.libId)delete data.libId;if(!data.revLink)delete data.revLink;day.exercises.push(Object.assign({id:uid()},data));
       logChange(el.dataset.aid,'alta',data.sets+'×'+data.reps+' · RIR '+data.rir,day.name,data.name);}
     saveState();closeModal();render();toast('Rutina actualizada');
   },
@@ -2820,6 +2836,7 @@ function exVolCore(aid,exId,nm,sets){
   return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px"><span class="mini-chip">'+esc(g)+'</span><b style="font-size:13px">'+base+' → '+proj+' series/sem</b>'+((parseInt(sets,10)||0)?'<span class="tiny" style="color:var(--volt)">(+'+(parseInt(sets,10)||0)+')</span>':'')+fchips+'<span class="badge '+(st.cls||'')+'" style="margin-left:auto">'+esc(st.txt)+'</span></div>'+bar+'<p class="tiny" style="margin:0">'+recTxt+'</p>'+catTxt+sec+warn;
 }
 function renderExVol(){const box=document.getElementById('exvolbox');if(!box)return;box.innerHTML=exVolCore(box.dataset.aid,box.dataset.ex||'',val('e_name'),val('e_sets'));}
+function normUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u;}
 function exForm(e,aid,exId){
   let dl='<datalist id="exlist">';
   (S.library||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(l=>{dl+='<option value="'+esc(l.name)+'">';});
@@ -2828,6 +2845,7 @@ function exForm(e,aid,exId){
   '<div class="frow3"><div><label>Series</label><input id="e_sets" type="number" data-exvol="1" value="'+esc(e.sets||3)+'"></div><div><label>Reps</label><input id="e_reps" value="'+esc(e.reps||'8-10')+'"></div><div><label>RIR</label><input id="e_rir" value="'+esc(e.rir||'2')+'"></div></div>'+
   '<div class="frow"><label>Descanso</label><input id="e_rest" value="'+esc(e.rest||'2 min')+'"></div>'+
   '<div class="frow"><label>Indicaciones técnicas (opcional)</label><input id="e_notes" value="'+esc(e.notes||'')+'" placeholder="Pausa 1 s, tempo 3-0-1…"></div>'+
+  '<div class="frow"><label>Link de revisión (opcional)</label><input id="e_rev" value="'+esc(e.revLink||'')+'" placeholder="Loom, YouTube… tu video corrigiendo la técnica"><p class="tiny" style="margin-top:5px">El atleta verá un botón «Revisión de tu coach» en este ejercicio.</p></div>'+
   (aid?'<div class="card" style="margin:14px 0 0;padding:12px 14px;background:var(--bg2)"><h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx2)">Impacto en el volumen semanal</h4><div id="exvolbox" data-aid="'+aid+'" data-ex="'+(exId||'')+'">'+exVolCore(aid,exId||'',e.name||'',e.sets||0)+'</div></div>':'');
 }
 
@@ -3018,7 +3036,8 @@ VIEWS['ath-wlog']=function(u){
     const lib=e.libId?libById(e.libId):null;
     const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:14.5px;font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue)" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
     const exDone=!!(WDRAFT.done&&WDRAFT.done[e.id]);
-    blocks+='<div class="wlog-ex'+(exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button></div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+lastTxt+'</div>'+
+    const revBtn=e.revLink?'<a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:6px;color:var(--blue);font-size:12.5px;font-weight:600;text-decoration:none">🎥 Revisión de tu coach →</a>':'';
+    blocks+='<div class="wlog-ex'+(exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button></div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso (kg)</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
@@ -3038,7 +3057,7 @@ VIEWS['ath-rutina']=function(u){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">Registrar</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
