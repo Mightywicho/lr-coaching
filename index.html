@@ -791,14 +791,14 @@ async function loadStateFromSupabase(){
     data=res.data;error=res.error;
   }catch(e){error=e;}
   if(error){showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;}
-  if(data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);return true;}
+  if(data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);return true;}
   const meta=_supabaseUser.user_metadata||{};
   /* C1: solo un coach real bootstrapea estado nuevo */
   if(_coachUid===_supabaseUser.id&&meta.role==='coach'){
     const coachName=meta.name||_supabaseUser.email||'Coach';
     const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
     S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
-    ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);
+    ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);
     saveState();
     return true;
   }
@@ -1197,7 +1197,7 @@ async function refreshAllData(){
   if(!_supabaseUser||!S)return;
   /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
   try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
-    if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);}}catch(e){}
+    if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);}}catch(e){}
   await buildAthleteUidMaps();
   await hydratePlans();
   await hydrateProfiles();
@@ -1361,6 +1361,8 @@ function seedFoods(){
   return L.map(x=>({id:uid(),name:x[0],cat:x[1],p:x[2],c:x[3],f:x[4]}));
 }
 function ensureFoods(st){if(!st.foods||!st.foods.length)st.foods=seedFoods();}
+/* plantillas de rutinas y nutrición: herramienta del coach, viven en app_state */
+function ensureTemplates(st){if(!st.templates)st.templates={routines:[],nutris:[]};if(!Array.isArray(st.templates.routines))st.templates.routines=[];if(!Array.isArray(st.templates.nutris))st.templates.nutris=[];}
 function foodKcal100(f){return Math.round((f.p||0)*4+(f.c||0)*4+(f.f||0)*9);}
 
 /* ---------- DIETOCÁLCULO ----------
@@ -1533,7 +1535,8 @@ const I={
   back:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
   dl:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
   flame:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.4 0 7-2.8 7-6.7 0-3.3-2.2-5.6-3.9-7.3-.9-.9-1.8-2-2.1-3.5-.1-.6-.8-.9-1.2-.4C10.6 5.3 10 7 10 8.5c-1.2-.6-2-1.7-2.3-2.9-.1-.6-.9-.8-1.2-.3C5.4 7.2 5 9.5 5 11.5 5 18 7.6 22 12 22z"/></svg>',
-  refresh:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>'
+  refresh:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>',
+  copy:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>'
 };
 const ava=(u,lg)=>'<span class="ava'+(lg?' ava-lg':'')+'" style="background:'+u.color+'">'+esc(u.initials)+'</span>';
 
@@ -1595,7 +1598,7 @@ function renderLogin(){
 }
 function navItemsFor(u){
   if(u.role==='coach'){
-    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'lib',icon:I.dumbbell,label:'Biblioteca'},{v:'foods',icon:I.food,label:'Alimentos'},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ref',icon:I.chart,label:'Referencias'}];
+    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'tpl',icon:I.copy,label:'Plantillas'},{v:'lib',icon:I.dumbbell,label:'Biblioteca'},{v:'foods',icon:I.food,label:'Alimentos'},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ref',icon:I.chart,label:'Referencias'}];
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
@@ -1941,7 +1944,7 @@ function coachTabRutina(aid){
     '<div class="card" style="margin:0"><h3>Cobertura de categorías <span class="hint">cada una es una pieza del rompecabezas</span></h3>'+(covRows||'<div class="empty"><b>Sin categorías aún</b>Vincula ejercicios de la biblioteca para ver qué patrones cubre el programa.</div>')+'<p class="tiny mt8">Las apagadas son patrones del modelo aún sin trabajar en este programa. Pasa el cursor para ver el patrón y las cargas recomendadas.</p></div></div>';
   }else volHTML='<div class="card mb16"><h3>Volumen y cobertura por grupo muscular</h3><div class="empty"><b>Sin ejercicios vinculados</b>Vincula los ejercicios de la rutina con tu biblioteca para ver series por grupo y cobertura de categorías.</div></div>';
   return '<div class="card mb16"><h3>Programa actual</h3><div class="frow2"><div><label>Nombre del programa</label><input id="r_name" value="'+esc(r.name)+'"></div><div><label>Indicación de la semana</label><input id="r_week" value="'+esc(r.weekNote)+'"></div></div>'+
-  '<div style="text-align:right"><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div></div>'+volHTML+days+
+  '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-g" data-act="tpl-apply-modal" data-kind="routine" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g" data-act="tpl-save-modal" data-kind="routine" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div></div>'+volHTML+days+
   '<button class="btn btn-g" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Añadir día de entrenamiento</button>';
 }
 
@@ -2053,7 +2056,7 @@ function coachTabNutri(aid){
   /* barra de planes por tipo de día */
   let chips='';
   n.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.activePlan?' on':'')+'" data-act="plan-select" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});
-  const planBar='<div class="card mb16"><div class="sect-h" style="margin-bottom:10px"><h3 style="margin:0">Planes por tipo de día <span class="hint">crea variantes: pesado, normal, day off, recarga…</span></h3><span class="sp"><button class="btn btn-p btn-sm" data-act="plan-add" data-aid="'+aid+'">'+I.plus+' Nuevo plan</button></span></div><div class="planchips">'+chips+'</div></div>';
+  const planBar='<div class="card mb16"><div class="sect-h" style="margin-bottom:10px"><h3 style="margin:0">Planes por tipo de día <span class="hint">crea variantes: pesado, normal, day off, recarga…</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="tpl-apply-modal" data-kind="nutrition" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g btn-sm" data-act="tpl-save-modal" data-kind="nutrition" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p btn-sm" data-act="plan-add" data-aid="'+aid+'">'+I.plus+' Nuevo plan</button></span></div><div class="planchips">'+chips+'</div></div>';
   /* cabecera + edición del plan activo */
   const planHead='<div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0"><span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(ap.name)+'</h3><span class="sp"><button class="btn btn-p btn-sm" data-act="nutri-auto-ask" data-aid="'+aid+'" data-pid="'+ap.id+'" title="Calcula calorías y macros (TDEE + objetivo de la fase) y arma un menú con alimentos de tu base. Editable después.">'+I.refresh+' Plan automático</button><button class="btn btn-g btn-sm" data-act="plan-rename" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.edit+' Renombrar</button>'+(n.plans.length>1?'<button class="btn btn-g btn-sm" data-act="plan-del" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.trash+'</button>':'')+'</span></div>';
   const seg='<div class="seg mb16"><button class="'+(ap.mode==='macros'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="macros">Macros flexibles</button><button class="'+(ap.mode==='menu'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="menu">Menú cerrado</button></div>';
@@ -3407,6 +3410,117 @@ function libUsage(libId){
   });
   return out;
 }
+
+/* ===== Plantillas de rutinas y planes de nutrición (solo coach) ===== */
+const dcopy=o=>JSON.parse(JSON.stringify(o));
+function tplFromRoutine(aid,name){
+  const r=athData(aid).routine,c=dcopy({weekNote:r.weekNote||'',days:r.days||[]});
+  c.days.forEach(day=>day.exercises.forEach(e=>{delete e.revLink;}));/* el link de revisión es del atleta, no de la plantilla */
+  return{id:uid(),name:name,weekNote:c.weekNote,days:c.days,created:todayISO()};
+}
+function tplFromNutri(aid,name){
+  const n=dcopy(stripDiet(nutriOf(aid)));
+  return{id:uid(),name:name,activePlan:n.activePlan,plans:n.plans||[],supplements:n.supplements||[],created:todayISO()};
+}
+function applyTplRoutine(aid,t){
+  const d=athData(aid),r=d.routine;
+  /* conserva el historial de cargas: reutiliza ids de ejercicios ya programados (por vínculo de biblioteca o nombre), cada uno una sola vez */
+  const byLib={},byName={},used={};
+  (r.days||[]).forEach(day=>day.exercises.forEach(e=>{if(e.libId&&byLib[e.libId]==null)byLib[e.libId]=e.id;const k=(e.name||'').trim().toLowerCase();if(k&&byName[k]==null)byName[k]=e.id;}));
+  const claim=id=>{if(!id||used[id])return null;used[id]=1;return id;};
+  let ex=0;
+  const days=dcopy(t.days).map(day=>{day.id=uid();day.exercises.forEach(e=>{
+    let oid=e.libId?claim(byLib[e.libId]):null;
+    if(!oid){const k=(e.name||'').trim().toLowerCase();oid=claim(byName[k]);}
+    e.id=oid||uid();delete e.revLink;ex++;
+  });return day;});
+  r.name=t.name;r.weekNote=t.weekNote||'';r.days=days;r.startDate=todayISO();
+  if(!r.changelog)r.changelog=[];if(!r.snapshots)r.snapshots=[];
+  r.baseline={date:todayISO(),byGroup:volMap(aid)};
+  logChange(aid,'alta','Plantilla aplicada: '+t.name+' ('+days.length+' días, '+ex+' ejercicios)','Programa','');
+}
+function applyTplNutri(aid,t){
+  const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile;
+  const plans=dcopy(t.plans||[]);let actId=null;
+  plans.forEach(p=>{const old=p.id;p.id=uid();(p.meals||[]).forEach(m=>{m.id=uid();});if(old===t.activePlan)actId=p.id;});
+  if(!plans.length)plans.push({id:uid(),name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''});
+  const sups=dcopy(t.supplements||[]);sups.forEach(s=>{s.id=uid();});
+  d.nutrition={activePlan:actId||plans[0].id,plans:plans,supplements:sups};
+  if(dp)d.nutrition.dietProfile=dp;/* el perfil de alimentación es del atleta, no se toca */
+}
+function tplList(kind){return kind==='routine'?S.templates.routines:S.templates.nutris;}
+function tplById(kind,id){return tplList(kind).find(x=>x.id===id);}
+function tplSummary(kind,t){
+  if(kind==='routine'){let ex=0;(t.days||[]).forEach(d=>ex+=d.exercises.length);return t.days.length+(t.days.length===1?' día':' días')+' · '+ex+' ejercicios';}
+  const act=(t.plans||[]).find(p=>p.id===t.activePlan)||t.plans[0];const k=act?(act.kcal||kcalFromMacros(act)):0;
+  return t.plans.length+(t.plans.length===1?' plan':' planes')+(k?' · '+k+' kcal en «'+esc(act.name)+'»':'')+((t.supplements||[]).length?' · '+t.supplements.length+' supl.':'');
+}
+Object.assign(ACTIONS,{
+  'tpl-save-modal':el=>{
+    const kind=el.dataset.kind,aid=el.dataset.aid,a=userById(aid);
+    const pre=kind==='routine'?(athData(aid).routine.name||'Programa'):('Nutrición de '+(a?a.name:''));
+    openModal('Guardar como plantilla','<div class="frow"><label>Nombre de la plantilla</label><input id="tpl_name" value="'+esc(pre)+'" placeholder="Ej. Hipertrofia 4 días / Definición 2200"></div><p class="tiny">'+(kind==='routine'?'Se guarda una copia del programa (días, ejercicios, series, reps, RIR, descansos y notas). Los links de revisión no viajan: son de cada atleta.':'Se guarda el conjunto completo: todos los planes por tipo de día y la suplementación. El perfil de alimentación (gustos/alergias) no viaja: es de cada atleta.')+'</p>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="tpl-save-do" data-kind="'+kind+'" data-aid="'+aid+'">Guardar plantilla</button>');
+  },
+  'tpl-save-do':el=>{
+    const kind=el.dataset.kind,aid=el.dataset.aid,name=val('tpl_name');
+    if(!name){toast('Ponle nombre a la plantilla');return;}
+    tplList(kind).push(kind==='routine'?tplFromRoutine(aid,name):tplFromNutri(aid,name));
+    saveState();closeModal();toast('Plantilla «'+name+'» guardada');
+  },
+  'tpl-apply-modal':el=>{
+    const kind=el.dataset.kind,aid=el.dataset.aid,list=tplList(kind);
+    if(!list.length){openModal('Aplicar plantilla','<div class="empty"><b>Aún no tienes plantillas de '+(kind==='routine'?'rutina':'nutrición')+'</b>Guarda una desde el botón «Guardar como plantilla» de cualquier atleta y aparecerá aquí.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
+    let rows='';list.forEach(t=>{rows+='<div class="meal"><div class="meal-h"><span>'+esc(t.name)+'</span><span class="tm">'+tplSummary(kind,t)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="tpl-apply-ask" data-kind="'+kind+'" data-aid="'+aid+'" data-tpl="'+t.id+'">Aplicar</button></span></div></div>';});
+    openModal('Aplicar plantilla',rows+'<p class="tiny mt8">'+(kind==='routine'?'Al aplicar se reemplaza el programa actual del atleta y arranca bloque nuevo (fecha de inicio hoy). Sus registros e historial de cargas se conservan.':'Al aplicar se reemplazan sus planes de nutrición y suplementos. Su perfil de alimentación y registros se conservan; ajusta después kcal y macros a este atleta.')+'</p>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+  },
+  'tpl-apply-ask':el=>{
+    const kind=el.dataset.kind,aid=el.dataset.aid,t=tplById(kind,el.dataset.tpl),a=userById(aid);
+    if(!t||!a)return;
+    confirmModal('Aplicar plantilla','Se aplicará «'+t.name+'» a '+a.name+(kind==='routine'?' reemplazando su programa actual.':' reemplazando sus planes de nutrición y suplementos.'),'tpl-apply-do','data-kind="'+kind+'" data-aid="'+aid+'" data-tpl="'+t.id+'"');
+  },
+  'tpl-apply-do':el=>{
+    const kind=el.dataset.kind,aid=el.dataset.aid,t=tplById(kind,el.dataset.tpl);
+    if(!t)return;
+    if(kind==='routine')applyTplRoutine(aid,t);else applyTplNutri(aid,t);
+    saveState();closeModal();toast('Plantilla «'+t.name+'» aplicada');
+    nav('coach-ath',{aid:aid,tab:kind==='routine'?'entrenamiento':'nutricion'});
+  },
+  'tpl-assign-modal':el=>{
+    const kind=el.dataset.kind,t=tplById(kind,el.dataset.tpl);
+    if(!t)return;
+    const aths=athleteUsers();
+    if(!aths.length){openModal('Asignar plantilla','<div class="empty"><b>Sin atletas</b>Crea un atleta desde el panel para asignarle esta plantilla.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
+    let rows='';aths.forEach(a=>{rows+='<div class="meal"><div class="meal-h"><span>'+ava(a)+' '+esc(a.name)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="tpl-apply-ask" data-kind="'+kind+'" data-aid="'+a.id+'" data-tpl="'+t.id+'">Asignar</button></span></div></div>';});
+    openModal('Asignar «'+esc(t.name)+'»',rows,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+  },
+  'tpl-ren-modal':el=>{
+    const t=tplById(el.dataset.kind,el.dataset.tpl);if(!t)return;
+    openModal('Renombrar plantilla','<div class="frow"><label>Nombre</label><input id="tpl_name" value="'+esc(t.name)+'"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="tpl-ren-save" data-kind="'+el.dataset.kind+'" data-tpl="'+t.id+'">Guardar</button>');
+  },
+  'tpl-ren-save':el=>{const t=tplById(el.dataset.kind,el.dataset.tpl);if(!t)return;t.name=val('tpl_name')||t.name;saveState();closeModal();render();},
+  'tpl-del-ask':el=>confirmModal('Eliminar plantilla','Se borrará la plantilla de tu librería. Los atletas que ya la tengan aplicada no se ven afectados.','tpl-del-do','data-kind="'+el.dataset.kind+'" data-tpl="'+el.dataset.tpl+'"'),
+  'tpl-del-do':el=>{const kind=el.dataset.kind;const arr=tplList(kind);const i=arr.findIndex(x=>x.id===el.dataset.tpl);if(i>-1)arr.splice(i,1);saveState();closeModal();render();toast('Plantilla eliminada');}
+});
+VIEWS['tpl']=function(u){
+  const T=S.templates||{routines:[],nutris:[]};
+  const card=(kind,t)=>{
+    let det='';
+    if(kind==='routine'){(t.days||[]).forEach(d=>{det+='<li><span>'+esc(d.name)+'</span><span class="q">'+d.exercises.length+' ej.</span></li>';});}
+    else{(t.plans||[]).forEach(p=>{const k=p.kcal||kcalFromMacros(p);det+='<li><span>'+esc(p.name)+(p.id===t.activePlan?' <span class="badge">activo</span>':'')+'</span><span class="q">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':'macros')+'</span></li>';});
+      if((t.supplements||[]).length)det+='<li><span>Suplementos</span><span class="q">'+t.supplements.map(s=>esc(s.name)).join(', ')+'</span></li>';}
+    return '<div class="meal"><div class="meal-h"><span>'+esc(t.name)+'</span><span class="tm">'+tplSummary(kind,t)+(t.created?' · guardada '+fmtDate(t.created):'')+'</span><span class="sp">'+
+      '<button class="btn btn-p btn-sm" data-act="tpl-assign-modal" data-kind="'+kind+'" data-tpl="'+t.id+'">Asignar a atleta</button>'+
+      '<button class="btn btn-g btn-sm" data-act="tpl-ren-modal" data-kind="'+kind+'" data-tpl="'+t.id+'">'+I.edit+'</button>'+
+      '<button class="btn btn-g btn-sm" data-act="tpl-del-ask" data-kind="'+kind+'" data-tpl="'+t.id+'">'+I.trash+'</button></span></div><ul>'+det+'</ul></div>';
+  };
+  const empty=txt=>'<div class="empty"><b>Sin plantillas todavía</b>'+txt+'</div>';
+  let rH='';T.routines.forEach(t=>{rH+=card('routine',t);});
+  let nH='';T.nutris.forEach(t=>{nH+=card('nutrition',t);});
+  return{title:'Plantillas',crumb:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición',
+    body:'<div class="card mb16"><h3>'+I.dumbbell+' Rutinas <span class="hint">guárdalas desde la pestaña Entrenamiento de un atleta</span></h3>'+(rH||empty('Abre un atleta → Entrenamiento → «Guardar como plantilla». Luego asígnala aquí o desde otro atleta con «Aplicar plantilla».'))+'</div>'+
+    '<div class="card mb16"><h3>'+I.food+' Nutrición <span class="hint">conjunto completo: planes por tipo de día + suplementos</span></h3>'+(nH||empty('Abre un atleta → Nutrición → «Guardar como plantilla». El perfil de alimentación (alergias/gustos) nunca viaja con la plantilla.'))+'</div>'};
+};
 
 VIEWS['lib']=function(u){
   const q=(route.params.q||'').toLowerCase(),fm=route.params.m||'',fc=route.params.c||'',feq=route.params.eq||'';
