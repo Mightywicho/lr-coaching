@@ -134,6 +134,7 @@ a{color:var(--blue);text-decoration:none}
 .badge.orange{background:rgba(255,180,92,.1);border-color:rgba(255,180,92,.35);color:var(--orange)}
 .badge.red{background:rgba(255,112,102,.1);border-color:rgba(255,112,102,.35);color:var(--red)}
 .badge.green{background:rgba(82,217,138,.1);border-color:rgba(82,217,138,.35);color:var(--green)}
+.semadot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 
 /* ---------- tabs ---------- */
@@ -1408,6 +1409,29 @@ function athStatus(aid){
   return{k:'activo',lbl:'Activo',cls:'green',hint:''};
 }
 function exHistory(aid,exId){const out=[];athData(aid).logs.workouts.forEach(w=>{const sets=(w.entries||{})[exId];if(sets&&sets.length){const best=Math.max(...sets.map(s=>+s.w||0));const reps=sets.find(s=>(+s.w||0)===best);out.push({date:w.date,best,reps:reps?reps.r:'',sets});}});return out;}
+/* semáforo de adherencia: días sin registrar NADA (peso/entreno/nutrición/comidas/pasos/fatiga) + fatiga alta reciente */
+function lastLogISO(aid){
+  const l=athData(aid).logs;let max='';
+  [l.weight,l.workouts,l.nutrition,l.meals,l.steps,l.fatigue].forEach(arr=>{(arr||[]).forEach(x=>{if(x&&x.date&&x.date>max)max=x.date;});});
+  return max||null;
+}
+function semaforo(aid){
+  const p=athData(aid).profile;if(p.inactive)return null;
+  const t=todayISO(),last=lastLogISO(aid);
+  const fl=fatigueLast(aid);
+  if(fl&&fl.date&&fl.total>=13&&daysBetweenISO(fl.date,t)<=10)return{k:'red',hint:'Fatiga alta en su último check-in ('+fl.total+'/15)'};
+  if(!last){
+    const since=p.memStart?daysBetweenISO(p.memStart,t):null;
+    if(since!=null&&since<=3)return{k:'yellow',hint:'Recién empieza, aún sin registros'};
+    return{k:'red',hint:'Sin registros aún'};
+  }
+  let days=daysBetweenISO(last,t);if(days<0)days=0;
+  if(days>=4)return{k:'red',hint:'Sin registrar desde hace '+days+' días'};
+  if(days>=2)return{k:'yellow',hint:'Sin registrar desde hace '+days+' días'};
+  return{k:'green',hint:days===0?'Registró hoy':'Registró ayer'};
+}
+const SEMA_COLOR={red:'--red',yellow:'--orange',green:'--green'};
+function semaDot(sm){return sm?'<span class="semadot" title="'+esc(sm.hint)+'" style="background:var('+SEMA_COLOR[sm.k]+')"></span>':'';}
 
 /* ===== RENDIMIENTO Y CARGA: 1RM estimado · comparación de sesiones · ACWR ===== */
 /* 1RM estimado: Epley y Brzycki promediadas. Reps efectivas = reps + RIR (proximidad al fallo). */
@@ -1749,6 +1773,7 @@ VIEWS['coach-dash']=function(u){
     msgNotice='<div class="card mb16" style="border-color:rgba(205,245,99,.4)"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="color:var(--volt);display:flex">'+ICON_CHAT+'</span><b>'+unreadTotal+' mensaje'+(unreadTotal===1?'':'s')+' sin leer</b><span class="tiny">de '+withMsg.length+' atleta'+(withMsg.length===1?'':'s')+'</span><button class="btn btn-g btn-sm" style="margin-left:auto" data-act="nav" data-view="coach-chats">Ver todos</button></div><div class="planchips" style="margin-top:10px">'+chips+'</div></div>';
   }
   const sts={};aths.forEach(a=>{sts[a.id]=athStatus(a.id);});
+  const semas={};let semaAtn=0;aths.forEach(a=>{semas[a.id]=semaforo(a.id);if(semas[a.id]&&semas[a.id].k!=='green')semaAtn++;});
   let totalW7=0,adhs=[];
   aths.forEach(a=>{if(sts[a.id].k!=='inactivo'){totalW7+=workoutsInLast(a.id,7);const ad=adherenceAvg(a.id,7);if(ad!=null)adhs.push(ad);}});
   const adhMean=adhs.length?(adhs.reduce((x,y)=>x+y,0)/adhs.length).toFixed(1):'—';
@@ -1757,18 +1782,20 @@ VIEWS['coach-dash']=function(u){
   const atn=counts.renovar+counts.finalizando;
   const f=route.params.f||'';
   const ord={renovar:0,finalizando:1,empezando:2,activo:3,inactivo:4};
-  const list=aths.filter(a=>!f||sts[a.id].k===f).sort((a,b)=>(ord[sts[a.id].k]-ord[sts[b.id].k])||a.name.localeCompare(b.name));
+  const smOrd={red:0,yellow:1,green:2};
+  const smRank=id=>semas[id]?smOrd[semas[id].k]:3;
+  const list=aths.filter(a=>!f||(f==='atencion'?(semas[a.id]&&semas[a.id].k!=='green'):sts[a.id].k===f)).sort((a,b)=>(ord[sts[a.id].k]-ord[sts[b.id].k])||(smRank(a.id)-smRank(b.id))||a.name.localeCompare(b.name));
   let seg='<div class="seg mb16" style="flex-wrap:wrap;max-width:100%">';
-  [['','Todos · '+aths.length],['empezando','Empezando · '+counts.empezando],['finalizando','Por finalizar · '+counts.finalizando],['renovar','Renovar · '+counts.renovar],['inactivo','Inactivos · '+counts.inactivo]].forEach(o=>{
+  [['','Todos · '+aths.length],['atencion','⚠ Atención · '+semaAtn],['empezando','Empezando · '+counts.empezando],['finalizando','Por finalizar · '+counts.finalizando],['renovar','Renovar · '+counts.renovar],['inactivo','Inactivos · '+counts.inactivo]].forEach(o=>{
     seg+='<button class="'+(f===o[0]?'on':'')+'" data-act="dash-f" data-f="'+o[0]+'">'+o[1]+'</button>';});
   seg+='</div>';
   let cards='';
   list.forEach(a=>{
-    const d=athData(a.id),st=sts[a.id],lw=lastWeight(a.id),delta=weightDelta(a.id,30),w7=workoutsInLast(a.id,7),adh=adherenceAvg(a.id,7);
+    const d=athData(a.id),st=sts[a.id],sm=semas[a.id],lw=lastWeight(a.id),delta=weightDelta(a.id,30),w7=workoutsInLast(a.id,7),adh=adherenceAvg(a.id,7);
     const lastWk=d.logs.workouts.length?d.logs.workouts[d.logs.workouts.length-1]:null;
     const plan=d.profile.memStart?(fmtDate(d.profile.memStart)+(d.profile.memEnd?' → '+fmtDate(d.profile.memEnd):' → sin fecha de fin')):'sin plan definido';
     cards+='<div class="ath-card'+(st.k==='inactivo'?'" style="opacity:.55':'')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"resumen"}\'>'+
-      '<div class="ath-head">'+ava(a,1)+'<span class="nm"><b>'+esc(a.name)+'</b><span>'+esc(d.profile.goal)+'</span></span>'+(unreadByAth[a.id]?'<span class="cdot" title="mensajes sin leer">💬 '+unreadByAth[a.id]+'</span>':'')+'<span class="badge '+st.cls+'" style="margin-left:auto" title="'+esc(st.hint)+'">'+st.lbl+'</span></div>'+
+      '<div class="ath-head">'+semaDot(sm)+ava(a,1)+'<span class="nm"><b>'+esc(a.name)+'</b><span>'+esc(d.profile.goal)+'</span></span>'+(unreadByAth[a.id]?'<span class="cdot" title="mensajes sin leer">💬 '+unreadByAth[a.id]+'</span>':'')+'<span class="badge '+st.cls+'" style="margin-left:auto" title="'+esc(st.hint)+'">'+st.lbl+'</span></div>'+
       '<div class="ath-meta">'+
       '<span class="m">Peso<b>'+(lw?lw.kg+' kg':'—')+(delta!=null?' <small class="'+(delta>0?'up':delta<0?'down':'flat')+'">('+(delta>0?'+':'')+delta+')</small>':'')+'</b></span>'+
       '<span class="m">Entrenos 7d<b>'+w7+' / '+d.routine.days.length+'</b></span>'+
@@ -1776,7 +1803,7 @@ VIEWS['coach-dash']=function(u){
       '<span class="m">Último entreno<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge '+svcOf(a.id).cls+'" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge blue">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge '+(ap.mode==='macros'?'volt':'orange')+'">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
       (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
-      '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+'</div></div>';
+      '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+(sm&&sm.k!=='green'?' · <span style="color:var('+SEMA_COLOR[sm.k]+')">⚠ '+esc(sm.hint)+'</span>':'')+'</div></div>';
   });
   if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>Nadie en este estado</b>Cambia el filtro para ver al resto de atletas.</div>';
   return{title:'Panel del coach',crumb:fmtDateFull(todayISO()),
