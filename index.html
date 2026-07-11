@@ -25,6 +25,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --bg:#0b0d11; --bg2:#11141a; --card:#151921; --card2:#1a202b; --line:#232a36; --line2:#2f3845;
@@ -458,6 +459,23 @@ td.sesion-total.hot{color:var(--orange)}
 .chatrow .cprev .cmsg{color:var(--tx2);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .navbadge{margin-left:auto;background:var(--volt);color:var(--on-volt);font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px;min-width:18px;text-align:center}
 .cdot{background:var(--volt);color:var(--on-volt);font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px;min-width:18px;text-align:center;flex:none}
+/* ===== Reporte de progreso ===== */
+.report-sheet{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.report-sheet .rep-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.report-sheet .rep-brand{font-family:var(--font-d);font-weight:800;font-size:15px;color:var(--volt);letter-spacing:.02em}
+.report-sheet .rep-sect{margin:22px 0 6px}
+.report-sheet .rep-sect h3{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.report-sheet .rep-sect h3::before{content:"";width:4px;height:16px;background:var(--volt);border-radius:2px;display:inline-block}
+.report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.wbbar-l{display:flex;justify-content:space-between;font-size:12px;color:var(--tx2)}
+.wbbar-t{height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;margin-top:3px}
+@media print{
+  .sidebar,.topbar,.tabs,.report-actions,.rep-controls{display:none!important}
+  .shell,.main,.content{display:block!important;margin:0!important;padding:0!important}
+  body{background:#fff}
+  .report-sheet{border:none;padding:0}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 </head>
 <body>
@@ -1828,7 +1846,7 @@ VIEWS['coach-dash']=function(u){
 /* pestañas visibles según el modo de asesoría del atleta */
 function coachTabList(aid){
   const sv=svcOf(aid);
-  return [['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['historial','Historial',1]]
+  return [['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['historial','Historial',1],['reporte','Reporte',1]]
     .filter(t=>t[2]===1||(t[2]==='tr'&&sv.tr)||(t[2]==='nu'&&sv.nu));
 }
 function coachTabs(aid,tab){
@@ -1850,6 +1868,7 @@ VIEWS['coach-ath']=function(u){
   else if(tab==='entrenamiento')body+=coachTabEntrenamiento(aid);
   else if(tab==='semanas')body+=coachTabSemanas(aid);
   else if(tab==='nutricion')body+=coachTabNutri(aid);
+  else if(tab==='reporte')body+=coachTabReporte(aid);
   else body+=coachTabHistorial(aid);
   return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal),back:{v:'coach-dash'},actions:'<button class="btn btn-g btn-sm" data-act="invite-ath" data-aid="'+aid+'">🔗 Invitar atleta</button>',body};
 };
@@ -4352,6 +4371,91 @@ function measuresCard(aid){
   }
   return '<div class="card mb16"><h3>Medidas corporales <span class="hint">circunferencias · 1×/mes · % grasa por método Navy</span></h3>'+body+'</div>';
 }
+/* ===== PHASE 3 · Reporte visual de progreso (vista coach · exportable PNG/PDF) ===== */
+function wellbeingAvgs(aid,days){
+  const cutoff=daysAgoISO(days);
+  const fl=fatigueLogs(aid).filter(e=>e.date>=cutoff);
+  if(!fl.length)return null;
+  const avg=k=>{const v=fl.map(e=>(e.g||{})[k]).filter(x=>x!=null);return v.length?+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):null;};
+  const hv=fl.map(e=>e.hunger).filter(x=>x!=null);
+  return {n:fl.length,f:avg('f'),s:avg('s'),d:avg('d'),st:avg('st'),a:avg('a'),hunger:hv.length?+(hv.reduce((a,b)=>a+b,0)/hv.length).toFixed(1):null};
+}
+function coachTabReporte(aid){
+  const rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
+  const days=rw*7, cutoff=daysAgoISO(days);
+  const a=userById(aid), p=athData(aid).profile||{};
+  const dpill=(cur,pv,inv)=>{if(cur==null||pv==null)return'';const d=+(cur-pv).toFixed(1);if(d===0)return' <span class="delta-pill flat">=</span>';const good=inv?d<0:d>0;return' <span class="delta-pill '+(good?'up':'down')+'">'+(d>0?'+':'')+d+'</span>';};
+  const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"reporte","rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
+  const controls='<div class="rep-controls" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><div><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div><div class="report-actions"><button class="btn btn-g btn-sm" data-act="report-print">🖨 PDF</button><button class="btn btn-p btn-sm" data-act="report-png" data-name="'+esc(a?a.name:'atleta')+'">📷 Descargar imagen</button></div></div>';
+  /* ---- PESO ---- */
+  const ws=weightStats(aid,days);
+  let pesoBody;
+  if(ws){
+    const start=ws.pts[0].kg, cur=ws.cur, delta=+(cur-start).toFixed(1);
+    const wpts=ws.pts.map(x=>({x:x.date,y:x.kg}));
+    pesoBody='<div class="grid g3 mb16">'+
+      '<div class="stat" style="margin:0"><div class="k">Peso inicial</div><div class="v">'+start.toFixed(1)+'<small> kg</small></div><div class="sub">'+fmtDate(ws.pts[0].date)+'</div></div>'+
+      '<div class="stat" style="margin:0"><div class="k">Peso actual</div><div class="v">'+cur.toFixed(1)+'<small> kg</small></div><div class="sub">'+ws.nPts+' pesajes</div></div>'+
+      '<div class="stat" style="margin:0"><div class="k">Cambio</div><div class="v">'+(delta>0?'+':'')+delta+'<small> kg</small></div><div class="sub">'+(ws.kgWk>0?'+':'')+ws.kgWk+' kg/sem · '+(ws.pctWk>0?'+':'')+ws.pctWk+'%/sem</div></div>'+
+      '</div>'+svgLine(wpts,{color:'#7cd0fb',unit:'kg',h:170});
+  }else pesoBody='<div class="empty"><b>Sin pesajes en el periodo</b>Se necesitan al menos 2 registros de peso para la tendencia.</div>';
+  /* ---- MEDIDAS + %GRASA ---- */
+  const ml=measureLogs(aid).filter(m=>m.date>=cutoff);
+  let medBody;
+  if(ml.length){
+    const first=ml[0], last=ml[ml.length-1], multi=ml.length>1;
+    const whr=(last.waist&&last.hip)?+(last.waist/last.hip).toFixed(2):null;
+    const whrF=(first.waist&&first.hip)?+(first.waist/first.hip).toFixed(2):null;
+    const bf=navyBF(p,last), bfF=navyBF(p,first);
+    medBody='<div class="grid g3 mb16">'+
+      '<div class="stat" style="margin:0"><div class="k">Cintura</div><div class="v">'+(last.waist!=null?last.waist:'—')+'<small> cm</small></div><div class="sub">'+(first.waist!=null&&multi?'vs inicio'+dpill(last.waist,first.waist,true):'primer registro')+'</div></div>'+
+      '<div class="stat" style="margin:0"><div class="k">% grasa <span class="hint">Navy</span></div><div class="v">'+(bf!=null?bf+'<small> %</small>':'—')+'</div><div class="sub">'+(bf!=null?(bfF!=null&&multi?'vs inicio'+dpill(bf,bfF,true):'primer registro'):(p.heightCm?'falta cuello/cintura':'añade altura en el perfil'))+'</div></div>'+
+      '<div class="stat" style="margin:0"><div class="k">Cintura-cadera <span class="hint">WHR</span></div><div class="v">'+(whr!=null?whr:'—')+(whr!=null&&whrF!=null&&multi?dpill(whr,whrF,true):'')+'</div><div class="sub">'+(whr!=null?whrInterp(whr,p.sex):'falta cintura o cadera')+'</div></div>'+
+      '</div>';
+    const wpts=ml.filter(m=>m.waist!=null).map(m=>({x:m.date,y:m.waist}));
+    const bpts=ml.map(m=>({x:m.date,y:navyBF(p,m)})).filter(pt=>pt.y!=null);
+    if(wpts.length>=2)medBody+='<h4 class="mg-h mt16">Cintura (cm)</h4>'+svgLine(wpts,{color:'#ffb45c',unit:'cm',h:150});
+    if(bpts.length>=2)medBody+='<h4 class="mg-h mt16">% grasa estimado</h4>'+svgLine(bpts,{color:'#7cd0fb',unit:'%',h:150});
+  }else medBody='<div class="empty"><b>Sin medidas en el periodo</b>El atleta registra sus circunferencias 1×/mes desde su panel.</div>';
+  /* ---- ADHERENCIA + WELLBEING ---- */
+  const adh=adherenceAvg(aid,days);
+  const nNut=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff).length;
+  const wb=wellbeingAvgs(aid,days);
+  const wbbar=(label,v)=>{if(v==null)return'';const pct=Math.max(0,Math.min(100,v/5*100));const col=v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066';return '<div style="margin:8px 0"><div class="wbbar-l"><span>'+label+'</span><span style="color:var(--tx)">'+v+'<small style="color:var(--tx3)">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div></div>';};
+  let adhBody='<div class="grid g3 mb16">'+
+    '<div class="stat" style="margin:0"><div class="k">Adherencia nutrición</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">media de '+nNut+' registros</div></div>'+
+    '<div class="stat" style="margin:0"><div class="k">Registros de nutrición</div><div class="v">'+nNut+'</div><div class="sub">en '+rw+' semanas</div></div>'+
+    '<div class="stat" style="margin:0"><div class="k">Check-ins semanales</div><div class="v">'+(wb?wb.n:0)+'</div><div class="sub">respondidos</div></div>'+
+    '</div>';
+  if(wb){
+    adhBody+='<h4 class="mg-h mt16">Bienestar <span class="hint">promedio del check-in · 5 = mejor</span></h4><div class="grid g2" style="gap:2px 22px">'+
+      '<div>'+wbbar('Energía',wb.f)+wbbar('Sueño',wb.s)+wbbar('Dolor muscular',wb.d)+'</div>'+
+      '<div>'+wbbar('Estrés',wb.st)+wbbar('Ánimo',wb.a)+'</div>'+
+      '</div>';
+    if(wb.hunger!=null)adhBody+='<p class="tiny mt8">🍽 Hambre/apetito medio: <b>'+wb.hunger+'/5</b> · '+esc(hungerLabel(Math.round(wb.hunger)))+'</p>';
+  }else adhBody+='<p class="tiny" style="color:var(--tx3)">Aún sin check-ins en el periodo.</p>';
+  /* ---- HOJA ---- */
+  const periodTxt='Últimas '+rw+' semanas · '+fmtDate(cutoff)+' → '+fmtDate(todayISO());
+  const sheet='<div id="reportSheet" class="report-sheet">'+
+    '<div class="rep-head"><div><div class="rep-brand">LR COACHING</div><h2 style="margin:6px 0 2px">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny" style="text-align:right;color:var(--tx3)">Reporte de progreso<br>Generado '+fmtDate(todayISO())+'</div></div>'+
+    '<div class="rep-sect"><h3>Peso corporal</h3>'+pesoBody+'</div>'+
+    '<div class="rep-sect"><h3>Medidas y composición</h3>'+medBody+'</div>'+
+    '<div class="rep-sect"><h3>Adherencia y bienestar</h3>'+adhBody+'</div>'+
+    '</div>';
+  return '<div class="card mb16">'+controls+sheet+'</div>';
+}
+Object.assign(ACTIONS,{
+ 'report-png':el=>{
+   const node=document.getElementById('reportSheet');
+   if(!node||typeof html2canvas!=='function'){toast('No se pudo generar la imagen');return;}
+   const name=(el.dataset.name||'atleta').replace(/[^\wáéíóúñÁÉÍÓÚÑ\- ]+/g,'').trim().replace(/\s+/g,'_');
+   toast('Generando imagen…');
+   html2canvas(node,{backgroundColor:'#0b0d11',scale:2,useCORS:true}).then(c=>{
+     const a=document.createElement('a');a.download='reporte_'+name+'_'+todayISO()+'.png';a.href=c.toDataURL('image/png');a.click();
+   }).catch(err=>{console.error(err);toast('Error al generar la imagen');});
+ },
+ 'report-print':()=>{window.print();}
+});
 const fatigueLast=aid=>{const f=fatigueLogs(aid);return f.length?f[f.length-1]:null;};
 const fatiguePending=aid=>{const w=weekOf(aid);return !fatigueLogs(aid).some(e=>e.week===w);};
 function fqForm(prev){
