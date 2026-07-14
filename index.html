@@ -1313,7 +1313,7 @@ function intakeForDate(aid,iso){const t={p:0,c:0,f:0,kcal:0};(athData(aid).logs.
 /* ===== modelo de nutrición: varios PLANES por tipo de día (pesado/normal/off/recarga) ===== */
 const PLAN_TYPES={normal:{lbl:'Día normal',cls:'volt'},heavy:{lbl:'Día pesado',cls:'blue'},off:{lbl:'Day off',cls:'orange'},refeed:{lbl:'Recarga',cls:'green'},custom:{lbl:'Personalizado',cls:''}};
 function planType(t){return PLAN_TYPES[t]||PLAN_TYPES.custom;}
-function foodMacros(name,g){const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===(name||'').toLowerCase());if(!fo)return null;const k=g/100;return{p:+(fo.p*k).toFixed(1),c:+(fo.c*k).toFixed(1),f:+(fo.f*k).toFixed(1)};}
+function foodMacros(name,qty){const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===(name||'').toLowerCase());if(!fo)return null;const k=fo.unit==='u'?qty:qty/100;return{p:+(fo.p*k).toFixed(1),c:+(fo.c*k).toFixed(1),f:+(fo.f*k).toFixed(1)};}
 function normMeal(m){m.items=(m.items||[]).map(it=>{let p=+it.p||0,c=+it.c||0,f=+it.f||0,grams=+it.grams||0;if(!p&&!c&&!f){const gm=/([\d.]+)\s*g/i.exec(it.qty||'');if(gm){const g=parseFloat(gm[1]);const mac=foodMacros(it.food,g);if(mac){p=mac.p;c=mac.c;f=mac.f;grams=g;}}}return{food:it.food,qty:it.qty||'',grams,p,c,f};});return m;}
 function migrateNutrition(n){
   if(!n)return{plans:[],activePlan:null,supplements:[]};
@@ -2857,9 +2857,9 @@ Object.assign(ACTIONS,{
   'pmacmeal-autosplit-do':el=>{const p=activePlanOf(el.dataset.aid),N=Math.max(1,p.mealsPerDay||4),P=p.protein||0,C=p.carbs||0,F=p.fat||0;p.meals=[];for(let i=0;i<N;i++)p.meals.push({id:uid(),name:'Comida '+(i+1),p:+(P/N).toFixed(1),c:+(C/N).toFixed(1),f:+(F/N).toFixed(1),items:[]});saveState();closeModal();render();},
   'pmacmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;openModal('Editar comida','<div class="frow"><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div class="frow3"><div><label>Prot (g)</label><input id="mm_p" type="number" min="0" step="1" value="'+(m.p||0)+'"></div><div><label>Carb (g)</label><input id="mm_c" type="number" min="0" step="1" value="'+(m.c||0)+'"></div><div><label>Gras (g)</label><input id="mm_f" type="number" min="0" step="1" value="'+(m.f||0)+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmacmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
   'pmacmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;m.name=val('m_name')||m.name;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
-  'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base de alimentos ('+(S.foods||[]).length+' alimentos)</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off"></div><div><input id="pi_g" type="number" min="1" step="5" placeholder="gramos"></div></div><p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
-  'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=p.meals.find(x=>x.id===el.dataset.meal);if(!m)return;const fname=val('pi_food'),g=num('pi_g');let it=null;
-    if(fname&&g>0){const mac=foodMacros(fname,g);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual');return;}it={food:fname,qty:g+' g',grams:g,p:mac.p,c:mac.c,f:mac.f};}
+  'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base de alimentos ('+(S.foods||[]).length+' alimentos)</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="pi_g"></div><div><input id="pi_g" type="number" min="0.5" step="5" placeholder="gramos"></div></div><p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
+  'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=p.meals.find(x=>x.id===el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=num('pi_g');let it=null;
+    if(fname&&qty>0){const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===fname.toLowerCase());const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(qty+' g');it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};}
     else{const nm=val('pi_name'),pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(!nm){toast('Elige un alimento o pon un nombre manual');return;}if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)');return;}it={food:nm,qty:val('pi_qty'),grams:0,p:pp,c:cc,f:ff};}
     m.items.push(it);saveState();closeModal();render();},
   'pitem-del':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);m.items.splice(parseInt(el.dataset.idx,10),1);saveState();render();},
@@ -3164,7 +3164,7 @@ VIEWS['ath-hoy']=function(u){
     if(!list)list='<div class="empty"><b>Sin comida libre registrada hoy</b>Lo que comas fuera del plan, añádelo aquí y se restará de lo que te queda arriba.</div>';
     return '<p class="tiny mb16">Marca arriba las comidas del plan que cumpliste y completa el resto aquí: las casillas suman '+dm.kcal+' kcal y tu comida libre '+fm.kcal+' kcal. Todo se descuenta de «Te queda por comer hoy».</p>'+
     '<label>Desde la base de alimentos ('+(S.foods||[]).length+' alimentos)</label>'+
-    '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off"><input id="mf_g" type="number" min="1" step="5" placeholder="gramos"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+
+    '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+
     '<datalist id="foodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
     '<label>O entrada manual con macros</label>'+
     '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px"><input id="m_name" placeholder="Qué comiste (ej. guiso casero)"></div>'+
@@ -3421,32 +3421,41 @@ Object.assign(ACTIONS,{
   },
   'meal-add-food':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
-    const q=val('mf_food').toLowerCase(),g=num('mf_g');
+    const q=val('mf_food').toLowerCase(),qty=num('mf_g');
     const food=(S.foods||[]).find(x=>x.name.toLowerCase()===q);
     if(!food){toast('Elige un alimento de la lista');return;}
-    if(!g||g<=0||g>3000){toast('Indica los gramos');return;}
-    const k=g/100,p=+(food.p*k).toFixed(1),c=+(food.c*k).toFixed(1),f=+(food.f*k).toFixed(1);
+    const isUnit=food.unit==='u';
+    if(!qty||qty<=0||qty>(isUnit?50:3000)){toast(isUnit?'Indica la cantidad':'Indica los gramos');return;}
+    const mac=foodMacros(food.name,qty);
+    const label=isUnit?(qty+' '+(food.unitLabel||'unidades')):(qty+' g');
     if(!d.logs.meals)d.logs.meals=[];
-    const _m={id:uid(),date:todayISO(),name:food.name+' · '+g+' g',p,c,f};
+    const _m={id:uid(),date:todayISO(),name:food.name+' · '+label,p:mac.p,c:mac.c,f:mac.f};
     d.logs.meals.push(_m);syncMealAdd(u.id,_m);
-    saveState();toast('Añadido: '+mealKcal({p,c,f})+' kcal');render();
+    saveState();toast('Añadido: '+mealKcal(mac)+' kcal');render();
   },
   /* gestión de la base de alimentos (coach) */
   'food-new-modal':()=>{
     let copts='';FOOD_CATS.forEach(c=>{copts+='<option value="'+c+'">'+c+'</option>';});
-    openModal('Nuevo alimento','<div class="frow"><label>Nombre</label><input id="fo_name" placeholder="Ej. Pechuga de pollo (cruda)"></div><div class="frow"><label>Categoría</label><select id="fo_cat">'+copts+'</select></div><div class="frow3"><div><label>Proteína /100 g</label><input id="fo_p" type="number" min="0" step="0.1"></div><div><label>Carbohidratos /100 g</label><input id="fo_c" type="number" min="0" step="0.1"></div><div><label>Grasas /100 g</label><input id="fo_f" type="number" min="0" step="0.1"></div></div>',
+    openModal('Nuevo alimento','<div class="frow"><label>Nombre</label><input id="fo_name" placeholder="Ej. Pechuga de pollo (cruda)"></div><div class="frow"><label>Categoría</label><select id="fo_cat">'+copts+'</select></div>'+
+    '<div class="frow"><label>¿Cómo se mide?</label><select id="fo_unit" data-change="fo-unit"><option value="g">Por cada 100 g / 100 ml</option><option value="u">Por pieza o porción (huevo, scoop, rebanada…)</option></select></div>'+
+    '<div id="fo_unitlabel_wrap" style="display:none" class="frow"><label>¿Cómo se llama esa unidad?</label><input id="fo_unitlabel" placeholder="Ej. huevo, scoop, rebanada, cuadro"></div>'+
+    '<div class="frow3"><div><label id="fo_p_lbl">Proteína /100 g</label><input id="fo_p" type="number" min="0" step="0.1"></div><div><label id="fo_c_lbl">Carbohidratos /100 g</label><input id="fo_c" type="number" min="0" step="0.1"></div><div><label id="fo_f_lbl">Grasas /100 g</label><input id="fo_f" type="number" min="0" step="0.1"></div></div>',
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="food-save">Guardar</button>');
   },
   'food-edit-modal':el=>{
     const f=S.foods.find(x=>x.id===el.dataset.fid);if(!f)return;
     let copts='';FOOD_CATS.forEach(c=>{copts+='<option value="'+c+'"'+(c===f.cat?' selected':'')+'>'+c+'</option>';});
-    openModal('Editar alimento','<div class="frow"><label>Nombre</label><input id="fo_name" value="'+esc(f.name)+'"></div><div class="frow"><label>Categoría</label><select id="fo_cat">'+copts+'</select></div><div class="frow3"><div><label>Proteína /100 g</label><input id="fo_p" type="number" min="0" step="0.1" value="'+f.p+'"></div><div><label>Carbohidratos /100 g</label><input id="fo_c" type="number" min="0" step="0.1" value="'+f.c+'"></div><div><label>Grasas /100 g</label><input id="fo_f" type="number" min="0" step="0.1" value="'+f.f+'"></div></div>',
+    const isU=f.unit==='u',sfx=isU?'por unidad':'/100 g';
+    openModal('Editar alimento','<div class="frow"><label>Nombre</label><input id="fo_name" value="'+esc(f.name)+'"></div><div class="frow"><label>Categoría</label><select id="fo_cat">'+copts+'</select></div>'+
+    '<div class="frow"><label>¿Cómo se mide?</label><select id="fo_unit" data-change="fo-unit"><option value="g"'+(isU?'':' selected')+'>Por cada 100 g / 100 ml</option><option value="u"'+(isU?' selected':'')+'>Por pieza o porción (huevo, scoop, rebanada…)</option></select></div>'+
+    '<div id="fo_unitlabel_wrap" style="display:'+(isU?'':'none')+'" class="frow"><label>¿Cómo se llama esa unidad?</label><input id="fo_unitlabel" value="'+esc(f.unitLabel||'')+'" placeholder="Ej. huevo, scoop, rebanada, cuadro"></div>'+
+    '<div class="frow3"><div><label id="fo_p_lbl">Proteína '+sfx+'</label><input id="fo_p" type="number" min="0" step="0.1" value="'+f.p+'"></div><div><label id="fo_c_lbl">Carbohidratos '+sfx+'</label><input id="fo_c" type="number" min="0" step="0.1" value="'+f.c+'"></div><div><label id="fo_f_lbl">Grasas '+sfx+'</label><input id="fo_f" type="number" min="0" step="0.1" value="'+f.f+'"></div></div>',
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="food-save" data-fid="'+f.id+'">Guardar</button>');
   },
   'food-save':el=>{
     const name=val('fo_name');if(!name){toast('Escribe el nombre del alimento');return;}
-    const obj={name,cat:val('fo_cat')||'Otros',p:num('fo_p'),c:num('fo_c'),f:num('fo_f')};
-    if(obj.p+obj.c+obj.f<=0){toast('Indica al menos un macro por 100 g (P, C o G)');return;}
+    const unit=val('fo_unit')||'g';
+    const obj={name,cat:val('fo_cat')||'Otros',unit,unitLabel:unit==='u'?(val('fo_unitlabel')||'unidad'):'',p:num('fo_p'),c:num('fo_c'),f:num('fo_f')};
     if(el.dataset.fid){const f=S.foods.find(x=>x.id===el.dataset.fid);if(f)Object.assign(f,obj);}
     else S.foods.push(Object.assign({id:uid()},obj));
     saveState();closeModal();toast('Alimento guardado');render();
@@ -3482,6 +3491,14 @@ document.addEventListener('input',e=>{
     const box=document.getElementById('recpick_list');
     if(box)box.innerHTML=recPickList(el.dataset.aid,el.value);
   }
+  if(el.dataset&&el.dataset.live==='food-hint'){
+    const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===el.value.toLowerCase());
+    const t=document.getElementById(el.dataset.hintTarget);
+    if(t){
+      if(fo&&fo.unit==='u'){t.placeholder='cantidad ('+(fo.unitLabel||'unidades')+')';t.step='0.5';}
+      else{t.placeholder='gramos';t.step='5';}
+    }
+  }
 });
 document.addEventListener('keydown',e=>{
   const el=e.target;
@@ -3496,6 +3513,12 @@ document.addEventListener('change',e=>{
     const days=parseInt(val('sp_days'),10)||4,style=val('sp_style')||'auto';
     const box=document.getElementById('sp_prev');
     if(box)box.innerHTML='<b>Estructura sugerida:</b> '+esc(splitTemplate(days,exp,style).map(t=>t.name).join(' · '));
+  }
+  else if(el.dataset.change==='fo-unit'){
+    const isU=el.value==='u';
+    const wrap=document.getElementById('fo_unitlabel_wrap');if(wrap)wrap.style.display=isU?'':'none';
+    const sfx=isU?'por unidad':'/100 g';
+    [['fo_p_lbl','Proteína '],['fo_c_lbl','Carbohidratos '],['fo_f_lbl','Grasas ']].forEach(pair=>{const lb=document.getElementById(pair[0]);if(lb)lb.textContent=pair[1]+sfx;});
   }
   else if(el.dataset.change==='prog-ex'){route.params.ex=el.value;render();}
   else if(el.dataset.change==='rm-ex'){route.params.rmEx=el.value;render();}
@@ -4194,14 +4217,14 @@ VIEWS['foods']=function(u){
   let rows='',lastCat=null;
   list.forEach(f=>{
     if(f.cat!==lastCat){rows+='<tr><td colspan="6" style="background:var(--card2);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2)">'+esc(f.cat||'Otros')+'</td></tr>';lastCat=f.cat;}
-    rows+='<tr><td>'+esc(f.name)+'</td><td class="num">'+foodKcal100(f)+'</td><td class="num">'+f.p+'</td><td class="num">'+f.c+'</td><td class="num">'+f.f+'</td>'+
+    rows+='<tr><td>'+esc(f.name)+(f.unit==='u'?' <span class="tiny muted">· por '+esc(f.unitLabel||'unidad')+'</span>':'')+'</td><td class="num">'+foodKcal100(f)+'</td><td class="num">'+f.p+'</td><td class="num">'+f.c+'</td><td class="num">'+f.f+'</td>'+
     '<td><div class="rowbtns"><button title="Editar" data-act="food-edit-modal" data-fid="'+f.id+'">'+I.edit+'</button><button title="Eliminar" data-act="food-del-ask" data-fid="'+f.id+'">'+I.trash+'</button></div></td></tr>';
   });
   if(!rows)rows='<tr><td colspan="6"><div class="empty"><b>Sin resultados</b>Prueba con otro término o añade el alimento.</div></td></tr>';
-  return{title:'Base de alimentos',crumb:(S.foods||[]).length+' alimentos · valores por 100 g · tus atletas los usan al registrar comidas',
+  return{title:'Base de alimentos',crumb:(S.foods||[]).length+' alimentos · valores por 100 g o por pieza/porción (ver cada fila) · tus atletas los usan al registrar comidas',
     actions:'<button class="btn btn-p" data-act="food-new-modal">'+I.plus+' Nuevo alimento</button>',
     body:'<div class="filterbar"><input id="food_q" placeholder="Buscar alimento o categoría…" value="'+esc(route.params.q||'')+'" data-live="food-q"></div>'+
-    '<div class="card"><div class="tblwrap"><table class="tbl"><thead><tr><th>Alimento</th><th style="width:70px">kcal/100g</th><th style="width:60px">P (g)</th><th style="width:60px">C (g)</th><th style="width:60px">G (g)</th><th style="width:80px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'};
+    '<div class="card"><div class="tblwrap"><table class="tbl"><thead><tr><th>Alimento</th><th style="width:70px">kcal</th><th style="width:60px">P (g)</th><th style="width:60px">C (g)</th><th style="width:60px">G (g)</th><th style="width:80px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'};
 };
 
 VIEWS['ref']=function(u){
