@@ -3762,14 +3762,39 @@ Object.assign(ACTIONS,{
   'tpl-apply-ask':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,t=tplById(kind,el.dataset.tpl),a=userById(aid);
     if(!t||!a)return;
-    confirmModal('Aplicar plantilla','Se aplicará «'+t.name+'» a '+a.name+(kind==='routine'?' reemplazando su programa actual.':' reemplazando sus planes de nutrición y suplementos.'),'tpl-apply-do','data-kind="'+kind+'" data-aid="'+aid+'" data-tpl="'+t.id+'"');
+    const p=athData(aid).profile;
+    let eopts='';EXPERIENCES.forEach(ex=>{eopts+='<option value="'+ex[0]+'"'+(p.experience===ex[0]?' selected':'')+'>'+ex[1]+'</option>';});
+    let popts='';PHASES.forEach(ph=>{popts+='<option value="'+ph[0]+'"'+(p.phase===ph[0]?' selected':'')+'>'+ph[1]+'</option>';});
+    let bopts='';[1,2,3,4].forEach(b=>{bopts+='<option value="'+b+'"'+((p.block||1)===b?' selected':'')+'>Bloque '+b+'</option>';});
+    const dateRow=kind==='routine'?'<div class="frow"><label>Inicio de este bloque</label><input id="tplctx_start" type="date" value="'+esc(todayISO())+'" max="'+esc(todayISO())+'"></div>':'';
+    openModal('Aplicar plantilla',
+      '<p class="tiny">Se aplicará «'+esc(t.name)+'» a '+esc(a.name)+(kind==='routine'?' reemplazando su programa actual.':' reemplazando sus planes de nutrición y suplementos.')+'</p>'+
+      '<p class="tiny mt8">Confirma el contexto actual de '+esc(a.name)+' — se usa para ajustar la plantilla a su situación real y queda guardado en su perfil.</p>'+
+      '<div class="frow3 mt8"><div><label>Bloque</label><select id="tplctx_block">'+bopts+'</select></div><div><label>Experiencia</label><select id="tplctx_exp">'+eopts+'</select></div><div><label>Fase actual</label><select id="tplctx_phase">'+popts+'</select></div></div>'+
+      dateRow,
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="tpl-apply-do" data-kind="'+kind+'" data-aid="'+aid+'" data-tpl="'+t.id+'">Aplicar plantilla</button>');
   },
   'tpl-apply-do':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,t=tplById(kind,el.dataset.tpl);
     if(!t)return;
+    const p=athData(aid).profile;
+    const bEl=document.getElementById('tplctx_block'),eEl=document.getElementById('tplctx_exp'),phEl=document.getElementById('tplctx_phase'),sEl=document.getElementById('tplctx_start');
+    if(kind==='routine'&&sEl&&sEl.value){
+      const chosen=sEl.value,t0=todayISO();
+      if(chosen>t0){toast('La fecha de inicio no puede ser futura');return;}
+      const hist=athData(aid).routine.history;
+      if(hist&&hist.length){
+        const lastEnd=hist[hist.length-1].endDate;
+        if(lastEnd&&chosen<lastEnd){toast('Esa fecha ('+fmtDate(chosen)+') es anterior al fin del bloque anterior ('+fmtDate(lastEnd)+')');return;}
+      }
+    }
+    if(bEl)p.block=parseInt(bEl.value,10)||p.block;
+    if(eEl&&eEl.value)p.experience=eEl.value;
+    if(phEl&&phEl.value)p.phase=phEl.value;
     let extra='';
     if(kind==='routine'){
       applyTplRoutine(aid,t);
+      if(sEl&&sEl.value)athData(aid).routine.startDate=sEl.value;
       if(t.source==='ai-import'){applyAiRoutineAdjust(aid);extra=' · prioridades y objetivos de volumen ajustados al atleta';}
     }else{
       applyTplNutri(aid,t);
