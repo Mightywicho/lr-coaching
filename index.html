@@ -3756,7 +3756,7 @@ Object.assign(ACTIONS,{
   'tpl-apply-modal':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,list=tplList(kind);
     if(!list.length){openModal('Aplicar plantilla','<div class="empty"><b>Aún no tienes plantillas de '+(kind==='routine'?'rutina':'nutrición')+'</b>Guarda una desde el botón «Guardar como plantilla» de cualquier atleta y aparecerá aquí.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
-    let rows='';list.forEach(t=>{rows+='<div class="meal"><div class="meal-h"><span>'+esc(t.name)+'</span><span class="tm">'+tplSummary(kind,t)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="tpl-apply-ask" data-kind="'+kind+'" data-aid="'+aid+'" data-tpl="'+t.id+'">Aplicar</button></span></div></div>';});
+    let rows='';list.forEach(t=>{rows+='<div class="meal"><div class="meal-h"><span>'+esc(t.name)+(t.source==='ai-import'?' <span class="badge">IA</span>':'')+'</span><span class="tm">'+tplSummary(kind,t)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="tpl-apply-ask" data-kind="'+kind+'" data-aid="'+aid+'" data-tpl="'+t.id+'">Aplicar</button></span></div></div>';});
     openModal('Aplicar plantilla',rows+'<p class="tiny mt8">'+(kind==='routine'?'Al aplicar se reemplaza el programa actual del atleta y arranca bloque nuevo (fecha de inicio hoy). Sus registros e historial de cargas se conservan.':'Al aplicar se reemplazan sus planes de nutrición y suplementos. Su perfil de alimentación y registros se conservan; ajusta después kcal y macros a este atleta.')+'</p>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
   },
   'tpl-apply-ask':el=>{
@@ -3767,8 +3767,18 @@ Object.assign(ACTIONS,{
   'tpl-apply-do':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,t=tplById(kind,el.dataset.tpl);
     if(!t)return;
-    if(kind==='routine')applyTplRoutine(aid,t);else applyTplNutri(aid,t);
-    saveState();closeModal();toast('Plantilla «'+t.name+'» aplicada');
+    let extra='';
+    if(kind==='routine'){
+      applyTplRoutine(aid,t);
+      if(t.source==='ai-import'){applyAiRoutineAdjust(aid);extra=' · prioridades y objetivos de volumen ajustados al atleta';}
+    }else{
+      applyTplNutri(aid,t);
+      if(t.source==='ai-import'){
+        const ok=applyAiNutriAdjust(aid);
+        extra=ok?' · macros recalculados al perfil del atleta':' · faltan peso/altura del atleta, se dejaron los valores del documento';
+      }
+    }
+    saveState();closeModal();toast('Plantilla «'+t.name+'» aplicada'+extra);
     nav('coach-ath',{aid:aid,tab:kind==='routine'?'entrenamiento':'nutricion'});
   },
   'tpl-assign-modal':el=>{
@@ -3791,8 +3801,8 @@ Object.assign(ACTIONS,{
   'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');},
   'aiimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,.txt,.xlsx,.xls,.pdf,.docx';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)aiImportFile(f);};inp.click();},
   'aiimport-link':el=>{if(!_aiImport||!_aiImport.routine)return;const nm=val('ai_rt_name');if(nm)_aiImport.routineName=nm;const nn=val('ai_nt_name');if(nn&&_aiImport.nutri)_aiImport.nutri.name=nn;_aiImport.routine.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));aiPreviewRender();},
-  'aiimport-save-routine':()=>{if(!_aiImport||!_aiImport.routine)return;S.templates.routines.push({id:uid(),name:(val('ai_rt_name')||_aiImport.routineName||'Rutina importada').trim(),weekNote:_aiImport.routineNote||'',days:_aiImport.routine,created:todayISO()});_aiImport.routine=null;saveState();toast('Rutina guardada como plantilla');if(_aiImport.nutri)aiPreviewRender();else{closeModal();render();}},
-  'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}}
+  'aiimport-save-routine':()=>{if(!_aiImport||!_aiImport.routine)return;S.templates.routines.push({id:uid(),name:(val('ai_rt_name')||_aiImport.routineName||'Rutina importada').trim(),weekNote:_aiImport.routineNote||'',days:_aiImport.routine,source:'ai-import',created:todayISO()});_aiImport.routine=null;saveState();toast('Rutina guardada como plantilla');if(_aiImport.nutri)aiPreviewRender();else{closeModal();render();}},
+  'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;_aiImport.nutri.source='ai-import';S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}}
 });
 /* ===== IMPORTADOR UNIVERSAL CON IA (Edge Function parse-plan) ===== */
 let _aiImport=null; /* {routine:[days], routineName, routineNote, nutri:{tpl}} */
@@ -3893,7 +3903,7 @@ VIEWS['tpl']=function(u){
     if(kind==='routine'){(t.days||[]).forEach(d=>{det+='<li><span>'+esc(d.name)+'</span><span class="q">'+d.exercises.length+' ej.</span></li>';});}
     else{(t.plans||[]).forEach(p=>{const k=p.kcal||kcalFromMacros(p);det+='<li><span>'+esc(p.name)+(p.id===t.activePlan?' <span class="badge">activo</span>':'')+'</span><span class="q">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':'macros')+'</span></li>';});
       if((t.supplements||[]).length)det+='<li><span>Suplementos</span><span class="q">'+t.supplements.map(s=>esc(s.name)).join(', ')+'</span></li>';}
-    return '<div class="meal"><div class="meal-h"><span>'+esc(t.name)+'</span><span class="tm">'+tplSummary(kind,t)+(t.created?' · guardada '+fmtDate(t.created):'')+'</span><span class="sp">'+
+    return '<div class="meal"><div class="meal-h"><span>'+esc(t.name)+(t.source==='ai-import'?' <span class="badge">IA</span>':'')+'</span><span class="tm">'+tplSummary(kind,t)+(t.created?' · guardada '+fmtDate(t.created):'')+'</span><span class="sp">'+
       '<button class="btn btn-p btn-sm" data-act="tpl-assign-modal" data-kind="'+kind+'" data-tpl="'+t.id+'">Asignar a atleta</button>'+
       '<button class="btn btn-g btn-sm" data-act="tpl-ren-modal" data-kind="'+kind+'" data-tpl="'+t.id+'">'+I.edit+'</button>'+
       '<button class="btn btn-g btn-sm" data-act="tpl-del-ask" data-kind="'+kind+'" data-tpl="'+t.id+'">'+I.trash+'</button></span></div><ul>'+det+'</ul></div>';
@@ -4517,6 +4527,78 @@ function autoSplit(aid,nDays,style){
   logChange(aid,'alta','Split automático generado ('+nDays+' días, '+exCount+' ejercicios)','Programa','');
   return {days:days.length,exercises:exCount,template:tpl.map(t=>t.name).join(' · ')};
 }
+/* Rellena p.volTargets (objetivo semanal por grupo) según prioridad×experiencia×fase×bloque. Compartida por el botón "Usar recomendados" y el ajuste automático de plantillas IA. */
+function autoFillVolTargets(aid){
+  const d=athData(aid),p=d.profile;
+  p.volTargets=p.volTargets||{};
+  let n=0;
+  GROUPS.forEach(g=>{
+    const prio=p.priorities[g];
+    if(prio===0){delete p.volTargets[g];return;}
+    const rec=volumeRec(g,p.experience,p.phase,p.block,prio);
+    if(rec){p.volTargets[g]=rec.target;n++;}
+  });
+  return n;
+}
+/* Reparte p.volTargets entre las sesiones ya existentes (day.plan). Compartida por el botón "Repartir automático" y el ajuste automático de plantillas IA. */
+function autoDistributeDayPlan(aid){
+  const d=athData(aid),days=d.routine.days,tgts=d.profile.volTargets||{};
+  if(!days.length)return 0;
+  const targets=GROUPS.filter(g=>tgts[g]!=null&&tgts[g]!==''&&(+tgts[g])>0);
+  if(!targets.length)return 0;
+  /* carga inicial: planes de grupos sin objetivo se respetan */
+  const load=days.map(day=>{let t=0;Object.keys(day.plan||{}).forEach(g=>{if(!(g in tgts))t+=day.plan[g]||0;});return t;});
+  days.forEach(day=>{day.plan=day.plan||{};targets.forEach(g=>{delete day.plan[g];});});
+  targets.slice().sort((a,b)=>(+tgts[b])-(+tgts[a])).forEach(g=>{
+    const T=+tgts[g];
+    /* frecuencia: 1 sesión por cada 4-10 series; ~8/sesión; mínimo 2 estímulos si T≥6 */
+    let f=Math.round(T/8)||1;
+    f=Math.max(f,Math.ceil(T/10));
+    f=Math.min(f,Math.max(1,Math.floor(T/4))||1);
+    if(T>=6&&days.length>=2)f=Math.max(2,f);
+    f=Math.max(1,Math.min(f,days.length));
+    const idx=days.map((day,i)=>i).sort((a,b)=>load[a]-load[b]||a-b).slice(0,f).sort((a,b)=>a-b);
+    const base=Math.floor(T/f);let rem=T-base*f;
+    idx.forEach(i=>{const v=base+(rem>0?1:0);if(rem>0)rem--;if(v>0){days[i].plan[g]=v;load[i]+=v;}});
+  });
+  return targets.length;
+}
+/* Grupo muscular de un ejercicio ya programado (por vínculo a biblioteca). */
+function groupOfEx(ex){
+  if(ex&&ex.libId){const l=(S.library||[]).find(x=>x.id===ex.libId);if(l)return l.group;}
+  return null;
+}
+/* Series/semana ya programadas por grupo, sumando todos los días de la rutina. */
+function programmedVolumeByGroup(days){
+  const vol={};GROUPS.forEach(g=>vol[g]=0);
+  (days||[]).forEach(day=>(day.exercises||[]).forEach(ex=>{
+    const g=groupOfEx(ex);if(g&&vol[g]!=null)vol[g]+=(+ex.sets||0);
+  }));
+  return vol;
+}
+/* Infiere prioridad 0-4 por grupo a partir del volumen YA programado (p.ej. en una rutina importada), comparándolo contra sus landmarks. Un grupo sin series programadas queda en prioridad 0 (no es foco de este programa). */
+function priorityFromVolume(vol,exp){
+  const out={};
+  GROUPS.forEach(g=>{
+    const v=vol[g]||0,L=landmarks(g,exp);
+    if(!L||v<=0){out[g]=0;return;}
+    if(v>=L.vma)out[g]=4;
+    else if(v>=L.vme)out[g]=3;
+    else if(v>=Math.max(1,L.vm))out[g]=2;
+    else out[g]=1;
+  });
+  return out;
+}
+/* Ajuste automático al asignar una plantilla de RUTINA importada por IA: conserva días/ejercicios del documento
+   y autocompleta prioridades (según el volumen que el documento ya programa por grupo), objetivos semanales
+   (volumeRec) y la distribución de esos objetivos entre las sesiones ya existentes (day.plan). */
+function applyAiRoutineAdjust(aid){
+  const d=athData(aid),p=d.profile,r=d.routine;
+  const vol=programmedVolumeByGroup(r.days);
+  p.priorities=priorityFromVolume(vol,p.experience);
+  autoFillVolTargets(aid);
+  autoDistributeDayPlan(aid);
+}
 
 /* ===== GENERADOR DE NUTRICIÓN AUTOMÁTICA (objetivos + comidas con alimentos) ===== */
 function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)return 0;return Math.max(0,Math.round(targetMacro/(per/100)/5)*5);}
@@ -4546,8 +4628,11 @@ function buildAutoMeals(N,P,C,Fg){
   }
   return meals;
 }
-function autoNutrition(aid){
-  const d=athData(aid),p=d.profile,plan=activePlanOf(aid),lw=lastWeight(aid);
+/* Cálculo puro de objetivos (TDEE/kcal/macros) según perfil real del atleta. Sin tocar comidas/plan —
+   lo comparten autoNutrition (genera comidas desde la base de alimentos) y applyAiNutriAdjust (conserva
+   las comidas del documento importado y solo reescala sus macros a este objetivo). */
+function nutriTargets(aid){
+  const d=athData(aid),p=d.profile,lw=lastWeight(aid);
   const W=lw?lw.kg:0;
   if(!W)return{err:'No hay ningún pesaje registrado para este atleta.'};
   if(!p.heightCm)return{err:'Falta la altura del atleta (pestaña Resumen → perfil).'};
@@ -4569,12 +4654,54 @@ function autoNutrition(aid){
   const protein=Math.round(protGkg*protRef);
   const fat=Math.round(target*0.25/9);
   let carbs=Math.round((target-(protein*4+fat*9))/4);if(carbs<0)carbs=0;
-  plan.kcal=target;plan.protein=protein;plan.carbs=carbs;plan.fat=fat;plan.mode='menu';
-  p.targetRatePct=tgt.dir<0?-pctUsed:tgt.dir>0?pctUsed:0;
+  return {tdee,rmr:rmrObj.name,pal,target,goalTxt,protein,carbs,fat,fromW:W,pctUsed,dir:tgt.dir,protGkg};
+}
+function autoNutrition(aid){
+  const d=athData(aid),plan=activePlanOf(aid);
+  const tg=nutriTargets(aid);
+  if(tg.err)return tg;
+  plan.kcal=tg.target;plan.protein=tg.protein;plan.carbs=tg.carbs;plan.fat=tg.fat;plan.mode='menu';
+  d.profile.targetRatePct=tg.dir<0?-tg.pctUsed:tg.dir>0?tg.pctUsed:0;
   const N=Math.max(1,plan.mealsPerDay||4);
-  plan.meals=buildAutoMeals(N,protein,carbs,fat);
-  plan.notes=(plan.notes?plan.notes+' ':'')+'[Plan autogenerado: '+goalTxt+', '+protGkg+' g/kg proteína. Ajusta gramos a tu gusto.]';
-  return {tdee,rmr:rmrObj.name,pal,target,goalTxt,protein,carbs,fat,N,fromW:W};
+  plan.meals=buildAutoMeals(N,tg.protein,tg.carbs,tg.fat);
+  plan.notes=(plan.notes?plan.notes+' ':'')+'[Plan autogenerado: '+tg.goalTxt+', '+tg.protGkg+' g/kg proteína. Ajusta gramos a tu gusto.]';
+  return {tdee:tg.tdee,rmr:tg.rmr,pal:tg.pal,target:tg.target,goalTxt:tg.goalTxt,protein:tg.protein,carbs:tg.carbs,fat:tg.fat,N,fromW:tg.fromW};
+}
+/* Reescala las macros de un plan (respetando su estructura de comidas/alimentos) a un nuevo objetivo de
+   kcal/macros. Cada macro (proteína/carbo/grasa) se reescala con su propia razón, para no distorsionar
+   la proporción entre alimentos dentro de una misma comida. */
+function rescalePlanMacros(plan,tg){
+  let oldP=0,oldC=0,oldF=0;
+  (plan.meals||[]).forEach(m=>{
+    if(m.items&&m.items.length){m.items.forEach(it=>{oldP+=(+it.p||0);oldC+=(+it.c||0);oldF+=(+it.f||0);});}
+    else{oldP+=(+m.p||0);oldC+=(+m.c||0);oldF+=(+m.f||0);}
+  });
+  const rp=oldP>0?tg.protein/oldP:0,rc=oldC>0?tg.carbs/oldC:0,rf=oldF>0?tg.fat/oldF:0;
+  (plan.meals||[]).forEach(m=>{
+    if(m.items&&m.items.length){
+      m.items.forEach(it=>{
+        it.p=rp?Math.round((+it.p||0)*rp):(+it.p||0);
+        it.c=rc?Math.round((+it.c||0)*rc):(+it.c||0);
+        it.f=rf?Math.round((+it.f||0)*rf):(+it.f||0);
+      });
+    }else{
+      m.p=rp?Math.round((+m.p||0)*rp):(+m.p||0);
+      m.c=rc?Math.round((+m.c||0)*rc):(+m.c||0);
+      m.f=rf?Math.round((+m.f||0)*rf):(+m.f||0);
+    }
+  });
+  plan.kcal=tg.target;plan.protein=tg.protein;plan.carbs=tg.carbs;plan.fat=tg.fat;
+  plan.notes=(plan.notes?plan.notes+' ':'')+'[Macros ajustados automáticamente al perfil del atleta: '+tg.goalTxt+', TDEE≈'+tg.tdee+' kcal ('+tg.rmr+'). Se conservó la estructura de comidas del documento; cantidades aproximadas — ajusta a tu gusto.]';
+}
+/* Ajuste automático al asignar una plantilla de NUTRICIÓN importada por IA: los kcal/macros del documento
+   se descartan y se recalculan siempre con el perfil real del atleta (nutriTargets); la estructura de
+   comidas/alimentos del documento se conserva, reescalando cada macro proporcionalmente al nuevo objetivo. */
+function applyAiNutriAdjust(aid){
+  const tg=nutriTargets(aid);
+  if(tg.err)return false;
+  const d=athData(aid);
+  (d.nutrition.plans||[]).forEach(pl=>rescalePlanMacros(pl,tg));
+  return true;
 }
 
 function coachTabSemanas(aid){
@@ -4700,15 +4827,7 @@ Object.assign(ACTIONS,{
     saveState();closeModal();toast('Plan generado: '+res.target+' kcal · P'+res.protein+' C'+res.carbs+' G'+res.fat+' · '+res.N+' comidas');render();
   },
   'voltargets-auto':el=>{
-    const aid=el.dataset.aid,d=athData(aid),p=d.profile;
-    p.volTargets=p.volTargets||{};
-    let n=0;
-    GROUPS.forEach(g=>{
-      const prio=p.priorities[g];
-      if(prio===0){delete p.volTargets[g];return;}
-      const rec=volumeRec(g,p.experience,p.phase,p.block,prio);
-      if(rec){p.volTargets[g]=rec.target;n++;}
-    });
+    const n=autoFillVolTargets(el.dataset.aid);
     saveState();toast('Objetivos rellenados con el recomendado ('+n+' grupos)');render();
   },
   'plan-sets':el=>{
@@ -4719,26 +4838,11 @@ Object.assign(ACTIONS,{
     saveState();render();
   },
   'plan-auto':el=>{
-    const aid=el.dataset.aid,d=athData(aid),days=d.routine.days,tgts=d.profile.volTargets||{};
-    if(!days.length){toast('Añade sesiones primero');return;}
-    const targets=GROUPS.filter(g=>tgts[g]!=null&&tgts[g]!==''&&(+tgts[g])>0);
-    if(!targets.length){toast('Asigna primero objetivos semanales en el paso 1');return;}
-    /* carga inicial: planes de grupos sin objetivo se respetan */
-    const load=days.map(day=>{let t=0;Object.keys(day.plan||{}).forEach(g=>{if(!(g in tgts))t+=day.plan[g]||0;});return t;});
-    days.forEach(day=>{day.plan=day.plan||{};targets.forEach(g=>{delete day.plan[g];});});
-    targets.slice().sort((a,b)=>(+tgts[b])-(+tgts[a])).forEach(g=>{
-      const T=+tgts[g];
-      /* frecuencia: 1 sesión por cada 4-10 series; ~8/sesión; mínimo 2 estímulos si T≥6 */
-      let f=Math.round(T/8)||1;
-      f=Math.max(f,Math.ceil(T/10));
-      f=Math.min(f,Math.max(1,Math.floor(T/4))||1);
-      if(T>=6&&days.length>=2)f=Math.max(2,f);
-      f=Math.max(1,Math.min(f,days.length));
-      const idx=days.map((day,i)=>i).sort((a,b)=>load[a]-load[b]||a-b).slice(0,f).sort((a,b)=>a-b);
-      const base=Math.floor(T/f);let rem=T-base*f;
-      idx.forEach(i=>{const v=base+(rem>0?1:0);if(rem>0)rem--;if(v>0){days[i].plan[g]=v;load[i]+=v;}});
-    });
-    saveState();toast('Objetivos repartidos entre '+days.length+' sesiones');render();
+    const aid=el.dataset.aid,d=athData(aid);
+    if(!d.routine.days.length){toast('Añade sesiones primero');return;}
+    const n=autoDistributeDayPlan(aid);
+    if(!n){toast('Asigna primero objetivos semanales en el paso 1');return;}
+    saveState();toast('Objetivos repartidos entre '+d.routine.days.length+' sesiones');render();
   }
 });
 
