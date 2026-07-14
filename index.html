@@ -3776,8 +3776,96 @@ Object.assign(ACTIONS,{
   'tpl-del-do':el=>{const kind=el.dataset.kind;const arr=tplList(kind);const i=arr.findIndex(x=>x.id===el.dataset.tpl);if(i>-1)arr.splice(i,1);saveState();closeModal();render();toast('Plantilla eliminada');},
   'rtimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>rtImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
   'rtimport-link':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));rtImportRender();},
-  'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');}
+  'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');},
+  'aiimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,.txt,.xlsx,.xls,.pdf,.docx';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)aiImportFile(f);};inp.click();},
+  'aiimport-save-routine':()=>{if(!_aiImport||!_aiImport.routine)return;S.templates.routines.push({id:uid(),name:(val('ai_rt_name')||_aiImport.routineName||'Rutina importada').trim(),weekNote:_aiImport.routineNote||'',days:_aiImport.routine,created:todayISO()});_aiImport.routine=null;saveState();toast('Rutina guardada como plantilla');if(_aiImport.nutri)aiPreviewRender();else{closeModal();render();}},
+  'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}}
 });
+/* ===== IMPORTADOR UNIVERSAL CON IA (Edge Function parse-plan) ===== */
+let _aiImport=null; /* {routine:[days], routineName, routineNote, nutri:{tpl}} */
+function loadScriptOnce(src){return new Promise((res,rej)=>{if(document.querySelector('script[data-lib="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.dataset.lib=src;s.onload=()=>res();s.onerror=()=>rej(new Error('No pude cargar una librería necesaria (revisa tu conexión).'));document.head.appendChild(s);});}
+async function extractText(file){
+  const nm=(file.name||'').toLowerCase();
+  if(nm.endsWith('.csv')||nm.endsWith('.txt'))return await file.text();
+  if(nm.endsWith('.xlsx')||nm.endsWith('.xls')){
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});let out='';
+    wb.SheetNames.forEach(n=>{out+='### Hoja: '+n+'\n'+XLSX.utils.sheet_to_csv(wb.Sheets[n])+'\n\n';});return out;
+  }
+  if(nm.endsWith('.pdf')){
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let out='';
+    for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const tc=await pg.getTextContent();out+=tc.items.map(it=>it.str).join(' ')+'\n\n';}return out;
+  }
+  if(nm.endsWith('.docx')){
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+    const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});return r.value||'';
+  }
+  throw new Error('Formato no soportado. Usa CSV, Excel (.xlsx), PDF de texto o Word (.docx).');
+}
+function aiRoutineDays(rz){
+  return (rz.days||[]).map((d,i)=>({id:uid(),name:d.name||('Día '+(i+1)),
+    exercises:(d.exercises||[]).map(e=>{const lib=libByName(e.name);return{id:uid(),name:e.name||'Ejercicio',sets:parseInt(e.sets,10)||3,reps:normRepsRange(e.reps||''),rir:e.rir||'',rest:e.rest||'',notes:e.notes||'',libId:lib?lib.id:null};})
+  })).filter(d=>d.exercises.length);
+}
+function aiNutriTpl(nz,name){
+  const plans=(nz.plans||[]).map(p=>{
+    const meals=(p.meals||[]).map(m=>{
+      const items=(m.items||[]).map(it=>({food:it.food||'',qty:it.qty||'',grams:0,p:+it.p||0,c:+it.c||0,f:+it.f||0}));
+      const meal={id:uid(),name:m.name||'Comida',time:m.time||'',items:items};
+      if(!items.length){meal.p=+m.p||0;meal.c=+m.c||0;meal.f=+m.f||0;}
+      return meal;
+    });
+    return{id:uid(),name:p.name||'Día',type:'normal',mode:(p.mode==='menu'?'menu':'macros'),kcal:+p.kcal||0,protein:+p.protein||0,carbs:+p.carbs||0,fat:+p.fat||0,mealsPerDay:parseInt(p.mealsPerDay,10)||4,meals:meals,notes:p.notes||''};
+  });
+  if(!plans.length)plans.push({id:uid(),name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''});
+  const sups=(nz.supplements||[]).map(s=>({id:uid(),name:s.name||'',dose:s.dose||'',timing:s.timing||'',notes:s.notes||''}));
+  return{id:uid(),name:name,activePlan:plans[0].id,plans:plans,supplements:sups,created:todayISO()};
+}
+async function aiImportFile(file){
+  openModal('Analizando archivo…','<p class="muted">Leyendo «'+esc(file.name)+'» y extrayendo la rutina o el plan con IA. Tarda unos segundos…</p>','');
+  let text;
+  try{text=await extractText(file);}
+  catch(e){openModal('No pude leer el archivo','<p>'+esc(String(e.message||e))+'</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
+  text=(text||'').trim();
+  if(!text){openModal('Archivo sin texto','<p>No encontré texto en ese archivo. Si es un PDF escaneado o una foto, la lectura de texto no lo puede procesar todavía.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
+  let data=null,error=null;
+  try{const r=await supa.functions.invoke('parse-plan',{body:{text:text}});data=r.data;error=r.error;}catch(e){error=e;}
+  if(error||!data||!data.ok){
+    let msg=(data&&data.error)||'La IA no pudo procesar el archivo.';
+    try{if(error&&error.context&&error.context.json){const j=await error.context.json();if(j&&j.error)msg=j.error;}}catch(_){}
+    openModal('Error al analizar','<p>'+esc(msg)+'</p><p class="tiny" style="color:var(--tx3)">Si menciona ANTHROPIC_API_KEY, falta configurar la key en Supabase → Edge Functions → Secrets.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');
+    return;
+  }
+  const r=data.result||{};
+  _aiImport={
+    routine:(r.routine&&r.routine.days&&r.routine.days.length)?aiRoutineDays(r.routine):null,
+    routineName:(r.routine&&r.routine.name)||('Rutina importada '+fmtDate(todayISO())),
+    routineNote:(r.routine&&r.routine.weekNote)||'',
+    nutri:(r.nutrition&&r.nutrition.plans&&r.nutrition.plans.length)?aiNutriTpl(r.nutrition,'Nutrición importada '+fmtDate(todayISO())):null
+  };
+  aiPreviewRender();
+}
+function aiPreviewRender(){
+  const A=_aiImport;let body='';
+  if(A&&A.routine){let ex=0;A.routine.forEach(d=>ex+=d.exercises.length);let linked=0;A.routine.forEach(d=>d.exercises.forEach(e=>{if(e.libId)linked++;}));
+    body+='<div class="card mb16"><h3>'+I.dumbbell+' Rutina detectada</h3>'+
+      '<div class="frow"><label>Nombre de la plantilla</label><input id="ai_rt_name" value="'+esc(A.routineName)+'"></div>'+
+      '<p class="hint">'+A.routine.length+' días · '+ex+' ejercicios · '+linked+' vinculados a tu biblioteca'+((ex-linked)?' · '+(ex-linked)+' sin vincular':'')+'</p>';
+    A.routine.forEach(d=>{body+='<div class="meal"><div class="meal-h"><span>'+esc(d.name)+'</span><span class="tm">'+d.exercises.length+' ej.</span></div><ul>';
+      d.exercises.forEach(e=>{body+='<li><span>'+esc(e.name)+'</span><span class="q">'+e.sets+'×'+esc(e.reps||'—')+(e.libId?' <span style="color:var(--volt)">✓</span>':'')+'</span></li>';});body+='</ul></div>';});
+    body+='<button class="btn btn-p" data-act="aiimport-save-routine">Guardar rutina como plantilla</button></div>';
+  }
+  if(A&&A.nutri){body+='<div class="card mb16"><h3>'+I.food+' Nutrición detectada</h3>'+
+      '<div class="frow"><label>Nombre de la plantilla</label><input id="ai_nt_name" value="'+esc(A.nutri.name)+'"></div>';
+    A.nutri.plans.forEach(p=>{const k=p.kcal||kcalFromMacros(p);body+='<div class="meal"><div class="meal-h"><span>'+esc(p.name)+'</span><span class="tm">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':'macros')+' · '+p.meals.length+' comidas</span></div></div>';});
+    if(A.nutri.supplements.length)body+='<p class="hint">Suplementos: '+A.nutri.supplements.map(s=>esc(s.name)).join(', ')+'</p>';
+    body+='<button class="btn btn-p" data-act="aiimport-save-nutri">Guardar nutrición como plantilla</button></div>';
+  }
+  if(!body)body='<p>No identifiqué una rutina ni un plan de nutrición en el archivo. Revisa que tenga ejercicios o comidas claras, o intenta con otro formato.</p>';
+  openModal('Importar desde archivo (IA)',body,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+}
 VIEWS['tpl']=function(u){
   const T=S.templates||{routines:[],nutris:[]};
   const card=(kind,t)=>{
@@ -3794,7 +3882,9 @@ VIEWS['tpl']=function(u){
   let rH='';T.routines.forEach(t=>{rH+=card('routine',t);});
   let nH='';T.nutris.forEach(t=>{nH+=card('nutrition',t);});
   return{title:'Plantillas',crumb:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición',
-    body:'<div class="card mb16"><h3>'+I.dumbbell+' Rutinas <span class="hint">guárdalas desde la pestaña Entrenamiento de un atleta</span> <button class="btn btn-g btn-sm" data-act="rtimport-pick">'+I.copy+' Importar desde CSV</button></h3>'+(rH||empty('Abre un atleta → Entrenamiento → «Guardar como plantilla», o importa una rutina desde un CSV de Google Sheets con el botón de arriba. Luego asígnala a un atleta.'))+'</div>'+
+    actions:'<button class="btn btn-p" data-act="aiimport-pick">'+I.copy+' Importar archivo (IA)</button>',
+    body:'<div class="notebox mb16" style="border-left-color:var(--volt)">Sube un archivo (Excel, PDF de texto o Word) con una rutina o un plan de alimentación y la IA lo convierte en plantilla. Botón <b>Importar archivo (IA)</b> arriba a la derecha.</div>'+
+    '<div class="card mb16"><h3>'+I.dumbbell+' Rutinas <span class="hint">guárdalas desde la pestaña Entrenamiento de un atleta</span> <button class="btn btn-g btn-sm" data-act="rtimport-pick">'+I.copy+' Importar desde CSV</button></h3>'+(rH||empty('Abre un atleta → Entrenamiento → «Guardar como plantilla», o importa una rutina desde un CSV de Google Sheets con el botón de arriba. Luego asígnala a un atleta.'))+'</div>'+
     '<div class="card mb16"><h3>'+I.food+' Nutrición <span class="hint">conjunto completo: planes por tipo de día + suplementos</span></h3>'+(nH||empty('Abre un atleta → Nutrición → «Guardar como plantilla». El perfil de alimentación (alergias/gustos) nunca viaja con la plantilla.'))+'</div>'};
 };
 
