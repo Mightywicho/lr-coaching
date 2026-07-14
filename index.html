@@ -1701,6 +1701,7 @@ function navItemsFor(u){
   if(sv.nu)items.push({v:'ath-nutri',icon:I.food,label:'Nutrición'});
   items.push({v:'ath-chat',icon:ICON_CHAT,label:'Mensajes',badge:chatUnread(u.id,'ath')});
   if(sv.tr)items.push({v:'ath-prog',icon:I.chart,label:'Progreso'});
+  items.push({v:'ath-reporte',icon:I.copy,label:'Mi reporte'});
   return items;
 }
 let _lastRenderView=null;
@@ -4971,14 +4972,11 @@ function wellbeingAvgs(aid,days){
   const hv=fl.map(e=>e.hunger).filter(x=>x!=null);
   return {n:fl.length,f:avg('f'),s:avg('s'),d:avg('d'),st:avg('st'),a:avg('a'),hunger:hv.length?+(hv.reduce((a,b)=>a+b,0)/hv.length).toFixed(1):null};
 }
-function coachTabReporte(aid){
-  const rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
+function reportSheet(aid,rw,readOnly){
   const days=rw*7, cutoff=daysAgoISO(days);
   const a=userById(aid), p=athData(aid).profile||{};
   const sv=svcOf(aid);
   const dpill=(cur,pv,inv)=>{if(cur==null||pv==null)return'';const d=+(cur-pv).toFixed(1);if(d===0)return' <span class="delta-pill flat">=</span>';const good=inv?d<0:d>0;return' <span class="delta-pill '+(good?'up':'down')+'">'+(d>0?'+':'')+d+'</span>';};
-  const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"reporte","rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
-  const controls='<div class="rep-controls" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><div><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div><div class="report-actions"><button class="btn btn-g btn-sm" data-act="report-print">🖨 PDF</button><button class="btn btn-p btn-sm" data-act="report-png" data-name="'+esc(a?a.name:'atleta')+'">📷 Descargar imagen</button></div></div>';
   /* ---- PESO ---- */
   const ws=weightStats(aid,days);
   let pesoBody;
@@ -5060,21 +5058,43 @@ function coachTabReporte(aid){
       '</div>';
     if(wb.hunger!=null)adhBody+='<p class="tiny mt8">🍽 Hambre/apetito medio: <b>'+wb.hunger+'/5</b> · '+esc(hungerLabel(Math.round(wb.hunger)))+'</p>';
   }else adhBody+='<p class="tiny" style="color:var(--tx3)">Aún sin check-ins en el periodo.</p>';
-  /* ---- SELECTOR DE EJERCICIOS CLAVE (fuera de la hoja; no se exporta) ---- */
+  /* ---- NUTRICIÓN · plan objetivo (solo modo nutrición) ---- */
+  let nutriBody='';
+  if(sv.nu){
+    const ap=activePlanOf(aid), kc=ap?(ap.kcal||kcalFromMacros(ap)):0;
+    if(ap&&kc>0)nutriBody=macroBars(ap,true)+'<p class="tiny mt8">'+(ap.mealsPerDay?'Repartido en ~'+ap.mealsPerDay+' comidas al día · ':'')+'plan «'+esc(ap.name)+'».</p>';
+    else nutriBody='<div class="empty"><b>Sin objetivo de nutrición definido</b>'+(readOnly?'Tu coach aún no define tu objetivo de kcal y macros.':'Asigna kcal y macros en la pestaña Nutrición.')+'</div>';
+  }
+  /* ---- HOJA ---- */
+  const showRend=sv.tr&&(!readOnly||keyIds.length);
+  const periodTxt='Últimas '+rw+' semanas · '+fmtDate(cutoff)+' → '+fmtDate(todayISO());
+  return '<div id="reportSheet" class="report-sheet">'+
+    '<div class="rep-head"><div><div class="rep-brand">LR COACHING</div><h2 style="margin:6px 0 2px">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny" style="text-align:right;color:var(--tx3)">Reporte de progreso<br>'+esc(sv.lbl)+'<br>Generado '+fmtDate(todayISO())+'</div></div>'+
+    '<div class="rep-sect"><h3>Peso corporal</h3>'+pesoBody+'</div>'+
+    (showRend?'<div class="rep-sect"><h3>Rendimiento en fuerza</h3>'+rendBody+'</div>':'')+
+    '<div class="rep-sect"><h3>Medidas y composición</h3>'+medBody+'</div>'+
+    (sv.nu?'<div class="rep-sect"><h3>Nutrición · plan objetivo</h3>'+nutriBody+'</div>':'')+
+    '<div class="rep-sect"><h3>Adherencia y bienestar</h3>'+adhBody+'</div>'+
+    '</div>';
+}
+function coachTabReporte(aid){
+  const rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
+  const a=userById(aid), sv=svcOf(aid);
+  const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"reporte","rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
+  const controls='<div class="rep-controls" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><div><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div><div class="report-actions"><button class="btn btn-g btn-sm" data-act="report-print">🖨 PDF</button><button class="btn btn-p btn-sm" data-act="report-png" data-name="'+esc(a?a.name:'atleta')+'">📷 Descargar imagen</button></div></div>';
+  ensureKeyEx(S);
+  const keyIds=Array.isArray(S.keyEx[aid])?S.keyEx[aid]:[];
   const _exSel=routineExUnique(aid),_keySet=new Set(keyIds);
   const _chips=_exSel.length?_exSel.map(x=>'<button class="btn btn-sm '+(_keySet.has(x.ident)?'btn-p':'btn-g')+'" data-act="keyex-toggle" data-aid="'+aid+'" data-ident="'+encodeURIComponent(x.ident)+'">'+(_keySet.has(x.ident)?'★ ':'☆ ')+esc(x.name)+'</button>').join(' '):'<span class="tiny" style="color:var(--tx3)">El atleta aún no tiene ejercicios en su programa.</span>';
   const keySelector=!sv.tr?'':'<details class="acc" id="keyexSel" style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:600;user-select:none">⭐ Ejercicios a seguir en el reporte'+(keyIds.length?' · '+keyIds.length:'')+'</summary><div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">'+_chips+'</div><p class="tiny mt8" style="color:var(--tx3)">Marca los básicos (sentadilla, press, peso muerto…). Solo aparecen en el reporte de progreso que generas.</p></details>';
-  /* ---- HOJA ---- */
-  const periodTxt='Últimas '+rw+' semanas · '+fmtDate(cutoff)+' → '+fmtDate(todayISO());
-  const sheet='<div id="reportSheet" class="report-sheet">'+
-    '<div class="rep-head"><div><div class="rep-brand">LR COACHING</div><h2 style="margin:6px 0 2px">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny" style="text-align:right;color:var(--tx3)">Reporte de progreso<br>'+esc(sv.lbl)+'<br>Generado '+fmtDate(todayISO())+'</div></div>'+
-    '<div class="rep-sect"><h3>Peso corporal</h3>'+pesoBody+'</div>'+
-    (sv.tr?'<div class="rep-sect"><h3>Rendimiento en fuerza</h3>'+rendBody+'</div>':'')+
-    '<div class="rep-sect"><h3>Medidas y composición</h3>'+medBody+'</div>'+
-    '<div class="rep-sect"><h3>Adherencia y bienestar</h3>'+adhBody+'</div>'+
-    '</div>';
-  return '<div class="card mb16">'+controls+keySelector+sheet+'</div>';
+  return '<div class="card mb16">'+controls+keySelector+reportSheet(aid,rw,false)+'</div>';
 }
+VIEWS['ath-reporte']=function(u){
+  const aid=u.id, rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
+  const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="ath-reporte" data-params=\'{"rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
+  const controls='<div class="rep-controls" style="margin-bottom:14px"><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div>';
+  return{title:'Mi reporte',crumb:'Tu progreso · solo lectura',body:'<div class="card mb16">'+controls+reportSheet(aid,rw,true)+'</div>'};
+};
 Object.assign(ACTIONS,{
  'report-png':el=>{
    const node=document.getElementById('reportSheet');
