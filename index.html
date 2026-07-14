@@ -766,12 +766,12 @@ function libSeed(){
     L('Elevación de talones sentado','Gemelo / Sóleo','III','Sóleo',[],'Máquina','Rodilla flexionada: el estímulo se orienta al sóleo.')
   ];
 }
-function libByName(name){const k=String(name||'').trim().toLowerCase();return(S.library||[]).find(l=>l.name.trim().toLowerCase()===k);}
+function libByName(name){const k=exKey(name);return(S.library||[]).find(l=>exKey(l.name)===k);}
 function libById(id){return(S.library||[]).find(l=>l.id===id);}
 function linkRoutinesToLib(st){
   Object.keys(st.athletes).forEach(aid=>{
     st.athletes[aid].routine.days.forEach(day=>day.exercises.forEach(e=>{
-      if(!e.libId){const m=(st.library||[]).find(l=>l.name.trim().toLowerCase()===String(e.name).trim().toLowerCase());if(m)e.libId=m.id;}
+      if(!e.libId){const m=(st.library||[]).find(l=>exKey(l.name)===exKey(e.name));if(m)e.libId=m.id;}
     }));
   });
 }
@@ -780,7 +780,7 @@ function ensureLibrary(st){
   else if(st.libVersion!==2){
     /* migración v1 → v2: músculos sueltos pasan a grupo general + especialización; se conservan videos */
     const seed=libSeed();
-    const inSeed=n=>seed.find(x=>x.name.trim().toLowerCase()===String(n).trim().toLowerCase());
+    const inSeed=n=>seed.find(x=>exKey(x.name)===exKey(n));
     st.library.forEach(l=>{
       const sm=inSeed(l.name);
       if(sm){l.group=sm.group;l.cat=sm.cat;l.focus=sm.focus;l.secondary=sm.secondary.slice();l.equipment=l.equipment||sm.equipment;l.cues=l.cues||sm.cues;}
@@ -793,7 +793,7 @@ function ensureLibrary(st){
       }
       delete l.primary;
     });
-    seed.forEach(sx=>{if(!st.library.some(l=>l.name.trim().toLowerCase()===sx.name.trim().toLowerCase()))st.library.push(sx);});
+    seed.forEach(sx=>{if(!st.library.some(l=>exKey(l.name)===exKey(sx.name)))st.library.push(sx);});
     st.libVersion=2;
   }
   linkRoutinesToLib(st);
@@ -1479,7 +1479,7 @@ function e1rm(w,r,rir,useRir){
 function bestSetE1RM(sets){let best=0,which=null;(sets||[]).forEach(s=>{const v=e1rm(s.w,s.r,s.rir,true);if(v>best){best=v;which=s;}});return{e1rm:best,set:which};}
 function e1rmHistory(aid,exId){const out=[];athData(aid).logs.workouts.forEach(w=>{const ss=(w.entries||{})[exId];if(ss&&ss.length){const b=bestSetE1RM(ss);if(b.e1rm>0)out.push({date:w.date,e1rm:b.e1rm,set:b.set,sets:ss});}});return out;}
 /* ident estable de un ejercicio para marcarlo "clave": por libId si existe, si no por nombre normalizado */
-function keyIdent(e){return e.libId?('lib:'+e.libId):('nm:'+String(e.name||'').trim().toLowerCase());}
+function keyIdent(e){return e.libId?('lib:'+e.libId):('nm:'+exKey(e.name));}
 /* ejercicios únicos (por ident) del programa del atleta, para el selector de clave */
 function routineExUnique(aid){const seen={},out=[];(athData(aid).routine.days||[]).forEach(day=>(day.exercises||[]).forEach(e=>{const id=keyIdent(e);if(!seen[id]){seen[id]=1;out.push({ident:id,name:e.name});}}));return out;}
 /* historial de 1RM est. de un ejercicio-clave (agrega todos los exId que comparten ident), filtrado y ordenado por fecha */
@@ -2875,6 +2875,8 @@ Object.assign(ACTIONS,{
 });
 /* ===== coincidencia perfil ⇄ ejercicio / alimento ===== */
 function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+/* clave canónica de un ejercicio: sin acentos, minúsculas, espacios colapsados. Emparejar SIEMPRE por aquí, nunca por nombre exacto. */
+function exKey(s){return normTxt(s).replace(/\s+/g,' ').trim();}
 /* parte un texto libre (lista de nombres separados por coma, salto, ; · /) en términos buscables */
 function profileTokens(txt,min){min=min||4;return normTxt(txt).split(/[,;\n·\/]+|\sy\s|\se\s/).map(t=>t.replace(/[().]/g,'').trim()).filter(t=>t.length>=min);}
 /* mapa lesión (región) → patrones de ejercicio a vigilar */
@@ -3621,18 +3623,91 @@ function parseRoutineCSV(text){
   return keys.map(k=>{const d=byKey[k];if(!d.exercises.length)return null;n++;return{id:uid(),name:'Día '+n,exercises:d.exercises};}).filter(Boolean);
 }
 let _rtImport=null;
-function rtImportPreview(text){
-  let days;try{days=parseRoutineCSV(text);}catch(e){days=[];}
-  if(!days.length){openModal('Importar rutina','<p>No encontré sesiones ni ejercicios en ese archivo. Exporta la hoja <b>Programacion</b> como CSV (Archivo → Descargar → CSV) e inténtalo de nuevo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
-  let ex=0,linked=0;days.forEach(d=>d.exercises.forEach(e=>{ex++;if(e.libId)linked++;}));
-  _rtImport={days:days};
-  let body='<div class="frow"><label>Nombre de la plantilla</label><input id="rt_name" value="'+esc('Rutina importada '+fmtDate(todayISO()))+'"></div>'+
-    '<p class="hint">'+days.length+' días · '+ex+' ejercicios · '+linked+' vinculados a tu biblioteca'+((ex-linked)?' · '+(ex-linked)+' se guardan por nombre':'')+'</p>';
+/* similitud por bigramas (Sørensen–Dice) sobre la clave normalizada — tolera typos que no son de acento */
+function _bigrams(s){s=exKey(s);const o=[];for(let i=0;i<s.length-1;i++)o.push(s.slice(i,i+2));return o;}
+function simScore(a,b){const A=_bigrams(a),B=_bigrams(b);if(!A.length||!B.length)return exKey(a)===exKey(b)?1:0;const m={};A.forEach(g=>{m[g]=(m[g]||0)+1;});let inter=0;B.forEach(g=>{if(m[g]>0){m[g]--;inter++;}});return 2*inter/(A.length+B.length);}
+function libBestMatch(name){let best=null,bs=0;(S.library||[]).forEach(l=>{const s=simScore(name,l.name);if(s>bs){bs=s;best=l;}});return best&&bs>=0.55?{lib:best,score:bs}:null;}
+function rtImportRender(){
+  const days=_rtImport.days;let ex=0,linked=0,sugg=0;
+  days.forEach(d=>d.exercises.forEach(e=>{ex++;if(e.libId)linked++;else if(libBestMatch(e.name))sugg++;}));
+  let body='<div class="frow"><label>Nombre de la plantilla</label><input id="rt_name" value="'+esc(_rtImport.name||('Rutina importada '+fmtDate(todayISO())))+'"></div>'+
+    '<p class="hint">'+days.length+' días · '+ex+' ejercicios · '+linked+' vinculados a tu biblioteca'+((ex-linked)?' · '+(ex-linked)+' sin vincular':'')+'</p>';
+  if(sugg)body+='<div class="notebox mt8" style="border-left-color:var(--volt)">Hay '+sugg+' ejercicio(s) parecidos a tu biblioteca (posible tilde o typo). Enlázalos si son el mismo: heredan grupo y video.</div>';
   days.forEach(d=>{body+='<div class="meal"><div class="meal-h"><span>'+esc(d.name)+'</span><span class="tm">'+d.exercises.length+' ej.</span></div><ul>';
-    d.exercises.forEach(e=>{body+='<li><span>'+esc(e.name)+(e.libId?'':' <span class="badge">nuevo</span>')+'</span><span class="q">'+e.sets+'×'+esc(e.reps||'—')+'</span></li>';});
+    d.exercises.forEach(e=>{
+      let tail;
+      if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+'</span>';}
+      else{const m=libBestMatch(e.name);
+        if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="rtimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button></span>';
+        else tail='<span class="q"><span class="badge">nuevo</span></span>';}
+      body+='<li><span>'+esc(e.name)+' <span class="tiny" style="color:var(--tx3)">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';
+    });
     body+='</ul></div>';});
   openModal('Importar rutina desde CSV',body,'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rtimport-save">Guardar plantilla</button>');
 }
+function rtImportPreview(text){
+  let days;try{days=parseRoutineCSV(text);}catch(e){days=[];}
+  if(!days.length){openModal('Importar rutina','<p>No encontré sesiones ni ejercicios en ese archivo. Exporta la hoja <b>Programacion</b> como CSV (Archivo → Descargar → CSV) e inténtalo de nuevo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
+  _rtImport={days:days,name:'Rutina importada '+fmtDate(todayISO())};
+  rtImportRender();
+}
+/* ===== IMPORTAR BIBLIOTECA DESDE CSV (columnas: Ejercicio, MÚSCULO/OBJETIVO, Link) ===== */
+const LIB_MUSCLE_MAP={
+ 'quads':'Cuádriceps','cuadriceps':'Cuádriceps','cuadricep':'Cuádriceps','cuadriceps/quads':'Cuádriceps',
+ 'abdomen/core':'Abdomen','abdomen':'Abdomen','core':'Abdomen','abs':'Abdomen',
+ 'espalda':'Espalda','dorsal':'Espalda','dorsales':'Espalda','back':'Espalda',
+ 'pecho':'Pectoral','pectoral':'Pectoral','chest':'Pectoral',
+ 'gluteo':'Glúteo','gluteos':'Glúteo',
+ 'bicep':'Bíceps','biceps':'Bíceps',
+ 'isquios':'Isquiosurales','isquiosurales':'Isquiosurales','isquio':'Isquiosurales','femoral':'Isquiosurales',
+ 'tricep':'Tríceps','triceps':'Tríceps',
+ 'da':'Deltoide anterior','deltoide anterior':'Deltoide anterior','deltoides anterior':'Deltoide anterior',
+ 'dp':'Deltoide posterior','deltoide posterior':'Deltoide posterior','deltoides posterior':'Deltoide posterior',
+ 'dl':'Deltoide lateral','deltoide lateral':'Deltoide lateral','deltoides lateral':'Deltoide lateral',
+ 'gastrocnemios':'Gemelo / Sóleo','gastrocnemio':'Gemelo / Sóleo','gemelo':'Gemelo / Sóleo','gemelos':'Gemelo / Sóleo','soleo':'Gemelo / Sóleo','pantorrilla':'Gemelo / Sóleo',
+ 'trapecio':'Trapecio','trapecios':'Trapecio','antebrazo':'Antebrazo','antebrazos':'Antebrazo','aductores':'Aductores','aductor':'Aductores'
+};
+function libMuscleToGroup(raw){return LIB_MUSCLE_MAP[exKey(raw)]||null;}
+function parseLibCSV(text){
+  const g=parseCSVGrid(text);if(!g.length)return[];
+  const hi=(g[0]||[]).map(x=>exKey(x));
+  const findCol=(...keys)=>{for(let i=0;i<hi.length;i++)if(keys.some(k=>hi[i].indexOf(k)>=0))return i;return -1;};
+  let nameC=findCol('ejercicio','nombre'),musC=findCol('musculo','objetivo','grupo'),linkC=findCol('link','video','url'),start=0;
+  if(nameC>=0){if(musC<0)musC=1;if(linkC<0)linkC=2;start=1;}else{nameC=0;musC=1;linkC=2;}
+  const out=[];
+  for(let r=start;r<g.length;r++){
+    const name=_csvCell(g,r,nameC);if(!name)continue;
+    out.push({name:name,group:libMuscleToGroup(_csvCell(g,r,musC)),musRaw:_csvCell(g,r,musC),link:_csvCell(g,r,linkC)});
+  }
+  return out;
+}
+let _libImport=null;
+function libImportPreview(text){
+  let rows;try{rows=parseLibCSV(text);}catch(e){rows=[];}
+  if(!rows.length){openModal('Importar biblioteca','<p>No encontré ejercicios en ese archivo. Debe ser un CSV con columnas <b>Ejercicio, Músculo/Objetivo, Link</b>.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
+  const existing={};(S.library||[]).forEach(l=>existing[exKey(l.name)]=1);
+  const add=[],dupe=[],skip=[],seen={};
+  rows.forEach(r=>{
+    const k=exKey(r.name);
+    if(!r.group){skip.push(r);return;}
+    if(existing[k]||seen[k]){dupe.push(r);return;}
+    seen[k]=1;add.push(r);
+  });
+  _libImport={add:add};
+  let body='<p class="hint">'+rows.length+' filas · <b>'+add.length+' nuevos</b> a agregar · '+dupe.length+' ya existentes (se omiten) · '+skip.length+' sin grupo muscular (se omiten)</p>';
+  if(skip.length)body+='<div class="notebox mt8" style="border-left-color:var(--red)"><b>Omitidos (no son grupo muscular):</b> '+skip.map(s=>esc(s.name)+' ('+esc(s.musRaw)+')').join(' · ')+'</div>';
+  const byG={};add.forEach(r=>{(byG[r.group]=byG[r.group]||[]).push(r);});
+  Object.keys(byG).forEach(gname=>{
+    body+='<div class="meal"><div class="meal-h"><span>'+esc(gname)+'</span><span class="tm">'+byG[gname].length+' ej.</span></div><ul>';
+    byG[gname].forEach(r=>{body+='<li><span>'+esc(r.name)+(r.link?' <span class="badge">video</span>':'')+'</span></li>';});
+    body+='</ul></div>';
+  });
+  openModal('Importar biblioteca desde CSV',body,add.length?'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="libimport-save">Agregar '+add.length+' ejercicios</button>':'<button class="btn btn-p" data-act="modal-close">Cerrar</button>');
+}
+Object.assign(ACTIONS,{
+  'libimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>libImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
+  'libimport-save':()=>{if(!_libImport)return;let n=0;_libImport.add.forEach(r=>{S.library.push({id:uid(),name:String(r.name||'').trim(),group:r.group,cat:'',focus:'',secondary:[],equipment:'Otro',cues:'',video:r.link?{type:'youtube',url:r.link}:null});n++;});_libImport=null;linkRoutinesToLib(S);saveState();closeModal();render();toast(n+' ejercicios agregados a la biblioteca');}
+});
 Object.assign(ACTIONS,{
   'tpl-save-modal':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,a=userById(aid);
@@ -3680,6 +3755,7 @@ Object.assign(ACTIONS,{
   'tpl-del-ask':el=>confirmModal('Eliminar plantilla','Se borrará la plantilla de tu librería. Los atletas que ya la tengan aplicada no se ven afectados.','tpl-del-do','data-kind="'+el.dataset.kind+'" data-tpl="'+el.dataset.tpl+'"'),
   'tpl-del-do':el=>{const kind=el.dataset.kind;const arr=tplList(kind);const i=arr.findIndex(x=>x.id===el.dataset.tpl);if(i>-1)arr.splice(i,1);saveState();closeModal();render();toast('Plantilla eliminada');},
   'rtimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>rtImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
+  'rtimport-link':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));rtImportRender();},
   'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');}
 });
 VIEWS['tpl']=function(u){
@@ -3719,7 +3795,7 @@ VIEWS['lib']=function(u){
   });
   if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>Sin resultados</b>Prueba con otro filtro o crea el ejercicio.</div>';
   return{title:'Biblioteca de ejercicios',crumb:(S.library||[]).length+' ejercicios · '+list.length+' mostrados · modelo de categorías por patrón',
-    actions:'<button class="btn btn-p" data-act="lib-new-modal">'+I.plus+' Nuevo ejercicio</button>',
+    actions:'<button class="btn btn-g" data-act="libimport-pick">'+I.copy+' Importar CSV</button><button class="btn btn-p" data-act="lib-new-modal">'+I.plus+' Nuevo ejercicio</button>',
     body:'<div class="filterbar"><input id="lib_q" placeholder="Buscar ejercicio, grupo o especialización…" value="'+esc(route.params.q||'')+'" data-live="lib-q"><select data-change="lib-m">'+mopts+'</select><select data-change="lib-c">'+copts+'</select><select data-change="lib-eq">'+eopts+'</select></div><div class="lib-grid">'+cards+'</div>'};
 };
 
