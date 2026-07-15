@@ -4710,9 +4710,11 @@ function autoDistributeDayPlan(aid){
   });
   return targets.length;
 }
-/* Grupo muscular de un ejercicio ya programado (por vínculo a biblioteca). */
+/* Grupo muscular de un ejercicio ya programado (por vínculo a biblioteca; fallback fuzzy para importados sin vínculo). */
 function groupOfEx(ex){
-  if(ex&&ex.libId){const l=(S.library||[]).find(x=>x.id===ex.libId);if(l)return l.group;}
+  if(!ex)return null;
+  if(ex.libId){const l=(S.library||[]).find(x=>x.id===ex.libId);if(l)return l.group;}
+  const m=libBestMatch(ex.name);if(m)return m.lib.group;
   return null;
 }
 /* Series/semana ya programadas por grupo, sumando todos los días de la rutina. */
