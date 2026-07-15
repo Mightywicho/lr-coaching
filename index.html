@@ -1596,7 +1596,8 @@ const I={
   refresh:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>',
   copy:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>',
   gear:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-  recipe:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M11 6.5c0 1.5-1.2 2-1.2 3.2 0 .9.7 1.3 1.2 1.3M14 6.5v4"/></svg>'
+  recipe:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M11 6.5c0 1.5-1.2 2-1.2 3.2 0 .9.7 1.3 1.2 1.3M14 6.5v4"/></svg>',
+  folder:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>'
 };
 const ava=(u,lg)=>'<span class="ava'+(lg?' ava-lg':'')+'" style="background:'+u.color+'">'+esc(u.initials)+'</span>';
 
@@ -1694,7 +1695,7 @@ function renderLogin(){
 }
 function navItemsFor(u){
   if(u.role==='coach'){
-    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'tpl',icon:I.copy,label:'Plantillas'},{v:'lib',icon:I.dumbbell,label:'Biblioteca'},{v:'foods',icon:I.food,label:'Alimentos'},{v:'recetario',icon:I.recipe,label:'Recetario'},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ref',icon:I.chart,label:'Referencias'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
+    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'apoyo',icon:I.folder,label:'Material de apoyo',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
@@ -4041,6 +4042,20 @@ function aiPreviewRender(){
   if(!body)body='<p>No identifiqué una rutina ni un plan de nutrición en el archivo. Revisa que tenga ejercicios o comidas claras, o intenta con otro formato.</p>';
   openModal('Importar desde archivo (IA)',body,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>',{persistent:hasResult});
 }
+VIEWS['apoyo']=function(u){
+  const T=S.templates||{routines:[],nutris:[]};
+  const cards=[
+    {v:'tpl',icon:I.copy,title:'Plantillas',desc:'Rutinas y planes de nutrición reutilizables, listos para asignar a un atleta.',stat:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición'},
+    {v:'lib',icon:I.dumbbell,title:'Biblioteca de ejercicios',desc:'Catálogo con video, grupo muscular y categoría de carga por patrón.',stat:(S.library||[]).length+' ejercicios'},
+    {v:'foods',icon:I.food,title:'Base de alimentos',desc:'Alimentos con macros que tus atletas usan al registrar sus comidas.',stat:(S.foods||[]).length+' alimentos'},
+    {v:'recetario',icon:I.recipe,title:'Recetario',desc:'Recetas asignables a los planes de nutrición de tus atletas.',stat:RECIPES.length+' recetas'},
+    {v:'ref',icon:I.chart,title:'Referencias de programación',desc:'Volumen, RIR y cargas — síntesis del material de Jay Ehrenstein y David Sifuentes.',stat:'Consulta rápida'}
+  ];
+  const body='<div class="grid g2">'+cards.map(c=>
+    '<div class="card" style="cursor:pointer" data-act="nav" data-view="'+c.v+'" data-params="{}"><h3>'+c.icon+' '+c.title+'</h3><p class="muted" style="margin:4px 0 10px">'+c.desc+'</p><span class="hint">'+c.stat+'</span></div>'
+  ).join('')+'</div>';
+  return{title:'Material de apoyo',crumb:'Biblioteca, plantillas, alimentos, recetario y referencias en un solo lugar',body};
+};
 VIEWS['tpl']=function(u){
   const T=S.templates||{routines:[],nutris:[]};
   const card=(kind,t)=>{
@@ -4056,7 +4071,7 @@ VIEWS['tpl']=function(u){
   const empty=txt=>'<div class="empty"><b>Sin plantillas todavía</b>'+txt+'</div>';
   let rH='';T.routines.forEach(t=>{rH+=card('routine',t);});
   let nH='';T.nutris.forEach(t=>{nH+=card('nutrition',t);});
-  return{title:'Plantillas',crumb:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición',
+  return{title:'Plantillas',crumb:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición',back:{v:'apoyo'},
     actions:'<button class="btn btn-p" data-act="aiimport-pick">'+I.copy+' Importar archivo (IA)</button>',
     body:(_aiImport&&(_aiImport.routine||_aiImport.nutri)?'<div class="notebox mb16" style="border-left-color:var(--red)">Tienes un análisis de IA sin guardar (de un archivo subido antes). <button class="btn btn-p btn-sm" data-act="aiimport-resume">Continuar con ese análisis</button></div>':'')+
     '<div class="notebox mb16" style="border-left-color:var(--volt)">Sube un archivo (Excel, PDF de texto o Word) con una rutina o un plan de alimentación y la IA lo convierte en plantilla. Botón <b>Importar archivo (IA)</b> arriba a la derecha.</div>'+
@@ -4080,7 +4095,7 @@ VIEWS['lib']=function(u){
     cards+='<div class="lib-card" data-act="lib-open" data-lib="'+l.id+'"><div class="nm">'+(l.video?'<span class="vid" title="Tiene video"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':'')+esc(l.name)+'</div>'+muscleChips(l)+'<div class="eq">'+esc(l.equipment)+(ci?' · Cargas '+esc(ci.l):'')+'</div></div>';
   });
   if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>Sin resultados</b>Prueba con otro filtro o crea el ejercicio.</div>';
-  return{title:'Biblioteca de ejercicios',crumb:(S.library||[]).length+' ejercicios · '+list.length+' mostrados · modelo de categorías por patrón',
+  return{title:'Biblioteca de ejercicios',crumb:(S.library||[]).length+' ejercicios · '+list.length+' mostrados · modelo de categorías por patrón',back:{v:'apoyo'},
     actions:'<button class="btn btn-g" data-act="libimport-pick">'+I.copy+' Importar CSV</button><button class="btn btn-p" data-act="lib-new-modal">'+I.plus+' Nuevo ejercicio</button>',
     body:'<div class="filterbar"><input id="lib_q" placeholder="Buscar ejercicio, grupo o especialización…" value="'+esc(route.params.q||'')+'" data-live="lib-q"><select data-change="lib-m">'+mopts+'</select><select data-change="lib-c">'+copts+'</select><select data-change="lib-eq">'+eopts+'</select></div><div class="lib-grid">'+cards+'</div>'};
 };
@@ -4179,7 +4194,7 @@ VIEWS['recetario']=function(u){
       '<div class="eq">'+esc(recMacroStr(r)||(r.time||''))+'</div></div>';
   });
   if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>'+(RECIPES.length?'Sin resultados':'Tu recetario está vacío')+'</b>'+(RECIPES.length?'Prueba con otro filtro.':'Importa el recetario base (240 recetas) con el botón de arriba.')+'</div>';
-  return{title:'Recetario',crumb:RECIPES.length+' recetas · '+list.length+' mostradas',
+  return{title:'Recetario',crumb:RECIPES.length+' recetas · '+list.length+' mostradas',back:{v:'apoyo'},
     actions:'<button class="btn btn-g" data-act="recimport-base">'+I.recipe+' Importar recetario base</button><button class="btn btn-g" data-act="recimport-pick">'+I.copy+' Importar JSON</button>',
     body:'<div class="filterbar"><input id="rec_q" placeholder="Buscar por nombre, ingrediente o etiqueta…" value="'+esc(route.params.q||'')+'" data-live="rec-q"><select data-change="rec-cat">'+copts+'</select><select data-change="rec-tag">'+topts+'</select><select data-change="rec-kcal">'+kopts+'</select></div><div class="lib-grid">'+cards+'</div>'};
 };
@@ -4319,7 +4334,7 @@ VIEWS['foods']=function(u){
     '<td><div class="rowbtns"><button title="Editar" data-act="food-edit-modal" data-fid="'+f.id+'">'+I.edit+'</button><button title="Eliminar" data-act="food-del-ask" data-fid="'+f.id+'">'+I.trash+'</button></div></td></tr>';
   });
   if(!rows)rows='<tr><td colspan="6"><div class="empty"><b>Sin resultados</b>Prueba con otro término o añade el alimento.</div></td></tr>';
-  return{title:'Base de alimentos',crumb:(S.foods||[]).length+' alimentos · valores por 100 g o por pieza/porción (ver cada fila) · tus atletas los usan al registrar comidas',
+  return{title:'Base de alimentos',crumb:(S.foods||[]).length+' alimentos · valores por 100 g o por pieza/porción (ver cada fila) · tus atletas los usan al registrar comidas',back:{v:'apoyo'},
     actions:'<button class="btn btn-p" data-act="food-new-modal">'+I.plus+' Nuevo alimento</button>',
     body:'<div class="filterbar"><input id="food_q" placeholder="Buscar alimento o categoría…" value="'+esc(route.params.q||'')+'" data-live="food-q"></div>'+
     '<div class="card"><div class="tblwrap"><table class="tbl"><thead><tr><th>Alimento</th><th style="width:70px">kcal</th><th style="width:60px">P (g)</th><th style="width:60px">C (g)</th><th style="width:60px">G (g)</th><th style="width:80px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'};
@@ -4346,7 +4361,7 @@ VIEWS['ref']=function(u){
   let exb='';EXPERIENCES.forEach(e=>{exb+='<button class="'+(expSel===e[0]?'on':'')+'" data-act="ref-exp" data-exp="'+e[0]+'">'+e[1]+'</button>';});
   const sessionCard='<div class="card"><h3>Volumen por sesión y semana</h3><p class="muted">'+esc(SESSION_REF)+'</p>'+
     '<hr class="hr"><p class="tiny">Bajo &lt;12 · Moderado 12-20 · Alto &gt;20 series semanales por grupo. La respuesta es dosis-dependiente hasta cierto punto, con estancamiento general pasadas ~12 series por sesión.</p></div>';
-  return{title:'Referencias de programación',crumb:'Volumen, RIR y cargas · síntesis del material de Jay Ehrenstein y David Sifuentes',
+  return{title:'Referencias de programación',crumb:'Volumen, RIR y cargas · síntesis del material de Jay Ehrenstein y David Sifuentes',back:{v:'apoyo'},
     body:refMatrixCard()+
     '<div class="sect-h"><h2>Tablas base de la literatura</h2></div>'+
     '<div class="refgrid"><div>'+loadCard+rirCard+sessionCard+'</div><div>'+distCard+'</div></div>'+
