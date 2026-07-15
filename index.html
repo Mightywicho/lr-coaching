@@ -2050,15 +2050,13 @@ function coachTabRutina(aid){
     let rows2='';vol.forEach(v=>{
       const prio=pr.priorities[v.m];
       const mxR=volumeRecMatrix(prio,pr.experience,pr.phase);
-      const tgt=(pr.volTargets||{})[v.m],hasTgt=tgt!=null&&tgt!=='';
       let st=null;
-      if(mxR&&prio!==0&&hasTgt){const dfx=v.d-(+tgt);if(dfx<0)st={cls:'orange',txt:'Faltan '+(-dfx)+' series'};else if(dfx===0)st={cls:'green',txt:'Objetivo cubierto'};else st={cls:'volt',txt:'+'+dfx+' sobre objetivo'};}
-      else if(mxR&&prio!==0){if(v.d<=0)st={cls:'red',txt:'Sin volumen'};else if(v.d<mxR.lo)st={cls:'orange',txt:'Bajo'};else if(v.d>mxR.hi)st={cls:'volt',txt:'Alto'};else st={cls:'green',txt:'En rango'};}
-      const recTxt=mxR&&prio!==0?'<span class="tiny" style="white-space:nowrap"> · rec '+mxR.lo+'–'+mxR.hi+(hasTgt?' · obj '+tgt:'')+'</span>':'';
+      if(mxR&&prio!==0){if(v.d<=0)st={cls:'red',txt:'Sin volumen'};else if(v.d<mxR.lo)st={cls:'orange',txt:'Bajo'};else if(v.d>mxR.hi)st={cls:'volt',txt:'Alto'};else st={cls:'green',txt:'En rango'};}
+      const recTxt=mxR&&prio!==0?'<span class="tiny" style="white-space:nowrap"> · rec '+mxR.lo+'–'+mxR.hi+'</span>':'';
       const stB=st&&st.cls?' <span class="dot" style="background:var(--'+(st.cls==='volt'?'volt':st.cls)+')" title="'+esc(st.txt)+'"></span>':'';
       let bar;
       if(mxR&&prio!==0){
-        const scale=Math.max(mxR.hi*1.4,v.d,hasTgt?+tgt:0,1);
+        const scale=Math.max(mxR.hi*1.4,v.d,1);
         const left=Math.round(mxR.lo/scale*100),w=Math.max(2,Math.round((mxR.hi-mxR.lo)/scale*100)),ax=Math.min(100,Math.round(v.d/scale*100));
         bar='<div class="volbar" title="Recomendado: '+mxR.lo+'–'+mxR.hi+' series/sem · programado '+v.d+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
       } else bar='<span class="mb"><i style="width:'+Math.max(4,Math.round(v.d/maxd*100))+'%"></i></span>';
@@ -2106,26 +2104,31 @@ function coachTabVolumen(aid){
     let psel='<select class="prio-sel" data-p="'+prio+'" data-change="prio" data-aid="'+aid+'" data-group="'+esc(g)+'">';
     [4,1,2,3,0].forEach(pv=>{psel+='<option value="'+pv+'"'+(prio===pv?' selected':'')+'>'+PRIOS[pv].short+'</option>';});
     psel+='</select>';
-    let recCell,bar,stCell;
-    if(prio===0||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0?'orange':'')+'">'+( act>0?'Sin prioridad':'—')+'</span>';}
+    const fq=freqOf(g);
+    const meta=(p.volTargets||{})[g];
+    const planning=(prio!==0&&mxRec&&act===0);   /* rutina vacía para este grupo → planear la meta a mano */
+    const eff=planning?(+meta||0):act;
+    let recCell,bar,stCell,progCell;
+    if(prio===0||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0?'orange':'')+'">'+( act>0?'Sin prioridad':'—')+'</span>';progCell='<b>'+act+'</b>';}
     else{
       recCell='<b class="num">'+mxRec.lo+'–'+mxRec.hi+'</b> <span class="tiny">series/sem</span>';
-      const scale=Math.max(mxRec.hi*1.4,act,1);
-      const left=Math.round(mxRec.lo/scale*100),w=Math.max(2,Math.round((mxRec.hi-mxRec.lo)/scale*100)),ax=Math.min(100,Math.round(act/scale*100));
-      bar='<div class="volbar" title="Recomendado: '+mxRec.lo+'–'+mxRec.hi+' series/sem"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
+      const scale=Math.max(mxRec.hi*1.4,eff,1);
+      const left=Math.round(mxRec.lo/scale*100),w=Math.max(2,Math.round((mxRec.hi-mxRec.lo)/scale*100)),ax=Math.min(100,Math.round(eff/scale*100));
+      bar='<div class="volbar" title="Recomendado: '+mxRec.lo+'–'+mxRec.hi+' series/sem'+(planning?' · meta '+eff:'')+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
       let st;
-      if(act<=0)st={cls:'red',txt:'Sin volumen'};
-      else if(act<mxRec.lo)st={cls:'orange',txt:'Bajo'};
-      else if(act>mxRec.hi)st={cls:'volt',txt:'Alto (tolerable)'};
+      if(eff<=0)st={cls:planning?'':'red',txt:planning?'Define tu meta':'Sin volumen'};
+      else if(eff<mxRec.lo)st={cls:'orange',txt:'Bajo'};
+      else if(eff>mxRec.hi)st={cls:'volt',txt:'Alto (tolerable)'};
       else st={cls:'green',txt:'En rango'};
       stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';
+      if(planning)progCell='<input type="number" min="0" max="60" placeholder="meta" value="'+(meta!=null&&meta!==''?meta:'')+'" data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'" style="width:58px" title="Meta de planeación: escribe las series que quieres programar para este grupo. Al agregar ejercicios, se mostrará el volumen real.">';
+      else progCell='<b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'');
     }
-    const fq=freqOf(g);
-    trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num"><b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'')+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
+    trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num">'+progCell+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
   const table='<div class="card"><h3>1 · Volumen semanal por grupo <span class="hint">compara lo programado con la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:130px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
-    '<p class="tiny mt8">El estado compara lo programado vs la banda recomendada. «Programado» son las series directas de los ejercicios vinculados. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
+    '<p class="tiny mt8">El estado compara lo programado vs la banda recomendada. «Programado» son las series directas de los ejercicios vinculados; si un grupo aún no tiene ejercicios, puedes escribir ahí tu meta de planeación y el semáforo la usará hasta que empieces a cargar la rutina. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
 
   return ctx+table+coachDistSesiones(aid);
 }
