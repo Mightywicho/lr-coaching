@@ -2127,7 +2127,7 @@ function coachTabVolumen(aid){
     const tgtCell='<td><input type="number" class="vt-input" min="0" max="40" value="'+(hasTgt?tgt:'')+'" placeholder="'+(prio!==0&&mxRec?'rec. '+mxRec.target:'—')+'" title="Objetivo semanal asignado (series directas)."'+(prio===0?' disabled':'')+' data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'"></td>';
     trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td>'+tgtCell+'<td class="num"><b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'')+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
-  const table='<div class="card"><h3>1 · Objetivo semanal por grupo <span class="hint">asigna series/semana guiándote por la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:10px" title="Rellena el objetivo de cada grupo con prioridad usando el punto medio de su banda recomendada" data-act="voltargets-auto" data-aid="'+aid+'">Usar recomendados</button></h3>'+
+  const table='<div class="card"><h3>1 · Objetivo semanal por grupo <span class="hint">asigna series/semana guiándote por la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:10px" title="Rellena el objetivo de cada grupo con prioridad usando el punto medio de su banda recomendada" data-act="voltargets-auto" data-aid="'+aid+'">Usar recomendados</button><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y objetivos desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:95px">Objetivo</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:130px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
     '<p class="tiny mt8">Asigna el objetivo dentro (o fuera, con criterio) de la banda recomendada; el estado pasa a comparar programado vs tu objetivo y sigue avisando si excedes el VMR. «Programado» son las series directas de los ejercicios vinculados. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
 
@@ -4978,6 +4978,17 @@ Object.assign(ACTIONS,{
   'voltargets-auto':el=>{
     const n=autoFillVolTargets(el.dataset.aid);
     saveState();toast('Objetivos rellenados con el recomendado ('+n+' grupos)');render();
+  },
+  'voltargets-from-routine':el=>{
+    const aid=el.dataset.aid,d=athData(aid),r=d.routine;
+    if(!r.days.length||!r.days.some(dy=>dy.exercises.length)){toast('La rutina no tiene ejercicios programados');return;}
+    const vol=programmedVolumeByGroup(r.days);
+    const any=GROUPS.some(g=>vol[g]>0);
+    if(!any){toast('No se pudo determinar el grupo de ningún ejercicio. Vincula al menos algunos a tu biblioteca.');return;}
+    d.profile.priorities=priorityFromVolume(vol,d.profile.experience);
+    autoFillVolTargets(aid);
+    const nd=autoDistributeDayPlan(aid);
+    saveState();toast('Prioridades, objetivos y distribución calculados desde la rutina'+(nd?' ('+nd+' grupos repartidos)':''));render();
   },
   'plan-sets':el=>{
     const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
