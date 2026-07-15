@@ -1334,8 +1334,22 @@ function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid);return (d.nutriPick&
 function mealItemsTotals(m){const t={p:0,c:0,f:0};(m.items||[]).forEach(it=>{t.p+=it.p||0;t.c+=it.c||0;t.f+=it.f||0;});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 function planMenuTotals(p){const t={p:0,c:0,f:0};(p.meals||[]).forEach(m=>{if((m.items||[]).length){m.items.forEach(it=>{t.p+=it.p||0;t.c+=it.c||0;t.f+=it.f||0;});}else{t.p+=+m.p||0;t.c+=+m.c||0;t.f+=+m.f||0;}});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 /* comida-receta: bloque de ingredientes + preparación (coach y atleta) */
-function mealRecipeBox(m){const r=m.recipe||{};let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(x)+'</li>';});let st='';(r.steps||[]).forEach(x=>{st+='<li>'+esc(x)+'</li>';});if(!ing&&!st)return '';return '<div style="padding:2px 14px 12px">'+(ing?'<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+ing+'</ul>':'')+(st?'<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+st+'</ol>':'')+'</div>';}
-function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(i).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const more=list.length>60;list=list.slice(0,60);let rows='';list.forEach(r=>{rows+='<div class="meal"><div class="meal-h"><span>'+esc(r.name)+'</span><span class="tm">'+esc(r.category||'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+(r.macros?' · P'+(r.macros.p||0)+' C'+(r.macros.c||0)+' G'+(r.macros.g||0):'')+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="pmeal-recipe-add" data-aid="'+aid+'" data-rec="'+esc(r.id)+'">Asignar</button></span></div></div>';});if(!rows)return '<div class="empty"><b>Sin resultados</b>Prueba con otro nombre o ingrediente.</div>';if(more)rows+='<p class="tiny mt8">Mostrando 60 de '+RECIPES.length+'. Escribe para filtrar el resto.</p>';return rows;}
+/* una línea de ingrediente: texto libre (recetas importadas) u objeto {food,grams,unit} (recetas escalables) */
+function ingLine(x){if(typeof x==='string')return x;const u=(x.unit==='g'||!x.unit)?'g':x.unit;return (x.grams||0)+' '+u+' de '+(x.food||'');}
+function mealRecipeBox(m){const r=m.recipe||{};let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});let st='';(r.steps||[]).forEach(x=>{st+='<li>'+esc(x)+'</li>';});if(!ing&&!st)return '';const scaleNote=(r.scaleFactor&&r.scaleFactor!==1)?'<p class="tiny" style="margin:0 14px 8px">Receta adaptada ×'+r.scaleFactor+' a lo que le faltaba al plan.</p>':'';return scaleNote+'<div style="padding:2px 14px 12px">'+(ing?'<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+ing+'</ul>':'')+(st?'<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+st+'</ol>':'')+'</div>';}
+function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const more=list.length>60;list=list.slice(0,60);
+  const ap=activePlanOf(aid),rem=planRemainingMacros(ap);
+  let rows='';list.forEach(r=>{
+    const scalable=recIsScalable(r);
+    let adaptBtn='';
+    if(scalable){
+      const canAdapt=(rem.p>0||rem.c>0||rem.f>0);
+      if(canAdapt){const f=recScaleFactor(r,rem);adaptBtn='<button class="btn btn-p btn-sm" data-act="pmeal-recipe-adapt" data-aid="'+aid+'" data-rec="'+esc(r.id)+'" title="Escala todos los ingredientes ×'+f+' para acercarse a lo que le falta al plan">'+I.recipe+' Adaptar ×'+f+'</button>';}
+      else adaptBtn='<span class="tiny muted">Objetivo ya cubierto</span>';
+    }
+    rows+='<div class="meal"><div class="meal-h"><span>'+esc(r.name)+(scalable?' <span class="badge" title="Ingredientes ligados a tu base de alimentos: se puede escalar">Escalable</span>':'')+'</span><span class="tm">'+esc(r.category||'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+(r.macros?' · P'+(r.macros.p||0)+' C'+(r.macros.c||0)+' G'+(r.macros.g||0):'')+'</span><span class="sp">'+adaptBtn+'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-add" data-aid="'+aid+'" data-rec="'+esc(r.id)+'">Tal cual</button></span></div></div>';
+  });
+  if(!rows)return '<div class="empty"><b>Sin resultados</b>Prueba con otro nombre o ingrediente.</div>';if(more)rows+='<p class="tiny mt8">Mostrando 60 de '+RECIPES.length+'. Escribe para filtrar el resto.</p>';return rows;}
 /* registro diario de nutrición del atleta: comidas del plan seguidas → adherencia automática */
 function todayNutriEntry(aid){const d=athData(aid),t=todayISO();let e=d.logs.nutrition.find(x=>x.date===t);if(!e){e={date:t,adherence:null,comment:'',mealsDone:[],planFollowed:null};d.logs.nutrition.push(e);d.logs.nutrition.sort((a,b)=>a.date<b.date?-1:1);}return e;}
 function recomputeAdherence(aid){const e=todayNutriEntry(aid),p=athPlanOf(aid);
@@ -2849,8 +2863,19 @@ Object.assign(ACTIONS,{
   'pnutri-save':el=>{const p=activePlanOf(el.dataset.aid);p.kcal=num('n_kcal');p.mealsPerDay=num('n_meals');p.protein=num('n_p');p.carbs=num('n_c');p.fat=num('n_f');p.notes=val('n_notes');saveState();toast('Plan guardado');render();},
   'pmeal-add':el=>openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
   'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
-  'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. El atleta verá los ingredientes y la preparación completa.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
+  'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que le falta al plan.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
   'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[]}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
+  'pmeal-recipe-adapt':el=>{
+    const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}
+    if(!recIsScalable(r)){toast('Esta receta es de texto libre; no se puede adaptar automáticamente. Recréala con el formulario de ingredientes para poder escalarla.');return;}
+    const p=activePlanOf(aid),rem=planRemainingMacros(p);
+    const factor=recScaleFactor(r,rem),scaled=scaleRecipeIngredients(r,factor);
+    p.meals=p.meals||[];
+    p.meals.push({id:uid(),name:r.name+' · ×'+factor,time:r.time||'',p:scaled.macros.p,c:scaled.macros.c,f:scaled.macros.f,
+      recipe:{rid:r.id,kcal:scaled.macros.kcal,time:r.time||'',ingredients:scaled.ingredients,steps:Array.isArray(r.steps)?r.steps:[],scaleFactor:factor}});
+    saveState();closeModal();render();
+    toast('«'+r.name+'» adaptada ×'+factor+' · P'+scaled.macros.p+' C'+scaled.macros.c+' G'+scaled.macros.f);
+  },
   'pmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);openModal('Editar comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div><label>Hora</label><input id="m_time" value="'+esc(m.time||'')+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
   'pmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);m.name=val('m_name')||m.name;m.time=val('m_time');saveState();closeModal();render();},
   'pmeal-del':el=>{const p=activePlanOf(el.dataset.aid);p.meals=p.meals.filter(x=>x.id!==el.dataset.meal);saveState();render();},
@@ -3493,6 +3518,11 @@ document.addEventListener('input',e=>{
     const box=document.getElementById('recpick_list');
     if(box)box.innerHTML=recPickList(el.dataset.aid,el.value);
   }
+  if(el.dataset&&el.dataset.recRow!=null&&_recDraft){
+    const i=parseInt(el.dataset.recRow,10),f=el.dataset.recField;
+    if(_recDraft.ingredients[i])_recDraft.ingredients[i][f]=el.value;
+    const tb=document.getElementById('rec_totals');if(tb)tb.innerHTML=recTotalsHTML();
+  }
   if(el.dataset&&el.dataset.live==='libpick-q'){
     const box=document.getElementById('libpick_list');
     if(box)box.innerHTML=libPickRows(el.dataset.ex,el.dataset.linkact,el.value);
@@ -4120,6 +4150,42 @@ function recTagList(){const s={};RECIPES.forEach(r=>(r.tags||[]).forEach(t=>{s[t
 function cleanRecipe(r){return{id:r.id,name:r.name,category:r.category||'',tags:Array.isArray(r.tags)?r.tags:[],time:r.time||'',kcal:r.kcal||recKcal(r)||null,ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],macros:r.macros||null};}
 /* macros compactos P/HC/G para tarjetas */
 function recMacroStr(r){const m=r.macros;if(!m)return '';return 'P '+(m.p||0)+' · HC '+(m.c||0)+' · G '+(m.g||0);}
+/* una receta es «escalable» si TODOS sus ingredientes están ligados a la base de alimentos (objetos), no texto libre */
+function recIsScalable(r){return Array.isArray(r.ingredients)&&r.ingredients.length>0&&r.ingredients.every(x=>x&&typeof x==='object');}
+/* macros que le faltan al plan activo (objetivo − lo ya sumado por sus comidas), sirve para adaptar una receta */
+function planRemainingMacros(ap){
+  const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
+  let tot;
+  if(ap.mode==='menu')tot=planMenuTotals(ap);
+  else{tot={p:0,c:0,f:0};(ap.meals||[]).forEach(m=>{const mt=mealMacros(m);tot.p+=mt.p;tot.c+=mt.c;tot.f+=mt.f;});tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);}
+  return{kcal:Math.max(0,tgt.kcal-tot.kcal),p:Math.max(0,+(tgt.p-tot.p).toFixed(1)),c:Math.max(0,+(tgt.c-tot.c).toFixed(1)),f:Math.max(0,+(tgt.f-tot.f).toFixed(1))};
+}
+/* factor de escala: la razón MÁS LIMITANTE entre lo que falta y lo que aporta la receta, para no pasarse de ningún macro */
+function recScaleFactor(r,rem){
+  const m=r.macros||{};const cands=[];
+  if((m.p||0)>0&&rem.p>0)cands.push(rem.p/m.p);
+  if((m.c||0)>0&&rem.c>0)cands.push(rem.c/m.c);
+  if((m.g||0)>0&&rem.f>0)cands.push(rem.f/m.g);
+  let f=cands.length?Math.min.apply(null,cands):1;
+  if(!isFinite(f)||f<=0)f=1;
+  f=Math.max(0.3,Math.min(5,f));
+  return Math.round(f*100)/100;
+}
+/* reescala los ingredientes ligados a la base de alimentos por «factor» y recalcula macros exactos (no solo × factor, por redondeo de gramos) */
+function scaleRecipeIngredients(r,factor){
+  const list=(r.ingredients||[]).map(ing=>{
+    if(!ing||typeof ing!=='object')return ing;
+    const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===String(ing.food||'').toLowerCase());
+    const isU=fo&&fo.unit==='u';
+    const rawQty=(ing.grams||0)*factor;
+    const newQty=isU?Math.max(0.5,Math.round(rawQty/0.5)*0.5):Math.max(1,Math.round(rawQty/5)*5);
+    const mac=fo?foodMacros(fo.name,newQty):{p:+((ing.p||0)*factor).toFixed(1),c:+((ing.c||0)*factor).toFixed(1),f:+((ing.f||0)*factor).toFixed(1)};
+    return{food:ing.food,grams:newQty,unit:isU?(fo.unitLabel||'unidad'):'g',p:mac?mac.p:0,c:mac?mac.c:0,f:mac?mac.f:0};
+  });
+  const tot={p:0,c:0,f:0};list.forEach(x=>{if(x&&typeof x==='object'){tot.p+=x.p||0;tot.c+=x.c||0;tot.f+=x.f||0;}});
+  tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);tot.kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
+  return{ingredients:list,macros:tot};
+}
 
 /* -------- Importador: recetario base del repo o archivo JSON propio -------- */
 let _recImport=null;
@@ -4136,6 +4202,70 @@ function recImportPreview(list){
   const order=REC_CATS.concat(Object.keys(byC).filter(c=>REC_CATS.indexOf(c)<0));
   order.forEach(c=>{if(!byC[c])return;body+='<div class="meal"><div class="meal-h"><span>'+esc(c)+'</span><span class="tm">'+byC[c].length+' recetas</span></div></div>';});
   openModal('Importar recetario',body,add.length?'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="recimport-save">Agregar '+add.length+' recetas</button>':'<button class="btn btn-p" data-act="modal-close">Nada nuevo por importar</button>');
+}
+
+/* -------- Crear / editar receta: ingredientes ligados a la base de alimentos, macros automáticos -------- */
+let _recDraft=null;
+function recDraftReset(r){
+  if(r&&recIsScalable(r)){
+    _recDraft={id:r.id,name:r.name||'',category:r.category||'',time:r.time||'',tagsStr:(r.tags||[]).join(', '),
+      ingredients:r.ingredients.map(x=>({food:x.food||'',grams:x.grams||''})),stepsStr:(r.steps||[]).join('\n')};
+  }else{
+    _recDraft={id:null,name:'',category:'',time:'',tagsStr:'',ingredients:[{food:'',grams:''}],stepsStr:''};
+  }
+}
+function recIngRowHTML(ing,i){
+  const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===String(ing.food||'').toLowerCase());
+  const isU=fo&&fo.unit==='u';
+  return '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px">'+
+    '<input list="recfoodlist" placeholder="Alimento" value="'+esc(ing.food||'')+'" data-rec-row="'+i+'" data-rec-field="food" data-live="food-hint" data-hint-target="rec_ing_qty_'+i+'" autocomplete="off">'+
+    '<input id="rec_ing_qty_'+i+'" type="number" min="0" step="'+(isU?'0.5':'5')+'" placeholder="'+(isU?(fo.unitLabel||'unidades'):'gramos')+'" value="'+esc(ing.grams||'')+'" data-rec-row="'+i+'" data-rec-field="grams">'+
+    '<button type="button" class="btn btn-g btn-sm" data-act="recdraft-ing-del" data-idx="'+i+'">'+I.trash+'</button></div>';
+}
+function recIngRowsHTML(){
+  let h='<datalist id="recfoodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';
+  _recDraft.ingredients.forEach((ing,i)=>{h+=recIngRowHTML(ing,i);});
+  return h;
+}
+function recDraftTotals(){
+  const t={p:0,c:0,f:0};
+  _recDraft.ingredients.forEach(ing=>{
+    if(!ing.food||!(+ing.grams>0))return;
+    const mac=foodMacros(ing.food,+ing.grams);
+    if(mac){t.p+=mac.p;t.c+=mac.c;t.f+=mac.f;}
+  });
+  t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);
+  return t;
+}
+function recTotalsHTML(){
+  const t=recDraftTotals();
+  return '<div class="notebox mt8" style="border-left-color:var(--volt)"><b>Total de la receta:</b> '+t.kcal+' kcal · P '+t.p+' g · C '+t.c+' g · G '+t.f+' g</div>';
+}
+function recDraftFormHTML(){
+  let copts='<option value="">Sin categoría</option>';REC_CATS.forEach(c=>{copts+='<option value="'+c+'"'+(_recDraft.category===c?' selected':'')+'>'+c+'</option>';});
+  return '<div class="frow2"><div><label>Nombre de la receta</label><input id="rec_name" value="'+esc(_recDraft.name)+'" placeholder="Bowl de pollo y arroz"></div><div><label>Categoría</label><select id="rec_cat">'+copts+'</select></div></div>'+
+  '<div class="frow2"><div><label>Tiempo de preparación (opcional)</label><input id="rec_time" value="'+esc(_recDraft.time)+'" placeholder="20 min"></div><div><label>Etiquetas (opcional, separadas por coma)</label><input id="rec_tags" value="'+esc(_recDraft.tagsStr)+'" placeholder="alto en proteína, rápida"></div></div>'+
+  '<label style="margin-top:6px;display:block">Ingredientes <span class="tiny muted">— elige el alimento de tu base y la cantidad; los macros se calculan solos</span></label>'+
+  '<div id="rec_ing_rows">'+recIngRowsHTML()+'</div>'+
+  '<button type="button" class="btn btn-g btn-sm" data-act="recdraft-ing-add">'+I.plus+' Agregar ingrediente</button>'+
+  '<div id="rec_totals">'+recTotalsHTML()+'</div>'+
+  '<div class="frow mt16"><label>Preparación (opcional, un paso por línea)</label><textarea id="rec_steps" placeholder="Cocinar el arroz…&#10;Sellar el pollo…">'+esc(_recDraft.stepsStr)+'</textarea></div>';
+}
+function recDraftSync(){
+  if(!_recDraft)return;
+  const nm=document.getElementById('rec_name');if(nm)_recDraft.name=nm.value;
+  const ct=document.getElementById('rec_cat');if(ct)_recDraft.category=ct.value;
+  const tm=document.getElementById('rec_time');if(tm)_recDraft.time=tm.value;
+  const tg=document.getElementById('rec_tags');if(tg)_recDraft.tagsStr=tg.value;
+  const st=document.getElementById('rec_steps');if(st)_recDraft.stepsStr=st.value;
+  document.querySelectorAll('[data-rec-row]').forEach(inp=>{
+    const i=parseInt(inp.dataset.recRow,10),f=inp.dataset.recField;
+    if(_recDraft.ingredients[i])_recDraft.ingredients[i][f]=inp.value;
+  });
+}
+function recIngRowsRerender(){
+  const box=document.getElementById('rec_ing_rows');if(box)box.innerHTML=recIngRowsHTML();
+  const tb=document.getElementById('rec_totals');if(tb)tb.innerHTML=recTotalsHTML();
 }
 Object.assign(ACTIONS,{
   'recimport-base':async()=>{
@@ -4161,25 +4291,84 @@ Object.assign(ACTIONS,{
   },
   'rec-open':el=>{
     const r=recById(el.dataset.rec);if(!r)return;
-    const m=r.macros||{};
-    let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(x)+'</li>';});
+    const me=userById(getSession().userId);
+    const m=r.macros||{},scalable=recIsScalable(r);
+    let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});
     let steps='';(r.steps||[]).forEach(x=>{steps+='<li>'+esc(x)+'</li>';});
     let tags='';(r.tags||[]).forEach(t=>{tags+='<span class="badge">'+esc(t)+'</span> ';});
     const body='<div class="rec-detail">'+
-      '<div class="rec-meta">'+esc(r.category||'')+(r.time?' · '+esc(r.time):'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+'</div>'+
+      '<div class="rec-meta">'+esc(r.category||'')+(r.time?' · '+esc(r.time):'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+(scalable?' · <span class="badge" title="Ingredientes ligados a tu base de alimentos">Escalable</span>':'')+'</div>'+
       (r.macros?'<div class="rec-macros"><span><b>'+(m.p||0)+'</b> g proteína</span><span><b>'+(m.c||0)+'</b> g carbohidratos</span><span><b>'+(m.g||0)+'</b> g grasas</span></div>':'')+
       (tags?'<div class="rec-tags">'+tags+'</div>':'')+
       '<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+(ing||'<li class="tiny">Sin ingredientes</li>')+'</ul>'+
       '<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+(steps||'<li class="tiny">Sin preparación</li>')+'</ol>'+
       '</div>';
-    openModal(r.name,body,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+    const foot=me&&me.role==='coach'?
+      '<button class="btn btn-d btn-sm" data-act="rec-del-ask" data-rec="'+esc(r.id)+'">'+I.trash+' Eliminar</button>'+
+      (scalable?'<button class="btn btn-g" data-act="rec-edit-modal" data-rec="'+esc(r.id)+'">'+I.edit+' Editar</button>':'')+
+      '<button class="btn btn-p" data-act="modal-close">Cerrar</button>'
+      :'<button class="btn btn-p" data-act="modal-close">Cerrar</button>';
+    openModal(r.name,body,foot);
+  },
+  'rec-new-modal':()=>{
+    recDraftReset(null);
+    openModal('Nueva receta',recDraftFormHTML(),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rec-draft-save">Guardar receta</button>');
+  },
+  'rec-edit-modal':el=>{
+    const r=recById(el.dataset.rec);
+    if(!r||!recIsScalable(r)){toast('Esta receta es de texto libre (importada); no se puede editar con el formulario de ingredientes.');return;}
+    recDraftReset(r);
+    openModal('Editar receta',recDraftFormHTML(),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rec-draft-save" data-rec="'+esc(r.id)+'">Guardar cambios</button>');
+  },
+  'recdraft-ing-add':()=>{if(!_recDraft)return;recDraftSync();_recDraft.ingredients.push({food:'',grams:''});recIngRowsRerender();},
+  'recdraft-ing-del':el=>{
+    if(!_recDraft)return;recDraftSync();
+    const i=parseInt(el.dataset.idx,10);_recDraft.ingredients.splice(i,1);
+    if(!_recDraft.ingredients.length)_recDraft.ingredients.push({food:'',grams:''});
+    recIngRowsRerender();
+  },
+  'rec-draft-save':async el=>{
+    if(!_recDraft)return;
+    recDraftSync();
+    const name=(_recDraft.name||'').trim();if(!name){toast('Escribe el nombre de la receta');return;}
+    const tags=_recDraft.tagsStr.split(',').map(s=>s.trim()).filter(Boolean);
+    const steps=_recDraft.stepsStr.split('\n').map(s=>s.trim()).filter(Boolean);
+    const validIngs=_recDraft.ingredients.filter(x=>x.food&&+x.grams>0);
+    if(!validIngs.length){toast('Agrega al menos un ingrediente con cantidad');return;}
+    const built=[];const tot={p:0,c:0,f:0};
+    for(const ing of validIngs){
+      const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===String(ing.food).toLowerCase());
+      if(!fo){toast('«'+ing.food+'» no está en tu base de alimentos. Agrégalo primero en «Base de alimentos» o elige uno de la lista.');return;}
+      const mac=foodMacros(fo.name,+ing.grams),isU=fo.unit==='u';
+      built.push({food:fo.name,grams:+ing.grams,unit:isU?(fo.unitLabel||'unidad'):'g',p:mac.p,c:mac.c,f:mac.f});
+      tot.p+=mac.p;tot.c+=mac.c;tot.f+=mac.f;
+    }
+    tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);
+    const kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
+    const id=_recDraft.id||uid();
+    const data={id,name,category:_recDraft.category||'',tags,time:_recDraft.time||'',kcal,ingredients:built,steps,macros:{p:tot.p,c:tot.c,g:tot.f}};
+    if(el&&el.classList)el.classList.add('is-loading');
+    try{
+      const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});
+      if(res.error){toast('Error al guardar: '+res.error.message);return;}
+      _recDraft=null;await hydrateRecipes();closeModal();render();toast('Receta «'+name+'» guardada');
+    }catch(e){toast('No pude guardar la receta');}
+  },
+  'rec-del-ask':el=>confirmModal('Eliminar receta','Se quitará de tu recetario. Las comidas ya asignadas a atletas con esta receta conservan sus datos; solo deja de estar disponible para asignarla de nuevo.','rec-del-do','data-rec="'+esc(el.dataset.rec)+'"'),
+  'rec-del-do':async el=>{
+    const r=recById(el.dataset.rec);if(!r){closeModal();return;}
+    try{
+      const res=await supa.from('recipes').delete().eq('coach_uid',_coachUid).eq('rid',r.rid||r.id);
+      if(res.error){toast('Error al eliminar: '+res.error.message);return;}
+      await hydrateRecipes();closeModal();render();toast('Receta eliminada');
+    }catch(e){toast('No pude eliminar la receta');}
   }
 });
 VIEWS['recetario']=function(u){
   const q=(route.params.q||'').toLowerCase().trim();
   const fc=route.params.rc||'',ft=route.params.rt||'',fk=route.params.rk||'';
   let list=RECIPES.slice();
-  if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(i).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));
+  if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));
   if(fc)list=list.filter(r=>r.category===fc);
   if(ft)list=list.filter(r=>(r.tags||[]).includes(ft));
   if(fk){list=list.filter(r=>{const k=recKcal(r);if(fk==='lo')return k&&k<400;if(fk==='mid')return k>=400&&k<=600;if(fk==='hi')return k>600;return true;});}
@@ -4189,13 +4378,13 @@ VIEWS['recetario']=function(u){
   let cards='';
   list.forEach(r=>{
     cards+='<div class="lib-card" data-act="rec-open" data-rec="'+esc(r.id)+'">'+
-      '<div class="nm">'+esc(r.name)+'</div>'+
+      '<div class="nm">'+esc(r.name)+(recIsScalable(r)?' <span class="badge" style="font-size:10px" title="Ingredientes ligados a tu base de alimentos: se puede escalar">Escalable</span>':'')+'</div>'+
       '<div class="rec-chips"><span class="chip">'+esc(r.category||'')+'</span>'+(recKcal(r)?'<span class="chip">'+recKcal(r)+' kcal</span>':'')+'</div>'+
       '<div class="eq">'+esc(recMacroStr(r)||(r.time||''))+'</div></div>';
   });
-  if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>'+(RECIPES.length?'Sin resultados':'Tu recetario está vacío')+'</b>'+(RECIPES.length?'Prueba con otro filtro.':'Importa el recetario base (240 recetas) con el botón de arriba.')+'</div>';
+  if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>'+(RECIPES.length?'Sin resultados':'Tu recetario está vacío')+'</b>'+(RECIPES.length?'Prueba con otro filtro.':'Importa el recetario base (240 recetas) o crea tu primera receta con el botón de arriba.')+'</div>';
   return{title:'Recetario',crumb:RECIPES.length+' recetas · '+list.length+' mostradas',back:{v:'apoyo'},
-    actions:'<button class="btn btn-g" data-act="recimport-base">'+I.recipe+' Importar recetario base</button><button class="btn btn-g" data-act="recimport-pick">'+I.copy+' Importar JSON</button>',
+    actions:'<button class="btn btn-p" data-act="rec-new-modal">'+I.plus+' Crear receta</button><button class="btn btn-g" data-act="recimport-base">'+I.recipe+' Importar recetario base</button><button class="btn btn-g" data-act="recimport-pick">'+I.copy+' Importar JSON</button>',
     body:'<div class="filterbar"><input id="rec_q" placeholder="Buscar por nombre, ingrediente o etiqueta…" value="'+esc(route.params.q||'')+'" data-live="rec-q"><select data-change="rec-cat">'+copts+'</select><select data-change="rec-tag">'+topts+'</select><select data-change="rec-kcal">'+kopts+'</select></div><div class="lib-grid">'+cards+'</div>'};
 };
 
