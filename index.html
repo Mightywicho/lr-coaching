@@ -1639,9 +1639,10 @@ let route={view:'home',params:{}};
 function nav(view,params){route={view,params:params||{}};render();window.scrollTo(0,0);}
 
 /* ---------- modal & toast ---------- */
-function openModal(title,bodyHTML,footHTML){
+function openModal(title,bodyHTML,footHTML,opts){
   const mr=$('#modal-root');mr._returnFocus=document.activeElement;
   mr.innerHTML='<div class="overlay" data-act="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"><div class="modal-h"><h3 id="modalTitle">'+title+'</h3><button class="x" aria-label="Cerrar" data-act="modal-close">'+I.x+'</button></div><div class="modal-b">'+bodyHTML+'</div>'+(footHTML?'<div class="modal-f">'+footHTML+'</div>':'')+'</div></div>';
+  mr.dataset.persist=(opts&&opts.persistent)?'1':'';
   const m=mr.querySelector('.modal');const fi=m.querySelector('input,select,textarea')||m.querySelector('.modal-f button')||m;
   setTimeout(()=>{try{fi.focus();}catch(e){}},60);
 }
@@ -1812,7 +1813,7 @@ const ACTIONS={
   'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);saveState();syncChatAdd(aid,m);render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
-  'modal-overlay':()=>closeModal(),
+  'modal-overlay':()=>{if($('#modal-root').dataset.persist==='1')return;closeModal();},
   'cal-config':()=>openModal('Link de videollamada','<div class="frow"><label>Tu link de Calendly (u otro agendador)</label><input id="cal_url" value="'+esc(S.coachCalendly||'')+'" placeholder="calendly.com/tu-usuario/seguimiento"><p class="tiny" style="margin-top:6px">Tus atletas verán un botón «Agendar videollamada» en su chat. Déjalo vacío para ocultarlo.</p></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="cal-save">Guardar</button>'),
   'cal-save':()=>{S.coachCalendly=normUrl(val('cal_url'));saveState();closeModal();render();toast(S.coachCalendly?'Link de videollamada guardado':'Link de videollamada eliminado');},
   'export':()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lr-coaching-respaldo-'+todayISO()+'.json';a.click();toast('Respaldo descargado');},
@@ -3851,7 +3852,9 @@ Object.assign(ACTIONS,{
   'rtimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>rtImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
   'rtimport-link':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));rtImportRender();},
   'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');},
-  'aiimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,.txt,.xlsx,.xls,.pdf,.docx';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)aiImportFile(f);};inp.click();},
+  'aiimport-pick':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri)){aiPreviewRender();toast('Tienes un análisis sin guardar — guárdalo, asígnalo o descártalo primero');return;}pickAiImportFile();},
+  'aiimport-discard':()=>{_aiImport=null;closeModal();pickAiImportFile();},
+  'aiimport-resume':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri))aiPreviewRender();},
   'aiimport-link':el=>{if(!_aiImport||!_aiImport.routine)return;const nm=val('ai_rt_name');if(nm)_aiImport.routineName=nm;const nn=val('ai_nt_name');if(nn&&_aiImport.nutri)_aiImport.nutri.name=nn;_aiImport.routine.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));aiPreviewRender();},
   'aiimport-save-routine':()=>{if(!_aiImport||!_aiImport.routine)return;S.templates.routines.push({id:uid(),name:(val('ai_rt_name')||_aiImport.routineName||'Rutina importada').trim(),weekNote:_aiImport.routineNote||'',days:_aiImport.routine,source:'ai-import',created:todayISO()});_aiImport.routine=null;saveState();toast('Rutina guardada como plantilla');if(_aiImport.nutri)aiPreviewRender();else{closeModal();render();}},
   'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;_aiImport.nutri.source='ai-import';S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}},
@@ -3964,8 +3967,9 @@ function aiNutriTpl(nz,name){
   const sups=(nz.supplements||[]).map(s=>({id:uid(),name:s.name||'',dose:s.dose||'',timing:s.timing||'',notes:s.notes||''}));
   return{id:uid(),name:name,activePlan:plans[0].id,plans:plans,supplements:sups,created:todayISO()};
 }
+function pickAiImportFile(){const inp=document.createElement('input');inp.type='file';inp.accept='.csv,.txt,.xlsx,.xls,.pdf,.docx';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)aiImportFile(f);};inp.click();}
 async function aiImportFile(file){
-  openModal('Analizando archivo…','<p class="muted">Leyendo «'+esc(file.name)+'» y extrayendo la rutina o el plan con IA. Tarda unos segundos…</p>','');
+  openModal('Analizando archivo…','<p class="muted">Leyendo «'+esc(file.name)+'» y extrayendo la rutina o el plan con IA. Tarda unos segundos…</p>','',{persistent:true});
   let text;
   try{text=await extractText(file);}
   catch(e){openModal('No pude leer el archivo','<p>'+esc(String(e.message||e))+'</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
@@ -4011,9 +4015,11 @@ function aiPreviewRender(){
     if(A.nutri.supplements.length)body+='<p class="hint">Suplementos: '+A.nutri.supplements.map(s=>esc(s.name)).join(', ')+'</p>';
     body+='<button class="btn btn-p" data-act="aiimport-save-nutri">Guardar nutrición como plantilla</button></div>';
   }
+  const hasResult=!!body;
   if(body)body+='<div class="card mb16" style="text-align:center"><button class="btn btn-p" data-act="aiimport-assign-modal">'+I.users+' Asignar directo a un atleta</button><p class="hint mt8">Guarda lo detectado como plantilla y lo aplica de una vez a quien elijas, con el mismo ajuste automático al perfil.</p></div>';
+  if(body)body+='<p class="tiny" style="text-align:center"><a href="#" data-act="aiimport-discard" style="color:var(--tx3)">Descartar este análisis y subir otro archivo</a></p>';
   if(!body)body='<p>No identifiqué una rutina ni un plan de nutrición en el archivo. Revisa que tenga ejercicios o comidas claras, o intenta con otro formato.</p>';
-  openModal('Importar desde archivo (IA)',body,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+  openModal('Importar desde archivo (IA)',body,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>',{persistent:hasResult});
 }
 VIEWS['tpl']=function(u){
   const T=S.templates||{routines:[],nutris:[]};
@@ -4032,7 +4038,8 @@ VIEWS['tpl']=function(u){
   let nH='';T.nutris.forEach(t=>{nH+=card('nutrition',t);});
   return{title:'Plantillas',crumb:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición',
     actions:'<button class="btn btn-p" data-act="aiimport-pick">'+I.copy+' Importar archivo (IA)</button>',
-    body:'<div class="notebox mb16" style="border-left-color:var(--volt)">Sube un archivo (Excel, PDF de texto o Word) con una rutina o un plan de alimentación y la IA lo convierte en plantilla. Botón <b>Importar archivo (IA)</b> arriba a la derecha.</div>'+
+    body:(_aiImport&&(_aiImport.routine||_aiImport.nutri)?'<div class="notebox mb16" style="border-left-color:var(--red)">Tienes un análisis de IA sin guardar (de un archivo subido antes). <button class="btn btn-p btn-sm" data-act="aiimport-resume">Continuar con ese análisis</button></div>':'')+
+    '<div class="notebox mb16" style="border-left-color:var(--volt)">Sube un archivo (Excel, PDF de texto o Word) con una rutina o un plan de alimentación y la IA lo convierte en plantilla. Botón <b>Importar archivo (IA)</b> arriba a la derecha.</div>'+
     '<div class="card mb16"><h3>'+I.dumbbell+' Rutinas <span class="hint">guárdalas desde la pestaña Entrenamiento de un atleta</span> <button class="btn btn-g btn-sm" data-act="rtimport-pick">'+I.copy+' Importar desde CSV</button></h3>'+(rH||empty('Abre un atleta → Entrenamiento → «Guardar como plantilla», o importa una rutina desde un CSV de Google Sheets con el botón de arriba. Luego asígnala a un atleta.'))+'</div>'+
     '<div class="card mb16"><h3>'+I.food+' Nutrición <span class="hint">conjunto completo: planes por tipo de día + suplementos</span></h3>'+(nH||empty('Abre un atleta → Nutrición → «Guardar como plantilla». El perfil de alimentación (alergias/gustos) nunca viaja con la plantilla.'))+'</div>'};
 };
