@@ -3493,6 +3493,10 @@ document.addEventListener('input',e=>{
     const box=document.getElementById('recpick_list');
     if(box)box.innerHTML=recPickList(el.dataset.aid,el.value);
   }
+  if(el.dataset&&el.dataset.live==='libpick-q'){
+    const box=document.getElementById('libpick_list');
+    if(box)box.innerHTML=libPickRows(el.dataset.ex,el.dataset.linkact,el.value);
+  }
   if(el.dataset&&el.dataset.live==='food-hint'){
     const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===el.value.toLowerCase());
     const t=document.getElementById(el.dataset.hintTarget);
@@ -3691,6 +3695,18 @@ let _rtImport=null;
 function _bigrams(s){s=exKey(s);const o=[];for(let i=0;i<s.length-1;i++)o.push(s.slice(i,i+2));return o;}
 function simScore(a,b){const A=_bigrams(a),B=_bigrams(b);if(!A.length||!B.length)return exKey(a)===exKey(b)?1:0;const m={};A.forEach(g=>{m[g]=(m[g]||0)+1;});let inter=0;B.forEach(g=>{if(m[g]>0){m[g]--;inter++;}});return 2*inter/(A.length+B.length);}
 function libBestMatch(name){let best=null,bs=0;(S.library||[]).forEach(l=>{const s=simScore(name,l.name);if(s>bs){bs=s;best=l;}});return best&&bs>=0.55?{lib:best,score:bs}:null;}
+/* lista buscable de la biblioteca para elegir manualmente el vínculo de un ejercicio importado (cuando la sugerencia automática no es la correcta, o no hubo sugerencia) */
+function libPickRows(exId,linkAct,q){
+  q=(q||'').toLowerCase().trim();
+  let list=(S.library||[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(q)list=list.filter(l=>l.name.toLowerCase().includes(q)||l.group.toLowerCase().includes(q)||(l.focus||'').toLowerCase().includes(q));
+  const more=list.length>60;list=list.slice(0,60);
+  let rows='';
+  list.forEach(l=>{rows+='<div class="meal"><div class="meal-h"><span>'+esc(l.name)+'</span><span class="tm">'+esc(l.group)+(l.focus?' · '+esc(l.focus):'')+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="'+linkAct+'" data-ex="'+esc(exId)+'" data-lib="'+esc(l.id)+'">Vincular</button></span></div></div>';});
+  if(!rows)return '<div class="empty"><b>Sin resultados</b>Prueba con otro nombre o grupo muscular.</div>';
+  if(more)rows+='<p class="tiny mt8">Mostrando 60 de '+(S.library||[]).length+'. Escribe para filtrar el resto.</p>';
+  return rows;
+}
 function rtImportRender(){
   const days=_rtImport.days;let ex=0,linked=0,sugg=0;
   days.forEach(d=>d.exercises.forEach(e=>{ex++;if(e.libId)linked++;else if(libBestMatch(e.name))sugg++;}));
@@ -3700,10 +3716,10 @@ function rtImportRender(){
   days.forEach(d=>{body+='<div class="meal"><div class="meal-h"><span>'+esc(d.name)+'</span><span class="tm">'+d.exercises.length+' ej.</span></div><ul>';
     d.exercises.forEach(e=>{
       let tail;
-      if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+'</span>';}
+      if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+' <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">cambiar</a></span>';}
       else{const m=libBestMatch(e.name);
-        if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="rtimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button></span>';
-        else tail='<span class="q"><span class="badge">nuevo</span></span>';}
+        if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="rtimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button> <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">no es este, elegir otro</a></span>';
+        else tail='<span class="q"><span class="badge">nuevo</span> <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">buscar en tu biblioteca</a></span>';}
       body+='<li><span>'+esc(e.name)+' <span class="tiny" style="color:var(--tx3)">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';
     });
     body+='</ul></div>';});
@@ -3851,11 +3867,16 @@ Object.assign(ACTIONS,{
   'tpl-del-do':el=>{const kind=el.dataset.kind;const arr=tplList(kind);const i=arr.findIndex(x=>x.id===el.dataset.tpl);if(i>-1)arr.splice(i,1);saveState();closeModal();render();toast('Plantilla eliminada');},
   'rtimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>rtImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
   'rtimport-link':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));rtImportRender();},
+  'rtimport-unlink':el=>{if(!_rtImport)return;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=null;}));rtImportRender();},
+  'rtimport-pick-modal':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;const exId=el.dataset.ex;openModal('Elegir ejercicio de tu biblioteca','<p class="tiny mb8">Busca el ejercicio correcto y vincúlalo. Hereda grupo muscular y video de tu biblioteca.</p><input id="libpick_q" placeholder="Buscar ejercicio, grupo o especialización…" data-live="libpick-q" data-ex="'+exId+'" data-linkact="rtimport-link" style="width:100%;margin-bottom:12px"><div id="libpick_list">'+libPickRows(exId,'rtimport-link','')+'</div>','<button class="btn btn-g" data-act="rtimport-unlink" data-ex="'+exId+'">Quitar vínculo (es nuevo)</button><button class="btn btn-g" data-act="rtimport-resume">Cancelar</button>');},
+  'rtimport-resume':()=>{if(_rtImport)rtImportRender();},
   'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');},
   'aiimport-pick':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri)){aiPreviewRender();toast('Tienes un análisis sin guardar — guárdalo, asígnalo o descártalo primero');return;}pickAiImportFile();},
   'aiimport-discard':()=>{_aiImport=null;closeModal();pickAiImportFile();},
   'aiimport-resume':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri))aiPreviewRender();},
   'aiimport-link':el=>{if(!_aiImport||!_aiImport.routine)return;const nm=val('ai_rt_name');if(nm)_aiImport.routineName=nm;const nn=val('ai_nt_name');if(nn&&_aiImport.nutri)_aiImport.nutri.name=nn;_aiImport.routine.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));aiPreviewRender();},
+  'aiimport-unlink':el=>{if(!_aiImport||!_aiImport.routine)return;_aiImport.routine.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=null;}));aiPreviewRender();},
+  'aiimport-pick-modal':el=>{if(!_aiImport||!_aiImport.routine)return;const nm=val('ai_rt_name');if(nm)_aiImport.routineName=nm;const nn=val('ai_nt_name');if(nn&&_aiImport.nutri)_aiImport.nutri.name=nn;const exId=el.dataset.ex;openModal('Elegir ejercicio de tu biblioteca','<p class="tiny mb8">Busca el ejercicio correcto y vincúlalo. Hereda grupo muscular y video de tu biblioteca.</p><input id="libpick_q" placeholder="Buscar ejercicio, grupo o especialización…" data-live="libpick-q" data-ex="'+exId+'" data-linkact="aiimport-link" style="width:100%;margin-bottom:12px"><div id="libpick_list">'+libPickRows(exId,'aiimport-link','')+'</div>','<button class="btn btn-g" data-act="aiimport-unlink" data-ex="'+exId+'">Quitar vínculo (es nuevo)</button><button class="btn btn-g" data-act="aiimport-resume">Cancelar</button>');},
   'aiimport-save-routine':()=>{if(!_aiImport||!_aiImport.routine)return;S.templates.routines.push({id:uid(),name:(val('ai_rt_name')||_aiImport.routineName||'Rutina importada').trim(),weekNote:_aiImport.routineNote||'',days:_aiImport.routine,source:'ai-import',created:todayISO()});_aiImport.routine=null;saveState();toast('Rutina guardada como plantilla');if(_aiImport.nutri)aiPreviewRender();else{closeModal();render();}},
   'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;_aiImport.nutri.source='ai-import';S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}},
   'aiimport-assign-modal':()=>{
@@ -4001,10 +4022,10 @@ function aiPreviewRender(){
     if(sugg)body+='<div class="notebox mt8" style="border-left-color:var(--volt)">Hay '+sugg+' ejercicio(s) parecidos a tu biblioteca (posible tilde o typo). Enlázalos si son el mismo: heredan grupo y video.</div>';
     A.routine.forEach(d=>{body+='<div class="meal"><div class="meal-h"><span>'+esc(d.name)+'</span><span class="tm">'+d.exercises.length+' ej.</span></div><ul>';
       d.exercises.forEach(e=>{let tail;
-        if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+'</span>';}
+        if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+' <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">cambiar</a></span>';}
         else{const m=libBestMatch(e.name);
-          if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="aiimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button></span>';
-          else tail='<span class="q"><span class="badge">nuevo</span></span>';}
+          if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="aiimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button> <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">no es este, elegir otro</a></span>';
+          else tail='<span class="q"><span class="badge">nuevo</span> <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">buscar en tu biblioteca</a></span>';}
         body+='<li><span>'+esc(e.name)+' <span class="tiny" style="color:var(--tx3)">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';});
       body+='</ul></div>';});
     body+='<button class="btn btn-p" data-act="aiimport-save-routine">Guardar rutina como plantilla</button></div>';
