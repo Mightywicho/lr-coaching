@@ -4725,16 +4725,18 @@ function programmedVolumeByGroup(days){
   }));
   return vol;
 }
-/* Infiere prioridad 0-4 por grupo a partir del volumen YA programado (p.ej. en una rutina importada), comparándolo contra sus landmarks. Un grupo sin series programadas queda en prioridad 0 (no es foco de este programa). */
+/* Infiere prioridad por grupo a partir del volumen YA programado (p.ej. en una rutina importada),
+   comparándolo contra sus landmarks. Escala de la app: 4=Máxima > 1=Primaria > 2=Secundaria > 3=Terciaria > 0=No entrenar.
+   Un grupo sin series programadas queda en prioridad 0 (no es foco de este programa). */
 function priorityFromVolume(vol,exp){
   const out={};
   GROUPS.forEach(g=>{
     const v=vol[g]||0,L=landmarks(g,exp);
     if(!L||v<=0){out[g]=0;return;}
     if(v>=L.vma)out[g]=4;
-    else if(v>=L.vme)out[g]=3;
+    else if(v>=L.vme)out[g]=1;
     else if(v>=Math.max(1,L.vm))out[g]=2;
-    else out[g]=1;
+    else out[g]=3;
   });
   return out;
 }
