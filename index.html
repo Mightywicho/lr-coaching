@@ -2225,8 +2225,8 @@ function coachTabNutri(aid){
     const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span style="color:var(--red)">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     let ms='';
-    mm.forEach(m=>{const t=mealMacros(m);ms+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="pmacmeal-edit" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div></div>';});
-    macMealsHTML='<div class="card mb16"><div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmacmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
+    mm.forEach(m=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'');ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="pmacmeal-edit" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
+    macMealsHTML='<div class="card mb16"><div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmacmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Sin comidas definidas</b>Si no defines comidas, el atleta verá un reparto estimado (objetivo ÷ nº de comidas). Define P/C/G por comida para que al marcar se reste el valor exacto.</div>')+'</div>'+
       '<div><h4 class="mg-h">Suma de comidas vs objetivo</h4>'+bars+'<p class="tiny mt8">Opcional. Lo que el atleta marque como cumplido restará estos macros exactos; el resto lo completa con comida libre.</p></div></div></div>';
   }
@@ -3643,6 +3643,13 @@ function applyTplNutri(aid,t){
 }
 function tplList(kind){return kind==='routine'?S.templates.routines:S.templates.nutris;}
 function tplById(kind,id){return tplList(kind).find(x=>x.id===id);}
+function showTplAssignModal(kind,t){
+  if(!t)return;
+  const aths=athleteUsers();
+  if(!aths.length){openModal('Asignar plantilla','<div class="empty"><b>Sin atletas</b>Crea un atleta desde el panel para asignarle esta plantilla.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
+  let rows='';aths.forEach(a=>{rows+='<div class="meal"><div class="meal-h"><span>'+ava(a)+' '+esc(a.name)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="tpl-apply-ask" data-kind="'+kind+'" data-aid="'+a.id+'" data-tpl="'+t.id+'">Asignar</button></span></div></div>';});
+  openModal('Asignar «'+esc(t.name)+'»',rows,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+}
 function tplSummary(kind,t){
   if(kind==='routine'){let ex=0;(t.days||[]).forEach(d=>ex+=d.exercises.length);return t.days.length+(t.days.length===1?' día':' días')+' · '+ex+' ejercicios';}
   const act=(t.plans||[]).find(p=>p.id===t.activePlan)||t.plans[0];const k=act?(act.kcal||kcalFromMacros(act)):0;
@@ -3832,11 +3839,7 @@ Object.assign(ACTIONS,{
   },
   'tpl-assign-modal':el=>{
     const kind=el.dataset.kind,t=tplById(kind,el.dataset.tpl);
-    if(!t)return;
-    const aths=athleteUsers();
-    if(!aths.length){openModal('Asignar plantilla','<div class="empty"><b>Sin atletas</b>Crea un atleta desde el panel para asignarle esta plantilla.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
-    let rows='';aths.forEach(a=>{rows+='<div class="meal"><div class="meal-h"><span>'+ava(a)+' '+esc(a.name)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="tpl-apply-ask" data-kind="'+kind+'" data-aid="'+a.id+'" data-tpl="'+t.id+'">Asignar</button></span></div></div>';});
-    openModal('Asignar «'+esc(t.name)+'»',rows,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+    showTplAssignModal(kind,t);
   },
   'tpl-ren-modal':el=>{
     const t=tplById(el.dataset.kind,el.dataset.tpl);if(!t)return;
@@ -3851,7 +3854,73 @@ Object.assign(ACTIONS,{
   'aiimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,.txt,.xlsx,.xls,.pdf,.docx';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)aiImportFile(f);};inp.click();},
   'aiimport-link':el=>{if(!_aiImport||!_aiImport.routine)return;const nm=val('ai_rt_name');if(nm)_aiImport.routineName=nm;const nn=val('ai_nt_name');if(nn&&_aiImport.nutri)_aiImport.nutri.name=nn;_aiImport.routine.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));aiPreviewRender();},
   'aiimport-save-routine':()=>{if(!_aiImport||!_aiImport.routine)return;S.templates.routines.push({id:uid(),name:(val('ai_rt_name')||_aiImport.routineName||'Rutina importada').trim(),weekNote:_aiImport.routineNote||'',days:_aiImport.routine,source:'ai-import',created:todayISO()});_aiImport.routine=null;saveState();toast('Rutina guardada como plantilla');if(_aiImport.nutri)aiPreviewRender();else{closeModal();render();}},
-  'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;_aiImport.nutri.source='ai-import';S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}}
+  'aiimport-save-nutri':()=>{if(!_aiImport||!_aiImport.nutri)return;const nm=(val('ai_nt_name')||_aiImport.nutri.name||'Nutrición importada').trim();_aiImport.nutri.name=nm;_aiImport.nutri.source='ai-import';S.templates.nutris.push(_aiImport.nutri);_aiImport.nutri=null;saveState();toast('Nutrición guardada como plantilla');if(_aiImport.routine)aiPreviewRender();else{closeModal();render();}},
+  'aiimport-assign-modal':()=>{
+    const A=_aiImport;if(!A||(!A.routine&&!A.nutri))return;
+    const rtn=val('ai_rt_name');if(rtn)A.routineName=rtn;
+    const ntn=val('ai_nt_name');if(ntn&&A.nutri)A.nutri.name=ntn;
+    const aths=athleteUsers();
+    if(!aths.length){openModal('Asignar a un atleta','<div class="empty"><b>Sin atletas</b>Crea un atleta desde el panel para asignarle este plan.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
+    let rows='';aths.forEach(a=>{rows+='<div class="meal"><div class="meal-h"><span>'+ava(a)+' '+esc(a.name)+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="aiimport-assign-ask" data-aid="'+a.id+'">Asignar</button></span></div></div>';});
+    openModal('Asignar a un atleta',rows,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+  },
+  'aiimport-assign-ask':el=>{
+    const A=_aiImport;if(!A)return;
+    const aid=el.dataset.aid,a=userById(aid);if(!a)return;
+    const p=athData(aid).profile;
+    let eopts='';EXPERIENCES.forEach(ex=>{eopts+='<option value="'+ex[0]+'"'+(p.experience===ex[0]?' selected':'')+'>'+ex[1]+'</option>';});
+    let popts='';PHASES.forEach(ph=>{popts+='<option value="'+ph[0]+'"'+(p.phase===ph[0]?' selected':'')+'>'+ph[1]+'</option>';});
+    let bopts='';[1,2,3,4].forEach(b=>{bopts+='<option value="'+b+'"'+((p.block||1)===b?' selected':'')+'>Bloque '+b+'</option>';});
+    const dateRow=A.routine?'<div class="frow"><label>Inicio de este bloque</label><input id="tplctx_start" type="date" value="'+esc(todayISO())+'" max="'+esc(todayISO())+'"></div>':'';
+    const what=[A.routine?'la rutina':null,A.nutri?'el plan de nutrición':null].filter(Boolean).join(' y ');
+    openModal('Asignar a '+esc(a.name),
+      '<p class="tiny">Se aplicará '+what+' importada a '+esc(a.name)+', reemplazando lo que tenga activo hoy.</p>'+
+      '<p class="tiny mt8">Confirma el contexto actual de '+esc(a.name)+' — se usa para ajustar el plan a su situación real y queda guardado en su perfil.</p>'+
+      '<div class="frow3 mt8"><div><label>Bloque</label><select id="tplctx_block">'+bopts+'</select></div><div><label>Experiencia</label><select id="tplctx_exp">'+eopts+'</select></div><div><label>Fase actual</label><select id="tplctx_phase">'+popts+'</select></div></div>'+
+      dateRow,
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="aiimport-assign-do" data-aid="'+aid+'">Aplicar</button>');
+  },
+  'aiimport-assign-do':el=>{
+    const A=_aiImport;if(!A)return;
+    const aid=el.dataset.aid;
+    const p=athData(aid).profile;
+    const bEl=document.getElementById('tplctx_block'),eEl=document.getElementById('tplctx_exp'),phEl=document.getElementById('tplctx_phase'),sEl=document.getElementById('tplctx_start');
+    if(A.routine&&sEl&&sEl.value){
+      const chosen=sEl.value,t0=todayISO();
+      if(chosen>t0){toast('La fecha de inicio no puede ser futura');return;}
+      const hist=athData(aid).routine.history;
+      if(hist&&hist.length){
+        const lastEnd=hist[hist.length-1].endDate;
+        if(lastEnd&&chosen<lastEnd){toast('Esa fecha ('+fmtDate(chosen)+') es anterior al fin del bloque anterior ('+fmtDate(lastEnd)+')');return;}
+      }
+    }
+    if(bEl)p.block=parseInt(bEl.value,10)||p.block;
+    if(eEl&&eEl.value)p.experience=eEl.value;
+    if(phEl&&phEl.value)p.phase=phEl.value;
+    let extra='',tabTo=null;
+    if(A.routine){
+      const t={id:uid(),name:(A.routineName||'Rutina importada').trim(),weekNote:A.routineNote||'',days:A.routine,source:'ai-import',created:todayISO()};
+      S.templates.routines.push(t);
+      applyTplRoutine(aid,t);
+      if(sEl&&sEl.value)athData(aid).routine.startDate=sEl.value;
+      applyAiRoutineAdjust(aid);
+      extra+=' · rutina asignada, prioridades y volumen ajustados al atleta';
+      tabTo='entrenamiento';
+    }
+    if(A.nutri){
+      A.nutri.source='ai-import';
+      const t2=A.nutri;
+      S.templates.nutris.push(t2);
+      applyTplNutri(aid,t2);
+      const ok=applyAiNutriAdjust(aid);
+      extra+=ok?' · nutrición asignada y macros recalculados al perfil':' · nutrición asignada (faltan peso/altura del atleta, se dejaron los valores del documento)';
+      if(!tabTo)tabTo='nutricion';
+    }
+    _aiImport=null;
+    const athName=(userById(aid)||{}).name||'';
+    saveState();closeModal();toast('Plan importado asignado'+(athName?' a '+athName:'')+extra);
+    nav('coach-ath',{aid:aid,tab:tabTo});
+  }
 });
 /* ===== IMPORTADOR UNIVERSAL CON IA (Edge Function parse-plan) ===== */
 let _aiImport=null; /* {routine:[days], routineName, routineNote, nutri:{tpl}} */
@@ -3942,6 +4011,7 @@ function aiPreviewRender(){
     if(A.nutri.supplements.length)body+='<p class="hint">Suplementos: '+A.nutri.supplements.map(s=>esc(s.name)).join(', ')+'</p>';
     body+='<button class="btn btn-p" data-act="aiimport-save-nutri">Guardar nutrición como plantilla</button></div>';
   }
+  if(body)body+='<div class="card mb16" style="text-align:center"><button class="btn btn-p" data-act="aiimport-assign-modal">'+I.users+' Asignar directo a un atleta</button><p class="hint mt8">Guarda lo detectado como plantilla y lo aplica de una vez a quien elijas, con el mismo ajuste automático al perfil.</p></div>';
   if(!body)body='<p>No identifiqué una rutina ni un plan de nutrición en el archivo. Revisa que tenga ejercicios o comidas claras, o intenta con otro formato.</p>';
   openModal('Importar desde archivo (IA)',body,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
 }
