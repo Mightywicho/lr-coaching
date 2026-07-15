@@ -2121,15 +2121,11 @@ function coachTabVolumen(aid){
       stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';
     }
     const fq=freqOf(g);
-    const tgt=(p.volTargets||{})[g];
-    const hasTgt=tgt!=null&&tgt!=='';
-    if(hasTgt&&prio!==0&&mxRec){const dfx=act-(+tgt);let ts;if(dfx<0)ts={cls:'orange',txt:'Faltan '+(-dfx)+' series'};else if(dfx===0)ts={cls:'green',txt:'Objetivo cubierto'};else ts={cls:'volt',txt:'+'+dfx+' sobre objetivo'};stCell='<span class="badge '+ts.cls+'">'+ts.txt+'</span>';}
-    const tgtCell='<td><input type="number" class="vt-input" min="0" max="40" value="'+(hasTgt?tgt:'')+'" placeholder="'+(prio!==0&&mxRec?'rec. '+mxRec.target:'—')+'" title="Objetivo semanal asignado (series directas)."'+(prio===0?' disabled':'')+' data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'"></td>';
-    trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td>'+tgtCell+'<td class="num"><b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'')+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
+    trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num"><b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'')+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
-  const table='<div class="card"><h3>1 · Objetivo semanal por grupo <span class="hint">asigna series/semana guiándote por la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:10px" title="Rellena el objetivo de cada grupo con prioridad usando el punto medio de su banda recomendada" data-act="voltargets-auto" data-aid="'+aid+'">Usar recomendados</button><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y objetivos desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:95px">Objetivo</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:130px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
-    '<p class="tiny mt8">Asigna el objetivo dentro (o fuera, con criterio) de la banda recomendada; el estado pasa a comparar programado vs tu objetivo y sigue avisando si excedes el VMR. «Programado» son las series directas de los ejercicios vinculados. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
+  const table='<div class="card"><h3>1 · Volumen semanal por grupo <span class="hint">compara lo programado con la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
+    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:130px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
+    '<p class="tiny mt8">El estado compara lo programado vs la banda recomendada. «Programado» son las series directas de los ejercicios vinculados. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
 
   return ctx+table+coachDistSesiones(aid);
 }
@@ -3550,7 +3546,7 @@ document.addEventListener('change',e=>{
     _pd.priorities[_pg]=_pv;
     _pd.volTargets=_pd.volTargets||{};
     if(_pv===0){delete _pd.volTargets[_pg];}
-    else{const _pr=volumeRecMatrix(_pv,_pd.experience,_pd.phase);if(_pr&&_pr.target)_pd.volTargets[_pg]=_pr.target;}
+    else{const _pr=volumeRecMatrix(_pv,_pd.experience,_pd.phase);if(_pr)_pd.volTargets[_pg]=_pr.lo;}
     saveState();render();
   }
   else if(el.dataset.change==='voltarget'){
@@ -4631,7 +4627,7 @@ function autoSplit(aid,nDays,style){
   /* asegura objetivos de volumen */
   p.volTargets=p.volTargets||{};
   let anyTgt=GROUPS.some(g=>p.volTargets[g]!=null&&p.volTargets[g]!==''&&p.priorities[g]!==0);
-  if(!anyTgt){GROUPS.forEach(g=>{const prio=p.priorities[g];if(prio===0){delete p.volTargets[g];return;}const rec=volumeRec(g,p.experience,p.phase,p.block,prio);if(rec)p.volTargets[g]=rec.target;});}
+  if(!anyTgt){GROUPS.forEach(g=>{const prio=p.priorities[g];if(prio===0){delete p.volTargets[g];return;}const rec=volumeRecMatrix(prio,p.experience,p.phase);if(rec)p.volTargets[g]=rec.lo;});}
   const tpl=splitTemplate(nDays,p.experience,style);
   const days=tpl.map(t=>({id:uid(),name:t.name,region:t.region,exercises:[],plan:{}}));
   /* reparte el objetivo semanal de cada grupo entre los días cuya región lo incluye */
@@ -4674,7 +4670,7 @@ function autoSplit(aid,nDays,style){
   logChange(aid,'alta','Split automático generado ('+nDays+' días, '+exCount+' ejercicios)','Programa','');
   return {days:days.length,exercises:exCount,template:tpl.map(t=>t.name).join(' · ')};
 }
-/* Rellena p.volTargets (objetivo semanal por grupo) según prioridad×experiencia×fase×bloque. Compartida por el botón "Usar recomendados" y el ajuste automático de plantillas IA. */
+/* Rellena p.volTargets (objetivo semanal por grupo) según prioridad×experiencia×fase. Usa la matriz genérica (no landmarks por músculo) y toma el rango inferior como objetivo conservador. */
 function autoFillVolTargets(aid){
   const d=athData(aid),p=d.profile;
   p.volTargets=p.volTargets||{};
@@ -4682,8 +4678,8 @@ function autoFillVolTargets(aid){
   GROUPS.forEach(g=>{
     const prio=p.priorities[g];
     if(prio===0){delete p.volTargets[g];return;}
-    const rec=volumeRec(g,p.experience,p.phase,p.block,prio);
-    if(rec){p.volTargets[g]=rec.target;n++;}
+    const rec=volumeRecMatrix(prio,p.experience,p.phase);
+    if(rec){p.volTargets[g]=rec.lo;n++;}
   });
   return n;
 }
@@ -5013,7 +5009,9 @@ Object.assign(ACTIONS,{
     const any=GROUPS.some(g=>vol[g]>0);
     if(!any){toast('No se pudo determinar el grupo de ningún ejercicio. Vincula al menos algunos a tu biblioteca.');return;}
     d.profile.priorities=priorityFromVolume(vol,d.profile.experience);
-    autoFillVolTargets(aid);
+    /* Objetivo = lo programado (no la recomendación genérica) */
+    d.profile.volTargets=d.profile.volTargets||{};
+    GROUPS.forEach(g=>{if(d.profile.priorities[g]===0||!vol[g]){delete d.profile.volTargets[g];}else{d.profile.volTargets[g]=vol[g];}});
     const nd=distributePlanFromRoutine(aid);
     saveState();toast('Prioridades, objetivos y distribución calculados desde la rutina'+(nd?' ('+nd+' grupos repartidos)':''));render();
   },
