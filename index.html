@@ -4725,6 +4725,31 @@ function programmedVolumeByGroup(days){
   }));
   return vol;
 }
+/* Series por grupo POR DÍA (array paralelo a days). */
+function programmedVolumePerDay(days){
+  return (days||[]).map(day=>{
+    const vol={};GROUPS.forEach(g=>vol[g]=0);
+    (day.exercises||[]).forEach(ex=>{
+      const g=groupOfEx(ex);if(g&&vol[g]!=null)vol[g]+=(+ex.sets||0);
+    });
+    return vol;
+  });
+}
+/* Distribuye day.plan según lo que la rutina YA programa (no load-balance). */
+function distributePlanFromRoutine(aid){
+  const d=athData(aid),days=d.routine.days;
+  if(!days.length)return 0;
+  const perDay=programmedVolumePerDay(days);
+  const touched=new Set();
+  days.forEach((day,i)=>{day.plan=day.plan||{};
+    GROUPS.forEach(g=>{
+      const v=perDay[i][g]||0;
+      if(v>0){day.plan[g]=v;touched.add(g);}
+      else delete day.plan[g];
+    });
+  });
+  return touched.size;
+}
 /* Infiere prioridad por grupo a partir del volumen YA programado (p.ej. en una rutina importada),
    comparándolo contra sus landmarks. Escala de la app: 4=Máxima > 1=Primaria > 2=Secundaria > 3=Terciaria > 0=No entrenar.
    Un grupo sin series programadas queda en prioridad 0 (no es foco de este programa). */
@@ -4748,7 +4773,7 @@ function applyAiRoutineAdjust(aid){
   const vol=programmedVolumeByGroup(r.days);
   p.priorities=priorityFromVolume(vol,p.experience);
   autoFillVolTargets(aid);
-  autoDistributeDayPlan(aid);
+  distributePlanFromRoutine(aid);
 }
 
 /* ===== GENERADOR DE NUTRICIÓN AUTOMÁTICA (objetivos + comidas con alimentos) ===== */
@@ -4989,7 +5014,7 @@ Object.assign(ACTIONS,{
     if(!any){toast('No se pudo determinar el grupo de ningún ejercicio. Vincula al menos algunos a tu biblioteca.');return;}
     d.profile.priorities=priorityFromVolume(vol,d.profile.experience);
     autoFillVolTargets(aid);
-    const nd=autoDistributeDayPlan(aid);
+    const nd=distributePlanFromRoutine(aid);
     saveState();toast('Prioridades, objetivos y distribución calculados desde la rutina'+(nd?' ('+nd+' grupos repartidos)':''));render();
   },
   'plan-sets':el=>{
