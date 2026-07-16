@@ -344,6 +344,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .lib-card .eq{font-size:11.5px;color:var(--tx3)}
 .muschips{display:flex;gap:5px;flex-wrap:wrap}
 .chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--tx2)}
+.spchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--tx2);cursor:pointer;user-select:none}
+.spchip:has(input:checked){border-color:var(--blue);color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,transparent)}
+.spchip input{margin:0;cursor:pointer}
 .chip.pri{background:var(--card2);border-color:var(--line2);color:var(--tx)}
 .rec-chips{display:flex;gap:6px;flex-wrap:wrap}
 .rec-detail .rec-meta{font-size:12.5px;color:var(--tx3);margin-bottom:12px}
@@ -2100,7 +2103,10 @@ function coachTabVolumen(aid){
   let popts='';PHASES.forEach(ph=>{popts+='<option value="'+ph[0]+'"'+(phase===ph[0]?' selected':'')+'>'+ph[1]+'</option>';});
   let bopts='';[1,2,3,4].forEach(b=>{bopts+='<option value="'+b+'"'+(block===b?' selected':'')+'>Bloque '+b+'</option>';});
 
-  const ctx='<div class="card mb16"><div class="sect-h" style="margin:0 0 12px"><h3 style="margin:0">Contexto del atleta <span class="hint">determina el volumen, el RIR y las cargas recomendadas</span></h3><span class="sp"><button class="btn btn-p btn-sm" data-act="split-auto-ask" data-aid="'+aid+'" title="Genera el split completo (estructura de días + reparto de volumen + ejercicios) según los días/semana y las prioridades. Editable después.">'+I.refresh+' Generar split automático</button></span></div>'+
+  const emA=(d.routine.emphasis||[]);
+  const emphBadge=emA.length?'<span class="chip" style="border-color:var(--blue);color:var(--blue)" title="Músculos enfatizados en este split'+(d.routine.emphRandom?' (elegidos al azar entre grupos grandes)':'')+'">★ Énfasis'+(d.routine.emphRandom?' auto':'')+': '+esc(emA.join(', '))+'</span>':'';
+  const regenBtn=d.routine.autoSplitCfg?'<button class="btn btn-g btn-sm" data-act="split-auto-regen" data-aid="'+aid+'" title="Genera otra variante con la misma configuración (varía ejercicios y, si el énfasis es automático, los grupos enfatizados).">'+I.refresh+' Regenerar</button>':'';
+  const ctx='<div class="card mb16"><div class="sect-h" style="margin:0 0 12px"><h3 style="margin:0">Contexto del atleta <span class="hint">determina el volumen, el RIR y las cargas recomendadas</span></h3><span class="sp" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+emphBadge+regenBtn+'<button class="btn btn-p btn-sm" data-act="split-auto-ask" data-aid="'+aid+'" title="Genera el split completo (estructura de días + reparto de volumen + ejercicios) según los días/semana y las prioridades. Editable después.">'+I.refresh+' Generar split automático</button></span></div>'+
     '<div class="ctx-bar"><div class="fld"><label>Experiencia</label><select data-change="ctx-exp" data-aid="'+aid+'">'+eopts+'</select></div>'+
     '<div class="fld"><label>Fase actual</label><select data-change="ctx-phase" data-aid="'+aid+'">'+popts+'</select></div>'+
     '<div class="fld"><label>Bloque del período</label><select data-change="ctx-block" data-aid="'+aid+'">'+bopts+'</select></div></div>'+
@@ -4787,6 +4793,8 @@ const REGION_GROUPS={
  full:GROUPS.slice()
 };
 const SPLIT_STYLES=[['auto','Recomendado (según días)'],['fb','Full body'],['ul','Torso / Pierna'],['ppl','Empuje / Tracción / Pierna']];
+/* grupos grandes = base coherente para aleatorizar énfasis cuando no hay músculos de interés */
+const LARGE_GROUPS=['Cuádriceps','Glúteo','Isquiosurales','Pectoral','Espalda'];
 function splitCycle(nDays,seq){
   const t=[];const rounds=Math.ceil(nDays/seq.length);
   for(let i=0;i<nDays;i++){const b=seq[i%seq.length];const suf=(rounds>1)?' '+String.fromCharCode(65+Math.floor(i/seq.length)):'';t.push({name:b.name+suf,region:b.region});}
@@ -4816,10 +4824,11 @@ function repsForCat(cat){
   if(cat==='III')return{reps:'12-15',rest:'90 s'};
   return{reps:'12-20',rest:'75 s'};
 }
-function pickExercisesForGroup(g,totalSets,maxEx){
+function pickExercisesForGroup(g,totalSets,maxEx,rnd){
   const lib=(S.library||[]).filter(l=>l.group===g);
   if(!lib.length)return [];
   const byCat={};lib.forEach(l=>{const k=l.cat||'?';(byCat[k]=byCat[k]||[]).push(l);});
+  if(rnd)Object.keys(byCat).forEach(k=>byCat[k].sort(()=>Math.random()-0.5)); /* variantes: baraja dentro de cada categoría */
   const catOrder=ROMAN.filter(c=>byCat[c]);if(byCat['?'])catOrder.push('?');
   const nEx=Math.max(1,Math.min(maxEx||3,Math.round(totalSets/3.5)||1));
   const chosen=[];let guard=0;
@@ -4828,7 +4837,8 @@ function pickExercisesForGroup(g,totalSets,maxEx){
   const base=Math.floor(totalSets/chosen.length);let rem=totalSets-base*chosen.length;
   return chosen.map(l=>{const sets=Math.max(1,base+(rem>0?1:0));if(rem>0)rem--;return{lib:l,sets};});
 }
-function autoSplit(aid,nDays,style){
+function autoSplit(aid,nDays,style,emphasis,opts){
+  opts=opts||{};
   const d=athData(aid),p=d.profile,r=d.routine;
   nDays=nDays||r.days.length||4;
   /* asegura objetivos de volumen */
@@ -4837,16 +4847,29 @@ function autoSplit(aid,nDays,style){
   if(!anyTgt){GROUPS.forEach(g=>{const prio=p.priorities[g];if(prio===0){delete p.volTargets[g];return;}const rec=volumeRecMatrix(prio,p.experience,p.phase);if(rec)p.volTargets[g]=rec.lo;});}
   const tpl=splitTemplate(nDays,p.experience,style);
   const days=tpl.map(t=>({id:uid(),name:t.name,region:t.region,exercises:[],plan:{}}));
-  /* reparte el objetivo semanal de cada grupo entre los días cuya región lo incluye */
+  /* grupos que realmente se entrenan y tienen día donde caer en este split */
+  const trainable=g=>{const t=p.volTargets[g];return t!=null&&t!==''&&(+t)>0&&p.priorities[g]!==0&&days.some(dy=>REGION_GROUPS[dy.region].indexOf(g)>=0);};
+  /* énfasis: músculos de interés elegidos, o —si no hay— 1-2 grupos grandes al azar (coherentes con el split) */
+  let emph=(emphasis||[]).filter(trainable).slice(0,2);
+  let emphRandom=false;
+  if(!emph.length){
+    const pool=LARGE_GROUPS.filter(trainable);
+    if(pool.length){emphRandom=true;const shuf=pool.slice().sort(()=>Math.random()-0.5);emph=shuf.slice(0,Math.random()<0.6?2:1);}
+  }
+  const emphSet=new Set(emph);
+  /* reparte el objetivo semanal de cada grupo entre los días cuya región lo incluye.
+     Grupos con énfasis: +30% volumen y frecuencia mínima elevada (aparecen en más días). */
   const load=days.map(()=>0);
   GROUPS.filter(g=>{const t=p.volTargets[g];return t!=null&&t!==''&&(+t)>0&&p.priorities[g]!==0;})
-    .sort((a,b)=>(+p.volTargets[b])-(+p.volTargets[a]))
-    .forEach(g=>{
-      const T=+p.volTargets[g];
+    .map(g=>({g,T:Math.round((+p.volTargets[g])*(emphSet.has(g)?1.3:1))}))
+    .sort((a,b)=>b.T-a.T)
+    .forEach(({g,T})=>{
       const allowed=days.map((dy,i)=>i).filter(i=>REGION_GROUPS[days[i].region].indexOf(g)>=0);
       if(!allowed.length)return;
       let f=Math.round(T/8)||1;f=Math.max(f,Math.ceil(T/10));f=Math.min(f,Math.max(1,Math.floor(T/4))||1);
-      if(T>=6&&allowed.length>=2)f=Math.max(2,f);f=Math.max(1,Math.min(f,allowed.length));
+      if(T>=6&&allowed.length>=2)f=Math.max(2,f);
+      if(emphSet.has(g))f=Math.max(f,Math.min(3,allowed.length)); /* énfasis → más frecuencia */
+      f=Math.max(1,Math.min(f,allowed.length));
       const idx=allowed.slice().sort((a,b)=>load[a]-load[b]||a-b).slice(0,f).sort((a,b)=>a-b);
       const base=Math.floor(T/f);let rem=T-base*f;
       idx.forEach(i=>{const vv=base+(rem>0?1:0);if(rem>0)rem--;if(vv>0){days[i].plan[g]=vv;load[i]+=vv;}});
@@ -4855,14 +4878,15 @@ function autoSplit(aid,nDays,style){
   const rir=rirFor(p.phase,p.experience);
   let exCount=0;
   days.forEach(dy=>{
-    /* orden de grupos: compuestos grandes primero */
+    /* orden de grupos: énfasis primero (en fresco), luego compuestos grandes */
     const order=['Cuádriceps','Glúteo','Isquiosurales','Pectoral','Espalda','Deltoide anterior','Deltoide lateral','Deltoide posterior','Trapecio','Tríceps','Bíceps','Antebrazo','Aductores','Gemelo / Sóleo','Abdomen'];
+    const okey=g=>(emphSet.has(g)?0:1000)+order.indexOf(g);
     /* tope de ejercicios por sesión: menos por grupo cuando el día concentra muchos grupos */
     const nGroups=Object.keys(dy.plan).filter(g=>dy.plan[g]>0).length;
     const maxEx=nGroups>=7?1:nGroups>=5?2:3;
-    Object.keys(dy.plan).sort((a,b)=>order.indexOf(a)-order.indexOf(b)).forEach(g=>{
+    Object.keys(dy.plan).sort((a,b)=>okey(a)-okey(b)).forEach(g=>{
       const tot=dy.plan[g];if(!tot)return;
-      pickExercisesForGroup(g,tot,maxEx).forEach(pe=>{
+      pickExercisesForGroup(g,tot,maxEx,opts.variety).forEach(pe=>{
         const rc=repsForCat(pe.lib.cat);
         dy.exercises.push({id:uid(),name:pe.lib.name,sets:pe.sets,reps:rc.reps,rir:rir,rest:rc.rest,notes:'',libId:pe.lib.id});
         exCount++;
@@ -4874,8 +4898,12 @@ function autoSplit(aid,nDays,style){
   r.startDate=r.startDate||todayISO();
   r.baseline={date:todayISO(),byGroup:volMap(aid)};
   r.changelog=r.changelog||[];r.snapshots=r.snapshots||[];
-  logChange(aid,'alta','Split automático generado ('+nDays+' días, '+exCount+' ejercicios)','Programa','');
-  return {days:days.length,exercises:exCount,template:tpl.map(t=>t.name).join(' · ')};
+  /* guarda el énfasis aplicado y la config para poder mostrarlo y regenerar variantes */
+  r.emphasis=emph.slice();r.emphRandom=emphRandom;
+  r.autoSplitCfg={nDays,style,emphasis:emphRandom?[]:emph.slice()};
+  const emphNote=emph.length?(' · énfasis'+(emphRandom?' (auto)':'')+': '+emph.join(', ')):'';
+  logChange(aid,'alta','Split automático generado ('+nDays+' días, '+exCount+' ejercicios)'+emphNote,'Programa','');
+  return {days:days.length,exercises:exCount,template:tpl.map(t=>t.name).join(' · '),emphasis:emph,emphRandom};
 }
 /* Rellena p.volTargets (objetivo semanal por grupo) según prioridad×experiencia×fase. Usa la matriz genérica (no landmarks por músculo) y toma el rango inferior como objetivo conservador. */
 function autoFillVolTargets(aid){
@@ -5175,19 +5203,37 @@ Object.assign(ACTIONS,{
     let dop='';for(let i=1;i<=7;i++)dop+='<option value="'+i+'"'+(i===cur?' selected':'')+'>'+i+' día'+(i>1?'s':'')+'/semana</option>';
     let sop='';SPLIT_STYLES.forEach(s=>{sop+='<option value="'+s[0]+'">'+s[1]+'</option>';});
     const prev=splitTemplate(cur,d.profile.experience,'auto').map(t=>t.name).join(' · ');
+    const prio=d.profile.priorities||{};
+    const trained=GROUPS.filter(g=>prio[g]!==0);
+    let chips=trained.map(g=>'<label class="spchip"><input type="checkbox" value="'+esc(g)+'"> '+esc(g)+'</label>').join('');
+    if(!chips)chips='<span class="tiny muted">Este atleta no tiene grupos activos (todas las prioridades en 0).</span>';
     openModal('Generar split automático',
       '<p class="muted" style="margin-bottom:12px">Crea un split completo según los días por semana, el estilo elegido y las <b>prioridades</b> ya asignadas. Si aún no fijaste objetivos de volumen, se rellenan con los recomendados. Después puedes editar todo en la pestaña Rutina.</p>'+
       '<div class="frow2"><div><label>Días de entrenamiento por semana</label><select id="sp_days" data-change="sp-preview" data-aid="'+aid+'">'+dop+'</select></div>'+
       '<div><label>Estilo de split</label><select id="sp_style" data-change="sp-preview" data-aid="'+aid+'">'+sop+'</select></div></div>'+
       '<div class="notebox" id="sp_prev"><b>Estructura sugerida:</b> '+esc(prev)+'</div>'+
+      '<label style="margin-top:12px;display:block">Músculos de interés <span class="tiny muted">(opcional · máx. 2)</span></label>'+
+      '<div id="sp_interest" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">'+chips+'</div>'+
+      '<p class="tiny" style="margin-top:6px">Los músculos de interés reciben <b>más volumen, más frecuencia y van primero</b> en la sesión. Si no eliges ninguno, se enfatizan al azar 1-2 grupos grandes (cuádriceps, glúteo, isquios, pectoral o espalda) para que el split no salga plano.</p>'+
       '<p class="tiny" style="margin-top:8px">PPL reparte mejor los grupos (sesiones más cortas) a partir de 4-6 días; Torso/Pierna concentra más músculos por sesión; Full body va bien con 1-3 días.</p>'+
       '<p class="tiny" style="color:var(--orange);margin-top:6px">⚠ Esto reemplaza los días y ejercicios actuales del atleta y reinicia el bloque (volumen inicial = nuevo). El historial de bloques cerrados se conserva.</p>',
       '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="split-auto-do" data-aid="'+aid+'">Generar split</button>');
   },
   'split-auto-do':el=>{
     const aid=el.dataset.aid,nDays=parseInt(val('sp_days'),10)||4,style=val('sp_style')||'auto';
-    const res=autoSplit(aid,nDays,style);
-    saveState();closeModal();toast('Split generado: '+res.days+' días · '+res.exercises+' ejercicios');nav('coach-ath',{aid,tab:'rutina'});
+    const emphasis=[...document.querySelectorAll('#sp_interest input:checked')].map(i=>i.value).slice(0,2);
+    const res=autoSplit(aid,nDays,style,emphasis);
+    saveState();closeModal();
+    const et=res.emphasis&&res.emphasis.length?(' · énfasis'+(res.emphRandom?' auto':'')+': '+res.emphasis.join(', ')):'';
+    toast('Split generado: '+res.days+' días · '+res.exercises+' ejercicios'+et);nav('coach-ath',{aid,tab:'rutina'});
+  },
+  'split-auto-regen':el=>{
+    const aid=el.dataset.aid,cfg=athData(aid).routine.autoSplitCfg;
+    if(!cfg){toast('Genera un split automático primero');return;}
+    const res=autoSplit(aid,cfg.nDays,cfg.style,cfg.emphasis,{variety:true});
+    saveState();render();
+    const et=res.emphasis&&res.emphasis.length?(' · énfasis'+(res.emphRandom?' auto':'')+': '+res.emphasis.join(', ')):'';
+    toast('Nueva variante: '+res.days+' días · '+res.exercises+' ejercicios'+et);
   },
   'nutri-auto-ask':el=>{
     const aid=el.dataset.aid,d=athData(aid),lw=lastWeight(aid);
