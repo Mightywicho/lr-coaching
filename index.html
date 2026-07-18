@@ -529,6 +529,10 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 
 /* ---------- biblioteca de ejercicios (modelo de selección por categorías — Jay Ehrenstein, Selección de Ejercicios I y II) ---------- */
 const GROUPS=['Pectoral','Espalda','Trapecio','Deltoide anterior','Deltoide lateral','Deltoide posterior','Bíceps','Tríceps','Antebrazo','Abdomen','Cuádriceps','Isquiosurales','Glúteo','Aductores','Gemelo / Sóleo'];
+/* Buckets de trabajo NO hipertrófico por músculo (cardio, movilidad, explosividad).
+   Son un eje aparte: NO cuentan volumen, NO entran a prioridad ni al split. Solo clasifican la biblioteca. */
+const XGROUPS=['Cardio','Movilidad','Potencia / Velocidad / Agilidad'];
+const isMuscleGroup=g=>GROUPS.indexOf(g)>=0;
 const EQUIPMENT=['Barra','Mancuernas','Polea','Máquina','Peso corporal','Otro'];
 const ROMAN=['I','II','III','IV'];
 /* Especializaciones sugeridas por grupo (cabezas, porciones o regiones) */
@@ -3607,6 +3611,7 @@ document.addEventListener('change',e=>{
     const cs=document.getElementById('l_cat');if(cs)cs.innerHTML=catOptions(g,'');
     const fl=document.getElementById('focuslist');if(fl)fl.innerHTML=focusOptions(g);
     const fi=document.getElementById('l_focus');if(fi)fi.value='';
+    const mf=document.getElementById('l_musc_fields');if(mf)mf.style.display=isMuscleGroup(g)?'block':'none';
   }
   else if(el.dataset.change==='vtype'){
     const yt=document.getElementById('v_yt_box'),fl=document.getElementById('v_file_box');
@@ -4117,12 +4122,16 @@ VIEWS['tpl']=function(u){
 
 VIEWS['lib']=function(u){
   const q=(route.params.q||'').toLowerCase(),fm=route.params.m||'',fc=route.params.c||'',feq=route.params.eq||'';
-  let list=(S.library||[]).slice().sort((a,b)=>(a.group===b.group?0:GROUPS.indexOf(a.group)-GROUPS.indexOf(b.group))||(ROMAN.indexOf(a.cat)-ROMAN.indexOf(b.cat))||a.name.localeCompare(b.name));
-  if(q)list=list.filter(l=>l.name.toLowerCase().includes(q)||l.group.toLowerCase().includes(q)||(l.focus||'').toLowerCase().includes(q)||(l.secondary||[]).some(m=>m.toLowerCase().includes(q)));
-  if(fm)list=list.filter(l=>l.group===fm||(l.secondary||[]).includes(fm));
+  const grank=g=>{const i=GROUPS.indexOf(g);if(i>=0)return i;const j=XGROUPS.indexOf(g);if(j>=0)return 100+j;return 200;};
+  let list=(S.library||[]).slice().sort((a,b)=>(grank(a.group)-grank(b.group))||(ROMAN.indexOf(a.cat)-ROMAN.indexOf(b.cat))||a.name.localeCompare(b.name));
+  if(q)list=list.filter(l=>l.name.toLowerCase().includes(q)||(l.group||'').toLowerCase().includes(q)||(l.focus||'').toLowerCase().includes(q)||(l.secondary||[]).some(m=>m.toLowerCase().includes(q)));
+  if(fm==='__x__')list=list.filter(l=>!isMuscleGroup(l.group)&&XGROUPS.indexOf(l.group)<0);
+  else if(fm)list=list.filter(l=>l.group===fm||(l.secondary||[]).includes(fm));
   if(fc)list=list.filter(l=>l.cat===fc);
   if(feq)list=list.filter(l=>l.equipment===feq);
-  let mopts='<option value="">Todos los grupos</option>';GROUPS.forEach(m=>{mopts+='<option'+(fm===m?' selected':'')+'>'+m+'</option>';});
+  let mopts='<option value="">Todos los grupos</option><optgroup label="Grupo muscular">';GROUPS.forEach(m=>{mopts+='<option'+(fm===m?' selected':'')+'>'+m+'</option>';});
+  mopts+='</optgroup><optgroup label="Otros (no cuenta volumen)">';XGROUPS.forEach(m=>{mopts+='<option'+(fm===m?' selected':'')+'>'+m+'</option>';});
+  mopts+='<option value="__x__"'+(fm==='__x__'?' selected':'')+'>Sin clasificar</option></optgroup>';
   let copts='<option value="">Todas las categorías</option>';ROMAN.forEach(c2=>{copts+='<option value="'+c2+'"'+(fc===c2?' selected':'')+'>Categoría '+c2+'</option>';});
   let eopts='<option value="">Todo el equipo</option>';EQUIPMENT.forEach(e2=>{eopts+='<option'+(feq===e2?' selected':'')+'>'+e2+'</option>';});
   let cards='';
@@ -4407,14 +4416,17 @@ function libForm(l){
   l=l||{};
   const v=l.video||{};
   const g=l.group||GROUPS[0];
-  let mopts='';GROUPS.forEach(m=>{mopts+='<option'+(g===m?' selected':'')+'>'+m+'</option>';});
+  const gMusc=isMuscleGroup(g);
+  let mopts='<optgroup label="Grupo muscular">';GROUPS.forEach(m=>{mopts+='<option'+(g===m?' selected':'')+'>'+m+'</option>';});
+  mopts+='</optgroup><optgroup label="Otros (no cuenta volumen)">';XGROUPS.forEach(m=>{mopts+='<option'+(g===m?' selected':'')+'>'+m+'</option>';});mopts+='</optgroup>';
   let eopts='';EQUIPMENT.forEach(e2=>{eopts+='<option'+(l.equipment===e2?' selected':'')+'>'+e2+'</option>';});
   let chk='<div class="chkgrid">';GROUPS.forEach(m=>{chk+='<label><input type="checkbox" class="sec-chk" data-m="'+m+'"'+((l.secondary||[]).includes(m)?' checked':'')+'> '+m+'</label>';});chk+='</div>';
   return '<div class="frow"><label>Nombre del ejercicio</label><input id="l_name" value="'+esc(l.name||'')+'" placeholder="Press banca con barra"></div>'+
-  '<div class="frow2"><div><label>Grupo muscular principal</label><select id="l_group" data-change="l-group">'+mopts+'</select></div><div><label>Equipo</label><select id="l_eq">'+eopts+'</select></div></div>'+
+  '<div class="frow2"><div><label>Grupo / tipo de trabajo</label><select id="l_group" data-change="l-group">'+mopts+'</select></div><div><label>Equipo</label><select id="l_eq">'+eopts+'</select></div></div>'+
+  '<div id="l_musc_fields" style="display:'+(gMusc?'block':'none')+'">'+
   '<div class="frow"><label>Categoría (patrón biomecánico del modelo)</label><select id="l_cat">'+catOptions(g,l.cat)+'</select></div>'+
   '<div class="frow"><label>Especialización / énfasis (opcional)</label><input id="l_focus" list="focuslist" value="'+esc(l.focus||'')+'" placeholder="Ej.: Dorsal ancho, cabeza larga, porción clavicular…"><datalist id="focuslist">'+focusOptions(g)+'</datalist><p class="tiny" style="margin-top:5px">Déjalo vacío para trabajo general del grupo; rellénalo solo si el ejercicio sesga una cabeza, porción o región.</p></div>'+
-  '<div class="frow"><label>Grupos secundarios involucrados (fatiga cruzada)</label>'+chk+'</div>'+
+  '<div class="frow"><label>Grupos secundarios involucrados (fatiga cruzada)</label>'+chk+'</div></div>'+
   '<div class="frow"><label>Indicaciones técnicas</label><textarea id="l_cues" placeholder="Puntos clave de la técnica…">'+esc(l.cues||'')+'</textarea></div>'+
   '<div class="frow"><label>Video</label><select id="l_vtype" data-change="vtype"><option value=""'+(!v.type?' selected':'')+'>Sin video</option><option value="youtube"'+(v.type==='youtube'?' selected':'')+'>YouTube</option><option value="file"'+(v.type==='file'?' selected':'')+'>Archivo propio (carpeta «videos»)</option></select></div>'+
   '<div class="frow" id="v_yt_box" style="display:'+(v.type==='youtube'?'block':'none')+'"><label>URL de YouTube</label><input id="l_yturl" value="'+esc(v.url||'')+'" placeholder="https://www.youtube.com/watch?v=…"></div>'+
