@@ -902,10 +902,15 @@ let _profileCache={};
 let _profilesHydrated=false;
 function ensureProfileShells(st){
   /* evita crashes si el blob viene sin perfil (ya vive en athlete_profiles); hydrateProfiles lo repone */
+  let created=false;
   Object.keys(st.athletes||{}).forEach(aid=>{
     const a=st.athletes[aid];
-    if(!a.profile||typeof a.profile!=='object')a.profile={category:'',goal:'',service:'ambos',training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false};
+    if(!a.profile||typeof a.profile!=='object'){a.profile={category:'',goal:'',service:'ambos',training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false};created=true;}
   });
+  /* GUARDA 1 (incidente s33): un shell en blanco NO es dato real. Mientras exista, syncProfiles no debe
+     escribir, o el shell pisa el perfil bueno del servidor. hydrateProfiles vuelve a poner el flag en true
+     unas líneas después; si falla, se queda en false y no se escribe nada — que es justo lo que queremos. */
+  if(created)_profilesHydrated=false;
 }
 /* separa el perfil en lo que el atleta puede ver (shared) y las notas internas del coach (private) */
 function splitProfile(p){
@@ -984,6 +989,13 @@ function syncProfiles(){
       const kind=pair[0],v=pair[1];if(v==null)return;
       const j=JSON.stringify(v),k=aid+':'+kind;
       if(_profileCache[k]===j)return;
+      /* GUARDA 2 (incidente s33): la identidad (_u) nunca desaparece de forma legítima — al borrar un atleta
+         se usa purgeAthleteCloud, no esto. Si el servidor ya tenía identidad y lo que vamos a subir no la trae,
+         es un shell sin hidratar: se omite la fila en vez de borrarle el perfil al atleta. */
+      if(kind==='shared'&&!v._u){
+        let prev=null;try{prev=JSON.parse(_profileCache[k]||'null');}catch(e){}
+        if(prev&&prev._u){console.warn('syncProfiles: perfil sin identidad omitido para',aid,'— estado sin hidratar');return;}
+      }
       rows.push({coach_uid:_coachUid,athlete_id:aid,kind:kind,data:v,updated_at:new Date().toISOString()});
       keys.push([k,j]);
     });
