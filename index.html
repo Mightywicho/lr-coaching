@@ -5237,7 +5237,7 @@ Object.assign(ACTIONS,{
     const res=autoSplit(aid,nDays,style,emphasis);
     saveState();closeModal();
     const et=res.emphasis&&res.emphasis.length?(' · énfasis'+(res.emphRandom?' auto':'')+': '+res.emphasis.join(', ')):'';
-    toast('Split generado: '+res.days+' días · '+res.exercises+' ejercicios'+et);nav('coach-ath',{aid,tab:'rutina'});
+    toast('Split generado: '+res.days+' días · '+res.exercises+' ejercicios'+et);nav('coach-ath',{aid,tab:'entrenamiento'});
   },
   'split-auto-regen':el=>{
     const aid=el.dataset.aid,cfg=athData(aid).routine.autoSplitCfg;
