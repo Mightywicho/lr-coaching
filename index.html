@@ -347,6 +347,25 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .spchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--tx2);cursor:pointer;user-select:none}
 .spchip:has(input:checked){border-color:var(--blue);color:var(--blue);background:color-mix(in srgb,var(--blue) 12%,transparent)}
 .spchip input{margin:0;cursor:pointer}
+/* cambio de ejercicio (atleta) */
+.swapbtn{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 9px;border-radius:999px;background:transparent;border:1px dashed var(--line2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
+.swapbtn:hover{border-color:var(--blue);border-style:solid;color:var(--blue)}
+.swapbadge{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;padding:5px 9px;border-radius:8px;background:color-mix(in srgb,var(--blue) 10%,transparent);border:1px solid color-mix(in srgb,var(--blue) 35%,transparent);color:var(--blue);font-size:12px;font-weight:600}
+.swapbadge b{font-weight:700;text-decoration:line-through;opacity:.75}
+.swapundo{margin-left:auto;background:none;border:none;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
+.swaphd{font-size:12px;font-weight:700;margin:14px 0 6px;letter-spacing:.02em}
+.swaphd.ok{color:var(--green)}.swaphd.warn{color:var(--tx2)}
+.swapopt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);margin-bottom:7px}
+.swapopt .so-n{flex:1;min-width:0}
+.swapopt .so-n b{display:block;font-size:13.5px}
+.swapopt .so-n .tiny{color:var(--tx2)}
+.swapopt .so-b{display:flex;gap:6px;flex-shrink:0}
+@media(max-width:520px){.swapopt{flex-direction:column;align-items:stretch}.swapopt .so-b{justify-content:stretch}.swapopt .so-b .btn{flex:1}}
+.swaprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 10px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);margin-bottom:7px}
+.swaprow .sr-t{flex:1;min-width:180px;font-size:13.5px}
+.swaprow .sr-t b{font-weight:600}
+.swaprow .sr-t b.to{color:var(--blue);font-weight:700}
+.swaprow .sr-b{display:flex;gap:6px;margin-left:auto}
 .chip.pri{background:var(--card2);border-color:var(--line2);color:var(--tx)}
 .rec-chips{display:flex;gap:6px;flex-wrap:wrap}
 .rec-detail .rec-meta{font-size:12.5px;color:var(--tx3);margin-bottom:12px}
@@ -1015,9 +1034,9 @@ async function purgeAthleteCloud(aid){
   try{await supa.from('athlete_access').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   try{await supa.from('athlete_invites').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   if(auid){
-    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs'];
+    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps'];
     for(let i=0;i<tabs.length;i++){try{await supa.from(tabs[i]).delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}}
-    delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];
+    delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];delete SWAPS[aid];
   }
 }
 /* el dietProfile (gustos/alergias/notas de alimentación) es coach-only: no viaja en la fila nutrition (que el atleta lee) sino como kind='diet' en athlete_profiles */
@@ -1117,6 +1136,90 @@ async function hydrateWorkoutLogs(){
       if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.workouts=byUid[uid];
     });
   }catch(e){}
+}
+/* ---- Swaps: cambios de ejercicio hechos por el atleta (tabla athlete_swaps) ----
+   Vive FUERA de S a propósito: nunca debe viajar en el blob (ver incidente s33/s34).
+   scope 'today' aplica solo en su fecha; scope 'always' aplica hasta que el coach lo acepte o revierta. */
+let SWAPS={}; /* appId -> [swap] */
+function swapsOf(aid){return SWAPS[aid]||[];}
+/* swaps vigentes hoy, indexados por id de ejercicio */
+function activeSwaps(aid){
+  const out={},t=todayISO();
+  swapsOf(aid).forEach(s=>{
+    if(s.scope==='today'&&s.date!==t)return;
+    const prev=out[s.exId];
+    /* si hay uno de hoy y uno permanente sobre el mismo ejercicio, gana el de hoy */
+    if(prev&&prev.scope==='today'&&s.scope!=='today')return;
+    out[s.exId]=s;
+  });
+  return out;
+}
+/* rutina tal como la ve el atleta: con sus cambios aplicados. El coach sigue viendo la original. */
+function routineForAthlete(aid){
+  const d=athData(aid);if(!d||!d.routine)return d&&d.routine;
+  const sw=activeSwaps(aid);
+  if(!Object.keys(sw).length)return d.routine;
+  const r=d.routine;
+  return Object.assign({},r,{days:(r.days||[]).map(day=>Object.assign({},day,{
+    exercises:(day.exercises||[]).map(e=>{
+      const s=sw[e.id];if(!s)return e;
+      return Object.assign({},e,{name:s.toName,libId:s.toLibId||null,_swap:s});
+    })
+  }))});
+}
+async function hydrateSwaps(){
+  if(!_supabaseUser)return;
+  try{
+    const{data,error}=await supa.from('athlete_swaps').select('id,athlete_uid,day_id,ex_id,from_lib_id,from_name,to_lib_id,to_name,reason,scope,date,created_at').order('created_at',{ascending:false});
+    if(error||!data)return;
+    const by={};
+    data.forEach(r=>{
+      const appId=_appIdByAthleteUid[r.athlete_uid];if(!appId)return;
+      (by[appId]=by[appId]||[]).push({id:r.id,dayId:r.day_id,exId:r.ex_id,fromLibId:r.from_lib_id,fromName:r.from_name,toLibId:r.to_lib_id,toName:r.to_name,reason:r.reason||'',scope:r.scope||'always',date:r.date,ts:r.created_at});
+    });
+    SWAPS=by;
+  }catch(e){}
+}
+async function saveSwap(aid,s){
+  if(!_supabaseUser)return;
+  const auid=_athleteUidByAppId[aid];
+  if(!auid){toast('No se pudo guardar el cambio: sin vínculo');return;}
+  try{
+    const{error}=await supa.from('athlete_swaps').upsert({id:s.id,athlete_uid:auid,coach_uid:_coachUid,day_id:s.dayId,ex_id:s.exId,from_lib_id:s.fromLibId||null,from_name:s.fromName,to_lib_id:s.toLibId||null,to_name:s.toName,reason:s.reason||null,scope:s.scope,date:s.date||null},{onConflict:'id'});
+    if(error){console.error('athlete_swaps',error);toast('No sincronizó: '+error.message);}
+  }catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
+}
+async function delSwap(aid,id){
+  if(!_supabaseUser)return;
+  try{const{error}=await supa.from('athlete_swaps').delete().eq('id',id);if(error)console.error('athlete_swaps del',error);}catch(e){console.error(e);}
+  SWAPS[aid]=swapsOf(aid).filter(s=>s.id!==id);
+}
+/* ---- Motor de sustitutos ----
+   Nivel 1 «equivalente»: mismo grupo Y misma categoría de patrón (Ehrenstein) → no altera el diseño.
+   Nivel 2 «alternativa»: mismo grupo, otra categoría → cambia el patrón, se avisa.
+   Nunca cruza de grupo: eso alteraría el volumen programado del músculo. */
+const SWAP_REASONS={ocupado:'El equipo está ocupado',nohay:'No hay ese equipo aquí',molesta:'Me molesta / me duele'};
+function swapCandidates(ex,day,reason){
+  const lib=ex.libId?libById(ex.libId):null;
+  const g=lib?lib.group:groupOfEx(ex);
+  if(!g)return[];
+  const used={};(day&&day.exercises||[]).forEach(e=>{if(e.libId)used[e.libId]=1;});
+  let pool=(S.library||[]).filter(l=>l.group===g&&l.id!==(lib&&lib.id)&&!used[l.id]);
+  /* si el equipo no existe en ese gym, no tiene sentido ofrecer más de lo mismo */
+  if(reason==='nohay'&&lib)pool=pool.filter(l=>l.equipment!==lib.equipment);
+  const sameCat=l=>!!(lib&&lib.cat&&l.cat&&l.cat===lib.cat);
+  /* si le molesta, el mismo patrón probablemente le vuelva a molestar: cambiar de categoría es lo correcto */
+  const tier=l=>reason==='molesta'?(sameCat(l)?2:1):(sameCat(l)?1:2);
+  const rank=l=>{
+    let s=0;
+    if(lib&&l.equipment!==lib.equipment)s-=(reason==='ocupado'?3:1); /* otro equipo resuelve mejor el problema */
+    if(lib&&lib.focus&&l.focus===lib.focus)s-=2; /* misma especialización = sustituto más fiel */
+    if(!l.cat)s+=1; /* sin categoría definida: al final */
+    return s;
+  };
+  return pool.map(l=>({lib:l,tier:tier(l),r:rank(l)}))
+    .sort((a,b)=>a.tier-b.tier||a.r-b.r||a.lib.name.localeCompare(b.lib.name))
+    .slice(0,12);
 }
 /* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
 function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed)};}
@@ -1258,7 +1361,7 @@ async function refreshAllData(){
   await hydratePlans();
   await hydrateProfiles();
   await hydrateWeightLogs();await hydrateWorkoutLogs();await hydrateNutritionLogs();
-  await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateMeasureLogs();await hydrateChat();
+  await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateMeasureLogs();await hydrateChat();await hydrateSwaps();
   if(_currentUserId==='coach')await hydrateRecipes();
 }
 function liveRender(){
@@ -1275,7 +1378,7 @@ function liveRefresh(){
 function subscribeData(){
   if(!_supabaseUser)return;
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
-  const tables=['app_state','athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs'];
+  const tables=['app_state','athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
   tables.forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>liveRefresh());});
   ch.subscribe();
@@ -1630,7 +1733,8 @@ const I={
   copy:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>',
   gear:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   recipe:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M11 6.5c0 1.5-1.2 2-1.2 3.2 0 .9.7 1.3 1.2 1.3M14 6.5v4"/></svg>',
-  folder:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>'
+  folder:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>',
+  swap:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/></svg>'
 };
 const ava=(u,lg)=>'<span class="ava'+(lg?' ava-lg':'')+'" style="background:'+u.color+'">'+esc(u.initials)+'</span>';
 
@@ -2017,6 +2121,29 @@ VIEWS['coach-ath']=function(u){
   return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal),back:{v:'coach-dash'},actions:'<button class="btn btn-g btn-sm" data-act="invite-ath" data-aid="'+aid+'">🔗 Invitar atleta</button>',body};
 };
 
+/* Cambios de ejercicio hechos por el atleta. Los permanentes esperan tu decisión; los de un día son informativos. */
+function coachSwapsCard(aid){
+  const d=athData(aid),sw=swapsOf(aid);
+  if(!sw.length)return '';
+  const dayName=id=>{const dy=(d.routine.days||[]).find(x=>x.id===id);return dy?dy.name:'—';};
+  const t=todayISO();
+  const perm=sw.filter(s=>s.scope==='always');
+  const hoy=sw.filter(s=>s.scope==='today').slice(0,8);
+  let rows='';
+  perm.forEach(s=>{
+    rows+='<div class="swaprow"><div class="sr-t"><span class="badge volt">'+esc(dayName(s.dayId))+'</span><b>'+esc(s.fromName)+'</b> → <b class="to">'+esc(s.toName)+'</b></div>'+
+      '<div class="tiny">'+esc(SWAP_REASONS[s.reason]||s.reason||'sin motivo')+' · '+fmtDate(String(s.ts||'').slice(0,10))+'</div>'+
+      '<div class="sr-b"><button class="btn btn-g btn-sm" data-act="swap-revert" data-aid="'+aid+'" data-id="'+s.id+'">Revertir</button>'+
+      '<button class="btn btn-p btn-sm" data-act="swap-accept" data-aid="'+aid+'" data-id="'+s.id+'">Aceptar en la rutina</button></div></div>';
+  });
+  let hrows='';
+  hoy.forEach(s=>{
+    hrows+='<div class="tiny" style="padding:3px 0">'+esc(dayName(s.dayId))+' · '+esc(s.fromName)+' → <b>'+esc(s.toName)+'</b> · '+esc(SWAP_REASONS[s.reason]||'')+' · '+fmtDate(s.date)+(s.date===t?' (hoy)':'')+'</div>';
+  });
+  return '<div class="card mb16"><h3>'+I.swap+' Cambios de ejercicio del atleta <span class="hint">'+perm.length+' permanente'+(perm.length===1?'':'s')+'</span></h3>'+
+    (rows?'<p class="tiny mb8">Aceptar reescribe tu rutina con el sustituto. Revertir lo devuelve a tu ejercicio original.</p>'+rows:'<p class="tiny">Ningún cambio permanente pendiente.</p>')+
+    (hrows?'<hr class="hr"><p class="tiny" style="font-weight:700;margin-bottom:4px">Cambios puntuales (no alteran tu rutina)</p>'+hrows:'')+'</div>';
+}
 function coachTabResumen(aid){
   const d=athData(aid),lw=lastWeight(aid),d30=weightDelta(aid,30),adh=adherenceAvg(aid,7),sv=svcOf(aid),tr=d.profile.training||{};
   const pts=d.logs.weight.map(w=>({x:w.date,y:w.kg}));
@@ -2046,6 +2173,7 @@ function coachTabResumen(aid){
       '<div class="frow"><label>Lesiones o limitaciones</label><textarea id="f_inj" placeholder="Ej. molestia de hombro en presses verticales, hernia lumbar, rodilla…">'+esc(tr.injuries||'')+'</textarea></div>'+
       '<div class="frow2"><div><label>Ejercicios que NO le gustan / evitar</label><textarea id="f_exdis" placeholder="Ej. sentadilla trasera, zancadas…">'+esc(tr.dislikes||'')+'</textarea></div><div><label>Ejercicios que le gustan mucho</label><textarea id="f_exlike" placeholder="Ej. remo con barra, press banca…">'+esc(tr.likes||'')+'</textarea></div></div>'+
       '<div style="text-align:right"><button class="btn btn-p" data-act="profile-save" data-aid="'+aid+'">Guardar perfil</button></div></div>'):'')+
+    (sv.tr?coachSwapsCard(aid):'')+
     '<div class="sect-h"><h2>Comentarios recientes del atleta</h2></div>'+feed;
 }
 
@@ -3245,10 +3373,19 @@ VIEWS['ath-hoy']=function(u){
     body:hero+pendUI+volBig+(sv.tr?weekStrip(aid):'')+statStrip+accs.join('')+coachnote};
 };
 
+/* Botón/insignia de cambio de ejercicio en las vistas del atleta */
+function swapRowUI(e,dayId){
+  if(e._swap){
+    const s=e._swap;
+    return '<div class="swapbadge">'+I.swap+'<span>Cambiaste <b>'+esc(s.fromName)+'</b>'+(s.scope==='today'?' · solo hoy':'')+'</span>'+
+      '<button class="swapundo" data-act="swap-undo" data-id="'+s.id+'">Deshacer</button></div>';
+  }
+  return '<button class="swapbtn" data-act="swap-ask" data-ex="'+e.id+'" data-day="'+dayId+'">'+I.swap+' No puedo hacerlo</button>';
+}
 VIEWS['ath-wlog']=function(u){
   if(!svcOf(u.id).tr)return VIEWS['ath-hoy'](u);
-  const aid=u.id,d=athData(aid);
-  const day=d.routine.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
+  const aid=u.id,d=athData(aid),rt=routineForAthlete(aid);
+  const day=rt.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
   if(!day){return VIEWS['ath-hoy'](u);}
   const last=lastWorkoutForDay(aid,day.id);
   let blocks='';
@@ -3264,7 +3401,8 @@ VIEWS['ath-wlog']=function(u){
     const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:14.5px;font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue)" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
     const exDone=!!(WDRAFT.done&&WDRAFT.done[e.id]);
     const revBtn=e.revLink?'<a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:6px;color:var(--blue);font-size:12.5px;font-weight:600;text-decoration:none">🎥 Revisión de tu coach →</a>':'';
-    blocks+='<div class="wlog-ex'+(exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button></div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+revBtn+lastTxt+'</div>'+
+    const swapUI=swapRowUI(e,day.id);
+    blocks+='<div class="wlog-ex'+(exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button></div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+swapUI+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso (kg)</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
@@ -3277,14 +3415,14 @@ VIEWS['ath-wlog']=function(u){
 
 VIEWS['ath-rutina']=function(u){
   if(!svcOf(u.id).tr)return VIEWS['ath-hoy'](u);
-  const d=athData(u.id);
+  const d=athData(u.id),rt=routineForAthlete(u.id);
   let days='';
-  d.routine.days.forEach(day=>{
+  rt.days.forEach(day=>{
     let rows='';
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">Registrar</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
@@ -3390,6 +3528,76 @@ Object.assign(ACTIONS,{
   'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});render();},
   'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);render();},
   'wlog-done':el=>{WDRAFT.done=WDRAFT.done||{};WDRAFT.done[el.dataset.ex]=!WDRAFT.done[el.dataset.ex];render();},
+  /* ---- cambio de ejercicio por el atleta ---- */
+  'swap-ask':el=>{
+    const ex=el.dataset.ex,day=el.dataset.day;
+    let btns='';
+    Object.keys(SWAP_REASONS).forEach(k=>{
+      btns+='<button class="userbtn" style="margin-bottom:8px" data-act="swap-pick" data-ex="'+ex+'" data-day="'+day+'" data-reason="'+k+'"><span class="who"><b>'+esc(SWAP_REASONS[k])+'</b></span><span class="arr">→</span></button>';
+    });
+    openModal('¿Qué pasa con este ejercicio?','<p class="muted mb8">Te propongo sustitutos que respetan el trabajo que tu coach programó.</p>'+btns,'<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
+  },
+  'swap-pick':el=>{
+    const aid=getSession().userId,d=athData(aid),reason=el.dataset.reason;
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const ex=day.exercises.find(x=>x.id===el.dataset.ex);if(!ex)return;
+    const cands=swapCandidates(ex,day,reason);
+    if(!cands.length){
+      openModal('Sin sustitutos','<p class="muted">No encontré un sustituto en tu biblioteca para <b>'+esc(ex.name)+'</b> con ese criterio. Escríbele a tu coach para que te dé una opción.</p>','<button class="btn btn-g" data-act="modal-close">Cerrar</button><button class="btn btn-p" data-act="nav" data-view="ath-chat">Escribir a mi coach</button>');
+      return;
+    }
+    const lib=ex.libId?libById(ex.libId):null;
+    let t1='',t2='';
+    cands.forEach(c=>{
+      const l=c.lib,ci=catInfo(l.group,l.cat);
+      const row='<div class="swapopt"><div class="so-n"><b>'+esc(l.name)+'</b><span class="tiny">'+esc(l.equipment)+(ci?' · '+esc(ci.p):'')+'</span></div>'+
+        '<div class="so-b"><button class="btn btn-g btn-sm" data-act="swap-do" data-ex="'+ex.id+'" data-day="'+day.id+'" data-lib="'+l.id+'" data-reason="'+reason+'" data-scope="today">Solo hoy</button>'+
+        '<button class="btn btn-p btn-sm" data-act="swap-do" data-ex="'+ex.id+'" data-day="'+day.id+'" data-lib="'+l.id+'" data-reason="'+reason+'" data-scope="always">Siempre</button></div></div>';
+      if(c.tier===1)t1+=row;else t2+=row;
+    });
+    /* si el ejercicio original no tiene categoría de patrón, no podemos afirmar equivalencia: se dice tal cual */
+    const known=!!(lib&&lib.cat);
+    const h1=t1?'<p class="swaphd ok">'+(reason==='molesta'?'Cambian el patrón — suelen respetar la molestia':'Equivalentes — mismo trabajo, mismo patrón')+'</p>'+t1:'';
+    const h2=t2?'<p class="swaphd warn">'+(known?(reason==='molesta'?'Mismo patrón — podrían molestarte igual':'Alternativas — mismo músculo, patrón distinto'):'Opciones para el mismo músculo')+'</p>'+t2:'';
+    openModal('Cambiar «'+esc(ex.name)+'»',
+      '<p class="muted mb8">'+esc(SWAP_REASONS[reason])+(lib?' · trabajas <b>'+esc(lib.group)+'</b>':'')+'. «Siempre» le avisa a tu coach para que lo revise.</p>'+h1+h2,
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
+  },
+  'swap-do':async el=>{
+    const aid=getSession().userId,d=athData(aid);
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const ex=day.exercises.find(x=>x.id===el.dataset.ex);if(!ex)return;
+    const l=libById(el.dataset.lib);if(!l)return;
+    const scope=el.dataset.scope;
+    /* reemplaza el swap previo del mismo alcance en vez de acumular filas */
+    const prev=swapsOf(aid).find(s=>s.exId===ex.id&&s.scope===scope);
+    const s={id:prev?prev.id:uid(),dayId:day.id,exId:ex.id,fromLibId:ex.libId||null,fromName:ex.name,toLibId:l.id,toName:l.name,reason:el.dataset.reason,scope,date:scope==='today'?todayISO():null,ts:new Date().toISOString()};
+    SWAPS[aid]=swapsOf(aid).filter(x=>x.id!==s.id);SWAPS[aid].unshift(s);
+    await saveSwap(aid,s);
+    /* el borrador en curso sigue las series del ejercicio: el id no cambia, solo el nombre */
+    closeModal();toast(scope==='today'?'Cambiado por hoy':'Cambiado · tu coach lo verá');render();
+  },
+  'swap-undo':async el=>{
+    const aid=getSession().userId;
+    await delSwap(aid,el.dataset.id);
+    toast('Cambio deshecho');render();
+  },
+  /* ---- decisión del coach sobre un cambio permanente ---- */
+  'swap-accept':async el=>{
+    const aid=el.dataset.aid,d=athData(aid),s=swapsOf(aid).find(x=>x.id===el.dataset.id);
+    if(!s)return;
+    const day=(d.routine.days||[]).find(x=>x.id===s.dayId);
+    const ex=day&&(day.exercises||[]).find(x=>x.id===s.exId);
+    if(!ex){toast('Ese ejercicio ya no está en la rutina');await delSwap(aid,s.id);render();return;}
+    ex.name=s.toName;ex.libId=s.toLibId||null;
+    await delSwap(aid,s.id);
+    saveState();toast('Rutina actualizada con el sustituto');render();
+  },
+  'swap-revert':async el=>{
+    const aid=el.dataset.aid;
+    await delSwap(aid,el.dataset.id);
+    toast('Cambio revertido · vuelve tu ejercicio');render();
+  },
   'wlog-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===WDRAFT.dayId);
@@ -5819,6 +6027,7 @@ async function initAfterAuth(user){
   await hydrateMeasureLogs();
   await backfillChat();
   await hydrateChat();
+  await hydrateSwaps();
   subscribeChat();
   subscribeData();
   if(_currentUserId==='coach')await hydrateRecipes();
