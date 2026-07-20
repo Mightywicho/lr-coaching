@@ -1984,10 +1984,11 @@ VIEWS['coach-dash']=function(u){
 };
 
 /* pestañas visibles según el modo de asesoría del atleta */
+const COACH_TABS_ALL=[['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['historial','Historial',1],['reporte','Reporte',1]];
+const COACH_TAB_IDS=COACH_TABS_ALL.map(t=>t[0]);
 function coachTabList(aid){
   const sv=svcOf(aid);
-  return [['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['historial','Historial',1],['reporte','Reporte',1]]
-    .filter(t=>t[2]===1||(t[2]==='tr'&&sv.tr)||(t[2]==='nu'&&sv.nu));
+  return COACH_TABS_ALL.filter(t=>t[2]===1||(t[2]==='tr'&&sv.tr)||(t[2]==='nu'&&sv.nu));
 }
 function coachTabs(aid,tab){
   const tabs=coachTabList(aid);
@@ -2002,7 +2003,10 @@ VIEWS['coach-ath']=function(u){
   const aid=route.params.aid;let tab=route.params.tab||'resumen';
   const a=userById(aid),d=athData(aid);
   if(!a||!d)return VIEWS['coach-dash'](u);
-  if(!coachTabList(aid).some(t=>t[0]===tab))tab='resumen';
+  if(!coachTabList(aid).some(t=>t[0]===tab)){
+    if(!COACH_TAB_IDS.includes(tab))console.warn('[nav] Tab desconocido "'+tab+'" en coach-ath. Ids válidos: '+COACH_TAB_IDS.join(' · ')+'. Cayendo a "resumen".');
+    tab='resumen';
+  }
   let body=coachTabs(aid,tab);
   if(tab==='resumen')body+=coachTabResumen(aid);
   else if(tab==='entrenamiento')body+=coachTabEntrenamiento(aid);
@@ -2756,7 +2760,7 @@ Object.assign(ACTIONS,{
       nutrition:(function(){const pid=uid();return{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:val('na_mode')||'macros',kcal:2500,protein:160,carbs:280,fat:70,mealsPerDay:4,meals:[],notes:''}],supplements:[]};})(),
       logs:{weight:[],workouts:[],nutrition:[]}
     };
-    ensureProgramming(S);ensureProfileExtras(S);saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'volumen'});}
+    ensureProgramming(S);ensureProfileExtras(S);saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'entrenamiento'});}
   },
   'ath-del-ask':el=>confirmModal('Eliminar atleta','Se borrará el atleta y todos sus registros. Esta acción no se puede deshacer.','ath-del-do','data-aid="'+el.dataset.aid+'"'),
   'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];delete _planCache[aid+':routine'];delete _planCache[aid+':nutrition'];purgeAthleteCloud(aid);saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
@@ -3996,7 +4000,7 @@ Object.assign(ACTIONS,{
     _aiImport=null;
     const athName=(userById(aid)||{}).name||'';
     saveState();closeModal();toast('Plan importado asignado'+(athName?' a '+athName:'')+extra);
-    nav('coach-ath',{aid:aid,tab:tabTo});
+    nav('coach-ath',{aid:aid,tab:tabTo||'resumen'});
   }
 });
 /* ===== IMPORTADOR UNIVERSAL CON IA (Edge Function parse-plan) ===== */
