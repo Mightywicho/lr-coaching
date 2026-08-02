@@ -1931,7 +1931,29 @@ function navItemsFor(u){
   return items;
 }
 let _lastRenderView=null;
+/* Red de seguridad del arranque: una excepción dentro de render() dejaba la app
+   clavada en «Cargando datos…» sin ningún mensaje (ver bitácora s40).
+   render() es ahora un envoltorio: si renderUnsafe truena, mostramos algo accionable.
+   - Sin shell dibujado (arranque): pantalla de error completa.
+   - Con shell ya en pantalla (refresco/realtime): banner no destructivo, para no
+     borrarle al usuario una vista que todavía funciona. */
+function showRenderError(e){
+  try{console.error('render() falló:',e);}catch(_){}
+  const det=String((e&&(e.stack||e.message))||e||'').slice(0,700).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const pre='<code style="display:block;text-align:left;white-space:pre-wrap;word-break:break-word;font:11px/1.4 ui-monospace,monospace;color:#ff9aa4;background:#171717;padding:10px;border-radius:8px;max-height:170px;overflow:auto;margin-top:12px">'+det+'</code>';
+  if(!document.querySelector('#app .shell')){
+    showBootError('Ocurrió un error al dibujar la pantalla. Reintenta; si vuelve a pasar, manda esta captura.'+pre);
+    return;
+  }
+  let b=document.getElementById('renderErrBanner');
+  if(!b){b=document.createElement('div');b.id='renderErrBanner';b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#2a1416;border:1px solid #7a2b31;color:#ffd9dc;border-radius:12px;padding:12px 14px;font:13px/1.45 system-ui;box-shadow:0 8px 24px rgba(0,0,0,.45)';document.body.appendChild(b);}
+  const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
+  b.innerHTML='<b>No se pudo actualizar la pantalla.</b> Lo que ves puede estar desactualizado.<button onclick="location.reload()" style="'+bt+'">Recargar</button><button onclick="this.parentNode.remove()" style="'+bt+';background:none;color:#ffd9dc;text-decoration:underline;font-weight:400">Cerrar</button>'+pre;
+}
 function render(){
+  try{renderUnsafe();}catch(e){showRenderError(e);}
+}
+function renderUnsafe(){
   /* conservar acordeones abiertos y scroll al re-dibujar la misma vista */
   const _openAccs=Array.from(document.querySelectorAll('details.acc[open]')).map(x=>x.id).filter(Boolean);
   const _scrollY=window.scrollY;
@@ -6098,7 +6120,16 @@ Object.assign(ACTIONS,{
 });
 
 // ── ARRANQUE ─────────────────────────────────────────────────────────────────
+/* Mismo blindaje que render(): si cualquier await del arranque truena, la promesa
+   quedaba rechazada en silencio y la app se congelaba en «Cargando datos…». */
 async function initAfterAuth(user){
+  try{await initAfterAuthUnsafe(user);}
+  catch(e){
+    try{console.error('initAfterAuth falló:',e);}catch(_){}
+    showRenderError(e);
+  }
+}
+async function initAfterAuthUnsafe(user){
   _supabaseUser=user;
   _coachUid=user.id;
   _currentUserId='coach';
