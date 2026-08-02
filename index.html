@@ -535,6 +535,9 @@ let _chatChannel=null;
 let _dataChannel=null;
 let _liveTimer=null;
 let _pendingLiveRender=false;
+let _refreshing=false;      /* candado: refreshAllData nunca corre dos veces en paralelo */
+let _refreshAgain=false;    /* llegó un evento mientras refrescaba: una sola pasada extra al terminar */
+let _dirtyTables=null;      /* Set de tablas que cambiaron; null = refresco completo */
 let _athleteUidByAppId={};/* appId -> uid auth */
 let _appIdByAthleteUid={};/* uid auth -> appId */
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -1355,17 +1358,44 @@ function subscribeChat(){
     .subscribe();
 }
 /* ---- Realtime de datos: coach ve logs del atleta al instante; atleta ve cambios de rutina/plan ---- */
-async function refreshAllData(){
+/* ¿el blob todavía carga logs/chat viejos? Si no, los backfill son ruido puro en cada login. */
+function blobHasLegacyLogs(){
+  if(!S||!S.athletes)return false;
+  return Object.keys(S.athletes).some(aid=>{
+    const a=S.athletes[aid];if(!a)return false;
+    if(Array.isArray(a.chat)&&a.chat.length)return true;
+    const l=a.logs;if(!l)return false;
+    return ['weight','workouts','nutrition','meals','steps','fatigue'].some(k=>Array.isArray(l[k])&&l[k].length);
+  });
+}
+/* tabla -> hidratador. Permite refrescar SOLO lo que cambió en vez de rebajar las 13. */
+const _HYDRATORS={
+  athlete_plans:()=>hydratePlans(),
+  athlete_profiles:()=>hydrateProfiles(),
+  weight_logs:()=>hydrateWeightLogs(),
+  workout_logs:()=>hydrateWorkoutLogs(),
+  nutrition_logs:()=>hydrateNutritionLogs(),
+  meal_logs:()=>hydrateMealLogs(),
+  steps_logs:()=>hydrateStepsLogs(),
+  fatigue_logs:()=>hydrateFatigueLogs(),
+  measurement_logs:()=>hydrateMeasureLogs(),
+  chat_logs:()=>hydrateChat(),
+  athlete_swaps:()=>hydrateSwaps(),
+  recipes:()=>(_currentUserId==='coach'?hydrateRecipes():Promise.resolve())
+};
+async function refreshAllData(only){
   if(!_supabaseUser||!S)return;
-  /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
-  try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
-    if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
-  await buildAthleteUidMaps();
-  await hydratePlans();
-  await hydrateProfiles();
-  await hydrateWeightLogs();await hydrateWorkoutLogs();await hydrateNutritionLogs();
-  await hydrateMealLogs();await hydrateStepsLogs();await hydrateFatigueLogs();await hydrateMeasureLogs();await hydrateChat();await hydrateSwaps();
-  if(_currentUserId==='coach')await hydrateRecipes();
+  /* `only` = Set de tablas que cambiaron. Sin él es refresco completo (arranque/reconexión). */
+  const full=!only||!only.size;
+  if(full){
+    /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
+    try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
+      if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
+    await buildAthleteUidMaps();
+  }
+  const names=Object.keys(_HYDRATORS).filter(t=>full||only.has(t));
+  /* en paralelo: son SELECT independientes sobre tablas distintas, no en cadena de 13 await */
+  await Promise.all(names.map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
 }
 function liveRender(){
   /* no redibujar si el usuario está escribiendo en un formulario (salvo el chat, que ya se preserva) */
@@ -1374,16 +1404,46 @@ function liveRender(){
   if(editing){_pendingLiveRender=true;return;}
   _pendingLiveRender=false;chatSafeRender();
 }
-function liveRefresh(){
+/* Refresco con candado: nunca dos refreshAllData en paralelo.
+   El debounce solo cancela un timer PENDIENTE; sin candado, un evento que llega mientras
+   el refresco corre arranca otra pasada encima y ambas reemplazan S a medio vuelo
+   (esa es la carrera que borró perfiles en s33). Aquí los eventos que llegan durante
+   un refresco se acumulan y se atienden en UNA sola pasada al terminar. */
+async function runRefresh(){
+  if(_refreshing){_refreshAgain=true;return;}
+  _refreshing=true;
+  try{
+    do{
+      _refreshAgain=false;
+      const only=_dirtyTables;_dirtyTables=null;
+      await refreshAllData(only);
+      liveRender();
+    }while(_refreshAgain);
+  }finally{_refreshing=false;}
+}
+function liveRefresh(table){
+  if(table){(_dirtyTables=_dirtyTables||new Set()).add(table);}
+  else _dirtyTables=null; /* sin tabla = refresco completo (reconexión) */
+  if(_refreshing){_refreshAgain=true;return;}
   clearTimeout(_liveTimer);
-  _liveTimer=setTimeout(async()=>{await refreshAllData();liveRender();},350);
+  _liveTimer=setTimeout(runRefresh,1200);
 }
 function subscribeData(){
   if(!_supabaseUser)return;
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
-  const tables=['app_state','athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps'];
+  /* `app_state` NO se suscribe a propósito: solo el coach la escribe, así que escucharla
+     devolvía el eco de su propio saveState y disparaba una recarga completa por cada clic. */
+  const tables=['athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
-  tables.forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>liveRefresh());});
+  const flt=_coachUid?'coach_uid=eq.'+_coachUid:null;
+  tables.forEach(t=>{
+    /* INSERT/UPDATE filtrados en el servidor: no viaja nada de otros coaches.
+       DELETE va sin filtro porque su payload solo trae la PK (replica identity default),
+       así que un filtro por coach_uid lo descartaría. La RLS sigue gobernando la entrega. */
+    const base={schema:'public',table:t};
+    ['INSERT','UPDATE'].forEach(ev=>{const o=Object.assign({event:ev},base);if(flt)o.filter=flt;ch=ch.on('postgres_changes',o,()=>liveRefresh(t));});
+    ch=ch.on('postgres_changes',Object.assign({event:'DELETE'},base),()=>liveRefresh(t));
+  });
   ch.subscribe();
   _dataChannel=ch;
 }
@@ -6039,25 +6099,17 @@ async function initAfterAuth(user){
   await backfillPlans();
   await hydrateProfiles();
   await backfillProfiles();
-  await backfillWeightLogs();
-  await hydrateWeightLogs();
-  await backfillWorkoutLogs();
-  await hydrateWorkoutLogs();
-  await backfillNutritionLogs();
-  await hydrateNutritionLogs();
-  await backfillMealLogs();
-  await hydrateMealLogs();
-  await backfillStepsLogs();
-  await hydrateStepsLogs();
-  await backfillFatigueLogs();
-  await hydrateFatigueLogs();
-  await hydrateMeasureLogs();
-  await backfillChat();
-  await hydrateChat();
-  await hydrateSwaps();
+  /* Migración blob -> tablas: SOLO si el blob todavía trae datos viejos.
+     Antes corría en cada login, y cada UPSERT dispara un evento de realtime que
+     hacía refrescar a todos los clientes conectados: con más atletas, una tormenta. */
+  if(blobHasLegacyLogs()){
+    await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
+    await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
+  }
+  /* hidratación en paralelo: 12 SELECT independientes, no 12 await encadenados */
+  await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
   subscribeChat();
   subscribeData();
-  if(_currentUserId==='coach')await hydrateRecipes();
   /* red de seguridad: si hydrateProfiles no repuso la identidad (p.ej. fallo de red), el atleta no debe caer al panel de coach */
   if(_currentUserId!=='coach'&&!userById(_currentUserId)){
     const meta=_supabaseUser.user_metadata||{},nm=meta.name||_supabaseUser.email||'Atleta';
