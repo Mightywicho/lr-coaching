@@ -871,6 +871,11 @@ async function loadStateFromSupabase(){
 }
 function stateForCloud(){
   /* logs viven en tablas con RLS; rutina, plan de nutrición y perfil viven en tablas — se excluyen del blob */
+  /* P5 (pendiente, SOLO tras verificar P4 en producción): agregar aquí
+        delete clone.library; delete clone.foods;
+     y el blob cae de ~115 KB a ~570 chars. Se deja adentro a propósito mientras tanto: es la copia
+     que permite volver atrás con un simple revert de index.html. Si se borra del blob antes de
+     confirmar, el código viejo ya no encuentra la biblioteca y siembra la de fábrica encima. */
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
   Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;clone.athletes[aid].profile=null;});
@@ -1392,8 +1397,110 @@ function blobHasLegacyLogs(){
     return ['weight','workouts','nutrition','meals','steps','fatigue'].some(k=>Array.isArray(l[k])&&l[k].length);
   });
 }
+/* ===== Biblioteca y base de alimentos en tablas (`exercises` / `foods`) =====
+   Antes vivían DENTRO del blob `app_state` y eran el 81% + 19% de su peso: cada guardado subía
+   115 KB completos y dos ventanas del coach se pisaban en silencio (last-write-wins). Ahora cada
+   ejercicio y cada alimento es una fila con RLS: el coach hace CRUD sobre las suyas y el atleta
+   solo LEE (necesita la biblioteca para el pool de swaps, el video y los cues; y los alimentos
+   para registrar comidas).
+   ⚠ Las columnas de la tabla NO se llaman igual que las claves del blob. Todo el resto del cliente
+   usa las claves del blob (`l.id`, `fo.p`, `fo.unitLabel`), así que aquí se remapea de ida y vuelta:
+     exercises: eid⇄id
+     foods:     fid⇄id · protein⇄p · carbs⇄c · fat⇄f · unit_label⇄unitLabel                        */
+let _libHydrated=false,_libFetchOk=false,_foodsHydrated=false,_foodsFetchOk=false;
+function rowToLib(r){return{id:r.eid,name:r.name||'',group:r.group||GROUPS[0],cat:r.cat||'',focus:r.focus||'',secondary:Array.isArray(r.secondary)?r.secondary:[],equipment:r.equipment||'Otro',cues:r.cues||'',video:r.video||null};}
+function libToRow(l){return{coach_uid:_coachUid,eid:l.id,name:l.name||'',group:l.group||GROUPS[0],cat:l.cat||'',focus:l.focus||'',secondary:Array.isArray(l.secondary)?l.secondary:[],equipment:l.equipment||'Otro',cues:l.cues||'',video:l.video||null};}
+function rowToFood(r){return{id:r.fid,name:r.name||'',cat:r.cat||'Otros',p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:r.unit||'g',unitLabel:r.unit_label||''};}
+function foodToRow(f){return{coach_uid:_coachUid,fid:f.id,name:f.name||'',cat:f.cat||'Otros',protein:+f.p||0,carbs:+f.c||0,fat:+f.f||0,unit:f.unit||'g',unit_label:f.unitLabel||''};}
+/* Distinguir "tabla vacía" de "falló la lectura" (gotcha C1/C3): con error NO se toca S.library,
+   porque el blob viejo todavía la trae y pisarla con [] borraría la biblioteca en pantalla. */
+async function hydrateLibrary(){
+  if(!_supabaseUser||!S)return;
+  _libFetchOk=false;
+  try{
+    const{data,error}=await supa.from('exercises').select('*');
+    if(error)return;
+    _libFetchOk=true;
+    if(!data||!data.length)return;   /* tabla vacía: manda el blob hasta que backfillLibrary la llene */
+    S.library=data.map(rowToLib).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    S.libVersion=2;                  /* ya viene en formato v2; evita que ensureLibrary la re-migre */
+    linkRoutinesToLib(S);
+    _libHydrated=true;
+  }catch(e){}
+}
+async function hydrateFoods(){
+  if(!_supabaseUser||!S)return;
+  _foodsFetchOk=false;
+  try{
+    const{data,error}=await supa.from('foods').select('*');
+    if(error)return;
+    _foodsFetchOk=true;
+    if(!data||!data.length)return;
+    S.foods=data.map(rowToFood).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    _foodsHydrated=true;
+  }catch(e){}
+}
+/* Solo para un coach cuya tabla se leyó BIEN y vino VACÍA (coach nuevo, o migración pendiente):
+   sube lo que trae el blob. Nunca ante un error de lectura. */
+async function backfillLibrary(){
+  if(!_supabaseUser||_currentUserId!=='coach'||!S)return;
+  if(_libHydrated||!_libFetchOk)return;
+  const rows=(S.library||[]).filter(l=>l&&l.id&&l.name).map(libToRow);
+  if(!rows.length)return;
+  try{
+    const{error}=await supa.from('exercises').upsert(rows,{onConflict:'coach_uid,eid'});
+    if(error)return;
+    _libHydrated=true;
+    console.warn('[backfill] '+rows.length+' ejercicios subidos del blob a la tabla exercises.');
+  }catch(e){}
+}
+async function backfillFoods(){
+  if(!_supabaseUser||_currentUserId!=='coach'||!S)return;
+  if(_foodsHydrated||!_foodsFetchOk)return;
+  const rows=(S.foods||[]).filter(f=>f&&f.id&&f.name).map(foodToRow);
+  if(!rows.length)return;
+  try{
+    const{error}=await supa.from('foods').upsert(rows,{onConflict:'coach_uid,fid'});
+    if(error)return;
+    _foodsHydrated=true;
+    console.warn('[backfill] '+rows.length+' alimentos subidos del blob a la tabla foods.');
+  }catch(e){}
+}
+/* Escritura por fila: se manda SOLO el ejercicio/alimento tocado, no la biblioteca entera.
+   Guarda: si la tabla nunca se leyó bien, S.library/S.foods pueden venir del blob viejo o de la
+   semilla de fábrica; escribir en ese estado metería basura a la tabla buena. Mejor no escribir
+   y decirlo. Devuelven true si la fila quedó guardada. */
+function libGuard(){if(_libHydrated)return true;toast('No pude cargar la biblioteca del servidor. Recarga la página antes de editarla.');return false;}
+function foodsGuard(){if(_foodsHydrated)return true;toast('No pude cargar la base de alimentos del servidor. Recarga la página antes de editarla.');return false;}
+async function saveLibRow(l){
+  try{const{error}=await supa.from('exercises').upsert([libToRow(l)],{onConflict:'coach_uid,eid'});
+    if(error){toast('Error al guardar el ejercicio: '+error.message);return false;}
+    return true;}catch(e){toast('No pude guardar el ejercicio');return false;}
+}
+async function saveLibRows(arr){
+  try{const{error}=await supa.from('exercises').upsert(arr.map(libToRow),{onConflict:'coach_uid,eid'});
+    if(error){toast('Error al guardar los ejercicios: '+error.message);return false;}
+    return true;}catch(e){toast('No pude guardar los ejercicios');return false;}
+}
+async function delLibRow(eid){
+  try{const{error}=await supa.from('exercises').delete().eq('coach_uid',_coachUid).eq('eid',eid);
+    if(error){toast('Error al eliminar: '+error.message);return false;}
+    return true;}catch(e){toast('No pude eliminar el ejercicio');return false;}
+}
+async function saveFoodRow(f){
+  try{const{error}=await supa.from('foods').upsert([foodToRow(f)],{onConflict:'coach_uid,fid'});
+    if(error){toast('Error al guardar el alimento: '+error.message);return false;}
+    return true;}catch(e){toast('No pude guardar el alimento');return false;}
+}
+async function delFoodRow(fid){
+  try{const{error}=await supa.from('foods').delete().eq('coach_uid',_coachUid).eq('fid',fid);
+    if(error){toast('Error al eliminar: '+error.message);return false;}
+    return true;}catch(e){toast('No pude eliminar el alimento');return false;}
+}
 /* tabla -> hidratador. Permite refrescar SOLO lo que cambió en vez de rebajar las 13. */
 const _HYDRATORS={
+  exercises:()=>hydrateLibrary(),
+  foods:()=>hydrateFoods(),
   athlete_plans:()=>hydratePlans(),
   athlete_profiles:()=>hydrateProfiles(),
   weight_logs:()=>hydrateWeightLogs(),
@@ -1414,7 +1521,12 @@ async function refreshAllData(only){
   if(full){
     /* recarga segura del blob (sin la rama de bootstrap, para no pisar estado ante un fallo) */
     try{const{data,error}=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
-      if(!error&&data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
+      /* biblioteca y alimentos ya viven en tabla: se conservan al recargar el blob, o ensureLibrary/
+         ensureFoods los verían vacíos y sembrarían los de fábrica encima de los buenos. */
+      const _keepLib=_libHydrated&&S?S.library:null,_keepFoods=_foodsHydrated&&S?S.foods:null;
+      if(!error&&data&&data.state){S=data.state;
+        if(_keepLib)S.library=_keepLib;if(_keepFoods)S.foods=_keepFoods;
+        ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
     await buildAthleteUidMaps();
   }
   const names=Object.keys(_HYDRATORS).filter(t=>full||only.has(t));
@@ -2071,7 +2183,12 @@ document.addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el)return;
   if(el.dataset.act==='modal-overlay'&&e.target!==el)return;
   const fn=ACTIONS[el.dataset.act];
-  if(fn){e.preventDefault();fn(el);}
+  /* mismo blindaje que render(): una acción async que truena dejaba una promesa rechazada
+     en silencio y el usuario se quedaba mirando un botón que "no hizo nada". */
+  if(fn){e.preventDefault();
+    try{const r=fn(el);if(r&&typeof r.then==='function')r.catch(err=>{console.error('acción "'+el.dataset.act+'" falló:',err);toast('Algo falló al ejecutar esa acción');});}
+    catch(err){console.error('acción "'+el.dataset.act+'" falló:',err);toast('Algo falló al ejecutar esa acción');}
+  }
 });
 const VIEWS={};
 
@@ -3822,16 +3939,24 @@ Object.assign(ACTIONS,{
     '<div class="frow3"><div><label id="fo_p_lbl">Proteína '+sfx+'</label><input id="fo_p" type="number" min="0" step="0.1" value="'+f.p+'"></div><div><label id="fo_c_lbl">Carbohidratos '+sfx+'</label><input id="fo_c" type="number" min="0" step="0.1" value="'+f.c+'"></div><div><label id="fo_f_lbl">Grasas '+sfx+'</label><input id="fo_f" type="number" min="0" step="0.1" value="'+f.f+'"></div></div>',
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="food-save" data-fid="'+f.id+'">Guardar</button>');
   },
-  'food-save':el=>{
+  'food-save':async el=>{
     const name=val('fo_name');if(!name){toast('Escribe el nombre del alimento');return;}
+    if(!foodsGuard())return;
     const unit=val('fo_unit')||'g';
     const obj={name,cat:val('fo_cat')||'Otros',unit,unitLabel:unit==='u'?(val('fo_unitlabel')||'unidad'):'',p:num('fo_p'),c:num('fo_c'),f:num('fo_f')};
-    if(el.dataset.fid){const f=S.foods.find(x=>x.id===el.dataset.fid);if(f)Object.assign(f,obj);}
-    else S.foods.push(Object.assign({id:uid()},obj));
-    saveState();closeModal();toast('Alimento guardado');render();
+    let row=null;
+    if(el.dataset.fid){const f=S.foods.find(x=>x.id===el.dataset.fid);if(f){Object.assign(f,obj);row=f;}}
+    if(!row){row=Object.assign({id:uid()},obj);S.foods.push(row);}
+    if(!await saveFoodRow(row))return;              /* la fila manda; si no entró, no cierres el modal */
+    closeModal();toast('Alimento guardado');render();
   },
   'food-del-ask':el=>confirmModal('Eliminar alimento','Se quitará de la base. Las comidas ya registradas por los atletas no cambian.','food-del-do','data-fid="'+el.dataset.fid+'"'),
-  'food-del-do':el=>{S.foods=S.foods.filter(x=>x.id!==el.dataset.fid);saveState();closeModal();toast('Alimento eliminado');render();}
+  'food-del-do':async el=>{
+    if(!foodsGuard())return;
+    if(!await delFoodRow(el.dataset.fid))return;
+    S.foods=S.foods.filter(x=>x.id!==el.dataset.fid);
+    closeModal();toast('Alimento eliminado');render();
+  }
 });
 
 /* binding de inputs del registro de entreno y selects */
@@ -4183,7 +4308,16 @@ function libImportPreview(text){
 }
 Object.assign(ACTIONS,{
   'libimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>libImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
-  'libimport-save':()=>{if(!_libImport)return;let n=0;_libImport.add.forEach(r=>{S.library.push({id:uid(),name:String(r.name||'').trim(),group:r.group,cat:'',focus:'',secondary:[],equipment:'Otro',cues:'',video:detectVideo(r.link)});n++;});_libImport=null;linkRoutinesToLib(S);saveState();closeModal();render();toast(n+' ejercicios agregados a la biblioteca');}
+  'libimport-save':async()=>{
+    if(!_libImport)return;
+    if(!libGuard())return;
+    const nuevos=_libImport.add.map(r=>({id:uid(),name:String(r.name||'').trim(),group:r.group,cat:'',focus:'',secondary:[],equipment:'Otro',cues:'',video:detectVideo(r.link)}));
+    if(!nuevos.length){_libImport=null;closeModal();return;}
+    if(!await saveLibRows(nuevos))return;           /* un solo upsert con todas las filas */
+    nuevos.forEach(l=>S.library.push(l));
+    _libImport=null;linkRoutinesToLib(S);
+    closeModal();render();toast(nuevos.length+' ejercicios agregados a la biblioteca');
+  }
 });
 Object.assign(ACTIONS,{
   'tpl-save-modal':el=>{
@@ -4804,8 +4938,9 @@ Object.assign(ACTIONS,{
   },
   'lib-new-modal':()=>openModal('Nuevo ejercicio',libForm(null),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="lib-save">Crear</button>'),
   'lib-edit-modal':el=>{const l=libById(el.dataset.lib);openModal('Editar ejercicio',libForm(l),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="lib-save" data-lib="'+l.id+'">Guardar</button>');},
-  'lib-save':el=>{
+  'lib-save':async el=>{
     const name=val('l_name');if(!name){toast('Escribe el nombre del ejercicio');return;}
+    if(!libGuard())return;
     const dup=libByName(name);
     if(dup&&dup.id!==el.dataset.lib){toast('Ya existe un ejercicio con ese nombre');return;}
     const group=val('l_group')||GROUPS[0];
@@ -4816,17 +4951,25 @@ Object.assign(ACTIONS,{
       if(!video){toast(u2?'El link debe empezar con https://':'Pega el link del video');return;}}
     if(vtype==='file'){const f=val('l_vfname');if(!f){toast('Indica el nombre del archivo de video');return;}video={type:'file',file:f};}
     const data={name,group,cat,focus:val('l_focus'),secondary,equipment:val('l_eq')||'Otro',cues:val('l_cues'),video};
+    let row=null,renamed=false;
     if(el.dataset.lib){
-      const l=libById(el.dataset.lib);Object.assign(l,data);
-      Object.keys(S.athletes).forEach(aid=>S.athletes[aid].routine.days.forEach(day=>day.exercises.forEach(e2=>{if(e2.libId===l.id)e2.name=l.name;})));
-    }else S.library.push(Object.assign({id:uid()},data));
-    saveState();closeModal();toast('Biblioteca actualizada');render();
+      const l=libById(el.dataset.lib);Object.assign(l,data);row=l;
+      Object.keys(S.athletes).forEach(aid=>S.athletes[aid].routine.days.forEach(day=>day.exercises.forEach(e2=>{if(e2.libId===l.id&&e2.name!==l.name){e2.name=l.name;renamed=true;}})));
+    }else{row=Object.assign({id:uid()},data);S.library.push(row);}
+    if(!await saveLibRow(row))return;
+    /* el nombre también vive copiado dentro de la rutina del atleta (athlete_plans): solo ahí hace falta saveState */
+    if(renamed)saveState();
+    closeModal();toast('Biblioteca actualizada');render();
   },
   'lib-del-ask':el=>confirmModal('Eliminar ejercicio','Se quitará de la biblioteca. Los ejercicios ya programados en rutinas se conservan, pero perderán el vínculo (video y músculos).','lib-del-do','data-lib="'+el.dataset.lib+'"'),
-  'lib-del-do':el=>{
+  'lib-del-do':async el=>{
+    if(!libGuard())return;
+    if(!await delLibRow(el.dataset.lib))return;
     S.library=S.library.filter(l=>l.id!==el.dataset.lib);
-    Object.keys(S.athletes).forEach(aid=>S.athletes[aid].routine.days.forEach(day=>day.exercises.forEach(e2=>{if(e2.libId===el.dataset.lib)delete e2.libId;})));
-    saveState();closeModal();toast('Ejercicio eliminado de la biblioteca');render();
+    let touched=false;
+    Object.keys(S.athletes).forEach(aid=>S.athletes[aid].routine.days.forEach(day=>day.exercises.forEach(e2=>{if(e2.libId===el.dataset.lib){delete e2.libId;touched=true;}})));
+    if(touched)saveState();
+    closeModal();toast('Ejercicio eliminado de la biblioteca');render();
   }
 });
 
@@ -6163,6 +6306,9 @@ async function initAfterAuthUnsafe(user){
   }
   /* hidratación en paralelo: 12 SELECT independientes, no 12 await encadenados */
   await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
+  /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
+  await backfillLibrary();
+  await backfillFoods();
   subscribeChat();
   subscribeData();
   /* red de seguridad: si hydrateProfiles no repuso la identidad (p.ej. fallo de red), el atleta no debe caer al panel de coach */
