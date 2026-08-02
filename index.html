@@ -889,13 +889,36 @@ function ensurePlanShells(st){
     if(!a.nutrition){const pid=uid();a.nutrition={activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''}],supplements:[]};}
   });
 }
+/* El atleta existe en las tablas (athlete_plans / athlete_profiles) pero no en el blob. Pasa cuando se
+   crea un atleta y el blob no alcanza a subir antes de que la pestaña se recargue. Antes los hidratadores
+   lo ignoraban (`if(!a)return`), pero hydrateProfiles igual lo metía a S.users vía upsertAthleteUser:
+   quedaba un usuario SIN ficha, y el panel del coach reventaba en athStatus al leer `.profile` de undefined.
+   Esa excepción mataba render() —la última línea de initAfterAuth— y dejaba la app clavada en
+   "Cargando datos…" sin ningún mensaje. Reponer la ficha es lo correcto: el dato del atleta sí existe,
+   lo que falta es su hueco en el blob. La cadena de ensures la deja con la misma forma que un alta normal. */
+function ensureAthleteEntry(aid){
+  let a=S.athletes[aid];
+  if(!a){
+    const pid=uid();
+    a=S.athletes[aid]={
+      profile:{category:'',goal:'',service:'ambos',training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false},
+      routine:{name:'Programa',weekNote:'',startDate:todayISO(),days:[]},
+      nutrition:{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''}],supplements:[]},
+      logs:{weight:[],workouts:[],nutrition:[],meals:[],steps:[],fatigue:[],measures:[]},
+      chat:[]
+    };
+    try{ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);}catch(e){}
+    console.warn('[hydrate] Atleta "'+aid+'" estaba en las tablas pero no en el blob; ficha repuesta.');
+  }
+  return a;
+}
 async function hydratePlans(){
   if(!_supabaseUser||!S)return;
   try{
     const{data,error}=await supa.from('athlete_plans').select('athlete_id,kind,data');
     if(error){_plansHydrated=false;return;}
     (data||[]).forEach(r=>{
-      const a=S.athletes[r.athlete_id];if(!a||!r.data)return;
+      if(!r.data)return;const a=ensureAthleteEntry(r.athlete_id);
       if(r.kind==='routine')a.routine=r.data;
       else if(r.kind==='nutrition')a.nutrition=r.data;
       _planCache[r.athlete_id+':'+r.kind]=JSON.stringify(r.data);
@@ -970,7 +993,8 @@ async function hydrateProfiles(){
     Object.keys(byAth).forEach(aid=>{
       const shared=byAth[aid].shared||{};
       upsertAthleteUser(aid,shared._u); /* repone nombre/inicial/color/tag fuera del blob */
-      const a=S.athletes[aid];if(!a)return;
+      /* si entra a S.users, tiene que existir su ficha o el panel del coach revienta (ver ensureAthleteEntry) */
+      const a=ensureAthleteEntry(aid);
       const sc=Object.assign({},shared);delete sc._u;
       a.profile=Object.assign({},sc,byAth[aid].private||{});
       /* dietProfile coach-only: vuelve a su lugar en nutrition (ya hidratada por hydratePlans, que corre antes) */
