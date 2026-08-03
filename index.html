@@ -2121,14 +2121,50 @@ const ACTIONS={
     if(err)err.textContent='';
     if(!name||!email||!pass||!code){if(err)err.textContent='Completa todos los campos';return;}
     if(pass.length<8||!/[a-zA-Z]/.test(pass)||!/[0-9]/.test(pass)){if(err)err.textContent='La contraseña debe tener al menos 8 caracteres con letras y números';return;}
-    const{data:valid,error:codeErr}=await supa.rpc('check_invite_code',{code});
-    if(codeErr||!valid){if(err)err.textContent='Código de acceso incorrecto';return;}
+    /* Invitación individual de un solo uso (coach_invites), no la clave maestra vieja.
+       Al canjearla, use_coach_invite registra al coach en coach_access y le siembra
+       biblioteca, alimentos y recetario del coach que lo invitó. */
+    const{data:valid,error:codeErr}=await supa.rpc('check_coach_invite',{p_code:code});
+    if(codeErr||!valid){if(err)err.textContent='Código inválido, vencido o ya utilizado';return;}
     const btn=document.querySelector('[data-act="auth-signup"]');
     if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
     const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'coach'}}});
     if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-    if(data.user&&!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
-    if(data.user)await initAfterAuth(data.user);
+    if(data.user){
+      const{data:link,error:linkErr}=await supa.rpc('use_coach_invite',{invite_code:code,p_coach_uid:data.user.id});
+      if(linkErr||!(link&&link.success)){if(err)err.textContent='Tu cuenta se creó pero no se pudo activar como coach. Pide un código nuevo.';if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
+      if(!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
+      await initAfterAuth(data.user);
+    }
+  },
+  'invite-coach-form':()=>openModal('Invitar a un coach',
+    '<div class="frow"><label>¿Para quién es? (opcional)</label><input id="ci_label" placeholder="Ej. Ana — nutrióloga" autocomplete="off">'+
+    '<p class="tiny" style="margin-top:8px">Solo para que reconozcas el código en tu lista. El coach nuevo no lo ve.</p>'+
+    '<p class="tiny" style="margin-top:6px">Al canjearlo recibirá una copia de tus <b>'+(S.library||[]).length+' ejercicios</b>, tus <b>'+(S.foods||[]).length+' alimentos</b> y tu recetario.</p></div>',
+    '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="invite-coach">Generar código</button>'),
+  'coach-invites-list':async()=>{
+    const{data,error}=await supa.from('coach_invites').select('code,label,used,used_by,created_at,expires_at').order('created_at',{ascending:false});
+    if(error){toast('No pude cargar los códigos: '+error.message);return;}
+    const rows=(data||[]);
+    const body=rows.length?('<div class="tblwrap"><table class="tbl" style="min-width:420px"><thead><tr><th>Código</th><th>Para</th><th>Estado</th></tr></thead><tbody>'+
+      rows.map(r=>{
+        const venc=new Date(r.expires_at)<new Date();
+        const st=r.used?'<span class="badge">Usado</span>':(venc?'<span class="badge red">Vencido</span>':'<span class="chip volt">Disponible</span>');
+        return '<tr><td style="font-family:monospace">'+esc(r.code)+'</td><td>'+esc(r.label||'—')+'</td><td>'+st+'</td></tr>';
+      }).join('')+'</tbody></table></div>'):'<p class="tiny">Todavía no has generado ningún código.</p>';
+    openModal('Códigos de coach',body,'<button class="btn btn-p" data-act="modal-close">Cerrar</button>');
+  },
+  'invite-coach':async()=>{
+    const code='LRC-'+Math.random().toString(36).slice(2,8).toUpperCase();
+    const label=(val('ci_label')||'').trim();
+    const{error}=await supa.from('coach_invites').insert({code,created_by:_supabaseUser.id,label:label||null});
+    if(error){toast('Error: '+error.message);return;}
+    openModal('Código de invitación de coach',
+      '<p style="margin-bottom:12px">Compártelo solo con quien vaya a trabajar contigo:</p>'+
+      '<div style="background:var(--s2);border-radius:10px;padding:20px;text-align:center;font-size:28px;font-family:monospace;letter-spacing:4px;color:var(--volt);font-weight:bold">'+esc(code)+'</div>'+
+      '<p class="tiny mt8" style="text-align:center">Al usarlo recibirá una copia de tu biblioteca de ejercicios, tu base de alimentos y tu recetario.</p>'+
+      '<p class="tiny" style="text-align:center">Es de un solo uso y vence en 14 días.</p>',
+      '<button class="btn btn-p" data-act="modal-close">Listo</button>');
   },
   'invite-ath':async el=>{
     const aid=el.dataset.aid;
@@ -2242,7 +2278,13 @@ VIEWS['ajustes']=function(u){
   const calCard='<div class="card"><h3>Link de videollamada <span class="hint">agendador para tus atletas</span></h3>'+
     '<p class="tiny" style="margin:0 0 12px">'+(cal?'Actual: <b>'+esc(cal)+'</b>':'Sin configurar. Tus atletas verán un botón «Agendar videollamada» en su chat cuando lo pongas.')+'</p>'+
     '<button class="btn btn-g" data-act="cal-config">'+(cal?'Editar link':'Configurar link')+'</button></div>';
-  return{title:'Configuración',crumb:'Personaliza la app',body:brandCard+calCard};
+  const teamCard='<div class="card"><h3>Equipo de coaches <span class="hint">invitaciones de un solo uso</span></h3>'+
+    '<p class="tiny" style="margin:0 0 12px">Genera un código para dar de alta a otro coach. Al usarlo recibe una <b>copia</b> de tu biblioteca de ejercicios, tu base de alimentos y tu recetario, y a partir de ahí los edita por su cuenta sin tocar los tuyos. Sin código nadie puede crear cuenta de coach.</p>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+      '<button class="btn btn-p" data-act="invite-coach-form">Invitar a un coach</button>'+
+      '<button class="btn btn-g" data-act="coach-invites-list">Ver códigos generados</button>'+
+    '</div></div>';
+  return{title:'Configuración',crumb:'Personaliza la app',body:brandCard+calCard+teamCard};
 };
 VIEWS['coach-chat']=function(u){
   const aid=route.params.aid,a=userById(aid);
