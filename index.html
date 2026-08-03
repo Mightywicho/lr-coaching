@@ -3409,11 +3409,50 @@ function exVolCore(aid,exId,nm,sets){
 }
 function renderExVol(){const box=document.getElementById('exvolbox');if(!box)return;box.innerHTML=exVolCore(box.dataset.aid,box.dataset.ex||'',val('e_name'),val('e_sets'));}
 function normUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u;}
+/* ---- filtro por grupo del selector de ejercicio (mismo criterio que la vista Biblioteca: incluye secundarios) ---- */
+const exInGroup=(l,g)=>!g||l.group===g||(l.secondary||[]).includes(g);
+function exListFor(g){return (S.library||[]).filter(l=>exInGroup(l,g)).sort((a,b)=>a.name.localeCompare(b.name));}
+/* <option value> es lo que se escribe en el campo; el texto interno lo muestra el navegador como pista a la derecha */
+function exListOpts(g){let o='';exListFor(g).forEach(l=>{o+='<option value="'+esc(l.name)+'">'+esc(l.group||'')+(l.equipment&&l.equipment!=='Otro'?' · '+esc(l.equipment):'')+'</option>';});return o;}
+/* Déficit de volumen DIRECTO por grupo para ESE atleta: series que faltan para su meta.
+   Meta = volTargets si el coach la escribió a mano; si no, el piso de la banda de la matriz (prioridad × nivel × fase).
+   Prioridad 0 o sin prioridad = el grupo no se programa, no cuenta como déficit.
+   A diferencia de athVolGlance, aquí SÍ entran los grupos con 0 series: un grupo priorizado y sin nada programado es justo el que hay que ver. */
+function volDeficit(aid){
+  const out={};if(!aid)return out;
+  const p=(athData(aid)||{}).profile||{},vol={};
+  muscleVolume(aid).forEach(v=>{vol[v.m]=v.d;});
+  GROUPS.forEach(m=>{
+    const prio=(p.priorities||{})[m];if(prio===0||prio==null)return;
+    const tgt=(p.volTargets||{})[m];let meta;
+    if(tgt!=null&&tgt!=='')meta=+tgt;
+    else{const mx=volumeRecMatrix(prio,p.experience,p.phase);if(!mx)return;meta=mx.lo;}
+    if(!(meta>0))return;
+    const cur=vol[m]||0;
+    if(cur<meta)out[m]={cur:cur,meta:meta,falta:meta-cur};
+  });
+  return out;
+}
+function exGrpHint(g,aid){
+  if(!g)return (S.library||[]).length+' ejercicios. Elige un grupo para reducir la lista.';
+  let t=exListFor(g).length+' ejercicios de '+g+' (incluye donde es músculo secundario).';
+  const dv=aid?volDeficit(aid)[g]:null;
+  if(dv)t+=' Va en '+dv.cur+' de '+dv.meta+' series semanales: le faltan '+dv.falta+'.';
+  return t;
+}
 function exForm(e,aid,exId){
-  let dl='<datalist id="exlist">';
-  (S.library||[]).slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(l=>{dl+='<option value="'+esc(l.name)+'">';});
-  dl+='</datalist>';
-  return dl+'<div class="frow"><label>Ejercicio</label><input id="e_name" list="exlist" data-exvol="1" value="'+esc(e.name||'')+'" placeholder="Escribe para buscar en tu biblioteca…"><p class="tiny" style="margin-top:5px">Si coincide con uno de la biblioteca, queda vinculado: hereda video y músculos.</p></div>'+
+  /* al editar, arranca filtrado por el grupo del ejercicio ya vinculado */
+  const cur=libByName(e.name||''),g0=cur?cur.group:'';
+  const def=volDeficit(aid);
+  const gopt=(m,sel)=>{const dv=def[m];return '<option value="'+esc(m)+'"'+(sel===m?' selected':'')+'>'+esc(m)+' ('+exListFor(m).length+')'+(dv?' · faltan '+dv.falta+' series':'')+'</option>';};
+  const low=GROUPS.filter(m=>def[m]),rest=GROUPS.filter(m=>!def[m]);
+  let gopts='<option value=""'+(g0?'':' selected')+'>Todos los grupos ('+(S.library||[]).length+')</option>';
+  if(low.length){gopts+='<optgroup label="Por debajo de su meta de volumen">';low.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';}
+  gopts+='<optgroup label="'+(low.length?'Resto de grupos':'Grupo muscular')+'">';rest.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';
+  gopts+='<optgroup label="Otros (no cuentan volumen)">';XGROUPS.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';
+  const dl='<datalist id="exlist">'+exListOpts(g0)+'</datalist>';
+  return dl+'<div class="frow"><label>Filtrar por grupo muscular</label><select id="e_grp" data-change="ex-grp" data-aid="'+esc(aid||'')+'">'+gopts+'</select><p class="tiny" style="margin-top:5px" id="e_grp_hint">'+esc(exGrpHint(g0,aid))+'</p></div>'+
+  '<div class="frow"><label>Ejercicio</label><input id="e_name" list="exlist" data-exvol="1" value="'+esc(e.name||'')+'" placeholder="Escribe o abre la lista para elegir…"><p class="tiny" style="margin-top:5px">Si coincide con uno de la biblioteca, queda vinculado: hereda video y músculos.</p></div>'+
   '<div class="frow3"><div><label>Series</label><input id="e_sets" type="number" data-exvol="1" value="'+esc(e.sets||3)+'"></div><div><label>Reps</label><input id="e_reps" value="'+esc(e.reps||'8-10')+'"></div><div><label>RIR</label><input id="e_rir" value="'+esc(e.rir||'2')+'"></div></div>'+
   '<div class="frow"><label>Descanso</label><input id="e_rest" value="'+esc(e.rest||'2 min')+'"></div>'+
   '<div class="frow"><label>Indicaciones técnicas (opcional)</label><input id="e_notes" value="'+esc(e.notes||'')+'" placeholder="Pausa 1 s, tempo 3-0-1…"></div>'+
@@ -4023,6 +4062,19 @@ document.addEventListener('change',e=>{
     const wrap=document.getElementById('fo_unitlabel_wrap');if(wrap)wrap.style.display=isU?'':'none';
     const sfx=isU?'por unidad':'/100 g';
     [['fo_p_lbl','Proteína '],['fo_c_lbl','Carbohidratos '],['fo_f_lbl','Grasas ']].forEach(pair=>{const lb=document.getElementById(pair[0]);if(lb)lb.textContent=pair[1]+sfx;});
+  }
+  else if(el.dataset.change==='ex-grp'){
+    /* filtro del selector de ejercicio: reescribe el datalist SIN re-render (un render cerraría el modal) */
+    const g=el.value,dl=document.getElementById('exlist'),nm=document.getElementById('e_name'),hint=document.getElementById('e_grp_hint');
+    if(dl)dl.innerHTML=exListOpts(g);
+    if(hint)hint.textContent=exGrpHint(g,el.dataset.aid||'');
+    if(nm){
+      /* si lo escrito no pertenece al grupo elegido, se limpia: si no, el datalist no muestra nada y parece roto.
+         Un nombre libre (que no está en la biblioteca) también se limpia — por eso el filtro arranca en «Todos». */
+      const cur=(nm.value||'').trim(),lb=cur?libByName(cur):null;
+      if(g&&cur&&!(lb&&exInGroup(lb,g))){nm.value='';renderExVol();}
+      nm.focus();
+    }
   }
   else if(el.dataset.change==='prog-ex'){route.params.ex=el.value;render();}
   else if(el.dataset.change==='rm-ex'){route.params.rmEx=el.value;render();}
