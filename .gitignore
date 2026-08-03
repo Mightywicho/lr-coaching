@@ -1,3 +1,15 @@
-
 plataforma-coaching.backup*.html
 index.html.bak-*
+
+# Respaldos y datos de atletas: NUNCA se publican.
+# El repo es publico y GitHub Pages sirve el repo completo: cualquier
+# archivo aqui queda descargable en mightywicho.github.io/lr-coaching/<archivo>
+respaldo-*.json
+respaldo-*.csv
+*.backup.json
+
+# Documentacion interna: NO se publica (2026-08-03).
+# Bitacora.md llego a estar descargable con los emails de los atletas dentro.
+# Los .md se trabajan en local pero no se suben. Copia en C:\dev\lr-coaching-docs\
+*.md
+*.xlsx
