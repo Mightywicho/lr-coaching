@@ -1835,7 +1835,45 @@ function chatThreadHTML(aid,viewerRole){
 }
 
 /* métricas derivadas */
-function lastWeight(aid){const w=athData(aid).logs.weight;return w.length?w[w.length-1]:null;}
+/* El peso tiene DOS orígenes y hay que respetar los dos:
+   1) logs.weight → weight_logs (lo registra el atleta cada día). Es el histórico y la gráfica.
+   2) profile.weightKg/weightDate → athlete_profiles (lo captura el coach al dar de alta o en la ficha).
+   Hace falta el segundo porque weight_logs.athlete_uid es NOT NULL uuid: un atleta SIN cuenta creada
+   no puede tener filas ahí, y stateForCloud vacía logs.weight al subir el blob. Sin el perfil, el peso
+   que capture el coach antes de que el atleta se registre se perdería al recargar, en silencio.
+   Se devuelve el MÁS RECIENTE de los dos por fecha: si solo se mirara el log, un peso que el coach
+   acaba de medir en consulta quedaría tapado por un registro viejo del atleta. */
+function lastWeight(aid){
+  const d=athData(aid),w=d.logs.weight,p=d.profile||{};
+  const log=w.length?w[w.length-1]:null;
+  const pk=+p.weightKg;
+  if(!(pk>0))return log;
+  const prof={date:p.weightDate||todayISO(),kg:pk,fromProfile:true};
+  if(!log)return prof;
+  /* empate de fecha → gana el LOG a propósito: setCoachWeight escribe el peso del coach también en
+     logs.weight, así que en la misma fecha el log guarda siempre la última captura de los dos. Si aquí
+     ganara el perfil, un peso que el atleta registre el mismo día quedaría tapado por el del coach. */
+  return prof.date>log.date?prof:log;
+}
+/* Único sitio que escribe el peso capturado por el coach. Lo escribe en los dos lados a propósito:
+   en el perfil (sobrevive sin cuenta) y, si el atleta ya tiene cuenta, en weight_logs (entra al
+   histórico y a la gráfica). Tenerlo en una sola función evita que el alta y la ficha se desincronicen,
+   igual que pnutriReadTargets con los objetivos del plan. */
+async function setCoachWeight(aid,kg,date){
+  const d=athData(aid);if(!d)return{ok:false};
+  const day=date||todayISO();
+  d.profile=d.profile||{};
+  d.profile.weightKg=kg;d.profile.weightDate=day;
+  d.logs=d.logs||{};if(!Array.isArray(d.logs.weight))d.logs.weight=[];
+  const ex=d.logs.weight.find(w=>w.date===day);
+  if(ex)ex.kg=kg;else d.logs.weight.push({date:day,kg});
+  d.logs.weight.sort((a,b)=>a.date<b.date?-1:1);
+  let synced=true;const auid=_athleteUidByAppId[aid];
+  if(auid&&_supabaseUser){
+    try{const{error}=await supa.from('weight_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:day,kg},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}
+  }else synced=false; /* sin cuenta aún: vive en el perfil hasta que el atleta se registre */
+  return{ok:true,synced,date:day};
+}
 function weightDelta(aid,days){const w=athData(aid).logs.weight;if(w.length<2)return null;const cutoff=daysAgoISO(days);const base=w.filter(x=>x.date>=cutoff);if(base.length<2)return null;return +(base[base.length-1].kg-base[0].kg).toFixed(1);}
 /* semanas (lunes a domingo) y promedios semanales */
 const weekStartISO=iso=>{const[y,m,dd]=iso.split('-').map(Number);const dt=new Date(y,m-1,dd);dt.setDate(dt.getDate()-((dt.getDay()+6)%7));return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');};
@@ -2711,7 +2749,8 @@ function coachTabResumen(aid){
     '<div class="grid g2"><div class="card"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgLine(pts,{color:'#7cd0fb',unit:'kg'})+'</div>'+
     '<div class="card"><h3>Perfil y notas del coach</h3>'+
     '<div class="frow2"><div><label>Categoría</label><input id="f_cat" value="'+esc(d.profile.category)+'"></div><div><label>Altura (cm)</label><input id="f_h" type="number" value="'+esc(d.profile.heightCm)+'"></div></div>'+
-    '<div class="frow3"><div><label>Sexo</label><select id="f_sex"><option value="M"'+(d.profile.sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(d.profile.sex==='F'?' selected':'')+'>Mujer</option></select></div><div><label>Edad (años)</label><input id="f_age" type="number" value="'+esc(d.profile.age||'')+'"></div><div><label>% grasa (opcional)</label><input id="f_bf" type="number" step="0.1" value="'+esc(d.profile.bodyFat||'')+'"></div></div>'+
+    '<div class="frow4"><div><label>Peso actual (kg)</label><input id="f_w" type="number" step="0.1" value="'+esc(lw?lw.kg:'')+'"></div><div><label>Sexo</label><select id="f_sex"><option value="M"'+(d.profile.sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(d.profile.sex==='F'?' selected':'')+'>Mujer</option></select></div><div><label>Edad (años)</label><input id="f_age" type="number" value="'+esc(d.profile.age||'')+'"></div><div><label>% grasa (opcional)</label><input id="f_bf" type="number" step="0.1" value="'+esc(d.profile.bodyFat||'')+'"></div></div>'+
+    '<p class="tiny" style="margin:-6px 0 12px">'+(lw?('Último peso: <b>'+lw.kg+' kg</b> · '+fmtDateFull(lw.date)+(lw.fromProfile?' (capturado por ti)':' (registrado por el atleta)')+'. Si lo cambias se guarda como el pesaje de hoy.'):'Sin peso registrado. Al capturarlo se usa en el Dietocálculo y en la guía de macros.')+'</p>'+
     '<div class="frow2"><div><label>Objetivo actual</label><input id="f_goal" value="'+esc(d.profile.goal)+'"></div><div><label>Modo de asesoría</label><select id="f_service">'+['ambos','entrenamiento','nutricion'].map(k=>'<option value="'+k+'"'+((d.profile.service||'ambos')===k?' selected':'')+'>'+SERVICES[k].lbl+'</option>').join('')+'</select></div></div>'+
     '<div class="frow3"><div><label>Inicio del plan</label><input id="f_mstart" type="date" value="'+esc(d.profile.memStart||'')+'"></div><div><label>Fin del plan</label><input id="f_mend" type="date" value="'+esc(d.profile.memEnd||'')+'"></div><div><label>Estado</label><select id="f_mact"><option value="activo"'+(!d.profile.inactive?' selected':'')+'>Activo</option><option value="inactivo"'+(d.profile.inactive?' selected':'')+'>Inactivo</option></select></div></div>'+
     '<p class="tiny" style="margin:-6px 0 14px">'+(function(){const st=athStatus(aid);return'<span class="badge '+st.cls+'">'+st.lbl+'</span>'+(st.hint?' '+esc(st.hint)+' · ':' ');})()+'<button class="exlink" data-act="mem-renew" data-aid="'+aid+'">Renovar +4 semanas</button></p>'+
@@ -3519,6 +3558,8 @@ Object.assign(ACTIONS,{
     openModal('Nuevo atleta',
       '<div class="frow"><label>Nombre</label><input id="na_name" placeholder="Nombre del atleta"></div>'+
       '<div class="frow2"><div><label>Categoría</label><input id="na_cat" placeholder="Culturismo, fitness…"></div><div><label>Altura (cm)</label><input id="na_h" type="number" placeholder="175"></div></div>'+
+      '<div class="frow4"><div><label>Peso (kg)</label><input id="na_w" type="number" step="0.1" placeholder="80"></div><div><label>Sexo</label><select id="na_sex"><option value="M" selected>Hombre</option><option value="F">Mujer</option></select></div><div><label>Edad (años)</label><input id="na_age" type="number" placeholder="30"></div><div><label>% grasa</label><input id="na_bf" type="number" step="0.1" placeholder="opcional"></div></div>'+
+      '<p class="tiny" style="margin:-6px 0 12px">Peso, sexo y edad son los que necesita el Dietocálculo. El % grasa es opcional: sin él se usan las fórmulas que no piden masa libre de grasa. Todo se puede editar luego en su ficha.</p>'+
       '<div class="frow"><label>Objetivo</label><input id="na_goal" placeholder="Hipertrofia, recomposición…"></div>'+
       '<div class="frow"><label>Modo de asesoría</label><select id="na_service"><option value="ambos" selected>Entrenamiento y nutrición</option><option value="entrenamiento">Solo entrenamiento</option><option value="nutricion">Solo nutrición</option></select></div>'+
       '<div class="frow2"><div><label>Días de entrenamiento / semana</label><select id="na_days"><option value="1">1 día</option><option value="2">2 días</option><option value="3">3 días</option><option value="4" selected>4 días</option><option value="5">5 días</option><option value="6">6 días</option><option value="7">7 días</option></select></div><div><label>Modo de nutrición</label><select id="na_mode"><option value="macros">Macros flexibles</option><option value="menu">Menú cerrado</option></select></div></div>'+
@@ -3527,21 +3568,45 @@ Object.assign(ACTIONS,{
   },
   'ath-new-save':()=>{
     const name=val('na_name');if(!name){toast('Escribe el nombre del atleta');return;}
+    const nw=num('na_w');
+    if(nw&&(nw<25||nw>300)){toast('El peso debe estar entre 25 y 300 kg');return;}
+    const nbf=num('na_bf');
+    if(nbf&&(nbf<=0||nbf>=70)){toast('El % de grasa debe estar entre 1 y 70');return;}
     const id=uid();
     const initials=name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const color=PALETTE[athleteUsers().length%PALETTE.length];
     S.users.push({id,name,role:'athlete',initials,color,tag:val('na_goal')||'Atleta'});
     S.athletes[id]={
-      profile:{category:val('na_cat')||'General',goal:val('na_goal')||'Por definir',heightCm:num('na_h')||0,notes:'',service:(val('na_service')||'ambos'),training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false},
+      profile:{category:val('na_cat')||'General',goal:val('na_goal')||'Por definir',heightCm:num('na_h')||0,sex:val('na_sex')||'M',age:num('na_age')||null,bodyFat:nbf||null,notes:'',service:(val('na_service')||'ambos'),training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false},
       routine:{name:'Programa inicial',weekNote:'',startDate:todayISO(),days:(function(){const p=parseInt(val('na_days'),10);const n=isNaN(p)?4:Math.min(7,Math.max(1,p));const arr=[];for(let i=1;i<=n;i++)arr.push({id:uid(),name:'Día '+i,exercises:[],plan:{}});return arr;})()},
       nutrition:(function(){const pid=uid();return{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:val('na_mode')||'macros',kcal:2500,protein:160,carbs:280,fat:70,mealsPerDay:4,meals:[],notes:''}],supplements:[]};})(),
       logs:{weight:[],workouts:[],nutrition:[]}
     };
-    ensureProgramming(S);ensureProfileExtras(S);saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'entrenamiento'});}
+    ensureProgramming(S);ensureProfileExtras(S);
+    /* el peso va por setCoachWeight, no dentro del objeto de arriba: tiene que quedar en el perfil Y en
+       logs.weight. Aquí el atleta nunca tiene cuenta todavía, así que no hay fila en weight_logs — la sube
+       backfillWeightLogs en cuanto se registre. */
+    if(nw)setCoachWeight(id,nw);
+    saveState();closeModal();const svc=val('na_service')||'ambos';if(svc==='nutricion'){toast('Atleta creado — define su nutrición');nav('coach-ath',{aid:id,tab:'nutricion'});}else{toast('Atleta creado — asigna su volumen semanal');nav('coach-ath',{aid:id,tab:'entrenamiento'});}
   },
   'ath-del-ask':el=>confirmModal('Eliminar atleta','Se borrará el atleta y todos sus registros. Esta acción no se puede deshacer.','ath-del-do','data-aid="'+el.dataset.aid+'"'),
   'ath-del-do':el=>{const aid=el.dataset.aid;S.users=S.users.filter(u=>u.id!==aid);delete S.athletes[aid];delete _planCache[aid+':routine'];delete _planCache[aid+':nutrition'];purgeAthleteCloud(aid);saveState();closeModal();toast('Atleta eliminado');nav('coach-dash');},
-  'profile-save':el=>{const p=athData(el.dataset.aid).profile;p.category=val('f_cat');p.heightCm=num('f_h');p.sex=val('f_sex')||'M';p.age=num('f_age')||null;p.bodyFat=num('f_bf')||null;p.goal=val('f_goal');p.notes=val('f_notes');p.memStart=val('f_mstart')||p.memStart;p.memEnd=val('f_mend')||null;p.inactive=val('f_mact')==='inactivo';if(document.getElementById('f_service'))p.service=val('f_service')||p.service||'ambos';if(document.getElementById('f_inj')){p.training=p.training||{};p.training.injuries=val('f_inj');p.training.dislikes=val('f_exdis');p.training.likes=val('f_exlike');}const u=userById(el.dataset.aid);if(u)u.tag=p.goal;saveState();toast('Perfil guardado');render();},
+  'profile-save':async el=>{
+    const aid=el.dataset.aid,p=athData(aid).profile;
+    /* El peso se valida ANTES de tocar nada: si está mal, no se guarda medio perfil. */
+    const hasW=!!document.getElementById('f_w'),fw=hasW?num('f_w'):0;
+    if(hasW&&document.getElementById('f_w').value.trim()&&(!fw||fw<25||fw>300)){toast('El peso debe estar entre 25 y 300 kg');return;}
+    p.category=val('f_cat');p.heightCm=num('f_h');p.sex=val('f_sex')||'M';p.age=num('f_age')||null;p.bodyFat=num('f_bf')||null;p.goal=val('f_goal');p.notes=val('f_notes');p.memStart=val('f_mstart')||p.memStart;p.memEnd=val('f_mend')||null;p.inactive=val('f_mact')==='inactivo';if(document.getElementById('f_service'))p.service=val('f_service')||p.service||'ambos';if(document.getElementById('f_inj')){p.training=p.training||{};p.training.injuries=val('f_inj');p.training.dislikes=val('f_exdis');p.training.likes=val('f_exlike');}
+    const u=userById(aid);if(u)u.tag=p.goal;
+    /* solo se estampa un pesaje nuevo si el número CAMBIÓ: si no, cada «Guardar perfil» metería el peso
+       viejo con la fecha de hoy y ensuciaría la gráfica de tendencia con puntos que nadie midió */
+    let wMsg='';
+    if(fw){
+      const prev=lastWeight(aid);
+      if(!prev||Math.abs(prev.kg-fw)>0.001){const r=await setCoachWeight(aid,fw);wMsg=r.synced?' · peso '+fw+' kg registrado hoy':' · peso '+fw+' kg (pendiente de sincronizar)';}
+    }
+    saveState();toast('Perfil guardado'+wMsg);render();
+  },
   'dietprofile-save':el=>{const n=nutriOf(el.dataset.aid);n.dietProfile=n.dietProfile||{};n.dietProfile.likes=val('dp_likes');n.dietProfile.dislikes=val('dp_dislikes');n.dietProfile.allergies=val('dp_allerg');n.dietProfile.intolerances=val('dp_intol');n.dietProfile.notes=val('dp_notes');saveState();toast('Perfil de alimentación guardado');render();},
   'mem-renew':el=>{
     const p=athData(el.dataset.aid).profile,t=todayISO();
