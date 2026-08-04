@@ -525,6 +525,20 @@ td.sesion-total.hot{color:var(--orange)}
 'use strict';
 /* ================= DATOS ================= */
 const LS_KEY='lrc_state_v1', LS_SES='lrc_session_v1';
+/* Copia del navegador TAL COMO QUEDÓ antes de que esta sesión escriba nada.
+   `saveState` pisa localStorage en cada guardado, así que si no se lee aquí —al cargar
+   el script, antes de cualquier otra cosa— la evidencia desaparece en el primer guardado.
+   Es lo único que queda de un cambio que nunca llegó al servidor (ver red de seguridad, s49).
+   `LS_RESCUE` es la copia de respaldo que se estampa solo cuando hay algo pendiente: sobrevive
+   a recargas, y `saveState` nunca la toca. */
+const LS_RESCUE='lrc_rescue_v1', LS_ORPH_OK='lrc_rescue_visto_v1';
+const _lsAtBoot=(function(){
+  try{
+    const rescue=JSON.parse(localStorage.getItem(LS_RESCUE)||'null');
+    if(rescue&&(Array.isArray(rescue.library)||Array.isArray(rescue.foods)))return rescue; /* pendiente de una sesión anterior */
+    return JSON.parse(localStorage.getItem(LS_KEY)||'null');
+  }catch(e){return null;}
+})();
 const SUPABASE_URL='https://vflzzokyaiddsxyeoigu.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbHp6b2t5YWlkZHN4eWVvaWd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDg2MDQsImV4cCI6MjA5Nzg4NDYwNH0.IH9oemMJ3HuqrHsHqWv5EugF_PgxOyPBvB9iN-FJ0vg';
 const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -1492,6 +1506,68 @@ async function backfillFoods(){
     _foodsHydrated=true;
     console.warn('[backfill] '+rows.length+' alimentos subidos del blob a la tabla foods.');
   }catch(e){}
+}
+/* ===== Red de seguridad: lo que quedó en el navegador y nunca llegó al servidor =====
+   Caso real (s49): en otra computadora se cargaron decenas de links de video con una pestaña
+   anterior a la migración. Esa versión guardaba el video SOLO dentro del blob, así que nunca
+   tocó la tabla `exercises`. Al abrir la app aquí, la versión nueva leyó la tabla (sin esos
+   links) y el primer guardado subió esa copia encima del blob: los links desaparecieron de
+   las dos partes, en silencio, y no hubo forma de recuperarlos. La copia local del navegador
+   sí los tenía — pero la app escribía `localStorage` en cada guardado y NUNCA lo leía.
+   Aquí se compara esa copia contra lo que se hidrató del servidor y se avisa si sobra algo.
+   ⚠ NUNCA se sube solo. Una copia local también puede ser más VIEJA que el servidor: un
+   ejercicio borrado a propósito en otra máquina seguiría ahí y subirlo lo resucitaría. La
+   lista se le enseña al coach y él decide.
+   Alcance a propósito: biblioteca y alimentos. Son las dos tablas que vivían en el blob y las
+   únicas donde este modo de pérdida es posible. Rutinas, planes, logs y chat van fila por fila
+   desde siempre y no corren ese riesgo. */
+function vidKey(v){if(!v||typeof v!=='object')return '';return String(v.url||v.file||'');}
+let _orphans=null;
+function localOrphans(){
+  const out={exNuevos:[],exVideo:[],exConflicto:[],foods:[]};
+  if(_currentUserId!=='coach'||!_lsAtBoot||!S)return out;
+  /* Solo se compara lo que se leyó BIEN del servidor: sin eso, "no pude leer la tabla" se vería
+     igual que "al servidor le falta todo" y el aviso saldría con la biblioteca entera dentro. */
+  if(_libHydrated&&Array.isArray(_lsAtBoot.library)){
+    const byId={},byName={};
+    (S.library||[]).forEach(l=>{if(!l)return;if(l.id)byId[l.id]=l;if(l.name)byName[exKey(l.name)]=l;});
+    _lsAtBoot.library.forEach(l=>{
+      if(!l||!l.id||!l.name)return;
+      const s=byId[l.id]||byName[exKey(l.name)];   /* también por nombre: si no, un mismo ejercicio con otro id se duplicaría */
+      if(!s){out.exNuevos.push(l);return;}
+      const a=vidKey(l.video),b=vidKey(s.video);
+      if(!a||a===b)return;
+      if(!b)out.exVideo.push({loc:l,srv:s});       /* el servidor no tiene video: se puede subir sin perder nada */
+      else out.exConflicto.push({loc:l,srv:s});    /* los dos tienen link y son distintos: solo se informa */
+    });
+  }
+  if(_foodsHydrated&&Array.isArray(_lsAtBoot.foods)){
+    const byId={},byName={};
+    (S.foods||[]).forEach(f=>{if(!f)return;if(f.id)byId[f.id]=1;if(f.name)byName[exKey(f.name)]=1;});
+    _lsAtBoot.foods.forEach(f=>{if(f&&f.id&&f.name&&!byId[f.id]&&!byName[exKey(f.name)])out.foods.push(f);});
+  }
+  return out;
+}
+function orphCount(o){return o?o.exNuevos.length+o.exVideo.length+o.foods.length:0;}
+function orphSig(o){
+  if(!o)return '';
+  return [o.exNuevos.map(l=>l.id),o.exVideo.map(p=>p.loc.id+':'+vidKey(p.loc.video)),o.foods.map(f=>f.id)]
+    .map(a=>a.sort().join(',')).join('|');
+}
+function checkLocalOrphans(){
+  _orphans=localOrphans();
+  const n=orphCount(_orphans);
+  if(!n)return;
+  let visto=null;try{visto=localStorage.getItem(LS_ORPH_OK);}catch(e){}
+  if(visto&&visto===orphSig(_orphans))return;   /* ya lo vio y lo descartó */
+  /* Estampa la copia de rescate: sobrevive a recargas y `saveState` no la toca. Solo biblioteca
+     y alimentos — nada de fichas de atletas duplicadas en otra llave. */
+  try{localStorage.setItem(LS_RESCUE,JSON.stringify({library:_lsAtBoot.library||[],foods:_lsAtBoot.foods||[],ts:Date.now()}));}catch(e){}
+  const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
+  bottomBanner('localRescueBanner','ok',140,
+    '<b>Hay '+n+' cosa'+(n===1?'':'s')+' guardada'+(n===1?'':'s')+' en este navegador que no está'+(n===1?'':'n')+' en el servidor.</b> Puede ser trabajo que se guardó con una pestaña vieja o sin conexión.'+
+    '<button data-act="local-rescue-modal" style="'+bt+'">Revisar</button>'+
+    '<button data-act="local-rescue-hide" style="'+bt+';background:none;color:#e8f6d6;text-decoration:underline;font-weight:400">Ahora no</button>');
 }
 /* Escritura por fila: se manda SOLO el ejercicio/alimento tocado, no la biblioteca entera.
    Guarda: si la tabla nunca se leyó bien, S.library/S.foods pueden venir del blob viejo o de la
@@ -4499,6 +4575,61 @@ Object.assign(ACTIONS,{
     closeModal();render();toast(nuevos.length+' ejercicios agregados a la biblioteca');
   }
 });
+/* ---- Red de seguridad: revisar y subir lo que solo existe en este navegador (s49) ---- */
+function orphList(title,items,fmt){
+  if(!items.length)return '';
+  let b='<div class="meal"><div class="meal-h"><span>'+esc(title)+'</span><span class="tm">'+items.length+'</span></div><ul>';
+  items.forEach(x=>{b+='<li>'+fmt(x)+'</li>';});
+  return b+'</ul></div>';
+}
+function orphModalBody(o){
+  let b='<p class="hint">Esto es lo que quedó guardado en <b>este navegador</b> y no está en el servidor. Casi siempre es trabajo hecho con una pestaña vieja o sin conexión.</p>';
+  b+='<div class="notebox mt8">Revísalo antes de subir: si borraste algo <b>a propósito</b> en otra computadora, aquí volvería a aparecer y lo estarías reviviendo.</div>';
+  b+=orphList('Videos que le faltan al servidor',o.exVideo,p=>'<span>'+esc(p.loc.name)+'</span><span class="tm" style="max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(vidKey(p.loc.video))+'</span>');
+  b+=orphList('Ejercicios que no están en el servidor',o.exNuevos,l=>'<span>'+esc(l.name)+(vidKey(l.video)?' <span class="badge">video</span>':'')+'</span><span class="tm">'+esc(l.group||'')+'</span>');
+  b+=orphList('Alimentos que no están en el servidor',o.foods,f=>'<span>'+esc(f.name)+'</span><span class="tm">'+esc(f.cat||'')+'</span>');
+  if(o.exConflicto.length){
+    b+='<div class="notebox mt8" style="border-left-color:var(--red)"><b>'+o.exConflicto.length+' con link distinto en los dos lados.</b> No se tocan: el servidor ya tiene un video y no sé cuál es el bueno. Si quieres cambiarlos, hazlo a mano desde Biblioteca.<br>'+
+      o.exConflicto.map(p=>esc(p.loc.name)).join(' · ')+'</div>';
+  }
+  return b;
+}
+Object.assign(ACTIONS,{
+  'local-rescue-hide':()=>{const b=document.getElementById('localRescueBanner');if(b)b.remove();},
+  'local-rescue-modal':()=>{
+    const o=_orphans;if(!o||!orphCount(o)){toast('Ya no hay nada pendiente');return;}
+    openModal('Cambios que solo están en este navegador',orphModalBody(o),
+      '<button class="btn btn-g btn-sm" data-act="local-rescue-discard">Descartar</button>'+
+      '<button class="btn btn-g" data-act="modal-close">Ahora no</button>'+
+      '<button class="btn btn-p" data-act="local-rescue-upload">Subir '+orphCount(o)+' al servidor</button>');
+  },
+  'local-rescue-discard':()=>{
+    try{localStorage.setItem(LS_ORPH_OK,orphSig(_orphans));localStorage.removeItem(LS_RESCUE);}catch(e){}
+    const b=document.getElementById('localRescueBanner');if(b)b.remove();
+    closeModal();toast('Descartado. No te vuelvo a avisar de esto');
+  },
+  'local-rescue-upload':async()=>{
+    const o=_orphans;if(!o)return;
+    if((o.exNuevos.length||o.exVideo.length)&&!libGuard())return;
+    if(o.foods.length&&!foodsGuard())return;
+    const rows=[];
+    o.exNuevos.forEach(l=>rows.push(Object.assign({},l)));
+    /* Al ejercicio que ya existe se le añade SOLO el video: la clasificación (patrón, equipo,
+       músculos secundarios) del servidor es la buena y no se pisa con la de la copia vieja. */
+    o.exVideo.forEach(p=>rows.push(Object.assign({},p.srv,{video:p.loc.video})));
+    if(rows.length&&!await saveLibRows(rows))return;
+    rows.forEach(r=>{const cur=libById(r.id);if(cur)Object.assign(cur,r);else S.library.push(r);});
+    let nf=0;
+    for(let i=0;i<o.foods.length;i++){if(await saveFoodRow(o.foods[i])){S.foods.push(o.foods[i]);nf++;}}
+    if(rows.length)linkRoutinesToLib(S);
+    S.library.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    S.foods.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    try{localStorage.removeItem(LS_RESCUE);localStorage.removeItem(LS_ORPH_OK);}catch(e){}
+    _orphans={exNuevos:[],exVideo:[],exConflicto:o.exConflicto,foods:[]};
+    const b=document.getElementById('localRescueBanner');if(b)b.remove();
+    closeModal();render();toast('Recuperado: '+rows.length+' ejercicio'+(rows.length===1?'':'s')+(nf?' y '+nf+' alimento'+(nf===1?'':'s'):''));
+  }
+});
 Object.assign(ACTIONS,{
   'tpl-save-modal':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,a=userById(aid);
@@ -6500,6 +6631,10 @@ async function initAfterAuthUnsafe(user){
   const u=userById(_currentUserId);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
+  /* Después de render y de hidratar: compara la copia del navegador contra el servidor y avisa
+     si algo nunca subió. Va al final a propósito — necesita S ya hidratado para no dar falsos
+     positivos, y el banner vive en <body>, así que ningún render posterior lo borra. */
+  try{checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
 }
 (async function(){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
