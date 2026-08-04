@@ -547,6 +547,14 @@ let _currentUserId=null;
 let _coachUid=null;
 let _chatChannel=null;
 let _dataChannel=null;
+let _blobChannel=null;
+/* Candado optimista del blob (s50). _blobRev = la versión que ESTA pestaña leyó del
+   servidor; se manda en cada guardado y el update solo entra si el servidor sigue en esa
+   versión. null = todavía no hay fila (coach recién dado de alta) → toca insert.
+   CLIENT_ID identifica a esta pestaña para poder ignorar el eco de uno mismo en realtime:
+   `app_state` salió de realtime en su día precisamente por ese bucle. */
+let _blobRev=null;
+const CLIENT_ID='c'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 let _liveTimer=null;
 let _pendingLiveRender=false;
 let _refreshing=false;      /* candado: refreshAllData nunca corre dos veces en paralelo */
@@ -869,11 +877,11 @@ async function loadStateFromSupabase(){
   /* C3: maybeSingle + error separado de "sin fila"; jamás bootstrapear ante error (evita pisar el blob del coach) */
   let data=null,error=null;
   try{
-    const res=await supa.from('app_state').select('state').eq('user_id',_coachUid).maybeSingle();
+    const res=await supa.from('app_state').select('state,rev').eq('user_id',_coachUid).maybeSingle();
     data=res.data;error=res.error;
   }catch(e){error=e;}
   if(error){showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;}
-  if(data&&data.state){S=data.state;ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);return true;}
+  if(data&&data.state){S=data.state;_blobRev=(data.rev==null?0:data.rev);ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);return true;}
   const meta=_supabaseUser.user_metadata||{};
   /* C1: solo un coach real bootstrapea estado nuevo */
   if(_coachUid===_supabaseUser.id&&meta.role==='coach'){
@@ -1114,6 +1122,35 @@ function syncPlans(){
     keys.forEach(p=>{_planCache[p[0]]=p[1];});
   });
 }
+/* Guardado del blob con candado optimista (s50).
+   Antes era un upsert ciego: subía el blob entero SIN mirar si alguien más lo había
+   cambiado, así que la última ventana en guardar borraba lo de la otra en silencio (es
+   exactamente como se perdieron los links de video de la s49). Ahora el update lleva
+   `.eq('rev', el_que_leí)`: si otra sesión ya guardó, afecta 0 filas y no se pisa nada. */
+async function pushBlob(){
+  const payload={state:stateForCloud(),updated_at:new Date().toISOString(),last_writer:CLIENT_ID};
+  if(_blobRev===null){
+    /* todavía no hay fila: coach recién dado de alta. Insert, no update. */
+    const res=await supa.from('app_state').insert(Object.assign({user_id:_coachUid,rev:1},payload)).select('rev');
+    if(res.error)return{ok:false,conflict:false,err:res.error};
+    _blobRev=1;return{ok:true};
+  }
+  const mine=_blobRev;
+  const res=await supa.from('app_state').update(Object.assign({rev:mine+1},payload))
+    .eq('user_id',_coachUid).eq('rev',mine).select('rev');
+  if(res.error)return{ok:false,conflict:false,err:res.error};
+  if(res.data&&res.data.length){_blobRev=res.data[0].rev;return{ok:true};}
+  /* 0 filas puede ser conflicto real O algo raro (RLS, red). Se relee el rev antes de
+     acusar de conflicto: decirle «otro dispositivo guardó» cuando en realidad falló la
+     red haría que el coach desconfíe del aviso justo cuando más importa que lo lea. */
+  let chk;
+  try{chk=await supa.from('app_state').select('rev').eq('user_id',_coachUid).maybeSingle();}
+  catch(e){return{ok:false,conflict:false,err:e};}
+  if(chk.error)return{ok:false,conflict:false,err:chk.error};
+  if(!chk.data){_blobRev=null;return{ok:false,conflict:false,err:new Error('La fila de datos ya no existe en el servidor.')};}
+  if(chk.data.rev!==mine)return{ok:false,conflict:true};
+  return{ok:false,conflict:false,err:new Error('El servidor no aceptó el guardado (0 filas actualizadas).')};
+}
 function saveState(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
   if(!_supabaseUser)return;
@@ -1123,31 +1160,71 @@ function saveState(){
   _savePending=setTimeout(async()=>{
     _savePending=null; /* el id viejo quedaba truthy y confundía a safeToReload() */
     _saveInFlight=true;
-    /* OJO: supabase-js NO lanza excepción cuando el servidor rechaza el upsert; el
-       fallo llega en res.error. El try/catch vacío de antes no veía nada, así que un
-       guardado fallido se veía exactamente igual que uno bueno y el coach creía que
-       había guardado. Ahora se avisa y se puede reintentar. */
+    /* OJO: supabase-js NO lanza excepción cuando el servidor rechaza; el fallo llega en
+       res.error. El try/catch vacío de antes no veía nada, así que un guardado fallido se
+       veía exactamente igual que uno bueno y el coach creía que había guardado. */
     try{
-      const res=await supa.from('app_state').upsert({user_id:_coachUid,state:stateForCloud(),updated_at:new Date().toISOString()},{onConflict:'user_id'});
-      if(res&&res.error)saveFailed(res.error);else saveOk();
+      const r=await pushBlob();
+      if(r.ok)saveOk();
+      else if(r.conflict)blobConflict();
+      else saveFailed(r.err);
     }catch(e){saveFailed(e);}
     _saveInFlight=false;
+    /* corren igual tras un conflicto de blob, a propósito: rutinas, planes y perfiles van
+       fila por fila a sus tablas y no los afecta la versión del blob. Bloquearlos sería
+       impedirle al coach guardar la rutina por un choque de configuración. */
     try{syncPlans();}catch(e){}
     try{syncProfiles();}catch(e){}
   },1500);
 }
+const BTN_CSS='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
 function saveOk(){
   _saveDirty=false;
   const b=document.getElementById('saveErrBanner');if(b)b.remove();
+  const c=document.getElementById('blobConflictBanner');if(c)c.remove();
 }
 function saveFailed(e){
   try{console.error('saveState() falló:',e);}catch(_){}
   _saveDirty=true; /* sigue sucio: no recargar la página encima de esto */
-  const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
   bottomBanner('saveErrBanner','warn',12,
     '<b>No se pudo guardar en la nube.</b> Tus cambios están en este dispositivo, pero aún no en el servidor. No cierres esta pestaña.'+
-    '<button onclick="saveState()" style="'+bt+'">Reintentar</button>');
+    '<button onclick="saveState()" style="'+BTN_CSS+'">Reintentar</button>');
 }
+function blobConflict(){
+  try{console.warn('saveState(): conflicto de versión del blob (rev local '+_blobRev+')');}catch(_){}
+  _saveDirty=true; /* no se guardó nada: la pestaña sigue sucia y no debe recargarse sola */
+  bottomBanner('blobConflictBanner','warn',12,
+    '<b>Otro dispositivo guardó cambios después que tú.</b> Para no borrar su trabajo, lo que hiciste aquí <b>no</b> se subió. '+
+    'Trae la versión buena y vuelve a hacer tu cambio.'+
+    '<button onclick="lrPullBlob()" style="'+BTN_CSS+'">Traer la versión del servidor</button>');
+}
+/* Traer el blob del servidor y quedarse con él. Descarta lo local a propósito: fusionar
+   dos blobs enteros sin saber qué campo cambió cada quien es adivinar, y adivinar mal
+   aquí es justo lo que borra datos. Lo local sigue en localStorage por si acaso. */
+async function pullBlob(){
+  if(!_supabaseUser||!_coachUid||_currentUserId!=='coach')return false;
+  let res;
+  try{res=await supa.from('app_state').select('state,rev').eq('user_id',_coachUid).maybeSingle();}
+  catch(e){toast('No pude traer la versión del servidor');return false;}
+  if(res.error||!res.data||!res.data.state){toast('No pude traer la versión del servidor');return false;}
+  S=res.data.state;_blobRev=(res.data.rev==null?0:res.data.rev);
+  ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);
+  _planCache={};   /* el diff de syncPlans se mide contra el estado anterior: con S nuevo, el cache viejo miente */
+  /* toma el MISMO candado que runRefresh: dos hidrataciones en paralelo sobre el mismo S
+     es la carrera que borró perfiles en la s33. Los eventos que lleguen entretanto se
+     acumulan en _refreshAgain y se atienden en una sola pasada al soltarlo. */
+  if(_refreshing){toast('Ya estoy actualizando, espera un momento');return false;}
+  _refreshing=true;
+  try{await refreshAllData();}catch(e){}   /* logs, planes, biblioteca y alimentos vuelven de sus tablas */
+  finally{_refreshing=false;}
+  if(_refreshAgain){_refreshAgain=false;liveRefresh();}
+  clearTimeout(_savePending);_savePending=null;_saveDirty=false;_saveInFlight=false;
+  ['blobConflictBanner','saveErrBanner','blobNewBanner'].forEach(id=>{const b=document.getElementById(id);if(b)b.remove();});
+  render();
+  toast('Datos actualizados desde el servidor');
+  return true;
+}
+window.lrPullBlob=pullBlob;
 /* ---- WeightLog: tabla relacional (primer corte de descomposición del blob) ---- */
 async function buildAthleteUidMaps(){
   _athleteUidByAppId={};_appIdByAthleteUid={};
@@ -1693,6 +1770,39 @@ function subscribeData(){
   });
   ch.subscribe();
   _dataChannel=ch;
+}
+/* Realtime del blob (s50). `app_state` ya estaba en la publicación; lo que faltaba era
+   suscribirse sin volver a crear el bucle de auto-eco que obligó a sacarla: cada guardado
+   del coach volvía como evento y disparaba una recarga completa por cada clic. La guarda
+   es `last_writer`: si el que escribió fui yo, se ignora.
+   SOLO para el coach, a propósito: el payload de un UPDATE trae la fila entera (~115 KB
+   mientras la biblioteca siga en el blob) y al atleta no le aporta nada — su rutina y su
+   plan viajan por `athlete_plans`, que ya está en realtime. Le ahorra datos al celular. */
+let _pullingBlob=false;
+function subscribeBlob(){
+  if(!_supabaseUser||_currentUserId!=='coach'||!_coachUid)return;
+  try{if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}
+  const ch=supa.channel('blob_rt_'+_coachUid).on('postgres_changes',
+    {event:'UPDATE',schema:'public',table:'app_state',filter:'user_id=eq.'+_coachUid},
+    p=>{
+      const n=p&&p.new;if(!n)return;
+      if(n.last_writer===CLIENT_ID)return;                       /* eco propio */
+      if(_blobRev!=null&&n.rev!=null&&n.rev<=_blobRev)return;    /* ya lo tengo */
+      onBlobChanged();
+    });
+  ch.subscribe();
+  _blobChannel=ch;
+}
+function onBlobChanged(){
+  if(_pullingBlob)return;
+  /* Se reusa safeToReload(): traer el blob reemplaza S entero, así que vale exactamente
+     el mismo criterio que recargar la página. Si hay algo sin guardar, un modal abierto o
+     el foco en un campo, NO se toca nada y se avisa. */
+  if(safeToReload()){_pullingBlob=true;pullBlob().finally(()=>{_pullingBlob=false;});return;}
+  if(document.getElementById('blobNewBanner'))return;
+  bottomBanner('blobNewBanner','ok',204,
+    '<b>Otro dispositivo actualizó tus datos.</b> Termina lo que estás haciendo y actualiza: esta pestaña muestra una versión anterior.'+
+    '<button onclick="lrPullBlob()" style="'+BTN_CSS+'">Actualizar</button>');
 }
 /* si había un refresco pendiente mientras se editaba, redibuja al salir del campo */
 document.addEventListener('focusout',()=>{if(_pendingLiveRender)setTimeout(liveRender,50);});
@@ -2264,7 +2374,7 @@ function renderUnsafe(){
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;S=null;route={view:'home',params:{}};render();},
+  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;route={view:'home',params:{}};render();},
   'auth-login':async()=>{
     const email=(document.getElementById('l_email')?.value||'').trim();
     const pass=document.getElementById('l_pass')?.value||'';
@@ -4322,6 +4432,7 @@ document.addEventListener('change',e=>{
     else p2.volTargets[el.dataset.group]=Math.min(60,Math.max(0,parseInt(v,10)||0));
     saveState();render();
   }
+  else if(el.dataset.change==='sv-m'){route.params.svm=el.value;render();}
   else if(el.dataset.change==='lib-m'){route.params.m=el.value;render();}
   else if(el.dataset.change==='lib-c'){route.params.c=el.value;render();}
   else if(el.dataset.change==='lib-eq'){route.params.eq=el.value;render();}
@@ -4517,70 +4628,101 @@ function rtImportPreview(text){
   _rtImport={days:days,name:'Rutina importada '+fmtDate(todayISO())};
   rtImportRender();
 }
-/* ===== IMPORTAR BIBLIOTECA DESDE CSV (columnas: Ejercicio, MÚSCULO/OBJETIVO, Link) ===== */
-const LIB_MUSCLE_MAP={
- 'quads':'Cuádriceps','cuadriceps':'Cuádriceps','cuadricep':'Cuádriceps','cuadriceps/quads':'Cuádriceps',
- 'abdomen/core':'Abdomen','abdomen':'Abdomen','core':'Abdomen','abs':'Abdomen',
- 'espalda':'Espalda','dorsal':'Espalda','dorsales':'Espalda','back':'Espalda',
- 'pecho':'Pectoral','pectoral':'Pectoral','chest':'Pectoral',
- 'gluteo':'Glúteo','gluteos':'Glúteo',
- 'bicep':'Bíceps','biceps':'Bíceps',
- 'isquios':'Isquiosurales','isquiosurales':'Isquiosurales','isquio':'Isquiosurales','femoral':'Isquiosurales',
- 'tricep':'Tríceps','triceps':'Tríceps',
- 'da':'Deltoide anterior','deltoide anterior':'Deltoide anterior','deltoides anterior':'Deltoide anterior',
- 'dp':'Deltoide posterior','deltoide posterior':'Deltoide posterior','deltoides posterior':'Deltoide posterior',
- 'dl':'Deltoide lateral','deltoide lateral':'Deltoide lateral','deltoides lateral':'Deltoide lateral',
- 'gastrocnemios':'Gemelo / Sóleo','gastrocnemio':'Gemelo / Sóleo','gemelo':'Gemelo / Sóleo','gemelos':'Gemelo / Sóleo','soleo':'Gemelo / Sóleo','pantorrilla':'Gemelo / Sóleo',
- 'trapecio':'Trapecio','trapecios':'Trapecio','antebrazo':'Antebrazo','antebrazos':'Antebrazo','aductores':'Aductores','aductor':'Aductores'
-};
-function libMuscleToGroup(raw){return LIB_MUSCLE_MAP[exKey(raw)]||null;}
-function parseLibCSV(text){
-  const g=parseCSVGrid(text);if(!g.length)return[];
-  const hi=(g[0]||[]).map(x=>exKey(x));
-  const findCol=(...keys)=>{for(let i=0;i<hi.length;i++)if(keys.some(k=>hi[i].indexOf(k)>=0))return i;return -1;};
-  let nameC=findCol('ejercicio','nombre'),musC=findCol('musculo','objetivo','grupo'),linkC=findCol('link','video','url'),start=0;
-  if(nameC>=0){if(musC<0)musC=1;if(linkC<0)linkC=2;start=1;}else{nameC=0;musC=1;linkC=2;}
+/* ===== VIDEOS DE LA BIBLIOTECA: pendientes + pegado masivo de links (s50) =====
+   Sustituye al viejo importador de biblioteca por CSV. Ese importador solo AGREGABA
+   ejercicios nuevos y OMITÍA los que ya existían, así que era inútil para lo único que
+   Luis necesitaba de verdad: rellenar el link de video de ejercicios YA en la biblioteca.
+   Aquí el criterio se invierte: no se crea nada, solo se ACTUALIZA el video de lo que ya existe. */
+function exSinVideo(){return (S.library||[]).filter(l=>l&&!vidKey(l.video));}
+/* Tolerante a propósito: una línea es «nombre <lo que sea> https://…». Sirve igual para
+   texto pegado de Excel (tab), de un CSV (coma), de Notas (guion) o de WhatsApp (espacio). */
+function vidPasteParse(text){
   const out=[];
-  for(let r=start;r<g.length;r++){
-    const name=_csvCell(g,r,nameC);if(!name)continue;
-    out.push({name:name,group:libMuscleToGroup(_csvCell(g,r,musC)),musRaw:_csvCell(g,r,musC),link:_csvCell(g,r,linkC)});
-  }
+  String(text||'').split(/\r?\n/).forEach(line=>{
+    const s=line.trim();if(!s)return;
+    const m=s.match(/(https?:\/\/\S+)/i);if(!m)return;
+    const url=m[1].replace(/[),.;]+$/,'');
+    const name=s.slice(0,m.index).replace(/["']/g,'').replace(/[\t,;|\-–—\s]+$/,'').trim();
+    if(!name)return;
+    out.push({name:name,url:url});
+  });
   return out;
 }
-let _libImport=null;
-function libImportPreview(text){
-  let rows;try{rows=parseLibCSV(text);}catch(e){rows=[];}
-  if(!rows.length){openModal('Importar biblioteca','<p>No encontré ejercicios en ese archivo. Debe ser un CSV con columnas <b>Ejercicio, Músculo/Objetivo, Link</b>.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
-  const existing={};(S.library||[]).forEach(l=>existing[exKey(l.name)]=1);
-  const add=[],dupe=[],skip=[],seen={};
+let _vidPaste=null;
+function vidPastePreview(text){
+  const rows=vidPasteParse(text);
+  if(!rows.length){
+    openModal('Pegar links de video','<p>No encontré ninguna línea con nombre y link.</p><p class="hint">Cada renglón debe llevar el <b>nombre del ejercicio</b> y su <b>link</b> (que empiece con http). El separador da igual: tabulador, coma, guion o espacio.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;
+  }
+  const byName={};(S.library||[]).forEach(l=>{if(l&&l.name)byName[exKey(l.name)]=l;});
+  const nuevos=[],reemplazo=[],iguales=[],nofound=[],seen={};
   rows.forEach(r=>{
-    const k=exKey(r.name);
-    if(!r.group){skip.push(r);return;}
-    if(existing[k]||seen[k]){dupe.push(r);return;}
-    seen[k]=1;add.push(r);
+    const k=exKey(r.name);if(seen[k])return;seen[k]=1;
+    const l=byName[k];
+    if(!l){nofound.push(r);return;}
+    if(!detectVideo(r.url)){nofound.push(r);return;}
+    const cur=vidKey(l.video);
+    if(!cur)nuevos.push({l:l,url:r.url});
+    else if(cur===r.url)iguales.push({l:l,url:r.url});
+    else reemplazo.push({l:l,url:r.url});
   });
-  _libImport={add:add};
-  let body='<p class="hint">'+rows.length+' filas · <b>'+add.length+' nuevos</b> a agregar · '+dupe.length+' ya existentes (se omiten) · '+skip.length+' sin grupo muscular (se omiten)</p>';
-  if(skip.length)body+='<div class="notebox mt8" style="border-left-color:var(--red)"><b>Omitidos (no son grupo muscular):</b> '+skip.map(s=>esc(s.name)+' ('+esc(s.musRaw)+')').join(' · ')+'</div>';
-  const byG={};add.forEach(r=>{(byG[r.group]=byG[r.group]||[]).push(r);});
-  Object.keys(byG).forEach(gname=>{
-    body+='<div class="meal"><div class="meal-h"><span>'+esc(gname)+'</span><span class="tm">'+byG[gname].length+' ej.</span></div><ul>';
-    byG[gname].forEach(r=>{body+='<li><span>'+esc(r.name)+(r.link?' <span class="badge">video</span>':'')+'</span></li>';});
-    body+='</ul></div>';
-  });
-  openModal('Importar biblioteca desde CSV',body,add.length?'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="libimport-save">Agregar '+add.length+' ejercicios</button>':'<button class="btn btn-p" data-act="modal-close">Cerrar</button>');
+  _vidPaste={nuevos:nuevos,reemplazo:reemplazo};
+  const trunc=u=>'<span class="tm" style="max-width:48%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(u)+'</span>';
+  const bloque=(titulo,arr,fmt)=>{
+    if(!arr.length)return '';
+    let b='<div class="meal"><div class="meal-h"><span>'+esc(titulo)+'</span><span class="tm">'+arr.length+'</span></div><ul>';
+    arr.forEach(x=>{b+='<li>'+fmt(x)+'</li>';});
+    return b+'</ul></div>';
+  };
+  let body='<p class="hint">'+rows.length+' líneas leídas · <b>'+nuevos.length+' videos nuevos</b> · '+reemplazo.length+' cambiarían un link existente · '+iguales.length+' ya tienen ese mismo link · '+nofound.length+' sin coincidencia</p>';
+  body+=bloque('Se les pondrá el video',nuevos,x=>'<span>'+esc(x.l.name)+'</span>'+trunc(x.url));
+  if(reemplazo.length){
+    body+='<div class="notebox mt8" style="border-left-color:var(--red)">Estos <b>ya tienen</b> un video distinto. No se tocan salvo que marques la casilla de abajo.</div>';
+    body+=bloque('Ya tienen otro link',reemplazo,x=>'<span>'+esc(x.l.name)+'</span>'+trunc(x.url));
+    body+='<label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="vp_repl"><span>Reemplazar también esos '+reemplazo.length+' links</span></label>';
+  }
+  body+=bloque('No están en tu biblioteca (se omiten)',nofound,r=>'<span>'+esc(r.name)+'</span>'+trunc(r.url));
+  if(nofound.length)body+='<p class="tiny" style="margin-top:6px">Se buscan por nombre exacto (sin distinguir mayúsculas ni acentos). Si el nombre no coincide con el de tu biblioteca, no lo encuentra — este pegado nunca crea ejercicios nuevos.</p>';
+  const puede=nuevos.length||reemplazo.length;
+  openModal('Pegar links de video',body,puede
+    ?'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="vidpaste-save">Guardar videos</button>'
+    :'<button class="btn btn-p" data-act="modal-close">Cerrar</button>');
 }
 Object.assign(ACTIONS,{
-  'libimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>libImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
-  'libimport-save':async()=>{
-    if(!_libImport)return;
+  'vidpaste-modal':()=>openModal('Pegar links de video',
+    '<p class="hint">Un ejercicio por renglón: el <b>nombre</b> y su <b>link</b>. El separador da igual (tabulador, coma, guion o espacio) y lo que sobre se ignora.</p>'+
+    '<textarea id="vp_text" rows="10" placeholder="Press de banca con barra&#9;https://youtube.com/watch?v=…&#10;Jalón al pecho, https://youtube.com/watch?v=…&#10;Elevación lateral - https://www.instagram.com/reel/…"></textarea>'+
+    '<p class="tiny" style="margin-top:6px">Solo actualiza ejercicios que <b>ya están</b> en tu biblioteca; nunca crea nuevos. En el siguiente paso ves exactamente qué va a cambiar antes de guardar.</p>',
+    '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="vidpaste-preview">Revisar</button>'),
+  'vidpaste-preview':()=>{const t=document.getElementById('vp_text');vidPastePreview(t?t.value:'');},
+  'vidpaste-save':async()=>{
+    if(!_vidPaste)return;
     if(!libGuard())return;
-    const nuevos=_libImport.add.map(r=>({id:uid(),name:String(r.name||'').trim(),group:r.group,cat:'',focus:'',secondary:[],equipment:'Otro',cues:'',video:detectVideo(r.link)}));
-    if(!nuevos.length){_libImport=null;closeModal();return;}
-    if(!await saveLibRows(nuevos))return;           /* un solo upsert con todas las filas */
-    nuevos.forEach(l=>S.library.push(l));
-    _libImport=null;linkRoutinesToLib(S);
-    closeModal();render();toast(nuevos.length+' ejercicios agregados a la biblioteca');
+    const repl=document.getElementById('vp_repl');
+    const lote=_vidPaste.nuevos.concat((repl&&repl.checked)?_vidPaste.reemplazo:[]);
+    if(!lote.length){_vidPaste=null;closeModal();return;}
+    /* se revierte en memoria si el servidor rechaza: la pantalla nunca debe mostrar
+       videos que no están guardados (mismo criterio que el resto de la biblioteca) */
+    const prev=lote.map(x=>x.l.video);
+    lote.forEach(x=>{x.l.video=detectVideo(x.url);});
+    if(!await saveLibRows(lote.map(x=>x.l))){lote.forEach((x,i)=>{x.l.video=prev[i];});return;}
+    _vidPaste=null;closeModal();render();
+    toast(lote.length+(lote.length===1?' video guardado':' videos guardados'));
+  },
+  'sv-save':async el=>{
+    if(!libGuard())return;
+    const l=libById(el.dataset.lib);if(!l)return;
+    const raw=val('sv_'+l.id);
+    if(!raw){toast('Pega primero el link');return;}
+    const v=detectVideo(raw);
+    if(!v){toast('El link tiene que empezar con http:// o https://');return;}
+    const prev=l.video;l.video=v;
+    if(!await saveLibRow(l)){l.video=prev;return;}
+    /* sin render(): se quita solo ese renglón y se baja el contador. Un render completo
+       recolocaría la lista entera y perdería el sitio donde ibas (son 229 renglones). */
+    const row=document.getElementById('svrow_'+l.id);if(row)row.remove();
+    const c=document.getElementById('sv_count');if(c)c.textContent=String(exSinVideo().length);
+    toast('Video guardado en «'+l.name+'»');
   }
 });
 /* ---- Red de seguridad: revisar y subir lo que solo existe en este navegador (s49) ---- */
@@ -4949,9 +5091,52 @@ VIEWS['lib']=function(u){
     cards+='<div class="lib-card" data-act="lib-open" data-lib="'+l.id+'"><div class="nm">'+(l.video?'<span class="vid" title="Tiene video"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':'')+esc(l.name)+'</div>'+muscleChips(l)+'<div class="eq">'+esc(l.equipment)+(ci?' · Cargas '+esc(ci.l):'')+'</div></div>';
   });
   if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>Sin resultados</b>Prueba con otro filtro o crea el ejercicio.</div>';
-  return{title:'Biblioteca de ejercicios',crumb:(S.library||[]).length+' ejercicios · '+list.length+' mostrados · modelo de categorías por patrón',back:{v:'apoyo'},
-    actions:'<button class="btn btn-g" data-act="libimport-pick">'+I.copy+' Importar CSV</button><button class="btn btn-p" data-act="lib-new-modal">'+I.plus+' Nuevo ejercicio</button>',
+  const sinVid=exSinVideo().length;
+  return{title:'Biblioteca de ejercicios',crumb:(S.library||[]).length+' ejercicios · '+list.length+' mostrados · '+sinVid+' sin video',back:{v:'apoyo'},
+    actions:(sinVid?'<button class="btn btn-g" data-act="nav" data-view="sinvideo" data-params="{}">'+sinVid+' sin video</button>':'')+'<button class="btn btn-p" data-act="lib-new-modal">'+I.plus+' Nuevo ejercicio</button>',
     body:'<div class="filterbar"><input id="lib_q" placeholder="Buscar ejercicio, grupo o especialización…" value="'+esc(route.params.q||'')+'" data-live="lib-q"><select data-change="lib-m">'+mopts+'</select><select data-change="lib-c">'+copts+'</select><select data-change="lib-eq">'+eopts+'</select></div><div class="lib-grid">'+cards+'</div>'};
+};
+
+/* Vista de trabajo, no de consulta: la Biblioteca es para buscar un ejercicio; esto es para
+   sentarse a rellenar links en tanda. Por eso el campo va en el propio renglón y guarda
+   fila por fila, sin abrir un modal por ejercicio (son 229). */
+VIEWS['sinvideo']=function(u){
+  const fm=route.params.svm||'';
+  const grank=g=>{const i=GROUPS.indexOf(g);if(i>=0)return i;const j=XGROUPS.indexOf(g);if(j>=0)return 100+j;return 200;};
+  const todos=exSinVideo();
+  let list=todos.slice().sort((a,b)=>(grank(a.group)-grank(b.group))||String(a.name).localeCompare(String(b.name)));
+  if(fm==='__x__')list=list.filter(l=>!isMuscleGroup(l.group)&&XGROUPS.indexOf(l.group)<0);
+  else if(fm)list=list.filter(l=>l.group===fm);
+  /* el conteo por grupo va sobre los PENDIENTES, no sobre la biblioteca entera: aquí lo
+     que importa es dónde queda trabajo, no cuántos ejercicios hay de cada cosa */
+  const cnt={};todos.forEach(l=>{const g=l.group||'';cnt[g]=(cnt[g]||0)+1;});
+  let mopts='<option value="">Todos los grupos ('+todos.length+')</option><optgroup label="Grupo muscular">';
+  GROUPS.forEach(m=>{if(cnt[m])mopts+='<option value="'+esc(m)+'"'+(fm===m?' selected':'')+'>'+esc(m)+' ('+cnt[m]+')</option>';});
+  mopts+='</optgroup><optgroup label="Otros">';
+  XGROUPS.forEach(m=>{if(cnt[m])mopts+='<option value="'+esc(m)+'"'+(fm===m?' selected':'')+'>'+esc(m)+' ('+cnt[m]+')</option>';});
+  const nSin=todos.filter(l=>!isMuscleGroup(l.group)&&XGROUPS.indexOf(l.group)<0).length;
+  if(nSin)mopts+='<option value="__x__"'+(fm==='__x__'?' selected':'')+'>Sin clasificar ('+nSin+')</option>';
+  mopts+='</optgroup>';
+  let body='';
+  if(!todos.length){
+    body='<div class="empty"><b>Todos tus ejercicios tienen video</b>No queda nada pendiente por aquí.</div>';
+  }else{
+    body='<div class="notebox mb16">Pega el link y dale <b>Guardar</b> (o Enter). El renglón desaparece de la lista en cuanto queda guardado en el servidor. Si tienes muchos juntos, usa <b>Pegar varios links</b> arriba.</div>'+
+      '<div class="filterbar"><select data-change="sv-m">'+mopts+'</select></div>';
+    let lastG=' ';
+    list.forEach(l=>{
+      const g=l.group||'Sin grupo';
+      if(g!==lastG){body+='<div class="meal-h" style="margin:14px 0 4px"><span>'+esc(g)+'</span></div>';lastG=g;}
+      body+='<div id="svrow_'+esc(l.id)+'" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)">'+
+        '<span style="flex:0 0 32%;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(l.name)+'">'+esc(l.name)+'</span>'+
+        '<input id="sv_'+esc(l.id)+'" placeholder="Pega aquí el link del video…" autocomplete="off" style="flex:1;min-width:0" '+
+          'onkeydown="if(event.key===\'Enter\'){event.preventDefault();var b=this.nextElementSibling;if(b)b.click();}">'+
+        '<button class="btn btn-p btn-sm" data-act="sv-save" data-lib="'+esc(l.id)+'">Guardar</button></div>';
+    });
+    if(!list.length)body+='<div class="empty"><b>Nada pendiente en este grupo</b>Cambia el filtro de arriba.</div>';
+  }
+  return{title:'Ejercicios sin video',crumb:'<span id="sv_count">'+todos.length+'</span> pendientes de '+(S.library||[]).length+' · '+list.length+' mostrados',back:{v:'lib'},
+    actions:'<button class="btn btn-g" data-act="vidpaste-modal">'+I.copy+' Pegar varios links</button>',body:body};
 };
 
 /* ================= RECETARIO (catálogo coach-only en tabla recipes) ================= */
@@ -6630,6 +6815,7 @@ async function initAfterAuthUnsafe(user){
   await backfillFoods();
   subscribeChat();
   subscribeData();
+  subscribeBlob();
   /* red de seguridad: si hydrateProfiles no repuso la identidad (p.ej. fallo de red), el atleta no debe caer al panel de coach */
   if(_currentUserId!=='coach'&&!userById(_currentUserId)){
     const meta=_supabaseUser.user_metadata||{},nm=meta.name||_supabaseUser.email||'Atleta';
