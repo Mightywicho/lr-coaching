@@ -2747,10 +2747,15 @@ function coachTabRutina(aid){
     const progG={};day.exercises.forEach(e=>{const l=e.libId?libById(e.libId):null;if(l)progG[l.group]=(progG[l.group]||0)+(parseInt(e.sets,10)||0);});
     const planG=day.plan||{};
     let pchips='';
+    /* Los chips son clicables (s53): abren «Añadir ejercicio» en ESTE día ya filtrado por ESE grupo.
+       El dispatcher usa closest('[data-act]'), así que un <span> sirve igual que un <button>. */
+    const chipAct=(g,extra)=>' data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'" style="cursor:pointer'+(extra||'')+'"';
+    const plusMark='<b style="margin-left:5px;opacity:.55;font-weight:700">+</b>';
     GROUPS.filter(g=>planG[g]||progG[g]).forEach(g=>{
       const pl=planG[g]||0,pr=progG[g]||0;
-      if(pl){const cls=pr>pl?'volt':pr===pl?'green':'orange';pchips+='<span class="chip '+cls+'" title="Plan de la sesión: '+pl+' series · programadas: '+pr+(pr<pl?' — faltan '+(pl-pr):pr>pl?' — sobran '+(pr-pl):' — cubierto')+'">'+esc(g)+' '+pr+'/'+pl+'</span>';}
-      else pchips+='<span class="chip" style="opacity:.55" title="Programado sin plan de sesión ('+pr+' series)">'+esc(g)+' '+pr+'</span>';
+      const tail=' Clic para añadir un ejercicio de '+esc(g)+' en '+esc(day.name)+'.';
+      if(pl){const cls=pr>pl?'volt':pr===pl?'green':'orange';pchips+='<span class="chip '+cls+'"'+chipAct(g)+' title="Plan de la sesión: '+pl+' series · programadas: '+pr+(pr<pl?' — faltan '+(pl-pr):pr>pl?' — sobran '+(pr-pl):' — cubierto')+'.'+tail+'">'+esc(g)+' '+pr+'/'+pl+plusMark+'</span>';}
+      else pchips+='<span class="chip"'+chipAct(g,';opacity:.55')+' title="Programado sin plan de sesión ('+pr+' series).'+tail+'">'+esc(g)+' '+pr+plusMark+'</span>';
     });
     if(pchips)pchips='<span class="muschips" style="margin:0 6px">'+pchips+'</span>';
     days+='<div class="dayblk"><div class="dayblk-h" style="flex-wrap:wrap"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios</span>'+pchips+'<span class="sp"><button class="btn btn-g btn-sm" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+' Renombrar</button><button class="btn btn-g btn-sm" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button><button class="btn btn-p btn-sm" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Ejercicio</button></span></div>'+
@@ -3459,8 +3464,9 @@ Object.assign(ACTIONS,{
   'day-ren-save':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);day.name=val('d_name')||day.name;saveState();closeModal();render();},
   'day-del-ask':el=>confirmModal('Eliminar día','Se borrará el día y sus ejercicios de la rutina.','day-del-do','data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'"'),
   'day-del-do':el=>{const r=athData(el.dataset.aid).routine;r.days=r.days.filter(x=>x.id!==el.dataset.day);saveState();closeModal();render();},
-  'ex-add-modal':el=>openModal('Añadir ejercicio',exForm({},el.dataset.aid,''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Añadir</button>'),
-  'ex-edit-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const e=day.exercises.find(x=>x.id===el.dataset.ex);openModal('Editar ejercicio',exForm(e,el.dataset.aid,el.dataset.ex),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'" data-ex="'+el.dataset.ex+'">Guardar</button>');},
+  /* data-group llega desde los chips de plan de la cabecera del día: abre el modal ya filtrado por ese grupo */
+  'ex-add-modal':el=>openModal('Añadir ejercicio'+(el.dataset.group?' · '+el.dataset.group:''),exForm({},el.dataset.aid,'',el.dataset.day||'',el.dataset.group||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Añadir</button>'),
+  'ex-edit-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const e=day.exercises.find(x=>x.id===el.dataset.ex);openModal('Editar ejercicio',exForm(e,el.dataset.aid,el.dataset.ex,el.dataset.day||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'" data-ex="'+el.dataset.ex+'">Guardar</button>');},
   'ex-save':el=>{
     const name=val('e_name');if(!name){toast('Escribe el nombre del ejercicio');return;}
     const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);
@@ -3731,8 +3737,12 @@ function exVolCore(aid,exId,nm,sets){
 }
 function renderExVol(){const box=document.getElementById('exvolbox');if(!box)return;box.innerHTML=exVolCore(box.dataset.aid,box.dataset.ex||'',val('e_name'),val('e_sets'));}
 function normUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u;}
-/* ---- filtro por grupo del selector de ejercicio (mismo criterio que la vista Biblioteca: incluye secundarios) ---- */
-const exInGroup=(l,g)=>!g||l.group===g||(l.secondary||[]).includes(g);
+/* ---- filtro por grupo del selector de ejercicio ----
+   SOLO músculo PRINCIPAL (s53). A propósito distinto de la vista Biblioteca, que sí incluye secundarios:
+   aquí se programa volumen dirigido y el semáforo cuenta únicamente volumen DIRECTO (l.group). Ofrecer
+   ejercicios donde el grupo es secundario llenaba la lista de opciones que NO mueven la cifra que se
+   intenta cubrir. Si se vuelve a incluir secundarios, hay que decidir antes qué hace el contador. */
+const exInGroup=(l,g)=>!g||l.group===g;
 function exListFor(g){return (S.library||[]).filter(l=>exInGroup(l,g)).sort((a,b)=>a.name.localeCompare(b.name));}
 /* <option value> es lo que se escribe en el campo; el texto interno lo muestra el navegador como pista a la derecha */
 function exListOpts(g){let o='';exListFor(g).forEach(l=>{o+='<option value="'+esc(l.name)+'">'+esc(l.group||'')+(l.equipment&&l.equipment!=='Otro'?' · '+esc(l.equipment):'')+'</option>';});return o;}
@@ -3755,25 +3765,61 @@ function volDeficit(aid){
   });
   return out;
 }
-function exGrpHint(g,aid){
+/* Déficit de la SESIÓN: series que faltan por programar en ESE día según el reparto del paso 2 (day.plan).
+   Distinto de volDeficit, que mide la semana entera. Aquí solo entran los grupos con plan>0 EN EL DÍA:
+   un grupo sin reparto en esta sesión no es un hueco de esta sesión, aunque le falte volumen semanal.
+   exId se excluye al editar, igual que en exGroupDirectExcluding: si no, el ejercicio que estás
+   cambiando se contaría a sí mismo y el faltante saldría corto. */
+function sessionDeficit(aid,dayId,exId){
+  const out={};if(!aid||!dayId)return out;
+  const day=(((athData(aid)||{}).routine||{}).days||[]).find(x=>x.id===dayId);
+  if(!day)return out;
+  const plan=day.plan||{},prog={};
+  (day.exercises||[]).forEach(ex=>{
+    if(exId&&ex.id===exId)return;
+    const l=ex.libId?libById(ex.libId):null,s=parseInt(ex.sets,10)||0;
+    if(l&&s)prog[l.group]=(prog[l.group]||0)+s;
+  });
+  Object.keys(plan).forEach(g=>{
+    const meta=plan[g]||0;if(!(meta>0))return;
+    const cur=prog[g]||0;
+    if(cur<meta)out[g]={cur:cur,meta:meta,falta:meta-cur};
+  });
+  return out;
+}
+/* ¿este día tiene reparto del paso 2? Sin él no hay «series de la sesión» que mostrar y se cae al semanal. */
+function hasSessionPlan(aid,dayId){
+  if(!aid||!dayId)return false;
+  const day=(((athData(aid)||{}).routine||{}).days||[]).find(x=>x.id===dayId);
+  if(!day)return false;
+  return Object.keys(day.plan||{}).some(g=>(day.plan[g]||0)>0);
+}
+function exGrpHint(g,aid,dayId,exId){
+  const ses=hasSessionPlan(aid,dayId);
   if(!g)return (S.library||[]).length+' ejercicios. Elige un grupo para reducir la lista.';
-  let t=exListFor(g).length+' ejercicios de '+g+' (incluye donde es músculo secundario).';
-  const dv=aid?volDeficit(aid)[g]:null;
-  if(dv)t+=' Va en '+dv.cur+' de '+dv.meta+' series semanales: le faltan '+dv.falta+'.';
+  let t=exListFor(g).length+' ejercicios de '+g+' (solo donde es el músculo principal).';
+  const dv=ses?sessionDeficit(aid,dayId,exId)[g]:(aid?volDeficit(aid)[g]:null);
+  if(dv)t+=ses?(' En esta sesión va en '+dv.cur+' de '+dv.meta+' series: le faltan '+dv.falta+'.')
+              :(' Va en '+dv.cur+' de '+dv.meta+' series semanales: le faltan '+dv.falta+'.');
+  else if(ses)t+=' Esta sesión no tiene series de '+g+' en su plan.';
   return t;
 }
-function exForm(e,aid,exId){
-  /* al editar, arranca filtrado por el grupo del ejercicio ya vinculado */
-  const cur=libByName(e.name||''),g0=cur?cur.group:'';
-  const def=volDeficit(aid);
+function exForm(e,aid,exId,dayId,gForce){
+  /* gForce: el grupo llega decidido desde fuera (chip «Pectoral 4/8» de la cabecera del día).
+     Si no, al editar arranca filtrado por el grupo del ejercicio ya vinculado. */
+  const cur=libByName(e.name||''),g0=gForce||(cur?cur.group:'');
+  /* con reparto de sesión se mide contra ESE día; sin él, contra la meta semanal */
+  const ses=hasSessionPlan(aid,dayId);
+  const def=ses?sessionDeficit(aid,dayId,exId):(aid?volDeficit(aid):{});
   const gopt=(m,sel)=>{const dv=def[m];return '<option value="'+esc(m)+'"'+(sel===m?' selected':'')+'>'+esc(m)+' ('+exListFor(m).length+')'+(dv?' · faltan '+dv.falta+' series':'')+'</option>';};
   const low=GROUPS.filter(m=>def[m]),rest=GROUPS.filter(m=>!def[m]);
   let gopts='<option value=""'+(g0?'':' selected')+'>Todos los grupos ('+(S.library||[]).length+')</option>';
-  if(low.length){gopts+='<optgroup label="Por debajo de su meta de volumen">';low.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';}
+  if(low.length){gopts+='<optgroup label="'+(ses?'Falta en esta sesión':'Por debajo de su meta semanal')+'">';low.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';}
   gopts+='<optgroup label="'+(low.length?'Resto de grupos':'Grupo muscular')+'">';rest.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';
   gopts+='<optgroup label="Otros (no cuentan volumen)">';XGROUPS.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';
   const dl='<datalist id="exlist">'+exListOpts(g0)+'</datalist>';
-  return dl+'<div class="frow"><label>Filtrar por grupo muscular</label><select id="e_grp" data-change="ex-grp" data-aid="'+esc(aid||'')+'">'+gopts+'</select><p class="tiny" style="margin-top:5px" id="e_grp_hint">'+esc(exGrpHint(g0,aid))+'</p></div>'+
+  const origen=aid?('<p class="tiny" style="margin:0 0 5px;color:var(--tx3)">'+(ses?'Las series que faltan son las de <b>esta sesión</b> (reparto del paso 2).':'Esta sesión no tiene reparto en el paso 2, así que lo que falta se mide contra la <b>meta semanal</b>.')+'</p>'):'';
+  return dl+'<div class="frow"><label>Filtrar por grupo muscular</label>'+origen+'<select id="e_grp" data-change="ex-grp" data-aid="'+esc(aid||'')+'" data-day="'+esc(dayId||'')+'" data-ex="'+esc(exId||'')+'">'+gopts+'</select><p class="tiny" style="margin-top:5px" id="e_grp_hint">'+esc(exGrpHint(g0,aid,dayId,exId))+'</p></div>'+
   '<div class="frow"><label>Ejercicio</label><input id="e_name" list="exlist" data-exvol="1" value="'+esc(e.name||'')+'" placeholder="Escribe o abre la lista para elegir…"><p class="tiny" style="margin-top:5px">Si coincide con uno de la biblioteca, queda vinculado: hereda video y músculos.</p></div>'+
   '<div class="frow3"><div><label>Series</label><input id="e_sets" type="number" data-exvol="1" value="'+esc(e.sets||3)+'"></div><div><label>Reps</label><input id="e_reps" value="'+esc(e.reps||'8-10')+'"></div><div><label>RIR</label><input id="e_rir" value="'+esc(e.rir||'2')+'"></div></div>'+
   '<div class="frow"><label>Descanso</label><input id="e_rest" value="'+esc(e.rest||'2 min')+'"></div>'+
@@ -4389,7 +4435,7 @@ document.addEventListener('change',e=>{
     /* filtro del selector de ejercicio: reescribe el datalist SIN re-render (un render cerraría el modal) */
     const g=el.value,dl=document.getElementById('exlist'),nm=document.getElementById('e_name'),hint=document.getElementById('e_grp_hint');
     if(dl)dl.innerHTML=exListOpts(g);
-    if(hint)hint.textContent=exGrpHint(g,el.dataset.aid||'');
+    if(hint)hint.textContent=exGrpHint(g,el.dataset.aid||'',el.dataset.day||'',el.dataset.ex||'');
     if(nm){
       /* si lo escrito no pertenece al grupo elegido, se limpia: si no, el datalist no muestra nada y parece roto.
          Un nombre libre (que no está en la biblioteca) también se limpia — por eso el filtro arranca en «Todos». */
