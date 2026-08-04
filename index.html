@@ -2902,6 +2902,21 @@ function coachDistSesiones(aid){
     '<p class="tiny mt8">El reparto automático usa la guía del material: 1 sesión por cada 4-10 series del grupo (≈8 por sesión), mínimo 2 estímulos si se busca crecimiento, equilibrando la carga entre días. «prog.» indica lo ya cubierto por ejercicios reales; en la pestaña Rutina cada día muestra qué falta del plan.</p></div>';
 }
 
+/* Vuelca los objetivos escritos a mano (kcal, macros, nº de comidas, indicaciones)
+   del formulario al plan activo. La usan «Guardar plan» Y el cambio de modo: antes,
+   cambiar de modo llamaba render() sin leer estos campos y lo escrito se perdía en
+   silencio — el mismo bug que tenía el Dietocálculo.
+   Ojo: se comprueba que el formulario ESTÉ en pantalla antes de leer nada. num()
+   devuelve 0 cuando no encuentra el campo, así que leer a ciegas pondría el plan
+   en 0 kcal. Y mealsPerDay conserva su valor si el campo viene vacío: un 0 ahí
+   deja al atleta con un reparto entre cero comidas. */
+function pnutriReadTargets(aid){
+  if(!document.getElementById('n_kcal'))return false;
+  const p=activePlanOf(aid);
+  p.kcal=num('n_kcal');p.protein=num('n_p');p.carbs=num('n_c');p.fat=num('n_f');p.notes=val('n_notes');
+  p.mealsPerDay=num('n_meals')||p.mealsPerDay||4;
+  return true;
+}
 function coachTabNutri(aid){
   const n=nutriOf(aid),ap=activePlanOf(aid),ty=planType(ap.type);
   /* barra de planes por tipo de día */
@@ -3612,8 +3627,8 @@ Object.assign(ACTIONS,{
   'plan-rename-save':el=>{const n=nutriOf(el.dataset.aid),p=n.plans.find(x=>x.id===el.dataset.pid);if(p){p.name=val('pl_name')||p.name;p.type=val('pl_type')||p.type;}saveState();closeModal();render();},
   'plan-del':el=>{const n=nutriOf(el.dataset.aid);if(n.plans.length<=1){toast('Debe quedar al menos un plan');return;}confirmModal('Eliminar plan','Se borrará este plan de día y su menú.','plan-del-do','data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'"');},
   'plan-del-do':el=>{const n=nutriOf(el.dataset.aid);n.plans=n.plans.filter(p=>p.id!==el.dataset.pid);if(n.activePlan===el.dataset.pid)n.activePlan=n.plans[0].id;saveState();closeModal();toast('Plan eliminado');render();},
-  'pnutri-mode':el=>{activePlanOf(el.dataset.aid).mode=el.dataset.mode;saveState();render();},
-  'pnutri-save':el=>{const p=activePlanOf(el.dataset.aid);p.kcal=num('n_kcal');p.mealsPerDay=num('n_meals');p.protein=num('n_p');p.carbs=num('n_c');p.fat=num('n_f');p.notes=val('n_notes');saveState();toast('Plan guardado');render();},
+  'pnutri-mode':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);activePlanOf(aid).mode=el.dataset.mode;saveState();render();},
+  'pnutri-save':el=>{pnutriReadTargets(el.dataset.aid);saveState();toast('Plan guardado');render();},
   'pmeal-add':el=>openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
   'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
   'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que le falta al plan.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
