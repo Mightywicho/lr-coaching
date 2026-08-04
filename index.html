@@ -843,6 +843,10 @@ function ensureLibrary(st){
 
 let S=null;
 let _savePending=null;
+/* Estado del guardado del blob. _saveDirty = hay cambios que el servidor todavía no
+   confirmó; _saveInFlight = el upsert está en vuelo. Los usa el detector de versión
+   para no recargar la página encima de un guardado sin confirmar. */
+let _saveInFlight=false,_saveDirty=false;
 window._lrLogout=async function(){try{await supa.auth.signOut();}catch(e){}location.reload();};
 function showBootError(msg){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
@@ -1100,12 +1104,35 @@ function saveState(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
   if(!_supabaseUser)return;
   if(_currentUserId!=='coach')return; /* el atleta no escribe el blob del coach (RLS lo bloquea; evitamos el tráfico) */
+  _saveDirty=true;
   clearTimeout(_savePending);
   _savePending=setTimeout(async()=>{
-    try{await supa.from('app_state').upsert({user_id:_coachUid,state:stateForCloud(),updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(e){}
+    _savePending=null; /* el id viejo quedaba truthy y confundía a safeToReload() */
+    _saveInFlight=true;
+    /* OJO: supabase-js NO lanza excepción cuando el servidor rechaza el upsert; el
+       fallo llega en res.error. El try/catch vacío de antes no veía nada, así que un
+       guardado fallido se veía exactamente igual que uno bueno y el coach creía que
+       había guardado. Ahora se avisa y se puede reintentar. */
+    try{
+      const res=await supa.from('app_state').upsert({user_id:_coachUid,state:stateForCloud(),updated_at:new Date().toISOString()},{onConflict:'user_id'});
+      if(res&&res.error)saveFailed(res.error);else saveOk();
+    }catch(e){saveFailed(e);}
+    _saveInFlight=false;
     try{syncPlans();}catch(e){}
     try{syncProfiles();}catch(e){}
   },1500);
+}
+function saveOk(){
+  _saveDirty=false;
+  const b=document.getElementById('saveErrBanner');if(b)b.remove();
+}
+function saveFailed(e){
+  try{console.error('saveState() falló:',e);}catch(_){}
+  _saveDirty=true; /* sigue sucio: no recargar la página encima de esto */
+  const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
+  bottomBanner('saveErrBanner','warn',12,
+    '<b>No se pudo guardar en la nube.</b> Tus cambios están en este dispositivo, pero aún no en el servidor. No cierres esta pestaña.'+
+    '<button onclick="saveState()" style="'+bt+'">Reintentar</button>');
 }
 /* ---- WeightLog: tabla relacional (primer corte de descomposición del blob) ---- */
 async function buildAthleteUidMaps(){
@@ -2061,6 +2088,65 @@ function showRenderError(e){
   if(!b){b=document.createElement('div');b.id='renderErrBanner';b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#2a1416;border:1px solid #7a2b31;color:#ffd9dc;border-radius:12px;padding:12px 14px;font:13px/1.45 system-ui;box-shadow:0 8px 24px rgba(0,0,0,.45)';document.body.appendChild(b);}
   const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
   b.innerHTML='<b>No se pudo actualizar la pantalla.</b> Lo que ves puede estar desactualizado.<button onclick="location.reload()" style="'+bt+'">Recargar</button><button onclick="this.parentNode.remove()" style="'+bt+';background:none;color:#ffd9dc;text-decoration:underline;font-weight:400">Cerrar</button>'+pre;
+}
+/* Banner fijo abajo, no destructivo. Cada aviso lleva su propio id y su propia
+   altura para que dos avisos simultáneos no se tapen entre sí. */
+function bottomBanner(id,tone,bottom,html){
+  let b=document.getElementById(id);
+  if(!b){b=document.createElement('div');b.id=id;document.body.appendChild(b);}
+  const c=tone==='warn'?['#2a1416','#7a2b31','#ffd9dc']:['#151c0d','#456b24','#e8f6d6'];
+  b.style.cssText='position:fixed;left:12px;right:12px;bottom:'+bottom+'px;z-index:9998;background:'+c[0]+';border:1px solid '+c[1]+';color:'+c[2]+';border-radius:12px;padding:12px 14px;font:13px/1.45 system-ui;box-shadow:0 8px 24px rgba(0,0,0,.45)';
+  b.innerHTML=html;
+  return b;
+}
+
+/* ===== Detector de versión nueva =====
+   Una pestaña que quedó abierta sigue corriendo el código viejo tras un deploy y —lo
+   grave— guarda en memoria una copia vieja del blob: en cuanto toca algo, `saveState`
+   la sube COMPLETA encima de la buena y borra lo hecho en la otra ventana (bitácora
+   s42). Por eso conviene que la pestaña vieja se actualice sola.
+   Se usa HEAD, no GET: así no se bajan los ~300 KB del archivo cada vez (importa en el
+   celular del atleta). El etag lo genera Pages a partir del contenido, así que cambia
+   solo cuando el archivo cambia de verdad — a diferencia de `last-modified`, que puede
+   verse reciente sirviendo el artefacto viejo. */
+let _appVerTag=null,_verTimer=null,_verBannerUp=false;
+async function appVersionTag(){
+  const base=location.pathname.replace(/[^/]*$/,'');
+  try{
+    const r=await fetch(base+'index.html?nc='+Date.now(),{method:'HEAD',cache:'no-store'});
+    if(!r.ok)return null;
+    return r.headers.get('etag')||r.headers.get('last-modified')||r.headers.get('content-length')||null;
+  }catch(e){return null;} /* sin red: no molestamos */
+}
+/* Recargar solo cuando no cueste nada. Ante la duda, banner en vez de recarga. */
+function safeToReload(){
+  if(_saveInFlight||_saveDirty||_savePending)return false; /* guardado sin confirmar */
+  const mr=document.getElementById('modal-root');
+  if(mr&&mr.innerHTML)return false;                        /* modal abierto: se perdería lo escrito */
+  if(document.getElementById('renderErrBanner'))return false;
+  const ae=document.activeElement;
+  if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||''))return false; /* está escribiendo */
+  return true;
+}
+async function checkAppVersion(){
+  if(_verBannerUp)return; /* ya avisamos: la decisión es suya */
+  const tag=await appVersionTag();
+  if(!tag)return;
+  if(!_appVerTag){_appVerTag=tag;return;} /* primera lectura: solo se guarda la referencia */
+  if(tag===_appVerTag)return;
+  if(safeToReload()){location.reload();return;}
+  _verBannerUp=true;
+  const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
+  bottomBanner('newVerBanner','ok',76,
+    '<b>Hay una versión nueva de la app.</b> Termina lo que estás haciendo y recarga: esta pestaña todavía trabaja con datos viejos.'+
+    '<button onclick="location.reload()" style="'+bt+'">Recargar</button>');
+}
+function startVersionWatch(){
+  if(_verTimer)return;
+  checkAppVersion();
+  _verTimer=setInterval(checkAppVersion,5*60*1000);
+  /* al volver a la pestaña: es justo cuando lleva horas abierta y desactualizada */
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkAppVersion();});
 }
 function render(){
   try{renderUnsafe();}catch(e){showRenderError(e);}
@@ -6420,6 +6506,7 @@ async function initAfterAuthUnsafe(user){
   const{data:{session}}=await supa.auth.getSession();
   if(session){await initAfterAuth(session.user);}
   else{render();}
+  startVersionWatch(); /* también en la pantalla de login: una pestaña ahí también envejece */
 })();
 </script>
 </body>
