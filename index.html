@@ -2975,13 +2975,93 @@ function ffmFromBfInputs(){
   if(w>0&&bf>0&&bf<100)fe.value=(w*(1-bf/100)).toFixed(1);
   else if(!be.value)fe.value='';
 }
+/* ---------- DIETOCÁLCULO ----------
+   Antes, TODO lo de esta tarjeta vivía solo en el DOM: los parámetros de método
+   arrancaban en su valor por defecto en cada render y el resultado se pintaba con
+   innerHTML dentro de #dietResult. Cualquier render() —cambiar el modo del plan,
+   un evento de realtime, recargar la página— lo borraba entero, y había que
+   recapturarlo y recalcular. Ahora «Calcular» guarda lo capturado en
+   profile.dietCalc (que viaja a athlete_profiles vía syncProfiles) y esta función
+   rehace el cálculo en cada render, así que el bloque sobrevive.
+   Ojo al editar: el repintado TIENE que re-armar DIETRES. Sin eso, «Aplicar a los
+   objetivos de macros» responde «Calcula las calorías antes de aplicarlas» sobre
+   un resultado que está a la vista. */
+const DC_DEF={sex:'M',age:'',w:'',h:'',bf:'',eq:'tenhaaf',pal:'1.55',palman:'',goal:'0',adjtype:'pct',adjval:'0.5',prot:'2',protbase:'bw',fat:'25',fatmode:'pct'};
+const dcN=v=>{const n=parseFloat(String(v==null?'':v).replace(',','.'));return isNaN(n)?0:n;};
+/* valores a mostrar: lo guardado si existe, si no el perfil + el último peso registrado */
+function dcParams(aid){
+  const d=athData(aid),p=(d&&d.profile)||{},lw=lastWeight(aid);
+  const base=Object.assign({},DC_DEF,{sex:p.sex||'M',age:p.age||'',w:lw?lw.kg:'',h:p.heightCm||'',bf:p.bodyFat||''});
+  return p.dietCalc?Object.assign(base,p.dietCalc):base;
+}
+function dcRead(){
+  return{sex:val('dc_sex')||'M',age:val('dc_age'),w:val('dc_w'),h:val('dc_h'),bf:val('dc_bf'),
+    eq:val('dc_eq'),pal:val('dc_pal'),palman:val('dc_palman'),goal:val('dc_goal'),adjtype:val('dc_adjtype'),
+    adjval:val('dc_adjval'),prot:val('dc_prot'),protbase:val('dc_protbase'),fat:val('dc_fat'),fatmode:val('dc_fatmode')};
+}
+/* cálculo puro: los mismos números de siempre, pero sin leer el DOM, para poder
+   rehacerlo en cada render. Devuelve {err} en vez de un toast. */
+function dietCompute(dc){
+  const W=dcN(dc.w),H=dcN(dc.h),A=dcN(dc.age),bf=dcN(dc.bf),sex=dc.sex||'M';
+  if(!W||!H)return{err:'Falta el peso o la altura'};
+  const FFM=(bf>0&&bf<100)?+(W*(1-bf/100)).toFixed(1):0;
+  const eqs=rmrEquations(W,H,A,sex,FFM),chosen=eqs[dc.eq];
+  if(!chosen)return{err:'Esa fórmula necesita la masa libre de grasa (introduce % grasa o MLG)'};
+  const rmr=chosen.val;
+  const palMan=dcN(dc.palman),pal=palMan>0?palMan:(dcN(dc.pal)||1.55);
+  const tdee=Math.round(rmr*pal);
+  const methodTxt='Factor ×'+pal+(palMan>0?' (manual)':'');
+  const dir=parseInt(dc.goal,10)||0,adjtype=dc.adjtype||'pct',adjval=dcN(dc.adjval);
+  let delta=0,goalTxt='Mantenimiento';
+  if(dir!==0){
+    if(adjtype==='pct'){const kgWk=W*(adjval/100);delta=Math.round(dir*kgWk*KCAL_PER_KG/7);goalTxt=(dir<0?'Déficit':'Superávit')+' · '+adjval+'%/sem ('+(dir<0?'−':'+')+Math.abs(Math.round(kgWk*1000))+' g/sem)';}
+    else{delta=Math.round(dir*adjval);goalTxt=(dir<0?'Déficit':'Superávit')+' · '+adjval+' kcal/día';}
+  }
+  const target=Math.max(1000,tdee+delta);
+  const protGkg=dcN(dc.prot)||2,fatVal=dcN(dc.fat)||25,protbase=dc.protbase||'bw',fatmode=dc.fatmode||'pct';
+  const protRef=(protbase==='ffm'&&FFM>0)?FFM:W;
+  const protein=Math.round(protGkg*protRef);
+  const fat=fatmode==='gkg'?Math.round(fatVal*W):Math.round(target*(fatVal/100)/9);
+  let carbs=Math.round((target-(protein*4+fat*9))/4),warn='';
+  if(carbs<0){carbs=0;warn='<p class="tiny" style="color:var(--red)">⚠ Proteína + grasa superan las kcal objetivo. Baja la grasa o la proteína.</p>';}
+  if(protbase==='ffm'&&FFM<=0)warn+='<p class="tiny" style="color:var(--orange)">Pediste proteína por MLG pero no hay MLG; se usó el peso corporal.</p>';
+  let ratePct=0;
+  if(dir!==0)ratePct=(adjtype==='pct')?dir*adjval:+((dir*adjval*7/KCAL_PER_KG)/W*100).toFixed(2);
+  return{W,bf,FFM,eqs,eqKey:dc.eq,chosen,rmr,tdee,methodTxt,delta,goalTxt,target,
+    protein,carbs,fat,realKcal:protein*4+carbs*4+fat*9,protGkg,fatVal,protbase,fatmode,warn,
+    ratePct:+(+ratePct).toFixed(2)};
+}
+function dietResultHTML(aid,r){
+  let cmp='';Object.keys(r.eqs).forEach(k=>{const e=r.eqs[k];cmp+='<tr'+(k===r.eqKey?' style="background:var(--volt-08)"':'')+'><td>'+esc(e.name)+(k===r.eqKey?' ✓':'')+'</td><td class="num"><b>'+e.val+'</b> kcal</td></tr>';});
+  return '<hr class="hr"><div class="grid g4 mb16">'+
+    '<div class="stat"><div class="k">TMB / RMR</div><div class="v">'+r.rmr+'<small> kcal</small></div><div class="sub">'+esc(r.chosen.name)+'</div></div>'+
+    '<div class="stat"><div class="k">Gasto total (TDEE)</div><div class="v">'+r.tdee+'<small> kcal</small></div><div class="sub">'+esc(r.methodTxt)+'</div></div>'+
+    '<div class="stat"><div class="k">Objetivo calórico</div><div class="v '+(r.delta<0?'down':r.delta>0?'up':'')+'">'+r.target+'<small> kcal</small></div><div class="sub">'+esc(r.goalTxt)+'</div></div>'+
+    '<div class="stat"><div class="k">MLG usada</div><div class="v">'+(r.FFM>0?r.FFM+'<small> kg</small>':'—')+'</div><div class="sub">'+(r.bf>0?r.bf+'% grasa':'sin dato')+'</div></div></div>'+
+    '<div class="grid g2"><div class="card"><h3>Macros propuestos <span class="hint">'+r.realKcal+' kcal reales</span></h3>'+
+    macroBars({kcal:r.target,protein:r.protein,carbs:r.carbs,fat:r.fat},true)+
+    '<p class="tiny mt8">Proteína '+r.protein+' g ('+r.protGkg+' g/kg '+(r.protbase==='ffm'&&r.FFM>0?'MLG':'peso')+') · Grasa '+r.fat+' g ('+(r.fatmode==='gkg'?r.fatVal+' g/kg':r.fatVal+'%')+') · Carbohidratos '+r.carbs+' g (resto).</p>'+r.warn+
+    '<button class="btn btn-p" data-act="diet-apply" data-aid="'+aid+'" style="width:100%;margin-top:8px">Aplicar a los objetivos de macros</button></div>'+
+    '<div class="card"><h3>Comparativa de fórmulas <span class="hint">misma TMB, distinta ecuación</span></h3><div class="tblwrap"><table class="tbl" style="min-width:auto"><thead><tr><th>Ecuación</th><th class="num">TMB</th></tr></thead><tbody>'+cmp+'</tbody></table></div>'+
+    '<p class="tiny mt8">Ten-Haaf, Cunningham, Harris-Benedict (1918) y De Lorenzo son las más precisas en atletas (O’Neill et al., Sports Med 2023). Las que usan MLG requieren composición corporal fiable.</p></div></div>';
+}
 /* tarjeta de dietocálculo (coach) */
 function buildDietCalc(aid){
-  const d=athData(aid),p=d.profile,lw=lastWeight(aid);
-  const W=lw?lw.kg:'',H=p.heightCm||'',A=p.age||'',sex=p.sex||'M',bf=p.bodyFat||'';
-  const ffm0=(bf>0&&W>0)?(W*(1-bf/100)).toFixed(1):'';
-  const fopts='<option value="tenhaaf">Ten-Haaf (2014) · peso·talla·edad — recomendada</option><option value="mifflin">Mifflin-St Jeor (1990)</option><option value="harris">Harris-Benedict (1918)</option><option value="delorenzo">De Lorenzo (1999)</option><option value="cunningham">Cunningham (1980) · requiere MLG</option><option value="katch">Katch-McArdle · requiere MLG</option><option value="tenhaaf_ffm">Ten-Haaf (2014) · MLG</option>';
-  let palopts='';PAL_LEVELS.forEach((l,i)=>{palopts+='<option value="'+l[0]+'"'+(i===2?' selected':'')+'>×'+l[0]+' — '+l[1]+'</option>';});
+  const dc=dcParams(aid),saved=(athData(aid).profile||{}).dietCalc;
+  const W=dc.w,H=dc.h,A=dc.age,sex=dc.sex,bf=dc.bf;
+  const ffm0=(dcN(bf)>0&&dcN(W)>0)?(dcN(W)*(1-dcN(bf)/100)).toFixed(1):'';
+  const sel=(a,b)=>String(a)===String(b)?' selected':'';
+  const EQS=[['tenhaaf','Ten-Haaf (2014) · peso·talla·edad — recomendada'],['mifflin','Mifflin-St Jeor (1990)'],['harris','Harris-Benedict (1918)'],['delorenzo','De Lorenzo (1999)'],['cunningham','Cunningham (1980) · requiere MLG'],['katch','Katch-McArdle · requiere MLG'],['tenhaaf_ffm','Ten-Haaf (2014) · MLG']];
+  let fopts='';EQS.forEach(o=>{fopts+='<option value="'+o[0]+'"'+sel(o[0],dc.eq)+'>'+o[1]+'</option>';});
+  let palopts='';PAL_LEVELS.forEach(l=>{palopts+='<option value="'+l[0]+'"'+sel(l[0],dc.pal)+'>×'+l[0]+' — '+l[1]+'</option>';});
+  /* si el atleta se pesó después del último cálculo, avisarlo en vez de recalcular solo:
+     cambiar sus objetivos sin que el coach lo pida sería peor que dejarlo desactualizado */
+  const lw=lastWeight(aid);
+  const stale=(saved&&lw&&dcN(saved.w)&&Math.abs(dcN(saved.w)-lw.kg)>0.05)
+    ?'<p class="tiny" style="color:var(--orange);margin:6px 0 0">El atleta pesa ahora <b>'+lw.kg+' kg</b> y este cálculo se hizo con '+dcN(saved.w)+' kg. Actualiza el peso y vuelve a calcular.</p>':'';
+  /* el resultado se rehace en cada render a partir de lo guardado */
+  let res='';
+  if(saved){const r=dietCompute(dc);if(!r.err){DIETRES={aid,kcal:r.target,protein:r.protein,carbs:r.carbs,fat:r.fat,ratePct:r.ratePct};res=dietResultHTML(aid,r);}}
   return '<div class="card mb16"><h3>'+I.chart+' Dietocálculo <span class="hint">TMB → gasto total → objetivo → macros · fórmulas validadas en atletas</span></h3>'+
   '<div class="frow4"><div><label>Sexo</label><select id="dc_sex"><option value="M"'+(sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(sex==='F'?' selected':'')+'>Mujer</option></select></div>'+
   '<div><label>Edad</label><input id="dc_age" type="number" value="'+A+'" placeholder="años"></div>'+
@@ -2989,23 +3069,24 @@ function buildDietCalc(aid){
   '<div><label>Altura (cm)</label><input id="dc_h" type="number" value="'+H+'"></div></div>'+
   '<div class="frow2"><div><label>% grasa corporal (opcional)</label><input id="dc_bf" type="number" step="0.1" value="'+bf+'" placeholder="ej. 12" oninput="ffmFromBfInputs()"></div>'+
   '<div><label>Fórmula de TMB</label><select id="dc_eq">'+fopts+'</select></div></div>'+
-  '<input type="hidden" id="dc_ffm" value="'+ffm0+'">'+
+  '<input type="hidden" id="dc_ffm" value="'+ffm0+'">'+stale+
   '<hr class="hr"><label style="font-weight:600">Gasto energético total</label>'+
   '<div class="frow2" style="margin-top:8px"><div><label>Factor de actividad (PAL)</label><select id="dc_pal">'+palopts+'</select></div>'+
-  '<div><label>O factor manual (opcional)</label><input id="dc_palman" type="number" step="0.01" placeholder="ej. 1.65"></div></div>'+
+  '<div><label>O factor manual (opcional)</label><input id="dc_palman" type="number" step="0.01" value="'+esc(dc.palman||'')+'" placeholder="ej. 1.65"></div></div>'+
   '<p class="tiny" style="margin:4px 0 4px">Si rellenas el factor manual se usa ese valor en lugar del desplegable. TDEE = TMB × factor.</p>'+
   '<hr class="hr"><label style="font-weight:600">Objetivo</label>'+
-  '<div class="frow3" style="margin-top:8px"><div><label>Dirección</label><select id="dc_goal"><option value="0">Mantenimiento</option><option value="-1">Déficit (perder grasa)</option><option value="1">Superávit (ganar masa)</option></select></div>'+
-  '<div><label>Tipo de ajuste</label><select id="dc_adjtype"><option value="pct">% del peso por semana</option><option value="kcal">kcal fijas/día</option></select></div>'+
-  '<div><label>Magnitud</label><input id="dc_adjval" type="number" step="0.05" value="0.5" placeholder="0.5 (% ) o kcal"></div></div>'+
+  '<div class="frow3" style="margin-top:8px"><div><label>Dirección</label><select id="dc_goal"><option value="0"'+sel('0',dc.goal)+'>Mantenimiento</option><option value="-1"'+sel('-1',dc.goal)+'>Déficit (perder grasa)</option><option value="1"'+sel('1',dc.goal)+'>Superávit (ganar masa)</option></select></div>'+
+  '<div><label>Tipo de ajuste</label><select id="dc_adjtype"><option value="pct"'+sel('pct',dc.adjtype)+'>% del peso por semana</option><option value="kcal"'+sel('kcal',dc.adjtype)+'>kcal fijas/día</option></select></div>'+
+  '<div><label>Magnitud</label><input id="dc_adjval" type="number" step="0.05" value="'+esc(dc.adjval)+'" placeholder="0.5 (% ) o kcal"></div></div>'+
   '<hr class="hr"><label style="font-weight:600">Macronutrientes</label>'+
-  '<div class="frow4" style="margin-top:8px"><div><label>Proteína</label><input id="dc_prot" type="number" step="0.1" value="2"></div>'+
-  '<div><label>Base proteína</label><select id="dc_protbase"><option value="bw">g/kg de peso</option><option value="ffm">g/kg de MLG</option></select></div>'+
-  '<div><label>Grasa</label><input id="dc_fat" type="number" step="0.1" value="25"></div>'+
-  '<div><label>Modo grasa</label><select id="dc_fatmode"><option value="pct">% de las kcal</option><option value="gkg">g/kg de peso</option></select></div></div>'+
+  '<div class="frow4" style="margin-top:8px"><div><label>Proteína</label><input id="dc_prot" type="number" step="0.1" value="'+esc(dc.prot)+'"></div>'+
+  '<div><label>Base proteína</label><select id="dc_protbase"><option value="bw"'+sel('bw',dc.protbase)+'>g/kg de peso</option><option value="ffm"'+sel('ffm',dc.protbase)+'>g/kg de MLG</option></select></div>'+
+  '<div><label>Grasa</label><input id="dc_fat" type="number" step="0.1" value="'+esc(dc.fat)+'"></div>'+
+  '<div><label>Modo grasa</label><select id="dc_fatmode"><option value="pct"'+sel('pct',dc.fatmode)+'>% de las kcal</option><option value="gkg"'+sel('gkg',dc.fatmode)+'>g/kg de peso</option></select></div></div>'+
   '<p class="tiny">Carbohidratos = kcal restantes. Referencias (atletas físico): proteína 1.6–2.7 g/kg, grasa 20–35% (mínimo ~0.5–1 g/kg). Ritmo recomendado: 0.5–1% del peso/semana en déficit; 0.25–0.5% en superávit.</p>'+
-  '<div style="text-align:right;margin-top:8px"><button class="btn btn-p" data-act="diet-calc" data-aid="'+aid+'">Calcular</button></div>'+
-  '<div id="dietResult"></div></div>';
+  '<div style="text-align:right;margin-top:8px"><button class="btn btn-p" data-act="diet-calc" data-aid="'+aid+'">Calcular</button>'+
+  (saved?' <button class="btn btn-g" data-act="diet-clear" data-aid="'+aid+'" title="Borra el resultado guardado y deja los campos en sus valores por defecto">Limpiar</button>':'')+'</div>'+
+  '<div id="dietResult">'+res+'</div></div>';
 }
 
 /* ---------- GUÍA DE MACROS Y TIMING (coach) ----------
@@ -3498,59 +3579,23 @@ Object.assign(ACTIONS,{
     if(j<0||j>=day.exercises.length)return;
     const tmp=day.exercises[i];day.exercises[i]=day.exercises[j];day.exercises[j]=tmp;saveState();render();
   },
+  /* Guarda lo capturado y pinta. El guardado es lo que hace que el bloque sobreviva
+     a un render(): sin él, cambiar el modo del plan lo borraba entero. NO llama a
+     render() a propósito — repintaría la tarjeta y perdería el scroll. */
   'diet-calc':el=>{
-    const aid=el.dataset.aid;
-    const sex=val('dc_sex')||'M',A=num('dc_age'),W=num('dc_w'),H=num('dc_h'),bf=num('dc_bf');
-    let FFM=num('dc_ffm');
-    if(!FFM&&bf>0&&W>0)FFM=+(W*(1-bf/100)).toFixed(1);
-    if(!W||!H){toast('Falta el peso o la altura');return;}
-    const eqs=rmrEquations(W,H,A,sex,FFM);
-    const eqKey=val('dc_eq');
-    const chosen=eqs[eqKey];
-    if(!chosen){toast('Esa fórmula necesita la masa libre de grasa (introduce % grasa o MLG)');return;}
-    const rmr=chosen.val;
-    /* gasto total */
-    const palMan=num('dc_palman');
-    const pal=palMan>0?palMan:(parseFloat(val('dc_pal'))||1.55);
-    const tdee=Math.round(rmr*pal);
-    const methodTxt='Factor ×'+pal+(palMan>0?' (manual)':'');
-    /* objetivo */
-    const dir=parseInt(val('dc_goal'),10)||0,adjtype=val('dc_adjtype'),adjval=num('dc_adjval');
-    let delta=0,goalTxt='Mantenimiento';
-    if(dir!==0){
-      if(adjtype==='pct'){const kgWk=W*(adjval/100);delta=Math.round(dir*kgWk*KCAL_PER_KG/7);goalTxt=(dir<0?'Déficit':'Superávit')+' · '+adjval+'%/sem ('+(dir<0?'−':'+')+Math.abs(Math.round(kgWk*1000))+' g/sem)';}
-      else{delta=Math.round(dir*adjval);goalTxt=(dir<0?'Déficit':'Superávit')+' · '+adjval+' kcal/día';}
-    }
-    const target=Math.max(1000,tdee+delta);
-    /* macros */
-    const protGkg=num('dc_prot')||2,protBase=val('dc_protbase'),fatVal=num('dc_fat')||25,fatMode=val('dc_fatmode');
-    const protRef=(protBase==='ffm'&&FFM>0)?FFM:W;
-    let protein=Math.round(protGkg*protRef);
-    let fat=fatMode==='gkg'?Math.round(fatVal*W):Math.round(target*(fatVal/100)/9);
-    let carbsKcal=target-(protein*4+fat*9);
-    let carbs=Math.round(carbsKcal/4);
-    let warn='';
-    if(carbs<0){carbs=0;warn='<p class="tiny" style="color:var(--red)">⚠ Proteína + grasa superan las kcal objetivo. Baja la grasa o la proteína.</p>';}
-    if(protBase==='ffm'&&FFM<=0)warn+='<p class="tiny" style="color:var(--orange)">Pediste proteína por MLG pero no hay MLG; se usó el peso corporal.</p>';
-    const realKcal=protein*4+carbs*4+fat*9;
-    /* comparación de fórmulas */
-    let cmp='';Object.keys(eqs).forEach(k=>{const e=eqs[k];cmp+='<tr'+(k===eqKey?' style="background:var(--volt-08)"':'')+'><td>'+esc(e.name)+(k===eqKey?' ✓':'')+'</td><td class="num"><b>'+e.val+'</b> kcal</td></tr>';});
-    let ratePct=0;
-    if(dir!==0){if(adjtype==='pct')ratePct=dir*adjval;else ratePct=+((dir*adjval*7/KCAL_PER_KG)/W*100).toFixed(2);}
-    DIETRES={aid,kcal:target,protein,carbs,fat,ratePct:+(+ratePct).toFixed(2)};
-    const html='<hr class="hr"><div class="grid g4 mb16">'+
-      '<div class="stat"><div class="k">TMB / RMR</div><div class="v">'+rmr+'<small> kcal</small></div><div class="sub">'+esc(chosen.name)+'</div></div>'+
-      '<div class="stat"><div class="k">Gasto total (TDEE)</div><div class="v">'+tdee+'<small> kcal</small></div><div class="sub">'+esc(methodTxt)+'</div></div>'+
-      '<div class="stat"><div class="k">Objetivo calórico</div><div class="v '+(delta<0?'down':delta>0?'up':'')+'">'+target+'<small> kcal</small></div><div class="sub">'+esc(goalTxt)+'</div></div>'+
-      '<div class="stat"><div class="k">MLG usada</div><div class="v">'+(FFM>0?FFM+'<small> kg</small>':'—')+'</div><div class="sub">'+(bf>0?bf+'% grasa':'sin dato')+'</div></div></div>'+
-      '<div class="grid g2"><div class="card"><h3>Macros propuestos <span class="hint">'+realKcal+' kcal reales</span></h3>'+
-      macroBars({kcal:target,protein,carbs,fat},true)+
-      '<p class="tiny mt8">Proteína '+protein+' g ('+(protGkg)+' g/kg '+(protBase==='ffm'&&FFM>0?'MLG':'peso')+') · Grasa '+fat+' g ('+(fatMode==='gkg'?fatVal+' g/kg':fatVal+'%')+') · Carbohidratos '+carbs+' g (resto).</p>'+warn+
-      '<button class="btn btn-p" data-act="diet-apply" data-aid="'+aid+'" style="width:100%;margin-top:8px">Aplicar a los objetivos de macros</button></div>'+
-      '<div class="card"><h3>Comparativa de fórmulas <span class="hint">misma TMB, distinta ecuación</span></h3><div class="tblwrap"><table class="tbl" style="min-width:auto"><thead><tr><th>Ecuación</th><th class="num">TMB</th></tr></thead><tbody>'+cmp+'</tbody></table></div>'+
-      '<p class="tiny mt8">Ten-Haaf, Cunningham, Harris-Benedict (1918) y De Lorenzo son las más precisas en atletas (O’Neill et al., Sports Med 2023). Las que usan MLG requieren composición corporal fiable.</p></div></div>';
+    const aid=el.dataset.aid,dc=dcRead(),r=dietCompute(dc);
+    if(r.err){toast(r.err);return;}
+    athData(aid).profile.dietCalc=dc;
+    saveState();
+    DIETRES={aid,kcal:r.target,protein:r.protein,carbs:r.carbs,fat:r.fat,ratePct:r.ratePct};
     const box=document.getElementById('dietResult');
-    if(box){box.innerHTML=html;box.scrollIntoView({behavior:'smooth',block:'nearest'});}
+    if(box){box.innerHTML=dietResultHTML(aid,r);box.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  },
+  'diet-clear':el=>{
+    const aid=el.dataset.aid;
+    delete athData(aid).profile.dietCalc;
+    if(DIETRES&&DIETRES.aid===aid)DIETRES=null;
+    saveState();toast('Dietocálculo limpiado');render();
   },
   'diet-apply':el=>{
     if(!DIETRES||DIETRES.aid!==el.dataset.aid){toast('Calcula las calorías antes de aplicarlas');return;}
