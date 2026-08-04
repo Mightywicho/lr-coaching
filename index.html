@@ -1450,9 +1450,17 @@ function blobHasLegacyLogs(){
      foods:     fid⇄id · protein⇄p · carbs⇄c · fat⇄f · unit_label⇄unitLabel                        */
 let _libHydrated=false,_libFetchOk=false,_foodsHydrated=false,_foodsFetchOk=false;
 function rowToLib(r){return{id:r.eid,name:r.name||'',group:r.group||GROUPS[0],cat:r.cat||'',focus:r.focus||'',secondary:Array.isArray(r.secondary)?r.secondary:[],equipment:r.equipment||'Otro',cues:r.cues||'',video:r.video||null};}
-function libToRow(l){return{coach_uid:_coachUid,eid:l.id,name:l.name||'',group:l.group||GROUPS[0],cat:l.cat||'',focus:l.focus||'',secondary:Array.isArray(l.secondary)?l.secondary:[],equipment:l.equipment||'Otro',cues:l.cues||'',video:l.video||null};}
+/* ⚠ La tabla tiene CHECK (cat IN 'I','II','III','IV'). La cadena vacía NO pasa el check; null sí.
+   Mandar `l.cat||''` hacía FALLAR el guardado de cualquiera de los 54 ejercicios sin patrón —y el
+   importador de CSV completo, que crea todo con cat:''— con el error
+   «violates check constraint "exercises_cat_check"». Encontrado en la s49 probando la red de
+   seguridad. El cliente sigue viendo '' gracias a rowToLib; la conversión vive solo aquí. */
+const EX_CATS=['I','II','III','IV'];
+function libToRow(l){return{coach_uid:_coachUid,eid:l.id,name:l.name||'',group:l.group||GROUPS[0],cat:EX_CATS.indexOf(l.cat)>=0?l.cat:null,focus:l.focus||'',secondary:Array.isArray(l.secondary)?l.secondary:[],equipment:l.equipment||'Otro',cues:l.cues||'',video:l.video||null};}
 function rowToFood(r){return{id:r.fid,name:r.name||'',cat:r.cat||'Otros',p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:r.unit||'g',unitLabel:r.unit_label||''};}
-function foodToRow(f){return{coach_uid:_coachUid,fid:f.id,name:f.name||'',cat:f.cat||'Otros',protein:+f.p||0,carbs:+f.c||0,fat:+f.f||0,unit:f.unit||'g',unit_label:f.unitLabel||''};}
+/* mismo caso que `cat` en exercises: `foods` tiene CHECK sobre las 8 categorías. Cualquier valor
+   fuera de la lista (o vacío) tumbaría el guardado; se manda 'Otros', que sí pasa. */
+function foodToRow(f){return{coach_uid:_coachUid,fid:f.id,name:f.name||'',cat:FOOD_CATS.indexOf(f.cat)>=0?f.cat:'Otros',protein:+f.p||0,carbs:+f.c||0,fat:+f.f||0,unit:f.unit||'g',unit_label:f.unitLabel||''};}
 /* Distinguir "tabla vacía" de "falló la lectura" (gotcha C1/C3): con error NO se toca S.library,
    porque el blob viejo todavía la trae y pisarla con [] borraría la biblioteca en pantalla. */
 async function hydrateLibrary(){
