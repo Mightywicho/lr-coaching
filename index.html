@@ -4879,7 +4879,7 @@ function applyTplRoutine(aid,t){
   r.name=t.name;r.weekNote=t.weekNote||'';r.days=days;r.startDate=todayISO();
   if(!r.changelog)r.changelog=[];if(!r.snapshots)r.snapshots=[];
   r.baseline={date:todayISO(),byGroup:volMap(aid)};
-  logChange(aid,'alta','Plantilla aplicada: '+t.name+' ('+days.length+' días, '+ex+' ejercicios)','Programa','');
+  logChange(aid,'alta','Plantilla aplicada: '+t.name+' ('+days.length+' días, '+ex+' ejercicios)','Programa','','Plantilla: '+t.name);
 }
 function applyTplNutri(aid,t){
   const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile;
@@ -5978,9 +5978,57 @@ function snapshotWeek(aid){
   else r.snapshots.push({week:w,date:todayISO(),byGroup:m});
   r.snapshots.sort((a,b)=>a.week-b.week);
 }
-function logChange(aid,type,detail,dayName,exName){
+/* ===== ARMADO INICIAL vs AJUSTE REAL =====
+   El changelog sirve para ver qué se movió DENTRO de un bloque en marcha. Armar el programa
+   (23 altas seguidas) no es ajustar: inundaba la tarjeta y tapaba los cambios que sí importan.
+   Corte: mientras el atleta no haya registrado ningún entreno en o después de startDate, todo
+   lo que toque el coach se colapsa en UNA sola línea «Programa inicial». En cuanto entrena,
+   cada cambio se registra normal. No depende de que el coach pulse nada. */
+function blockStarted(aid){
+  const d=athData(aid),s=d.routine.startDate||todayISO();
+  return ((d.logs&&d.logs.workouts)||[]).some(w=>w&&w.date>=s);
+}
+function programStats(aid){
+  const r=athData(aid).routine;let ex=0;
+  (r.days||[]).forEach(dd=>{ex+=((dd.exercises||[]).length);});
+  return {days:(r.days||[]).length,ex};
+}
+/* Única entrada del armado. Se recalcula en cada toque; `origin` (plantilla, split) se conserva. */
+function setupEntry(aid,origin){
+  const r=athData(aid).routine;
+  let e=r.changelog.find(x=>x.type==='inicio');
+  if(!e){e={id:uid(),type:'inicio',day:'Programa',ex:''};r.changelog.push(e);}
+  if(origin)e.origin=origin;
+  const st=programStats(aid);
+  e.date=todayISO();e.week=weekOf(aid);
+  e.detail=st.days+' día'+(st.days===1?'':'s')+' · '+st.ex+' ejercicio'+(st.ex===1?'':'s')+(e.origin?' · '+e.origin:'');
+  return e;
+}
+/* Separa armado y ajustes reales para MOSTRAR. Es un filtro de lectura a propósito:
+   no reescribe el changelog ya guardado (los bloques viejos traen las 23 altas del armado
+   dentro) y no depende de cuándo se hidrata `athlete_plans`, que llega después del blob.
+   Cuenta como armado la entrada 'inicio' que escribe logChange y TODO lo registrado en el
+   día de arranque: un ajuste de series hecho mientras armabas es armado, y dejarlo suelto
+   sin su alta se leería como un cambio real del bloque. */
+function chgSplit(aid){
+  const r=athData(aid).routine,s0=r.startDate||'';
+  const setup=[],real=[];
+  (r.changelog||[]).forEach(c=>{((c.type==='inicio'||(c.date&&s0&&c.date<=s0))?setup:real).push(c);});
+  return {setup,real};
+}
+/* Una sola línea que resume el armado, venga de la entrada nueva o de un bloque viejo. */
+function setupLine(aid,setup){
+  const e=setup.find(c=>c.type==='inicio');if(e)return e;
+  const nD=(athData(aid).routine.days||[]).length;
+  const org=(setup.find(c=>c.day==='Programa'&&/Plantilla|Split/i.test(c.detail||''))||{}).detail||'';
+  const nEx=setup.filter(c=>c.type==='alta'&&c.ex).length;
+  return {type:'inicio',day:'Programa',ex:'',date:setup[0].date,
+    detail:nD+' día'+(nD===1?'':'s')+' · '+nEx+' ejercicio'+(nEx===1?'':'s')+(org?' · '+org:'')};
+}
+function logChange(aid,type,detail,dayName,exName,origin){
   const r=athData(aid).routine;
   if(!r.changelog)ensureProgression(S);
+  if(!blockStarted(aid)){setupEntry(aid,origin);snapshotWeek(aid);return;}
   r.changelog.push({id:uid(),date:todayISO(),week:weekOf(aid),type,detail:detail||'',day:dayName||'',ex:exName||''});
   snapshotWeek(aid);
 }
@@ -5999,7 +6047,7 @@ function volAtWeek(r,w){
   (r.snapshots||[]).forEach(s=>{if(s.week<=w&&(!best||s.week>best.week))best=s;});
   return best?best.byGroup:((r.baseline||{}).byGroup||{});
 }
-const CHG_BADGE={alta:['green','Alta'],baja:['red','Baja'],ajuste:['blue','Ajuste']};
+const CHG_BADGE={alta:['green','Alta'],baja:['red','Baja'],ajuste:['blue','Ajuste'],inicio:['volt','Programa inicial']};
 
 /* ===== TASA DE CAMBIO DE PESO (regresión lineal sobre la ventana) =====
    El ritmo objetivo se expresa como % del peso corporal por semana, por fase.
@@ -6265,7 +6313,7 @@ function autoSplit(aid,nDays,style,emphasis,opts){
   r.emphasis=emph.slice();r.emphRandom=emphRandom;
   r.autoSplitCfg={nDays,style,emphasis:emphRandom?[]:emph.slice()};
   const emphNote=emph.length?(' · énfasis'+(emphRandom?' (auto)':'')+': '+emph.join(', ')):'';
-  logChange(aid,'alta','Split automático generado ('+nDays+' días, '+exCount+' ejercicios)'+emphNote,'Programa','');
+  logChange(aid,'alta','Split automático generado ('+nDays+' días, '+exCount+' ejercicios)'+emphNote,'Programa','','Split automático');
   return {days:days.length,exercises:exCount,template:tpl.map(t=>t.name).join(' · '),emphasis:emph,emphRandom};
 }
 /* Rellena p.volTargets (objetivo semanal por grupo) según prioridad×experiencia×fase. Usa la matriz genérica (no landmarks por músculo) y toma el rango inferior como objetivo conservador. */
@@ -6477,12 +6525,13 @@ function applyAiNutriAdjust(aid){
 function coachTabSemanas(aid){
   const d=athData(aid),r=d.routine,p=d.profile;
   const week=weekOf(aid),cur=volMap(aid),base=(r.baseline||{}).byGroup||{};
+  const CS=chgSplit(aid),started=blockStarted(aid);
   /* --- bloque actual --- */
   const head='<div class="card mb16"><h3>Bloque actual <span class="hint">'+esc(r.name)+'</span></h3>'+
     '<div class="grid g4 mb16">'+
     '<div class="stat"><div class="k">Semana del bloque</div><div class="v">'+week+'</div><div class="sub">desde '+fmtDate(r.startDate)+'</div></div>'+
     '<div class="stat"><div class="k">Fase · Bloque</div><div class="v" style="font-size:17px">'+esc(phaseName(p.phase))+'<small> · B'+p.block+'</small></div><div class="sub">RIR objetivo '+rirFor(p.phase,p.experience)+'</div></div>'+
-    '<div class="stat"><div class="k">Ajustes en el bloque</div><div class="v">'+(r.changelog||[]).length+'</div><div class="sub">registrados automáticamente</div></div>'+
+    '<div class="stat"><div class="k">Ajustes en el bloque</div><div class="v">'+CS.real.length+'</div><div class="sub">'+(started?'registrados automáticamente':'aún sin entrenar: se arma el programa')+'</div></div>'+
     '<div class="stat"><div class="k">Bloques archivados</div><div class="v">'+(r.history||[]).length+'</div><div class="sub">historial completo abajo</div></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label>Fecha de inicio del bloque</label><input type="date" id="bk_start" value="'+esc(r.startDate)+'"></div>'+
     '<button class="btn btn-g" data-act="startdate-save" data-aid="'+aid+'">Guardar fecha</button>'+
@@ -6505,9 +6554,12 @@ function coachTabSemanas(aid){
   const volCard='<div class="card mb16"><h3>Volumen por grupo: inicial → actual <span class="hint">series directas/semana · celdas verdes = hubo cambio esa semana</span></h3>'+
     '<div class="tblwrap"><table class="tbl" style="min-width:520px"><thead>'+vh+'</thead><tbody>'+(vrows||'<tr><td class="tiny" colspan="9">Vincula ejercicios de la biblioteca para medir el volumen.</td></tr>')+'</tbody></table></div>'+
     '<p class="tiny mt8">«Inicial» es el volumen al arrancar el bloque; cada columna muestra el volumen vigente esa semana; «Δ» compara actual vs inicial. Al cerrar el bloque, el actual queda archivado como «final».</p></div>';
-  /* --- historial de ajustes por semana --- */
+  /* --- historial de ajustes por semana (el armado del programa va aparte, en UNA línea) --- */
+  let setupHtml='';
+  if(CS.setup.length){const si=setupLine(aid,CS.setup);
+    setupHtml='<div class="logitem"><div class="lh"><span class="badge volt">Programa inicial</span><b>'+esc(si.detail)+'</b><span class="tiny">armado, no cuenta como ajuste</span><span class="dt">'+fmtDateFull(si.date)+'</span></div></div>';}
   let chg='';
-  const byWeek={};(r.changelog||[]).forEach(c=>{(byWeek[c.week]=byWeek[c.week]||[]).push(c);});
+  const byWeek={};CS.real.forEach(c=>{(byWeek[c.week]=byWeek[c.week]||[]).push(c);});
   Object.keys(byWeek).map(Number).sort((a,b)=>b-a).forEach(w2=>{
     chg+='<div class="sect-h" style="margin:14px 0 8px"><h2 style="font-size:14px">Semana '+w2+'</h2><span class="tiny">'+byWeek[w2].length+' cambio'+(byWeek[w2].length>1?'s':'')+'</span></div>';
     byWeek[w2].slice().reverse().forEach(c=>{
@@ -6515,7 +6567,8 @@ function coachTabSemanas(aid){
       chg+='<div class="logitem"><div class="lh"><span class="badge '+bd[0]+'">'+bd[1]+'</span><b>'+esc(c.ex||c.day)+'</b>'+(c.ex&&c.day?'<span class="tiny">'+esc(c.day)+'</span>':'')+'<span class="muted" style="font-size:12.5px">'+esc(c.detail)+'</span><span class="dt">'+fmtDateFull(c.date)+'</span></div></div>';
     });
   });
-  const chgCard='<div class="card mb16"><h3>Ajustes del bloque <span class="hint">qué, en qué ejercicio y en qué semana</span></h3>'+(chg||'<div class="empty"><b>Aún sin ajustes</b>Cada cambio de series, reps, RIR, altas y bajas de ejercicios se registrará aquí solo.</div>')+'</div>';
+  const chgCard='<div class="card mb16"><h3>Ajustes del bloque <span class="hint">'+(started?'qué, en qué ejercicio y en qué semana':'armando el programa — los cambios se registran desde su primer entreno')+'</span></h3>'+setupHtml+
+    (chg||'<div class="empty"><b>Aún sin ajustes</b>'+(started?'Cada cambio de series, reps, RIR, altas y bajas de ejercicios se registrará aquí solo.':'Mientras armas el programa no se registra nada: solo quedaría el ruido del armado. En cuanto '+esc(((userById(aid)||{}).name)||'el atleta')+' registre su primer entreno, cada cambio de series, reps, RIR, alta o baja aparecerá aquí solo.')+'</div>')+'</div>';
   /* --- bloques anteriores --- */
   let hist='';
   (r.history||[]).slice().reverse().forEach(h=>{
@@ -6553,7 +6606,7 @@ Object.assign(ACTIONS,{
     const aid=el.dataset.aid,d=athData(aid),r=d.routine,p=d.profile;
     r.history=r.history||[];
     const summary=blockSummary(aid);
-    r.history.push({block:p.block||1,phase:p.phase,name:r.name,startDate:r.startDate,endDate:todayISO(),baseline:r.baseline||{date:r.startDate,byGroup:{}},final:volMap(aid),changes:(r.changelog||[]).length,summary});
+    r.history.push({block:p.block||1,phase:p.phase,name:r.name,startDate:r.startDate,endDate:todayISO(),baseline:r.baseline||{date:r.startDate,byGroup:{}},final:volMap(aid),changes:chgSplit(aid).real.length,summary});
     r.startDate=todayISO();
     r.baseline={date:todayISO(),byGroup:volMap(aid)};
     r.changelog=[];r.snapshots=[];
