@@ -224,6 +224,14 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .addset{margin:4px 16px 12px;font-size:12.5px;color:var(--volt);font-weight:600;padding:5px 8px;border-radius:7px}
 .addset:hover{background:var(--volt-08)}
 .sethead{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;padding:8px 16px 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600}
+/* Barra de cierre pegada al fondo: el botón de guardar estaba al final de la lista, así que
+   con 8 ejercicios el atleta tenía que recorrer toda la pantalla para cerrar la sesión.
+   En móvil se sube por encima de la barra de navegación (que es fixed con z-index 60). */
+.wlbar{position:sticky;bottom:12px;z-index:35;margin-top:16px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line2);background:var(--bg2);box-shadow:0 -8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wlbar .wlb-c{flex:1;min-width:150px;font-size:12.5px;color:var(--tx3);line-height:1.45}
+.wlbar .wlb-c b{color:var(--tx);font-size:13.5px}
+.wlbar .btn{white-space:nowrap}
+@media(max-width:920px){.wlbar{bottom:76px}}
 
 /* ---------- adherence ---------- */
 .adh-pick{display:flex;gap:6px}
@@ -2407,13 +2415,19 @@ function renderUnsafe(){
     _openAccs.forEach(id=>{const el=document.getElementById(id);if(el&&el.tagName==='DETAILS')el.open=true;});
     window.scrollTo(0,_scrollY);
   }
+  keepApply(); /* devuelve a los campos [data-keep] lo escrito y aún no guardado */
   _lastRenderView=route.view;
 }
 
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;route={view:'home',params:{}};render();},
+  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
+    /* Se limpia la MEMORIA, no el disco: el borrador y lo escrito siguen en localStorage
+       ligados a su uid, así que el dueño los recupera al volver a entrar, y el siguiente
+       usuario de esta pestaña no ve nada del anterior (keepLoad/wdraftLoad validan el uid). */
+    KEEP={};_keepUid='';WDRAFT=null;
+    route={view:'home',params:{}};render();},
   'auth-login':async()=>{
     const email=(document.getElementById('l_email')?.value||'').trim();
     const pass=document.getElementById('l_pass')?.value||'';
@@ -4014,6 +4028,62 @@ function wdraftDayName(aid){
   const day=(rt.days||[]).find(x=>x.id===WDRAFT.dayId);
   return day?day.name:'';
 }
+/* ---------- KEEP: lo escrito sobrevive a render() ----------
+   La app repinta TODO el HTML en cada render(), así que cualquier campo cuyo valor viva
+   solo en el DOM se borra al navegar, al marcar algo, o cuando entra un evento de realtime.
+   Es el mismo fallo que ya se parcheó tres veces por separado (Dietocálculo y objetivos del
+   plan en la s54, borrador de entreno en la s56). Esto lo resuelve de una vez y para siempre:
+   un <input data-keep="clave"> conserva lo escrito hasta que su handler lo guarde.
+
+   Reglas para usarlo bien:
+   1. La clave debe ser ÚNICA en toda la app (si dos vistas usan la misma, se pisan).
+   2. El handler que guarda DEBE llamar keepClear/keepClearPrefix con sus claves. Si no, el
+      valor escrito se repinta encima del dato ya guardado — y encima de lo que llegue por
+      realtime — y parecerá que el guardado no sirvió.
+   3. Solo para lo que el usuario escribe y todavía no ha guardado. Lo que ya está en el
+      servidor NO se mete aquí: para eso está el estado. */
+const LS_KEEP='lrc_keep_v1';
+let KEEP={};
+let _keepUid='';
+let _keepT=null;
+function keepFlush(){
+  try{
+    if(_keepUid&&Object.keys(KEEP).length)localStorage.setItem(LS_KEEP,JSON.stringify({uid:_keepUid,v:KEEP}));
+    else localStorage.removeItem(LS_KEEP);
+  }catch(e){}
+}
+function keepSave(){clearTimeout(_keepT);_keepT=setTimeout(keepFlush,300);}
+function keepSet(k,v){
+  const s=getSession();_keepUid=(s&&s.userId)||'';
+  /* Vaciar un campo a mano tiene que borrar la clave, no guardar ''. Si no, el campo
+     quedaría clavado en blanco y taparía el valor que la vista sí sabe pintar. */
+  if(v===''||v==null)delete KEEP[k];else KEEP[k]=v;
+  keepSave();
+}
+function keepClear(){for(let i=0;i<arguments.length;i++)delete KEEP[arguments[i]];keepFlush();}
+function keepClearPrefix(p){Object.keys(KEEP).forEach(k=>{if(k.indexOf(p)===0)delete KEEP[k];});keepFlush();}
+function keepLoad(uid){
+  KEEP={};
+  try{
+    const raw=localStorage.getItem(LS_KEEP);if(!raw)return;
+    const o=JSON.parse(raw);
+    /* Ligado al usuario: los borradores no se cruzan entre cuentas en el mismo navegador. */
+    if(o&&o.uid===uid&&o.v&&typeof o.v==='object'){KEEP=o.v;_keepUid=uid;}
+  }catch(e){}
+}
+/* Se llama al final de renderUnsafe, con el HTML nuevo ya puesto. */
+function keepApply(){
+  try{
+    document.querySelectorAll('[data-keep]').forEach(el=>{
+      const k=el.dataset.keep;
+      if(Object.prototype.hasOwnProperty.call(KEEP,k)&&el.value!==KEEP[k])el.value=KEEP[k];
+    });
+  }catch(e){}
+}
+/* Mismo argumento que en wdraftFlush: el debounce se pierde si el móvil congela la pestaña. */
+window.addEventListener('pagehide',keepFlush);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)keepFlush();});
+
 let ADH_PICK=null; /* selección temporal de adherencia */
 let DIETRES=null; /* último resultado del dietocálculo, para aplicar a objetivos */
 
@@ -4143,16 +4213,18 @@ VIEWS['ath-hoy']=function(u){
   }
 
   /* CONTENIDOS DE LOS ACORDEONES (sin la card exterior) */
-  const nutriInner=dayPick+adhUI+'<hr class="hr"><label style="display:block;margin-bottom:8px">Te queda por comer hoy</label>'+remainingBars(aid,n)+'<div class="frow"><input id="adh_comment" placeholder="Comentario para tu coach (opcional)" value="'+esc(todayN?todayN.comment:'')+'"></div><button class="btn btn-p" data-act="adh-save" style="width:100%">'+I.check+' Guardar registro de nutrición</button>';
+  const nutriInner=dayPick+adhUI+'<hr class="hr"><label style="display:block;margin-bottom:8px">Te queda por comer hoy</label>'+remainingBars(aid,n)+'<div class="frow"><input id="adh_comment" data-keep="adh_comment" placeholder="Comentario para tu coach (opcional)" value="'+esc(todayN?todayN.comment:'')+'"></div><button class="btn btn-p" data-act="adh-save" style="width:100%">'+I.check+' Guardar registro de nutrición</button>';
 
-  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
-    '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p>';
+  /* data-keep: lo tecleado sobrevive a render(). Antes, cambiarse de pantalla sin pulsar
+     «Guardar» borraba el número en silencio. Las claves las limpia cada handler al guardar. */
+  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
+    '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p>';
 
   const todayM=measureLogs(aid).find(m=>m.date===todayISO());
   const lm=lastMeasure(aid);
   const measuresInner='<p class="tiny mb16">Mídete relajado y por la mañana. Ideal 1×/mes, con la misma cinta y en el mismo punto. Deja en blanco lo que no midas.</p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">'+
-    MEASURE_SET.map(ms=>'<div><label style="display:block;margin-bottom:6px">'+ms[1]+' <span class="hint">cm</span></label><input id="ms_'+ms[0]+'" type="number" step="0.1" min="0" placeholder="'+(lm&&lm[ms[0]]!=null?lm[ms[0]]:'cm')+'" value="'+(todayM&&todayM[ms[0]]!=null?todayM[ms[0]]:'')+'"></div>').join('')+
+    MEASURE_SET.map(ms=>'<div><label style="display:block;margin-bottom:6px">'+ms[1]+' <span class="hint">cm</span></label><input id="ms_'+ms[0]+'" data-keep="ms_'+ms[0]+'" type="number" step="0.1" min="0" placeholder="'+(lm&&lm[ms[0]]!=null?lm[ms[0]]:'cm')+'" value="'+(todayM&&todayM[ms[0]]!=null?todayM[ms[0]]:'')+'"></div>').join('')+
     '</div><button class="btn btn-p mt16" data-act="measures-save" style="width:100%">'+I.check+' Guardar medidas</button>'+
     (lm?'<p class="tiny mt8">Último registro: '+fmtDate(lm.date)+'</p>':'');
 
@@ -4228,11 +4300,16 @@ VIEWS['ath-wlog']=function(u){
     '<div class="sethead"><span></span><span>Peso (kg)</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
+  /* Un ejercicio cuenta como hecho si está marcado O si tiene alguna serie anotada. */
+  let nDone=0;day.exercises.forEach(e=>{if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nDone++;});
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
     body:blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
-    '<p class="tiny" style="margin:2px 0 10px">Ejercicios hechos: <b>'+(function(){let nn=0;day.exercises.forEach(e=>{if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nn++;});return nn;})()+' / '+day.exercises.length+'</b> · puedes guardar marcando «Hecho» aunque no anotes las series.</p>'+
-    '<button class="btn btn-p" data-act="wlog-save" style="width:100%">'+I.check+' Guardar entrenamiento</button></div>'};
+    '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
+    /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
+       ve cuántos lleva y puede cerrar la sesión sin recorrer toda la lista hasta abajo. */
+    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b><br>Lo que anotas se guarda en este dispositivo mientras entrenas.</div>'+
+    '<button class="btn btn-p" data-act="wlog-save">'+I.check+' Guardar entrenamiento</button></div>'};
 };
 
 VIEWS['ath-rutina']=function(u){
@@ -4363,7 +4440,17 @@ Object.assign(ACTIONS,{
   },
   'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});wdraftTouch();render();},
   'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);wdraftTouch();render();},
-  'wlog-done':el=>{WDRAFT.done=WDRAFT.done||{};WDRAFT.done[el.dataset.ex]=!WDRAFT.done[el.dataset.ex];wdraftTouch();render();},
+  'wlog-done':el=>{
+    WDRAFT.done=WDRAFT.done||{};
+    const on=!WDRAFT.done[el.dataset.ex];
+    WDRAFT.done[el.dataset.ex]=on;
+    wdraftTouch(); /* ya lo deja en el navegador; el toast es la señal de que ocurrió */
+    /* Sin confirmación el atleta no tiene ninguna señal hasta que pulsa «Guardar» al final,
+       y por eso creía que se perdía. Se dice «en este dispositivo» a propósito: todavía no
+       ha llegado al servidor, y prometer lo contrario sería mentirle. */
+    if(on)toast('Hecho ✓ · guardado en este dispositivo');
+    render();
+  },
   /* ---- cambio de ejercicio por el atleta ---- */
   'swap-ask':el=>{
     const ex=el.dataset.ex,day=el.dataset.day;
@@ -4462,7 +4549,7 @@ Object.assign(ACTIONS,{
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-followed':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.planFollowed=el.dataset.v==='1';recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
-  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveState();toast('Registro de nutrición guardado');render();},
+  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveState();toast('Registro de nutrición guardado');render();},
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
@@ -4474,6 +4561,7 @@ Object.assign(ACTIONS,{
     if(auid&&_supabaseUser){
       try{const{error}=await supa.from('weight_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),kg},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}
     }
+    keepClear('w_today'); /* ya está guardado: si no se suelta, se repintaría encima del dato bueno */
     saveState();
     toast(synced?('Peso guardado: '+kg+' kg'):('Peso guardado local (sin conexión): '+kg+' kg'));
     render();
@@ -4488,6 +4576,7 @@ Object.assign(ACTIONS,{
     d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
     let synced=true;const auid=_athleteUidByAppId[u.id];
     if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    keepClear('s_today');
     saveState();toast(synced?('Pasos guardados: '+st.toLocaleString('es-ES')):('Pasos guardados local: '+st.toLocaleString('es-ES')));render();
   },
   'measures-save':async()=>{
@@ -4501,6 +4590,7 @@ Object.assign(ACTIONS,{
     d.logs.measures.sort((a,b)=>a.date<b.date?-1:1);
     let synced=true;const auid=_athleteUidByAppId[u.id];
     if(auid&&_supabaseUser){try{const{error}=await supa.from('measurement_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),data:m},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    keepClearPrefix('ms_'); /* las 10 casillas de una vez */
     saveState();toast(synced?'Medidas guardadas 📏':'Medidas guardadas local (sin conexión)');render();
   },
   'meal-add':()=>{
@@ -4583,6 +4673,8 @@ document.addEventListener('input',e=>{
   /* RPE, duración y comentario vivían SOLO en el DOM: cualquier render() (añadir serie,
      marcar «Hecho», un evento de realtime) los borraba. Mismo patrón que la s54. */
   if(el.dataset&&el.dataset.wl&&WDRAFT){WDRAFT[el.dataset.wl]=el.value;wdraftTouch();}
+  /* Cualquier campo marcado con data-keep conserva lo escrito entre renders. Ver KEEP. */
+  if(el.dataset&&el.dataset.keep)keepSet(el.dataset.keep,el.value);
   if(el.dataset&&el.dataset.live==='lib-q'){
     route.params.q=el.value;render();
     const q2=document.getElementById('lib_q');
@@ -7081,6 +7173,8 @@ async function initAfterAuthUnsafe(user){
   /* Borrador de entreno sin guardar: se rescata del navegador ANTES del primer render, para
      que «Hoy» y «Mi rutina» ya lo enseñen. Solo aplica al atleta dueño del borrador. */
   if(u&&u.role==='athlete'){try{const _wd=wdraftLoad(u.id);if(wdraftDirty(_wd))WDRAFT=_wd;}catch(e){}}
+  /* Igual con los campos sueltos (peso, pasos, medidas…): también antes del primer render. */
+  if(u)keepLoad(u.id);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
   /* Después de render y de hidratar: compara la copia del navegador contra el servidor y avisa
