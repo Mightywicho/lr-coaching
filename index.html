@@ -2353,6 +2353,7 @@ async function appVersionTag(){
 /* Recargar solo cuando no cueste nada. Ante la duda, banner en vez de recarga. */
 function safeToReload(){
   if(_saveInFlight||_saveDirty||_savePending)return false; /* guardado sin confirmar */
+  if(typeof WDRAFT!=='undefined'&&WDRAFT&&WDRAFT.touched)return false; /* entreno a medias del atleta */
   const mr=document.getElementById('modal-root');
   if(mr&&mr.innerHTML)return false;                        /* modal abierto: se perdería lo escrito */
   if(document.getElementById('renderErrBanner'))return false;
@@ -3954,7 +3955,65 @@ function exForm(e,aid,exId,dayId,gForce){
 }
 
 /* ================= PANEL DEL ATLETA ================= */
-let WDRAFT=null; /* borrador del entreno en curso */
+/* Borrador del entreno en curso.
+   VIVE FUERA DE S A PROPÓSITO: no es un dato del coach ni sube al blob. Pero por eso mismo
+   moría en cuanto el atleta salía por el menú y volvía a pulsar «Registrar» (wlog-start lo
+   reconstruía desde cero, en silencio, con los pesos de la sesión ANTERIOR — así que parecía
+   que «no se había guardado»). Desde ahora se persiste en localStorage y nunca se pisa sin
+   preguntar. `touched` marca que el atleta escribió algo: sin esa bandera no se distingue un
+   borrador nuevo (que YA viene prellenado con la última sesión) de uno con trabajo dentro. */
+const LS_WDRAFT='lrc_wdraft_v1';
+let WDRAFT=null;
+let _wdSaveT=null;
+function wdraftSave(){
+  clearTimeout(_wdSaveT);
+  _wdSaveT=setTimeout(()=>{
+    try{
+      if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));
+      else localStorage.removeItem(LS_WDRAFT);
+    }catch(e){}
+  },300);
+}
+function wdraftTouch(){if(WDRAFT){WDRAFT.touched=true;wdraftSave();}}
+/* El debounce de 300 ms se pierde si el navegador congela o descarta la pestaña (móvil).
+   `pagehide` y `visibilitychange` son los dos únicos eventos fiables en iOS: se vuelca ya. */
+function wdraftFlush(){
+  clearTimeout(_wdSaveT);
+  try{
+    if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));
+    else localStorage.removeItem(LS_WDRAFT);
+  }catch(e){}
+}
+window.addEventListener('pagehide',wdraftFlush);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)wdraftFlush();});
+function wdraftDirty(w){return !!(w&&w.dayId&&w.touched);}
+function wdraftLoad(aid){
+  try{
+    const raw=localStorage.getItem(LS_WDRAFT);if(!raw)return null;
+    const w=JSON.parse(raw);
+    if(!w||!w.dayId||!w.sets||w.aid!==aid)return null;
+    return w;
+  }catch(e){return null;}
+}
+/* Borrador nuevo: prellena con la última sesión de ese día, como siempre. */
+function wdraftFresh(aid,day){
+  const last=lastWorkoutForDay(aid,day.id);
+  const sets={};
+  day.exercises.forEach(e=>{
+    const lastSets=last&&last.entries[e.id]?last.entries[e.id]:null;
+    const nsets=lastSets?lastSets.length:(parseInt(e.sets,10)||3);
+    sets[e.id]=[];
+    for(let i=0;i<nsets;i++)sets[e.id].push({w:lastSets&&lastSets[i]?lastSets[i].w:'',r:lastSets&&lastSets[i]?lastSets[i].r:'',rir:''});
+  });
+  return{aid,dayId:day.id,date:todayISO(),sets,done:{},rpe:'',dur:'',comment:'',touched:false};
+}
+/* Nombre del día del borrador en curso, o '' si no hay nada que continuar. */
+function wdraftDayName(aid){
+  if(!wdraftDirty(WDRAFT)||WDRAFT.aid!==aid)return '';
+  const rt=routineForAthlete(aid);
+  const day=(rt.days||[]).find(x=>x.id===WDRAFT.dayId);
+  return day?day.name:'';
+}
 let ADH_PICK=null; /* selección temporal de adherencia */
 let DIETRES=null; /* último resultado del dietocálculo, para aplicar a objetivos */
 
@@ -3996,12 +4055,17 @@ VIEWS['ath-hoy']=function(u){
   const todayS=(d.logs.steps||[]).find(s=>s.date===todayISO());
   const trainedToday=d.logs.workouts.filter(w=>w.date===todayISO());
   let daysBtns='';
+  const _wdName=wdraftDayName(aid);
   d.routine.days.forEach(day=>{
     const done=trainedToday.some(w=>w.dayId===day.id);
+    const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===aid&&WDRAFT.dayId===day.id;
     daysBtns+='<button class="userbtn" data-act="wlog-start" data-day="'+day.id+'" style="margin-bottom:8px">'+
-    '<span class="ava" style="background:'+(done?'var(--green)':'var(--card2)')+';color:'+(done?'#0d1015':'var(--tx2)')+';border:1px solid var(--line2)">'+(done?'✓':day.exercises.length)+'</span>'+
-    '<span class="who"><b>'+esc(day.name)+'</b><span>'+day.exercises.length+' ejercicios'+(done?' · hecho hoy':'')+'</span></span><span class="arr">→</span></button>';
+    '<span class="ava" style="background:'+(enCurso?'var(--blue)':done?'var(--green)':'var(--card2)')+';color:'+(enCurso||done?'#0d1015':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':done?'✓':day.exercises.length)+'</span>'+
+    '<span class="who"><b>'+esc(day.name)+'</b><span>'+(enCurso?'sin guardar · continúa donde ibas':day.exercises.length+' ejercicios'+(done?' · hecho hoy':''))+'</span></span><span class="arr">→</span></button>';
   });
+  /* El borrador ya no se pierde, pero hay que poder VOLVER a él: sin este aviso el atleta
+     no tiene ninguna pista de que su entreno a medias sigue vivo. */
+  const wdUI=_wdName?'<div class="coachnote" style="border-left-color:var(--blue);cursor:pointer" data-act="wlog-resume"><b style="color:var(--blue)">Entreno sin guardar · '+esc(_wdName)+'</b>Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».</div>':'';
   const np=nutriOf(aid),n=athPlanOf(aid);
   const todayMealsDone=(todayN&&todayN.mealsDone)||[];
   const curAdh=todayN&&todayN.adherence!=null?todayN.adherence:null;
@@ -4128,7 +4192,7 @@ VIEWS['ath-hoy']=function(u){
   if(sv.tr)accs.push(acc('acc-fatiga','🩺 Check-in semanal de fatiga','1×/semana',fatInner,false));
 
   return{title:'Hola, '+esc(u.name)+' 👋',crumb:fmtDateFull(todayISO()),
-    body:hero+pendUI+volBig+(sv.tr?weekStrip(aid):'')+statStrip+accs.join('')+coachnote};
+    body:hero+wdUI+pendUI+volBig+(sv.tr?weekStrip(aid):'')+statStrip+accs.join('')+coachnote};
 };
 
 /* Botón/insignia de cambio de ejercicio en las vistas del atleta */
@@ -4166,7 +4230,7 @@ VIEWS['ath-wlog']=function(u){
   });
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
     body:blocks+
-    '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…"></div></div>'+
+    '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
     '<p class="tiny" style="margin:2px 0 10px">Ejercicios hechos: <b>'+(function(){let nn=0;day.exercises.forEach(e=>{if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nn++;});return nn;})()+' / '+day.exercises.length+'</b> · puedes guardar marcando «Hecho» aunque no anotes las series.</p>'+
     '<button class="btn btn-p" data-act="wlog-save" style="width:100%">'+I.check+' Guardar entrenamiento</button></div>'};
 };
@@ -4181,7 +4245,8 @@ VIEWS['ath-rutina']=function(u){
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
       rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
-    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">Registrar</button></span></div>'+
+    const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
+    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':'Registrar')+'</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
   return{title:'Mi rutina',crumb:esc(d.routine.name),
@@ -4268,24 +4333,37 @@ VIEWS['ath-prog']=function(u){
 
 /* ---------- acciones del atleta ---------- */
 Object.assign(ACTIONS,{
+  /* Un borrador con series escritas NO se pisa nunca en silencio: era la forma exacta de
+     perder un entreno entero (salir por el menú y volver a pulsar «Registrar»). */
   'wlog-start':el=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);
     if(!day||!day.exercises.length){toast('Este día no tiene ejercicios');return;}
-    const last=lastWorkoutForDay(u.id,day.id);
-    const sets={};
-    day.exercises.forEach(e=>{
-      const lastSets=last&&last.entries[e.id]?last.entries[e.id]:null;
-      const nsets=lastSets?lastSets.length:(parseInt(e.sets,10)||3);
-      sets[e.id]=[];
-      for(let i=0;i<nsets;i++)sets[e.id].push({w:lastSets&&lastSets[i]?lastSets[i].w:'',r:lastSets&&lastSets[i]?lastSets[i].r:'',rir:''});
-    });
-    WDRAFT={dayId:day.id,sets,done:{}};
+    if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id){
+      if(WDRAFT.dayId===day.id){nav('ath-wlog');return;} /* el mismo día: se continúa sin preguntar */
+      const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||'otro día';
+      openModal('Tienes un entreno sin guardar',
+        '<p class="muted">Dejaste series anotadas en <b>'+esc(dn)+'</b>'+(WDRAFT.date&&WDRAFT.date!==todayISO()?' ('+fmtDate(WDRAFT.date)+')':'')+' y todavía no las has guardado. Si empiezas <b>'+esc(day.name)+'</b> ahora, se pierden.</p>',
+        '<button class="btn btn-g" data-act="wlog-discard" data-day="'+day.id+'">Descartar y empezar '+esc(day.name)+'</button>'+
+        '<button class="btn btn-p" data-act="wlog-resume">Continuar '+esc(dn)+'</button>');
+      return;
+    }
+    WDRAFT=wdraftFresh(u.id,day);
+    wdraftSave();
     nav('ath-wlog');
   },
-  'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});render();},
-  'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);render();},
-  'wlog-done':el=>{WDRAFT.done=WDRAFT.done||{};WDRAFT.done[el.dataset.ex]=!WDRAFT.done[el.dataset.ex];render();},
+  'wlog-resume':()=>{closeModal();nav('ath-wlog');},
+  'wlog-discard':el=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    closeModal();
+    WDRAFT=wdraftFresh(u.id,day);
+    wdraftSave();
+    nav('ath-wlog');
+  },
+  'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});wdraftTouch();render();},
+  'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);wdraftTouch();render();},
+  'wlog-done':el=>{WDRAFT.done=WDRAFT.done||{};WDRAFT.done[el.dataset.ex]=!WDRAFT.done[el.dataset.ex];wdraftTouch();render();},
   /* ---- cambio de ejercicio por el atleta ---- */
   'swap-ask':el=>{
     const ex=el.dataset.ex,day=el.dataset.day;
@@ -4368,14 +4446,17 @@ Object.assign(ACTIONS,{
     Object.keys(entries).forEach(id=>doneSet.add(id));
     const doneIds=[...doneSet];
     if(!Object.keys(entries).length&&!doneIds.length){toast('Marca algún ejercicio como hecho o registra una serie');return;}
-    const w={id:uid(),date:todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,rpe:num('wl_rpe')||null,dur:num('wl_min')||null,comment:val('wl_comment')};
+    /* Los tres cierres se leen del borrador, no del DOM: el DOM ya pudo repintarse.
+       La fecha es la del borrador — si empezó ayer y guarda hoy, el entreno es de ayer. */
+    const _rpe=parseFloat(WDRAFT.rpe),_dur=parseFloat(WDRAFT.dur);
+    const w={id:uid(),date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:WDRAFT.comment||''};
     d.logs.workouts.push(w);
     d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
     const auid=_athleteUidByAppId[u.id];
     if(auid&&_supabaseUser){
       try{const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment},{onConflict:'id'});if(error){console.error('workout_logs',error);toast('No sincronizó: '+error.message);}}catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
     }else if(_supabaseUser){toast('No sincronizó: sin athlete_uid (mapa vacío)');}
-    WDRAFT=null;saveState();toast('Entrenamiento guardado 💪');nav('ath-hoy');
+    WDRAFT=null;wdraftSave();saveState();toast('Entrenamiento guardado 💪');nav('ath-hoy');
   },
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
@@ -4497,8 +4578,11 @@ document.addEventListener('input',e=>{
   if(el.dataset&&el.dataset.exvol){renderExVol();}
   if(el.dataset&&el.dataset.bind&&WDRAFT){
     const s=WDRAFT.sets[el.dataset.ex][parseInt(el.dataset.idx,10)];
-    if(s)s[el.dataset.bind]=el.value;
+    if(s){s[el.dataset.bind]=el.value;wdraftTouch();}
   }
+  /* RPE, duración y comentario vivían SOLO en el DOM: cualquier render() (añadir serie,
+     marcar «Hecho», un evento de realtime) los borraba. Mismo patrón que la s54. */
+  if(el.dataset&&el.dataset.wl&&WDRAFT){WDRAFT[el.dataset.wl]=el.value;wdraftTouch();}
   if(el.dataset&&el.dataset.live==='lib-q'){
     route.params.q=el.value;render();
     const q2=document.getElementById('lib_q');
@@ -6994,6 +7078,9 @@ async function initAfterAuthUnsafe(user){
     S.users.push({id:_currentUserId,role:'athlete',name:nm,initials:ini,color:'#cdf563',tag:'Atleta'});
   }
   const u=userById(_currentUserId);
+  /* Borrador de entreno sin guardar: se rescata del navegador ANTES del primer render, para
+     que «Hoy» y «Mi rutina» ya lo enseñen. Solo aplica al atleta dueño del borrador. */
+  if(u&&u.role==='athlete'){try{const _wd=wdraftLoad(u.id);if(wdraftDirty(_wd))WDRAFT=_wd;}catch(e){}}
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();
   /* Después de render y de hidratar: compara la copia del navegador contra el servidor y avisa
