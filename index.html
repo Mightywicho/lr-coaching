@@ -6024,8 +6024,10 @@ function setupLine(aid,setup){
   const nD=(athData(aid).routine.days||[]).length;
   /* el detail viejo ya trae su propio conteo entre paréntesis: se recorta para no duplicarlo */
   const org=((setup.find(c=>c.day==='Programa'&&/Plantilla|Split/i.test(c.detail||''))||{}).detail||'').replace(/\s*\(.*$/,'');
-  /* si el armado solo dejó la línea de plantilla/split, no hay altas que contar: usa el programa */
-  const nEx=setup.filter(c=>c.type==='alta'&&c.ex).length||programStats(aid).ex;
+  /* altas MENOS bajas: si diste de alta 24 y quitaste 1 mientras armabas, el programa quedó en 23
+     y es lo que el coach ve en pantalla. Contar solo las altas descuadraba la cifra en 1.
+     Si el armado solo dejó la línea de plantilla/split no hay altas que contar: usa el programa. */
+  const nEx=Math.max(0,setup.filter(c=>c.type==='alta'&&c.ex).length-setup.filter(c=>c.type==='baja'&&c.ex).length)||programStats(aid).ex;
   return {type:'inicio',day:'Programa',ex:'',date:setup[0].date,
     detail:nD+' día'+(nD===1?'':'s')+' · '+nEx+' ejercicio'+(nEx===1?'':'s')+(org?' · '+org:'')};
 }
