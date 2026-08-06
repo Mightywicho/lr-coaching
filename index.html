@@ -5984,10 +5984,12 @@ function snapshotWeek(aid){
    Corte: mientras el atleta no haya registrado ningún entreno en o después de startDate, todo
    lo que toque el coach se colapsa en UNA sola línea «Programa inicial». En cuanto entrena,
    cada cambio se registra normal. No depende de que el coach pulse nada. */
-function blockStarted(aid){
-  const d=athData(aid),s=d.routine.startDate||todayISO();
-  return ((d.logs&&d.logs.workouts)||[]).some(w=>w&&w.date>=s);
+function blockFirstWorkout(aid){
+  const d=athData(aid),s=d.routine.startDate||todayISO();let f=null;
+  ((d.logs&&d.logs.workouts)||[]).forEach(w=>{if(w&&w.date&&w.date>=s&&(!f||w.date<f))f=w.date;});
+  return f;
 }
+function blockStarted(aid){return !!blockFirstWorkout(aid);}
 function programStats(aid){
   const r=athData(aid).routine;let ex=0;
   (r.days||[]).forEach(dd=>{ex+=((dd.exercises||[]).length);});
@@ -6007,21 +6009,23 @@ function setupEntry(aid,origin){
 /* Separa armado y ajustes reales para MOSTRAR. Es un filtro de lectura a propósito:
    no reescribe el changelog ya guardado (los bloques viejos traen las 23 altas del armado
    dentro) y no depende de cuándo se hidrata `athlete_plans`, que llega después del blob.
-   Cuenta como armado la entrada 'inicio' que escribe logChange y TODO lo registrado en el
-   día de arranque: un ajuste de series hecho mientras armabas es armado, y dejarlo suelto
-   sin su alta se leería como un cambio real del bloque. */
+   El corte es el MISMO que en vivo: todo lo anterior al primer entreno del bloque es armado
+   (y si aún no ha entrenado, todo lo es). Medido contra los datos reales de un atleta: cortar
+   por el día de `startDate` se quedaba corto — armó 10 ejercicios el día 3 y otros 13 el día 4,
+   y esos 13 aparecían como «ajustes» aunque el atleta no había entrenado todavía. */
 function chgSplit(aid){
-  const r=athData(aid).routine,s0=r.startDate||'';
-  const setup=[],real=[];
-  (r.changelog||[]).forEach(c=>{((c.type==='inicio'||(c.date&&s0&&c.date<=s0))?setup:real).push(c);});
+  const f=blockFirstWorkout(aid),setup=[],real=[];
+  (athData(aid).routine.changelog||[]).forEach(c=>{((c.type==='inicio'||!f||(c.date&&c.date<f))?setup:real).push(c);});
   return {setup,real};
 }
 /* Una sola línea que resume el armado, venga de la entrada nueva o de un bloque viejo. */
 function setupLine(aid,setup){
   const e=setup.find(c=>c.type==='inicio');if(e)return e;
   const nD=(athData(aid).routine.days||[]).length;
-  const org=(setup.find(c=>c.day==='Programa'&&/Plantilla|Split/i.test(c.detail||''))||{}).detail||'';
-  const nEx=setup.filter(c=>c.type==='alta'&&c.ex).length;
+  /* el detail viejo ya trae su propio conteo entre paréntesis: se recorta para no duplicarlo */
+  const org=((setup.find(c=>c.day==='Programa'&&/Plantilla|Split/i.test(c.detail||''))||{}).detail||'').replace(/\s*\(.*$/,'');
+  /* si el armado solo dejó la línea de plantilla/split, no hay altas que contar: usa el programa */
+  const nEx=setup.filter(c=>c.type==='alta'&&c.ex).length||programStats(aid).ex;
   return {type:'inicio',day:'Programa',ex:'',date:setup[0].date,
     detail:nD+' día'+(nD===1?'':'s')+' · '+nEx+' ejercicio'+(nEx===1?'':'s')+(org?' · '+org:'')};
 }
