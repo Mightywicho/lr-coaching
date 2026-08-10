@@ -216,7 +216,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .wlog-ex-h b{font-size:14.5px;font-family:var(--font-d)}
 .wlog-ex-h .tgt{font-size:12px;color:var(--tx2);margin-top:2px}
 .wlog-ex-h .last{font-size:11.5px;color:var(--tx3);margin-top:1px}
-.setrow{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;align-items:center;padding:7px 16px}
+.setrow{display:grid;grid-template-columns:54px 1fr 1fr 1fr 30px 30px;gap:8px;align-items:center;padding:7px 16px}
 .setrow .sn{font-size:12px;font-weight:600;color:var(--tx3)}
 .setrow input{padding:7px 10px;text-align:center;font-variant-numeric:tabular-nums}
 .setrow .del{color:var(--tx3);line-height:0;padding:6px;border-radius:7px}
@@ -377,6 +377,24 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .swapbadge{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;padding:5px 9px;border-radius:8px;background:color-mix(in srgb,var(--blue) 10%,transparent);border:1px solid color-mix(in srgb,var(--blue) 35%,transparent);color:var(--blue);font-size:12px;font-weight:600}
 .swapbadge b{font-weight:700;text-decoration:line-through;opacity:.75}
 .swapundo{margin-left:auto;background:none;border:none;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
+/* ---- marcas de incumplimiento del atleta (s62) ---- */
+.setsk{color:var(--tx3);font-size:13px;font-weight:800;line-height:1;padding:6px 0;border-radius:7px;background:transparent;border:1px solid transparent;cursor:pointer}
+.setsk:hover{border-color:var(--line2);color:var(--tx2)}
+.setsk.none{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,transparent);background:var(--danger-08)}
+.setsk.partial{color:var(--orange);border-color:color-mix(in srgb,var(--orange) 45%,transparent)}
+.setrow.sk-none input{opacity:.35}
+.sklegend{font-size:11.5px;color:var(--tx3);padding:6px 16px 0;line-height:1.45}
+.skipbtn{display:inline-flex;align-items:center;gap:5px;margin-top:6px;margin-left:6px;padding:4px 9px;border-radius:999px;background:transparent;border:1px dashed var(--line2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
+.skipbtn:hover{border-color:var(--red);border-style:solid;color:var(--red)}
+.skipbadge{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;padding:5px 9px;border-radius:8px;background:var(--danger-08);border:1px solid color-mix(in srgb,var(--red) 35%,transparent);color:var(--red);font-size:12px;font-weight:600}
+.skipbadge.half{background:color-mix(in srgb,var(--orange) 10%,transparent);border-color:color-mix(in srgb,var(--orange) 35%,transparent);color:var(--orange)}
+.skipbadge .u{margin-left:auto;background:none;border:none;color:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline}
+.wlog-ex.skipped{border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+.wlog-ex.skipped .setrow{opacity:.45}
+.wkp-pips i.miss{background:var(--red)}
+.wkp-pips i.half{background:var(--orange)}
+.missbtn{width:100%;margin-top:2px;padding:10px;border-radius:var(--r);border:1px dashed var(--line2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer}
+.missbtn:hover{border-color:var(--red);border-style:solid;color:var(--red)}
 .swaphd{font-size:12px;font-weight:700;margin:14px 0 6px;letter-spacing:.02em}
 .swaphd.ok{color:var(--green)}.swaphd.warn{color:var(--tx2)}
 .swapopt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);margin-bottom:7px}
@@ -493,9 +511,10 @@ td.sesion-total.hot{color:var(--orange)}
 @media(pointer:coarse){
   .btn-sm{padding:9px 14px;font-size:13px}
   .btn-ic{padding:11px}
-  .setrow{grid-template-columns:46px 1fr 1fr 1fr 44px}
-  .setrow input{padding:11px 10px}
-  .setrow .del{padding:11px}
+  .setrow{grid-template-columns:40px 1fr 1fr 1fr 36px 36px;gap:6px}
+  .setrow input{padding:11px 6px}
+  .setrow .del{padding:11px 6px}
+  .setsk{padding:11px 0;font-size:14px}
   .rowbtns button{padding:9px 11px}
   .setpm{width:30px;height:30px;font-size:15px}
   .mcheck .box{width:26px;height:26px}
@@ -1296,7 +1315,7 @@ async function backfillWorkoutLogs(){
   Object.keys(_athleteUidByAppId).forEach(appId=>{
     const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.workouts))return;
     const auid=_athleteUidByAppId[appId];
-    ath.logs.workouts.forEach(w=>{if(w&&w.id&&w.date)rows.push({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId||null,day_name:w.dayName||null,entries:w.entries||{},done:w.done||[],rpe:(w.rpe!=null?w.rpe:null),dur:(w.dur!=null?w.dur:null),comment:w.comment||null});});
+    ath.logs.workouts.forEach(w=>{if(w&&w.id&&w.date)rows.push({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId||null,day_name:w.dayName||null,entries:w.entries||{},done:w.done||[],rpe:(w.rpe!=null?w.rpe:null),dur:(w.dur!=null?w.dur:null),comment:w.comment||null,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}});});
   });
   if(!rows.length)return;
   try{await supa.from('workout_logs').upsert(rows,{onConflict:'id'});}catch(e){}
@@ -1304,10 +1323,11 @@ async function backfillWorkoutLogs(){
 async function hydrateWorkoutLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   try{
-    const{data,error}=await supa.from('workout_logs').select('id,athlete_uid,date,day_id,day_name,entries,done,rpe,dur,comment').order('date',{ascending:true}).order('created_at',{ascending:true});
+    const{data,error}=await supa.from('workout_logs').select('id,athlete_uid,date,day_id,day_name,entries,done,rpe,dur,comment,status,reason,skips').order('date',{ascending:true}).order('created_at',{ascending:true});
     if(error||!data)return;
     const byUid={};
-    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,dayId:r.day_id,dayName:r.day_name,entries:r.entries||{},done:r.done||[],rpe:r.rpe,dur:r.dur,comment:r.comment||''});});
+    /* status null = fila anterior a la s62: era siempre una sesión realizada. */
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,dayId:r.day_id,dayName:r.day_name,entries:r.entries||{},done:r.done||[],rpe:r.rpe,dur:r.dur,comment:r.comment||'',status:r.status||'done',reason:r.reason||null,skips:r.skips||{}});});
     Object.keys(byUid).forEach(uid=>{
       const appId=_appIdByAthleteUid[uid];
       if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.workouts=byUid[uid];
@@ -1376,6 +1396,28 @@ async function delSwap(aid,id){
    Nivel 2 «alternativa»: mismo grupo, otra categoría → cambia el patrón, se avisa.
    Nunca cruza de grupo: eso alteraría el volumen programado del músculo. */
 const SWAP_REASONS={ocupado:'El equipo está ocupado',nohay:'No hay ese equipo aquí',molesta:'Me molesta / me duele'};
+/* ---------- Motivos de incumplimiento (s62) ----------
+   Listas CERRADAS a propósito. Un motivo tecleado no se puede contar: con 30 atletas la
+   pregunta que cambia decisiones no es «qué escribió» sino «cuántas veces falló por falta
+   de tiempo» o «cuántas series dejó por dolor», y eso solo sale de un código. El texto
+   libre sigue estando, pero como complemento del código, no en su lugar.
+   La separación entre las dos listas también es deliberada: los motivos que hacen fallar
+   una SESIÓN (vida, agenda, salud) no son los que hacen fallar un EJERCICIO (dolor,
+   fatiga, equipo), y mezclarlos daría una estadística que no se puede leer. */
+const MISS_REASONS={tiempo:'Falta de tiempo',trabajo:'Trabajo o imprevisto',enfermo:'Enfermedad o malestar',dolor:'Dolor o lesión',viaje:'Viaje / fuera de casa',animo:'Sin energía ni ánimo',gym:'No pude ir al gimnasio',otro:'Otro motivo'};
+const SKIP_REASONS={dolor:'Me dolió o me molestó',fatiga:'No pude con el peso',tiempo:'Me quedé sin tiempo',equipo:'Equipo ocupado o no disponible',tecnica:'No supe hacerlo bien',otro:'Otro motivo'};
+const missLbl=k=>MISS_REASONS[k]||'Sin motivo';
+const skipLbl=k=>SKIP_REASONS[k]||'Sin motivo';
+/* Una sesión marcada «no entrené» NO es un entreno: no puede sumar en ningún conteo de
+   cumplimiento, o el atleta que falta subiría su adherencia por reportar la falta. */
+const isMissed=w=>!!(w&&w.status==='missed');
+const skipsOfLog=w=>(w&&w.skips)||{};
+/* Cuántos ejercicios y series quedaron sin hacer en una sesión guardada. */
+function skipCounts(w){
+  const sk=skipsOfLog(w);let ex=0,sets=0;
+  Object.keys(sk).forEach(id=>{const s=sk[id]||{};if(s.k)ex++;sets+=Object.keys(s.sets||{}).length;});
+  return{ex,sets};
+}
 function swapCandidates(ex,day,reason){
   const lib=ex.libId?libById(ex.libId):null;
   const g=lib?lib.group:groupOfEx(ex);
@@ -2057,7 +2099,7 @@ const PAL_LEVELS=[[1.2,'Sedentario · sin ejercicio'],[1.375,'Ligero · 1-3 d/se
 /* gasto por METs: 1 MET ≈ 1 kcal/kg/h → TDEE = Σ (MET_i × peso × horas_i) */
 function metTDEE(W,buckets){let kcal=0,h=0;buckets.forEach(b=>{kcal+=(b.met||0)*W*(b.h||0);h+=(b.h||0);});return{kcal:Math.round(kcal),hours:+h.toFixed(1)};}
 const KCAL_PER_KG=7700; /* equivalente energético aprox. de 1 kg de peso corporal */
-function workoutsInLast(aid,days){const cutoff=daysAgoISO(days);return athData(aid).logs.workouts.filter(w=>w.date>=cutoff).length;}
+function workoutsInLast(aid,days){const cutoff=daysAgoISO(days);return athData(aid).logs.workouts.filter(w=>w.date>=cutoff&&!isMissed(w)).length;}
 function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
 function kcalFromMacros(n){return Math.round(n.protein*4+n.carbs*4+n.fat*9);}
 function lastWorkoutForDay(aid,dayId){const ws=athData(aid).logs.workouts.filter(w=>w.dayId===dayId&&w.entries&&Object.keys(w.entries).length);return ws.length?ws[ws.length-1]:null;}
@@ -2083,18 +2125,29 @@ const fmtDow=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-').map(Number);r
    ⚠ Un entreno cuenta si tiene series anotadas O ejercicios marcados como «Hecho». Es el
    mismo criterio con el que wlog-save deja guardar; medir solo por `entries` dejaría sin
    palomita al atleta que solo marca Hecho — que es un flujo que la app ofrece a propósito. */
+/* ⚠ s62 — «no cumplí» NO suma (decisión de Luis): si el atleta se salta una de tres, la
+   semana cierra 2 de 3. La falta sí se guarda y se pinta en rojo, porque un hueco mudo no
+   le dice al coach por qué falló la semana. La sesión INCOMPLETA sí suma —se presentó y
+   entrenó— pero va marcada, para no premiar igual 40 min que la sesión entera. */
 function weekProgress(aid){
   const d=athData(aid),from=weekStartISO(todayISO()),to=isoPlus(from,6);
   const days=(routineForAthlete(aid).days)||[];
-  const byDay={};
+  const byDay={},missDay={};
   (d.logs.workouts||[]).forEach(w=>{
     if(!w||!w.dayId||!w.date||w.date<from||w.date>to)return;
-    const real=(w.entries&&Object.keys(w.entries).length)||(w.done&&w.done.length);
+    if(isMissed(w)){
+      if(!missDay[w.dayId]||w.date>missDay[w.dayId].date)missDay[w.dayId]={date:w.date,reason:w.reason||'',comment:w.comment||''};
+      return;
+    }
+    const real=(w.entries&&Object.keys(w.entries).length)||(w.done&&w.done.length)||Object.keys(skipsOfLog(w)).length;
     if(!real)return;
-    if(!byDay[w.dayId]||w.date>byDay[w.dayId].date)byDay[w.dayId]={date:w.date};
+    if(!byDay[w.dayId]||w.date>byDay[w.dayId].date)byDay[w.dayId]={date:w.date,partial:w.status==='partial'};
   });
+  /* Si el día acabó entrenándose, la falta previa deja de pintarse: manda el trabajo real. */
+  Object.keys(byDay).forEach(id=>{delete missDay[id];});
   const total=days.length,done=days.filter(x=>byDay[x.id]).length;
-  return{from,to,byDay,done,total,complete:total>0&&done>=total};
+  const missed=days.filter(x=>missDay[x.id]).length;
+  return{from,to,byDay,missDay,done,missed,total,complete:total>0&&done>=total};
 }
 /* estado del ciclo de asesoría (membresía) */
 function athStatus(aid){
@@ -2303,7 +2356,9 @@ function openModal(title,bodyHTML,footHTML,opts){
   const mr=$('#modal-root');mr._returnFocus=document.activeElement;
   mr.innerHTML='<div class="overlay" data-act="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"><div class="modal-h"><h3 id="modalTitle">'+title+'</h3><button class="x" aria-label="Cerrar" data-act="modal-close">'+I.x+'</button></div><div class="modal-b">'+bodyHTML+'</div>'+(footHTML?'<div class="modal-f">'+footHTML+'</div>':'')+'</div></div>';
   mr.dataset.persist=(opts&&opts.persistent)?'1':'';
-  const m=mr.querySelector('.modal');const fi=m.querySelector('input,select,textarea')||m.querySelector('.modal-f button')||m;
+  /* nofocus: modales cuyo primer campo es un textarea opcional. Enfocarlo abre el teclado
+     del móvil y tapa justo los botones de motivo que hay que elegir. */
+  const m=mr.querySelector('.modal');const fi=(opts&&opts.nofocus)?m:(m.querySelector('input,select,textarea')||m.querySelector('.modal-f button')||m);
   setTimeout(()=>{try{fi.focus();}catch(e){}},60);
 }
 function closeModal(){const mr=$('#modal-root');const r=mr._returnFocus;mr.innerHTML='';if(r&&r.focus){try{r.focus();}catch(e){}}}
@@ -2806,7 +2861,18 @@ function coachTabResumen(aid){
   const pts=d.logs.weight.map(w=>({x:w.date,y:w.kg}));
   let feed='';
   const comments=[];
-  d.logs.workouts.forEach(w=>{if(w.comment)comments.push({date:w.date,tag:w.dayName,tagCls:'volt',txt:w.comment,extra:'RPE '+(w.rpe||'—')});});
+  /* Una falta con motivo es la información MÁS accionable que manda un atleta: entra al
+     muro de comentarios aunque no haya escrito nada, o se quedaría enterrada en Registros. */
+  d.logs.workouts.forEach(w=>{
+    const miss=isMissed(w),part=w.status==='partial';
+    if(miss||part){
+      const sc=skipCounts(w);
+      const det=[missLbl(w.reason),sc.ex?sc.ex+' ejercicio'+(sc.ex===1?'':'s')+' sin hacer':'',sc.sets?sc.sets+' serie'+(sc.sets===1?'':'s')+' sin completar':''].filter(Boolean).join(' · ');
+      comments.push({date:w.date,tag:(miss?'No entrenó · ':'Incompleta · ')+w.dayName,tagCls:miss?'red':'orange',txt:w.comment||det,extra:w.comment?det:'—'});
+      return;
+    }
+    if(w.comment)comments.push({date:w.date,tag:w.dayName,tagCls:'volt',txt:w.comment,extra:'RPE '+(w.rpe||'—')});
+  });
   d.logs.nutrition.forEach(n=>{if(n.comment)comments.push({date:n.date,tag:'Nutrición',tagCls:'orange',txt:n.comment,extra:n.adherence+' / 5'});});
   comments.sort((x,y)=>y.date<x.date?-1:1).slice(0,6).forEach(c=>{
     feed+='<div class="logitem"><div class="lh"><span class="badge '+c.tagCls+'">'+esc(c.tag)+'</span><b>'+esc(c.extra)+'</b><span class="dt">'+fmtDateFull(c.date)+'</span></div><div class="cm">'+esc(c.txt)+'</div></div>';});
@@ -3318,7 +3384,7 @@ function coachTabRegistros(aid){
         const ss=w.entries[exId];
         totalSets+=ss.length;
         let exTon=0;ss.forEach(s=>{exTon+=(s.w||0)*(s.r||0);});tonnage+=exTon;
-        const setsTxt=ss.map((s,i)=>'<span class="setpill">S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+'</span>').join(' ');
+        const setsTxt=ss.map((s,i)=>'<span class="setpill"'+(s.sk==='partial'?' style="border-color:var(--orange);color:var(--orange)" title="El atleta la marcó como no terminada"':'')+'>S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+(s.sk==='partial'?' ½':'')+'</span>').join(' ');
         const tgt=presc?('<span class="tiny">'+esc(presc.sets)+'×'+esc(presc.reps)+' · RIR '+esc(presc.rir)+(presc.rest?' · '+esc(presc.rest):'')+'</span>'):'<span class="tiny">—</span>';
         const fb=presc?(ss.length<(parseInt(presc.sets,10)||0)?'<span class="badge orange" title="Hizo menos series que las prescritas">'+ss.length+'/'+presc.sets+' series</span>':'<span class="badge green">'+ss.length+' series</span>'):('<span class="badge">'+ss.length+' series</span>');
         rows+='<tr><td class="exname">'+esc(exName)+'<div>'+tgt+'</div></td><td>'+setsTxt+'</td><td style="white-space:nowrap">'+fb+'</td><td class="num">'+(exTon?Math.round(exTon)+' kg':'—')+'</td></tr>';
@@ -3329,8 +3395,33 @@ function coachTabRegistros(aid){
         '<div class="stat"><div class="k">Tonelaje</div><div class="v" style="font-size:20px">'+Math.round(tonnage)+'<small> kg</small></div><div class="sub">Σ peso × reps</div></div>'+
         '<div class="stat"><div class="k">RPE / duración</div><div class="v" style="font-size:20px">'+(w.rpe||'—')+(w.dur?'<small> · '+w.dur+'′</small>':'')+'</div><div class="sub">sesión completa</div></div></div></div>';
     }
+    /* ---- lo que el atleta reportó como NO cumplido (s62) ----
+       Se pinta fuera del detalle plegable: es justo la información por la que el coach abre
+       esta pestaña cuando la semana salió mal, y esconderla tras un clic la vuelve invisible. */
+    const sk=skipsOfLog(w),skIds=Object.keys(sk),sc=skipCounts(w);
+    let skHTML='';
+    if(skIds.length){
+      let li='';
+      skIds.forEach(exId=>{
+        const s=sk[exId]||{};
+        let nm='Ejercicio';
+        if(planDay){const f=planDay.exercises.find(e=>e.id===exId);if(f)nm=f.name;}
+        if(nm==='Ejercicio')d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f)nm=f.name;});
+        const nSets=Object.keys(s.sets||{}).length;
+        const cab=s.k==='none'?'<span class="badge red">✕ no lo hizo</span>':s.k==='partial'?'<span class="badge orange">½ a medias</span>':'<span class="badge orange">series sueltas</span>';
+        const det=[s.k?skipLbl(s.why):'',nSets?nSets+(nSets===1?' serie':' series')+' sin completar':''].filter(Boolean).join(' · ');
+        li+='<div class="logitem" style="margin:0 0 6px"><div class="lh">'+cab+'<b>'+esc(nm)+'</b><span class="tiny">'+esc(det)+'</span></div>'+(s.cm?'<div class="cm">'+esc(s.cm)+'</div>':'')+'</div>';
+      });
+      skHTML='<div style="margin-top:8px"><div class="tiny" style="margin-bottom:5px;font-weight:700;color:var(--tx2)">Lo que no se cumplió</div>'+li+'</div>';
+    }
+    const miss=isMissed(w),part=w.status==='partial';
+    const stBadge=miss?'<span class="badge red">✕ No entrenó</span>':part?'<span class="badge orange">Sesión incompleta</span>':'';
+    const stWhy=(miss||part)&&w.reason?'<span class="tiny">'+esc(missLbl(w.reason))+'</span>':'';
+    const skBadge=(!miss&&sc.ex+sc.sets)?'<span class="badge orange" title="Reportado por el atleta">'+(sc.ex?sc.ex+' ej.':'')+(sc.ex&&sc.sets?' · ':'')+(sc.sets?sc.sets+' series':'')+' sin hacer</span>':'';
     const pct=planDay&&planDay.exercises.length?Math.round((keys.length/planDay.exercises.length)*100):null;
-    wk+='<div class="logitem" data-act="log-toggle"><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':'<span class="tiny">sin detalle de series</span>')+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+detail+'</div>';
+    const meta=miss?'<span class="tiny">no se registró trabajo</span>'
+      :'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':'<span class="tiny">sin detalle de series</span>');
+    wk+='<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+stBadge+stWhy+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>';
   });
   if(!wk)wk='<div class="empty"><b>Sin entrenamientos registrados</b></div>';
   let nut='';
@@ -4092,6 +4183,7 @@ function wdraftLoad(aid){
     const raw=localStorage.getItem(LS_WDRAFT);if(!raw)return null;
     const w=JSON.parse(raw);
     if(!w||!w.dayId||!w.sets||w.aid!==aid)return null;
+    if(!w.skips)w.skips={}; /* borradores guardados antes de la s62 */
     return w;
   }catch(e){return null;}
 }
@@ -4113,7 +4205,64 @@ function wdraftFresh(aid,day){
     sets[e.id]=[];
     for(let i=0;i<nsets;i++)sets[e.id].push({w:'',r:'',rir:''});
   });
-  return{aid,dayId:day.id,date:todayISO(),sets,done:{},rpe:'',dur:'',comment:'',touched:false};
+  return{aid,dayId:day.id,date:todayISO(),sets,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
+}
+/* ---------- Guardado de una sesión (s62) ----------
+   Un único camino para las tres salidas —completa, incompleta y no realizada— porque las
+   tres acaban siendo una fila de workout_logs. Duplicar el upsert por cada caso es cómo
+   se acaba con tres versiones que guardan campos distintos. */
+async function pushWorkoutLog(u,w){
+  const d=athData(u.id);
+  d.logs.workouts.push(w);
+  d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
+  const auid=_athleteUidByAppId[u.id];
+  if(auid&&_supabaseUser){
+    try{
+      const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},{onConflict:'id'});
+      if(error){console.error('workout_logs',error);toast('No sincronizó: '+error.message);}
+    }catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
+  }else if(_supabaseUser){toast('No sincronizó: sin athlete_uid (mapa vacío)');}
+  saveState();
+}
+/* Vuelca el borrador a una fila. `status` es la INTENCIÓN del atleta; el estado final puede
+   corregirse hacia abajo si no hay trabajo real, para que nunca cuente como sesión algo que
+   no ocurrió. Las marcas de serie sin números NO entran en `entries`: van a `skips`, y así
+   ninguna gráfica de cargas, tonelaje ni 1RM ve una serie de 0×0 que nadie hizo. */
+async function saveWorkoutDraft(status,reason,extraCm){
+  const u=userById(getSession().userId),d=athData(u.id);
+  const day=d.routine.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
+  if(!day)return;
+  const skDraft=WDRAFT.skips||{},entries={},skips={};
+  Object.keys(WDRAFT.sets).forEach(exId=>{
+    const exSk=skDraft[exId],setSk={},filled=[];
+    (WDRAFT.sets[exId]||[]).forEach((s,i)=>{
+      /* Dijo que no lo hizo: nada de ese ejercicio entra como trabajo, aunque haya números
+         escritos antes de marcarlo. No se borran del borrador para que «Deshacer» los devuelva. */
+      if(exSk&&exSk.k==='none'){setSk[i+1]='none';return;}
+      if(s.w!==''||s.r!==''){
+        const o={w:parseFloat(s.w)||0,r:parseInt(s.r,10)||0,rir:s.rir===''||s.rir==null?null:parseFloat(s.rir)};
+        if(s.sk)o.sk=s.sk;
+        filled.push(o);
+      }else if(s.sk)setSk[i+1]=s.sk;
+    });
+    if(filled.length)entries[exId]=filled;
+    if(exSk||Object.keys(setSk).length)skips[exId]=Object.assign({},exSk||{},{sets:setSk});
+  });
+  const doneSet=new Set(Object.keys(WDRAFT.done||{}).filter(k=>WDRAFT.done[k]&&!(skDraft[k]&&skDraft[k].k==='none')));
+  Object.keys(entries).forEach(id=>doneSet.add(id));
+  const doneIds=[...doneSet];
+  if(!Object.keys(entries).length&&!doneIds.length&&!Object.keys(skips).length){toast('Marca algún ejercicio como hecho o registra una serie');return;}
+  let st=status||'done';
+  if(st==='done'&&Object.keys(skips).length)st='partial';       /* quedó algo sin hacer */
+  if(!Object.keys(entries).length&&!doneIds.length)st='missed';  /* no hubo trabajo: es falta */
+  const _rpe=parseFloat(WDRAFT.rpe),_dur=parseFloat(WDRAFT.dur);
+  const cm=[(WDRAFT.comment||'').trim(),(extraCm||'').trim()].filter(Boolean).join(' · ');
+  const w={id:uid(),date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,
+    rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips};
+  WDRAFT=null;wdraftSave();
+  await pushWorkoutLog(u,w);
+  toast(st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
+  nav('ath-hoy');
 }
 /* Nombre del día del borrador en curso, o '' si no hay nada que continuar. */
 function wdraftDayName(aid){
@@ -4206,7 +4355,8 @@ function weekStrip(aid){
   let h='<div class="week mb16">';
   for(let i=6;i>=0;i--){
     const iso=daysAgoISO(i);const[y,m,dd]=iso.split('-').map(Number);const dt=new Date(y,m-1,dd);
-    const hasW=d.logs.workouts.some(w=>w.date===iso),hasN=d.logs.nutrition.some(n=>n.date===iso);
+    /* una sesión reportada como no realizada no puede encender el punto de «entreno registrado» */
+    const hasW=d.logs.workouts.some(w=>w.date===iso&&!isMissed(w)),hasN=d.logs.nutrition.some(n=>n.date===iso);
     h+='<div class="wday'+(i===0?' today':'')+'"><div class="d">'+DIAS[dt.getDay()]+'</div><div class="n">'+dd+'</div><div class="dots">'+(hasW?'<span class="dot" style="background:var(--volt)"></span>':'')+(hasN?'<span class="dot" style="background:var(--orange)"></span>':'')+'</div></div>';
   }
   return h+'</div><div class="legend mb16"><span><i style="background:var(--volt)"></i>Entreno registrado</span><span><i style="background:var(--orange)"></i>Nutrición registrada</span></div>';
@@ -4226,27 +4376,31 @@ VIEWS['ath-hoy']=function(u){
   const wp=weekProgress(aid);
   d.routine.days.forEach(day=>{
     const wd=wp.byDay[day.id];                                   /* hecho esta semana */
+    const md=wp.missDay[day.id];                                 /* marcado como no hecho */
     const hoy=trainedToday.some(w=>w.dayId===day.id);            /* …y además fue hoy */
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===aid&&WDRAFT.dayId===day.id;
     const sub=enCurso?'sin guardar · continúa donde ibas'
-      :day.exercises.length+' ejercicios'+(wd?' · hecho '+(hoy?'hoy':'el '+fmtDow(wd.date)):'');
+      :day.exercises.length+' ejercicios'+(wd?' · hecho '+(hoy?'hoy':'el '+fmtDow(wd.date))+(wd.partial?' (incompleta)':''):md?' · no la hiciste · '+missLbl(md.reason).toLowerCase():'');
     daysBtns+='<button class="userbtn" data-act="wlog-start" data-day="'+day.id+'" style="margin-bottom:8px">'+
-    '<span class="ava" style="background:'+(enCurso?'var(--blue)':wd?'var(--green)':'var(--card2)')+';color:'+(enCurso||wd?'#0d1015':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':wd?'✓':day.exercises.length)+'</span>'+
+    '<span class="ava" style="background:'+(enCurso?'var(--blue)':wd?'var(--green)':md?'var(--danger-08)':'var(--card2)')+';color:'+(enCurso||wd?'#0d1015':md?'var(--red)':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':wd?'✓':md?'✕':day.exercises.length)+'</span>'+
     '<span class="who"><b>'+esc(day.name)+'</b><span>'+sub+'</span></span><span class="arr">→</span></button>';
   });
+  /* Puerta de entrada al «no cumplí». Va DEBAJO de los días y en tono discreto a propósito:
+     el camino principal sigue siendo entrenar; esto es la salida honesta cuando no se pudo. */
+  if(d.routine.days.length)daysBtns+='<button class="missbtn" data-act="miss-ask">No pude entrenar — avisar a mi coach</button>';
   /* Barra de progreso de la semana. Se pinta arriba de los días para que sea lo primero
      que se ve al entrar, que es justo lo que faltaba: saber en qué punto de la semana vas. */
   let wkUI='';
   if(wp.total){
     let pips='';
-    d.routine.days.forEach(day=>{pips+='<i class="'+(wp.byDay[day.id]?'on':'')+'"></i>';});
+    d.routine.days.forEach(day=>{const b=wp.byDay[day.id];pips+='<i class="'+(b?(b.partial?'on half':'on'):wp.missDay[day.id]?'miss':'')+'"></i>';});
     const faltan=wp.total-wp.done;
     wkUI='<div class="wkp'+(wp.complete?' full':'')+'">'+
       '<div class="wkp-h"><b>'+wp.done+' de '+wp.total+' sesiones</b><span>semana del '+fmtDate(wp.from)+' al '+fmtDate(wp.to)+'</span></div>'+
       '<div class="wkp-pips">'+pips+'</div>'+
       (wp.complete
         ?'<div class="wkp-msg">'+I.check+' ¡Semana completa! Ya hiciste todas tus sesiones.</div>'
-        :'<div class="wkp-sub">Te '+(faltan===1?'falta 1 sesión':'faltan '+faltan+' sesiones')+' para cerrar la semana. El lunes el contador vuelve a empezar.</div>')+
+        :'<div class="wkp-sub">Te '+(faltan===1?'falta 1 sesión':'faltan '+faltan+' sesiones')+' para cerrar la semana. El lunes el contador vuelve a empezar.'+(wp.missed?' Marcaste '+wp.missed+' como no hecha'+(wp.missed===1?'':'s')+'.':'')+'</div>')+
       '</div>';
   }
   /* El borrador ya no se pierde, pero hay que poder VOLVER a él: sin este aviso el atleta
@@ -4409,28 +4563,50 @@ VIEWS['ath-wlog']=function(u){
     sets.forEach((s,si)=>{
       const ref=lsets&&lsets[si]?lsets[si]:null;
       const phW=ref&&ref.w?String(ref.w):'kg', phR=ref&&ref.r?String(ref.r):'reps';
-      rows+='<div class="setrow"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':s.w)+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
+      /* Marca de la serie: un solo botón de 3 estados. Sin motivo a propósito — preguntar
+         «¿por qué?» en cada serie es donde la gente deja de registrar a mitad del entreno.
+         El motivo se pide una vez por ejercicio, que es donde de verdad informa. */
+      const sk=s.sk||'';
+      const skTxt=sk==='none'?'✕':sk==='partial'?'½':'○';
+      const skTit=sk==='none'?'No la hice — toca otra vez para «no la terminé»':sk==='partial'?'No la terminé — toca otra vez para quitar la marca':'Marcar: 1 toque = no la hice · 2 = no la terminé';
+      const dis=sk==='none'?' disabled':'';
+      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':s.w)+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
     });
     let lastTxt='';
     if(last&&last.entries[e.id])lastTxt='<div class="last">Última sesión: '+last.entries[e.id].map(s=>(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+' ('+fmtDate(last.date)+')</div>';
     const lib=e.libId?libById(e.libId):null;
     const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:14.5px;font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue)" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
     const exDone=!!(WDRAFT.done&&WDRAFT.done[e.id]);
+    const exSk=(WDRAFT.skips||{})[e.id];
     const revBtn=e.revLink?'<a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:6px;color:var(--blue);font-size:12.5px;font-weight:600;text-decoration:none">🎥 Revisión de tu coach →</a>':'';
-    const swapUI=swapRowUI(e,day.id);
-    blocks+='<div class="wlog-ex'+(exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button></div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+swapUI+revBtn+lastTxt+'</div>'+
+    /* «No puedo hacerlo» (swap) y «No lo hice» son dos cosas distintas y van juntas a propósito:
+       la primera pide un sustituto AHORA, la segunda reporta lo que ya no pasó. Si el atleta
+       ya marcó el ejercicio como no hecho, ofrecerle un swap sería ruido: se oculta. */
+    const swapUI=exSk?'':swapRowUI(e,day.id);
+    const skUI=exSk
+      ?'<div class="skipbadge'+(exSk.k==='partial'?' half':'')+'">'+(exSk.k==='partial'?'½':'✕')+'<span>'+(exSk.k==='partial'?'Lo dejaste a medias':'No lo hiciste')+' · '+esc(skipLbl(exSk.why))+'</span><button class="u" data-act="wlog-exskip-undo" data-ex="'+e.id+'">Deshacer</button></div>'+(exSk.cm?'<div class="tiny" style="margin-top:4px">«'+esc(exSk.cm)+'»</div>':'')
+      :'<button class="skipbtn" data-act="wlog-exskip-ask" data-ex="'+e.id+'">✕ No lo hice</button>';
+    const headBtn=exSk?'':'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button>';
+    blocks+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+swapUI+skUI+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso (kg)</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
-  /* Un ejercicio cuenta como hecho si está marcado O si tiene alguna serie anotada. */
-  let nDone=0;day.exercises.forEach(e=>{if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nDone++;});
+  /* Un ejercicio cuenta como hecho si está marcado O si tiene alguna serie anotada.
+     Uno marcado como NO hecho no cuenta aunque tenga series sueltas: manda lo que dijo. */
+  let nDone=0,nSkip=0;
+  day.exercises.forEach(e=>{
+    if((WDRAFT.skips||{})[e.id]){nSkip++;return;}
+    if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nDone++;
+  });
+  const legend='<p class="sklegend" style="padding:0 0 12px">En cada serie, el botón <b>○</b> marca lo que no hiciste: <b>1 toque</b> = no la hice · <b>2 toques</b> = no la terminé. No hace falta explicar nada ahí; el motivo se pregunta una sola vez por ejercicio.</p>';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
-    body:blocks+
+    body:legend+blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
     '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
        ve cuántos lleva y puede cerrar la sesión sin recorrer toda la lista hasta abajo. */
-    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b><br>Lo que anotas se guarda en este dispositivo mientras entrenas.</div>'+
+    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b>'+(nSkip?' · <b style="color:var(--red)">'+nSkip+' sin hacer</b>':'')+'<br>Lo que anotas se guarda en este dispositivo mientras entrenas.</div>'+
+    '<button class="btn btn-g" data-act="wlog-partial-ask">Terminar incompleta</button>'+
     '<button class="btn btn-p" data-act="wlog-save">'+I.check+' Guardar entrenamiento</button></div>'};
 };
 
@@ -4446,15 +4622,17 @@ VIEWS['ath-rutina']=function(u){
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
       rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
-    const wd=wp.byDay[day.id];
-    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+(wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+'</span>':'')+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
+    const wd=wp.byDay[day.id],md=wp.missDay[day.id];
+    const tag=wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+(wd.partial?' · incompleta':'')+'</span>'
+      :md?'<span class="daydone" style="background:var(--danger-08);color:var(--red)">✕ no la hiciste</span>':'';
+    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
   /* Mismo resumen de semana que en «Hoy»: es la vista donde el atleta decide qué toca,
      así que la cifra tiene que estar aquí también y no obligarle a volver al inicio. */
   let wkUI='';
   if(wp.total){
-    let pips='';rt.days.forEach(day=>{pips+='<i class="'+(wp.byDay[day.id]?'on':'')+'"></i>';});
+    let pips='';rt.days.forEach(day=>{const b=wp.byDay[day.id];pips+='<i class="'+(b?(b.partial?'on half':'on'):wp.missDay[day.id]?'miss':'')+'"></i>';});
     const faltan=wp.total-wp.done;
     wkUI='<div class="wkp'+(wp.complete?' full':'')+'" style="margin-bottom:16px">'+
       '<div class="wkp-h"><b>'+wp.done+' de '+wp.total+' sesiones</b><span>semana del '+fmtDate(wp.from)+' al '+fmtDate(wp.to)+'</span></div>'+
@@ -4659,29 +4837,79 @@ Object.assign(ACTIONS,{
     await delSwap(aid,el.dataset.id);
     toast('Cambio revertido · vuelve tu ejercicio');render();
   },
-  'wlog-save':async()=>{
-    const u=userById(getSession().userId),d=athData(u.id);
-    const day=d.routine.days.find(x=>x.id===WDRAFT.dayId);
-    const entries={};
-    Object.keys(WDRAFT.sets).forEach(exId=>{
-      const filled=WDRAFT.sets[exId].filter(s=>s.w!==''||s.r!=='').map(s=>({w:parseFloat(s.w)||0,r:parseInt(s.r,10)||0,rir:s.rir===''||s.rir==null?null:parseFloat(s.rir)}));
-      if(filled.length)entries[exId]=filled;
+  /* Los cierres se leen del borrador, no del DOM: el DOM ya pudo repintarse.
+     La fecha es la del borrador — si empezó ayer y guarda hoy, el entreno es de ayer. */
+  'wlog-save':async()=>{await saveWorkoutDraft('done',null,'');},
+  /* ---- lo que NO se cumplió: serie, ejercicio y sesión (s62) ---- */
+  'wlog-setsk':el=>{
+    const arr=WDRAFT&&WDRAFT.sets[el.dataset.ex];if(!arr)return;
+    const s=arr[parseInt(el.dataset.idx,10)];if(!s)return;
+    s.sk=s.sk==='none'?'partial':s.sk==='partial'?'':'none';
+    wdraftTouch();render();
+  },
+  'wlog-exskip-ask':el=>{
+    const ex=el.dataset.ex;
+    openModal('¿Qué pasó con este ejercicio?',
+      '<p class="muted mb8">Tu coach lo verá tal cual. Sirve para ajustar tu programa, no para regañarte.</p>'+
+      '<button class="userbtn" style="margin-bottom:8px" data-act="wlog-exskip-why" data-ex="'+ex+'" data-k="none"><span class="who"><b>No lo hice</b><span>Ni una serie</span></span><span class="arr">→</span></button>'+
+      '<button class="userbtn" data-act="wlog-exskip-why" data-ex="'+ex+'" data-k="partial"><span class="who"><b>Lo dejé a medias</b><span>Hice menos series de las que tocaban</span></span><span class="arr">→</span></button>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
+  },
+  'wlog-exskip-why':el=>{
+    const ex=el.dataset.ex,k=el.dataset.k;
+    let btns='';
+    Object.keys(SKIP_REASONS).forEach(r=>{btns+='<button class="userbtn" style="margin-bottom:8px" data-act="wlog-exskip-save" data-ex="'+ex+'" data-k="'+k+'" data-why="'+r+'"><span class="who"><b>'+esc(SKIP_REASONS[r])+'</b></span><span class="arr">→</span></button>';});
+    openModal(k==='partial'?'¿Por qué lo dejaste a medias?':'¿Por qué no lo hiciste?',
+      btns+'<label style="margin-top:6px">Cuéntale más a tu coach (opcional)</label><textarea id="exsk_cm" rows="2" placeholder="Ej: me molestó el hombro derecho al bajar"></textarea>'+
+      '<p class="tiny">Si vas a escribir, hazlo antes de elegir el motivo: se guardan juntos.</p>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button>',{nofocus:true});
+  },
+  'wlog-exskip-save':el=>{
+    if(!WDRAFT)return;
+    const ex=el.dataset.ex,ta=document.getElementById('exsk_cm');
+    WDRAFT.skips=WDRAFT.skips||{};
+    WDRAFT.skips[ex]={k:el.dataset.k,why:el.dataset.why,cm:ta?ta.value.trim():''};
+    if(el.dataset.k==='none'&&WDRAFT.done)delete WDRAFT.done[ex];
+    wdraftTouch();closeModal();toast('Anotado · se envía al guardar la sesión');render();
+  },
+  'wlog-exskip-undo':el=>{if(WDRAFT&&WDRAFT.skips)delete WDRAFT.skips[el.dataset.ex];wdraftTouch();render();},
+  'wlog-partial-ask':()=>{
+    let btns='';
+    Object.keys(MISS_REASONS).forEach(r=>{btns+='<button class="userbtn" style="margin-bottom:8px" data-act="wlog-partial-save" data-why="'+r+'"><span class="who"><b>'+esc(MISS_REASONS[r])+'</b></span><span class="arr">→</span></button>';});
+    openModal('Terminar la sesión incompleta',
+      '<p class="muted mb8">Se guarda lo que sí hiciste y cuenta como sesión de la semana, marcada como incompleta. ¿Qué te lo impidió?</p>'+btns+
+      '<label style="margin-top:6px">Cuéntale más a tu coach (opcional)</label><textarea id="miss_cm" rows="2" placeholder="Ej: solo tuve 30 minutos, hice los dos primeros"></textarea>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button>',{nofocus:true});
+  },
+  'wlog-partial-save':async el=>{
+    const ta=document.getElementById('miss_cm'),cm=ta?ta.value.trim():'';
+    closeModal();await saveWorkoutDraft('partial',el.dataset.why,cm);
+  },
+  /* Sesión no realizada. No pasa por el borrador: no hay nada que anotar. */
+  'miss-ask':()=>{
+    const aid=getSession().userId,rt=routineForAthlete(aid),wp=weekProgress(aid);
+    let btns='';
+    (rt.days||[]).forEach(day=>{
+      const hecho=wp.byDay[day.id],falt=wp.missDay[day.id];
+      const sub=hecho?'ya la hiciste el '+fmtDow(hecho.date):falt?'ya la marcaste como no hecha':day.exercises.length+' ejercicios';
+      btns+='<button class="userbtn" style="margin-bottom:8px" data-act="miss-why" data-day="'+day.id+'"><span class="who"><b>'+esc(day.name)+'</b><span>'+esc(sub)+'</span></span><span class="arr">→</span></button>';
     });
-    const doneSet=new Set(Object.keys(WDRAFT.done||{}).filter(k=>WDRAFT.done[k]));
-    Object.keys(entries).forEach(id=>doneSet.add(id));
-    const doneIds=[...doneSet];
-    if(!Object.keys(entries).length&&!doneIds.length){toast('Marca algún ejercicio como hecho o registra una serie');return;}
-    /* Los tres cierres se leen del borrador, no del DOM: el DOM ya pudo repintarse.
-       La fecha es la del borrador — si empezó ayer y guarda hoy, el entreno es de ayer. */
-    const _rpe=parseFloat(WDRAFT.rpe),_dur=parseFloat(WDRAFT.dur);
-    const w={id:uid(),date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:WDRAFT.comment||''};
-    d.logs.workouts.push(w);
-    d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
-    const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){
-      try{const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment},{onConflict:'id'});if(error){console.error('workout_logs',error);toast('No sincronizó: '+error.message);}}catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
-    }else if(_supabaseUser){toast('No sincronizó: sin athlete_uid (mapa vacío)');}
-    WDRAFT=null;wdraftSave();saveState();toast('Entrenamiento guardado 💪');nav('ath-hoy');
+    openModal('¿Qué sesión no pudiste hacer?','<p class="muted mb8">Registrarla no cuenta como entrenamiento: le sirve a tu coach para ajustar tu semana en vez de adivinar por qué no apareciste.</p>'+btns,'<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
+  },
+  'miss-why':el=>{
+    const day=el.dataset.day;
+    let btns='';
+    Object.keys(MISS_REASONS).forEach(r=>{btns+='<button class="userbtn" style="margin-bottom:8px" data-act="miss-save" data-day="'+day+'" data-why="'+r+'"><span class="who"><b>'+esc(MISS_REASONS[r])+'</b></span><span class="arr">→</span></button>';});
+    openModal('¿Qué te lo impidió?',btns+'<label style="margin-top:6px">Cuéntale más a tu coach (opcional)</label><textarea id="miss_cm" rows="2" placeholder="Ej: se me juntó una junta a la hora del gym"></textarea>','<button class="btn btn-g" data-act="modal-close">Cancelar</button>',{nofocus:true});
+  },
+  'miss-save':async el=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const day=(d.routine.days||[]).find(x=>x.id===el.dataset.day);if(!day)return;
+    const ta=document.getElementById('miss_cm'),cm=ta?ta.value.trim():'';
+    const w={id:uid(),date:todayISO(),dayId:day.id,dayName:day.name,entries:{},done:[],rpe:null,dur:null,comment:cm,status:'missed',reason:el.dataset.why,skips:{}};
+    closeModal();
+    await pushWorkoutLog(u,w);
+    toast('Registrado · tu coach ya lo ve');render();
   },
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
@@ -6987,7 +7215,7 @@ function reportSheet(aid,rw,readOnly){
   /* ---- ADHERENCIA + WELLBEING ---- */
   const adh=adherenceAvg(aid,days);
   const nNut=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff).length;
-  const nWk=athData(aid).logs.workouts.filter(w=>w.date>=cutoff).length;
+  const nWk=athData(aid).logs.workouts.filter(w=>w.date>=cutoff&&!isMissed(w)).length;
   const wb=wellbeingAvgs(aid,days);
   const wbbar=(label,v)=>{if(v==null)return'';const pct=Math.max(0,Math.min(100,v/5*100));const col=v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066';return '<div style="margin:8px 0"><div class="wbbar-l"><span>'+label+'</span><span style="color:var(--tx)">'+v+'<small style="color:var(--tx3)">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div></div>';};
   const adhCards=[];
