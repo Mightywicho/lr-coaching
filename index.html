@@ -284,6 +284,22 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .hero{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line2);border-radius:var(--r);padding:20px;margin-bottom:16px}
 .hero-h{display:flex;align-items:center;gap:8px;font-family:var(--font-d);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--volt);margin-bottom:4px}
 .hero-sub{color:var(--tx2);font-size:13px;margin-bottom:14px}
+/* progreso de la semana de entrenamiento (s61) */
+.wkp{background:var(--card2);border:1px solid var(--line2);border-radius:var(--r-s);padding:11px 13px;margin-bottom:14px}
+.wkp.full{border-color:var(--green);background:rgba(82,217,138,.09)}
+.wkp-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.wkp-h b{font-family:var(--font-d);font-size:15px;font-weight:700;color:var(--tx)}
+.wkp.full .wkp-h b{color:var(--green)}
+.wkp-h span{font-size:11.5px;color:var(--tx2)}
+.wkp-pips{display:flex;gap:5px}
+.wkp-pips i{flex:1;height:6px;border-radius:3px;background:var(--line2)}
+.wkp-pips i.on{background:var(--volt)}
+.wkp.full .wkp-pips i.on{background:var(--green)}
+.wkp-msg{margin-top:9px;font-size:12.5px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:5px}
+.wkp-msg svg{width:14px;height:14px;flex:0 0 auto}
+.wkp-sub{margin-top:8px;font-size:12px;color:var(--tx2)}
+.daydone{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:var(--green);background:rgba(82,217,138,.13);border:1px solid rgba(82,217,138,.32);border-radius:20px;padding:2px 8px;vertical-align:2px;margin-left:7px;letter-spacing:.02em}
+.daydone svg{width:11px;height:11px;stroke-width:3;flex:0 0 auto}
 .coachnote{background:rgba(124,208,251,.07);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:var(--r-s);padding:11px 14px;font-size:13px;color:var(--tx);margin-bottom:16px}
 .coachnote b{color:var(--blue);font-weight:600;display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 .statlink{cursor:pointer;transition:border-color .15s}
@@ -2045,6 +2061,41 @@ function workoutsInLast(aid,days){const cutoff=daysAgoISO(days);return athData(a
 function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
 function kcalFromMacros(n){return Math.round(n.protein*4+n.carbs*4+n.fat*9);}
 function lastWorkoutForDay(aid,dayId){const ws=athData(aid).logs.workouts.filter(w=>w.dayId===dayId&&w.entries&&Object.keys(w.entries).length);return ws.length?ws[ws.length-1]:null;}
+/* ---------- semana de entrenamiento (lunes a domingo) ----------
+   La semana es de CALENDARIO a propósito (decisión de Luis, s61). La consecuencia buena
+   es que NO se guarda ningún dato nuevo: la semana se reinicia sola cada lunes porque
+   weekStartISO(hoy) devuelve otro lunes, y con eso weekProgress deja de encontrar los
+   entrenos viejos. No hay estado que resetear, que migrar ni que se pueda desincronizar
+   entre dispositivos — todo se recalcula desde d.logs.workouts, que ya existe y ya viaja
+   por realtime. Si algún día se cambia a «ciclo de rutina», eso SÍ necesitaría dato nuevo.
+   Todas las fechas se arman por componentes Y/M/D en hora local, igual que todayISO(),
+   para no reintroducir desfases de UTC.
+   ⚠ weekStartISO NO se redefine aquí: ya existe en la línea ~1901 y es la que usa
+   weeklyAvgSeries para los promedios semanales del reporte. Reusarla es lo que garantiza
+   que «la semana» del contador del atleta y «la semana» de las gráficas del coach sean
+   la misma; dos definiciones paralelas acabarían discrepando en algún borde. */
+function isoPlus(iso,n){
+  const[y,m,d]=iso.split('-').map(Number);const dt=new Date(y,m-1,d);dt.setDate(dt.getDate()+n);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+const fmtDow=iso=>{if(!iso)return'—';const[y,m,d]=iso.split('-').map(Number);return DIAS[new Date(y,m-1,d).getDay()]+' '+d;};
+/* Progreso de la semana en curso: qué días de la rutina ya se entrenaron y cuántos faltan.
+   ⚠ Un entreno cuenta si tiene series anotadas O ejercicios marcados como «Hecho». Es el
+   mismo criterio con el que wlog-save deja guardar; medir solo por `entries` dejaría sin
+   palomita al atleta que solo marca Hecho — que es un flujo que la app ofrece a propósito. */
+function weekProgress(aid){
+  const d=athData(aid),from=weekStartISO(todayISO()),to=isoPlus(from,6);
+  const days=(routineForAthlete(aid).days)||[];
+  const byDay={};
+  (d.logs.workouts||[]).forEach(w=>{
+    if(!w||!w.dayId||!w.date||w.date<from||w.date>to)return;
+    const real=(w.entries&&Object.keys(w.entries).length)||(w.done&&w.done.length);
+    if(!real)return;
+    if(!byDay[w.dayId]||w.date>byDay[w.dayId].date)byDay[w.dayId]={date:w.date};
+  });
+  const total=days.length,done=days.filter(x=>byDay[x.id]).length;
+  return{from,to,byDay,done,total,complete:total>0&&done>=total};
+}
 /* estado del ciclo de asesoría (membresía) */
 function athStatus(aid){
   const p=athData(aid).profile,t=todayISO();
@@ -4044,7 +4095,15 @@ function wdraftLoad(aid){
     return w;
   }catch(e){return null;}
 }
-/* Borrador nuevo: prellena con la última sesión de ese día, como siempre. */
+/* Borrador nuevo: ARRANCA VACÍO (s61).
+   ⚠ Antes se prellenaban peso y reps con la sesión anterior, y eso tenía un costo de DATOS,
+   no solo de interfaz: si el atleta abría el día, marcaba «Hecho» y guardaba sin tocar nada,
+   se registraban los kilos de la semana pasada como si los hubiera levantado. El historial,
+   el e1RM y la tendencia se llenaban de series que nunca ocurrieron.
+   La referencia NO se pierde: sigue a la vista en la línea «Última sesión: …» de cada
+   ejercicio y ahora además en el placeholder de cada casilla, que es donde de verdad se
+   necesita. Lo único que se hereda es el NÚMERO de series, para no tener que añadirlas
+   a mano cada vez; eso no es un dato registrado, es la forma de la sesión. */
 function wdraftFresh(aid,day){
   const last=lastWorkoutForDay(aid,day.id);
   const sets={};
@@ -4052,7 +4111,7 @@ function wdraftFresh(aid,day){
     const lastSets=last&&last.entries[e.id]?last.entries[e.id]:null;
     const nsets=lastSets?lastSets.length:(parseInt(e.sets,10)||3);
     sets[e.id]=[];
-    for(let i=0;i<nsets;i++)sets[e.id].push({w:lastSets&&lastSets[i]?lastSets[i].w:'',r:lastSets&&lastSets[i]?lastSets[i].r:'',rir:''});
+    for(let i=0;i<nsets;i++)sets[e.id].push({w:'',r:'',rir:''});
   });
   return{aid,dayId:day.id,date:todayISO(),sets,done:{},rpe:'',dur:'',comment:'',touched:false};
 }
@@ -4161,13 +4220,35 @@ VIEWS['ath-hoy']=function(u){
   const trainedToday=d.logs.workouts.filter(w=>w.date===todayISO());
   let daysBtns='';
   const _wdName=wdraftDayName(aid);
+  /* ⚠ Antes la palomita se calculaba con trainedToday, o sea SOLO con lo entrenado hoy:
+     si entrenaste el miércoles, el jueves los días se veían todos iguales y no había forma
+     de saber cuáles ya hiciste. Ahora se mide contra la SEMANA en curso (s61). */
+  const wp=weekProgress(aid);
   d.routine.days.forEach(day=>{
-    const done=trainedToday.some(w=>w.dayId===day.id);
+    const wd=wp.byDay[day.id];                                   /* hecho esta semana */
+    const hoy=trainedToday.some(w=>w.dayId===day.id);            /* …y además fue hoy */
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===aid&&WDRAFT.dayId===day.id;
+    const sub=enCurso?'sin guardar · continúa donde ibas'
+      :day.exercises.length+' ejercicios'+(wd?' · hecho '+(hoy?'hoy':'el '+fmtDow(wd.date)):'');
     daysBtns+='<button class="userbtn" data-act="wlog-start" data-day="'+day.id+'" style="margin-bottom:8px">'+
-    '<span class="ava" style="background:'+(enCurso?'var(--blue)':done?'var(--green)':'var(--card2)')+';color:'+(enCurso||done?'#0d1015':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':done?'✓':day.exercises.length)+'</span>'+
-    '<span class="who"><b>'+esc(day.name)+'</b><span>'+(enCurso?'sin guardar · continúa donde ibas':day.exercises.length+' ejercicios'+(done?' · hecho hoy':''))+'</span></span><span class="arr">→</span></button>';
+    '<span class="ava" style="background:'+(enCurso?'var(--blue)':wd?'var(--green)':'var(--card2)')+';color:'+(enCurso||wd?'#0d1015':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':wd?'✓':day.exercises.length)+'</span>'+
+    '<span class="who"><b>'+esc(day.name)+'</b><span>'+sub+'</span></span><span class="arr">→</span></button>';
   });
+  /* Barra de progreso de la semana. Se pinta arriba de los días para que sea lo primero
+     que se ve al entrar, que es justo lo que faltaba: saber en qué punto de la semana vas. */
+  let wkUI='';
+  if(wp.total){
+    let pips='';
+    d.routine.days.forEach(day=>{pips+='<i class="'+(wp.byDay[day.id]?'on':'')+'"></i>';});
+    const faltan=wp.total-wp.done;
+    wkUI='<div class="wkp'+(wp.complete?' full':'')+'">'+
+      '<div class="wkp-h"><b>'+wp.done+' de '+wp.total+' sesiones</b><span>semana del '+fmtDate(wp.from)+' al '+fmtDate(wp.to)+'</span></div>'+
+      '<div class="wkp-pips">'+pips+'</div>'+
+      (wp.complete
+        ?'<div class="wkp-msg">'+I.check+' ¡Semana completa! Ya hiciste todas tus sesiones.</div>'
+        :'<div class="wkp-sub">Te '+(faltan===1?'falta 1 sesión':'faltan '+faltan+' sesiones')+' para cerrar la semana. El lunes el contador vuelve a empezar.</div>')+
+      '</div>';
+  }
   /* El borrador ya no se pierde, pero hay que poder VOLVER a él: sin este aviso el atleta
      no tiene ninguna pista de que su entreno a medias sigue vivo. */
   const wdUI=_wdName?'<div class="coachnote" style="border-left-color:var(--blue);cursor:pointer" data-act="wlog-resume"><b style="color:var(--blue)">Entreno sin guardar · '+esc(_wdName)+'</b>Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».</div>':'';
@@ -4200,7 +4281,7 @@ VIEWS['ath-hoy']=function(u){
 
   /* FOCO DE HOY */
   const hero=sv.tr
-    ? '<div class="hero"><div class="hero-h">'+I.dumbbell+' Tu entrenamiento de hoy</div><div class="hero-sub">'+esc(d.routine.name)+' — elige el día que toca y registra tus series.</div>'+daysBtns+'</div>'
+    ? '<div class="hero"><div class="hero-h">'+I.dumbbell+' Tu entrenamiento de hoy</div><div class="hero-sub">'+esc(d.routine.name)+' — elige el día que toca y registra tus series.</div>'+wkUI+daysBtns+'</div>'
     : '<div class="hero"><div class="hero-h">'+I.food+' Tu nutrición de hoy</div><div class="hero-sub">Esto es lo que te queda por comer.</div>'+remainingBars(aid,n)+'<button class="btn btn-p" style="margin-top:14px" onclick="openAcc(\'acc-nutri\')">'+I.check+' Registrar mis comidas</button></div>';
 
   /* VOLUMEN — métrica grande (solo entrenamiento) */
@@ -4320,9 +4401,15 @@ VIEWS['ath-wlog']=function(u){
   let blocks='';
   day.exercises.forEach(e=>{
     const sets=WDRAFT.sets[e.id]||[];
+    /* El peso y las reps de la serie equivalente de la última sesión van al PLACEHOLDER,
+       no al value: se ven en gris como referencia de qué superar, pero la casilla está
+       vacía, así que nada se registra si el atleta no lo escribe. */
+    const lsets=last&&last.entries[e.id]?last.entries[e.id]:null;
     let rows='';
     sets.forEach((s,si)=>{
-      rows+='<div class="setrow"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="kg" value="'+(s.w===''?'':s.w)+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"><input type="number" placeholder="reps" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
+      const ref=lsets&&lsets[si]?lsets[si]:null;
+      const phW=ref&&ref.w?String(ref.w):'kg', phR=ref&&ref.r?String(ref.r):'reps';
+      rows+='<div class="setrow"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':s.w)+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
     });
     let lastTxt='';
     if(last&&last.entries[e.id])lastTxt='<div class="last">Última sesión: '+last.entries[e.id].map(s=>(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+' ('+fmtDate(last.date)+')</div>';
@@ -4350,6 +4437,7 @@ VIEWS['ath-wlog']=function(u){
 VIEWS['ath-rutina']=function(u){
   if(!svcOf(u.id).tr)return VIEWS['ath-hoy'](u);
   const d=athData(u.id),rt=routineForAthlete(u.id);
+  const wp=weekProgress(u.id);
   let days='';
   rt.days.forEach(day=>{
     let rows='';
@@ -4358,11 +4446,26 @@ VIEWS['ath-rutina']=function(u){
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
       rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
-    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':'Registrar')+'</button></span></div>'+
+    const wd=wp.byDay[day.id];
+    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+(wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+'</span>':'')+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp"><button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
+  /* Mismo resumen de semana que en «Hoy»: es la vista donde el atleta decide qué toca,
+     así que la cifra tiene que estar aquí también y no obligarle a volver al inicio. */
+  let wkUI='';
+  if(wp.total){
+    let pips='';rt.days.forEach(day=>{pips+='<i class="'+(wp.byDay[day.id]?'on':'')+'"></i>';});
+    const faltan=wp.total-wp.done;
+    wkUI='<div class="wkp'+(wp.complete?' full':'')+'" style="margin-bottom:16px">'+
+      '<div class="wkp-h"><b>'+wp.done+' de '+wp.total+' sesiones</b><span>semana del '+fmtDate(wp.from)+' al '+fmtDate(wp.to)+'</span></div>'+
+      '<div class="wkp-pips">'+pips+'</div>'+
+      (wp.complete
+        ?'<div class="wkp-msg">'+I.check+' ¡Semana completa!</div>'
+        :'<div class="wkp-sub">Te '+(faltan===1?'falta 1 sesión':'faltan '+faltan+' sesiones')+' esta semana.</div>')+
+      '</div>';
+  }
   return{title:'Mi rutina',crumb:esc(d.routine.name),
-    body:(d.routine.weekNote?'<div class="notebox mb16"><b>Indicación de tu coach:</b> '+esc(d.routine.weekNote)+'</div>':'')+days};
+    body:(d.routine.weekNote?'<div class="notebox mb16"><b>Indicación de tu coach:</b> '+esc(d.routine.weekNote)+'</div>':'')+wkUI+days};
 };
 
 VIEWS['ath-nutri']=function(u){
