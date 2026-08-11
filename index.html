@@ -1675,8 +1675,13 @@ async function backfillFoods(){
 function vidKey(v){if(!v||typeof v!=='object')return '';return String(v.url||v.file||'');}
 let _orphans=null;
 function localOrphans(){
-  const out={exNuevos:[],exVideo:[],exConflicto:[],foods:[]};
+  const out={exNuevos:[],exVideo:[],exConflicto:[],foods:[],ocultos:0,sinLapidas:false};
   if(_currentUserId!=='coach'||!_lsAtBoot||!S)return out;
+  /* Sin poder leer las lápidas no se distingue «nunca subió» de «lo borré a propósito»: se calla
+     todo lo que CREA filas y se deja solo lo que añade video a una fila que ya existe, que no
+     puede resucitar nada. Fallar hacia el lado que no reescribe el catálogo. */
+  out.sinLapidas=!_tombsFetchOk;
+  const vetado=(kind,rid,name)=>out.sinLapidas||isTomb(kind,rid,name);
   /* Solo se compara lo que se leyó BIEN del servidor: sin eso, "no pude leer la tabla" se vería
      igual que "al servidor le falta todo" y el aviso saldría con la biblioteca entera dentro. */
   if(_libHydrated&&Array.isArray(_lsAtBoot.library)){
@@ -1685,7 +1690,7 @@ function localOrphans(){
     _lsAtBoot.library.forEach(l=>{
       if(!l||!l.id||!l.name)return;
       const s=byId[l.id]||byName[exKey(l.name)];   /* también por nombre: si no, un mismo ejercicio con otro id se duplicaría */
-      if(!s){out.exNuevos.push(l);return;}
+      if(!s){if(vetado('ex',l.id,l.name))out.ocultos++;else out.exNuevos.push(l);return;}
       const a=vidKey(l.video),b=vidKey(s.video);
       if(!a||a===b)return;
       if(!b)out.exVideo.push({loc:l,srv:s});       /* el servidor no tiene video: se puede subir sin perder nada */
@@ -1695,7 +1700,10 @@ function localOrphans(){
   if(_foodsHydrated&&Array.isArray(_lsAtBoot.foods)){
     const byId={},byName={};
     (S.foods||[]).forEach(f=>{if(!f)return;if(f.id)byId[f.id]=1;if(f.name)byName[exKey(f.name)]=1;});
-    _lsAtBoot.foods.forEach(f=>{if(f&&f.id&&f.name&&!byId[f.id]&&!byName[exKey(f.name)])out.foods.push(f);});
+    _lsAtBoot.foods.forEach(f=>{
+      if(!f||!f.id||!f.name||byId[f.id]||byName[exKey(f.name)])return;
+      if(vetado('food',f.id,f.name))out.ocultos++;else out.foods.push(f);
+    });
   }
   return out;
 }
@@ -1729,27 +1737,83 @@ function foodsGuard(){if(_foodsHydrated)return true;toast('No pude cargar la bas
 async function saveLibRow(l){
   try{const{error}=await supa.from('exercises').upsert([libToRow(l)],{onConflict:'coach_uid,eid'});
     if(error){toast('Error al guardar el ejercicio: '+error.message);return false;}
+    await clearTomb('ex',l&&l.id,l&&l.name);
     return true;}catch(e){toast('No pude guardar el ejercicio');return false;}
 }
 async function saveLibRows(arr){
   try{const{error}=await supa.from('exercises').upsert(arr.map(libToRow),{onConflict:'coach_uid,eid'});
     if(error){toast('Error al guardar los ejercicios: '+error.message);return false;}
+    await Promise.all(arr.map(l=>clearTomb('ex',l&&l.id,l&&l.name)));
     return true;}catch(e){toast('No pude guardar los ejercicios');return false;}
 }
 async function delLibRow(eid){
+  const prev=(S.library||[]).find(l=>l&&l.id===eid);   /* el nombre, para la lápida: después ya no está */
   try{const{error}=await supa.from('exercises').delete().eq('coach_uid',_coachUid).eq('eid',eid);
     if(error){toast('Error al eliminar: '+error.message);return false;}
+    await markTomb('ex',eid,prev&&prev.name);
     return true;}catch(e){toast('No pude eliminar el ejercicio');return false;}
 }
 async function saveFoodRow(f){
   try{const{error}=await supa.from('foods').upsert([foodToRow(f)],{onConflict:'coach_uid,fid'});
     if(error){toast('Error al guardar el alimento: '+error.message);return false;}
+    await clearTomb('food',f&&f.id,f&&f.name);
     return true;}catch(e){toast('No pude guardar el alimento');return false;}
 }
 async function delFoodRow(fid){
+  const prev=(S.foods||[]).find(f=>f&&f.id===fid);
   try{const{error}=await supa.from('foods').delete().eq('coach_uid',_coachUid).eq('fid',fid);
     if(error){toast('Error al eliminar: '+error.message);return false;}
+    await markTomb('food',fid,prev&&prev.name);
     return true;}catch(e){toast('No pude eliminar el alimento');return false;}
+}
+/* ===== Lápidas: lo que el coach borró A PROPÓSITO =====
+   La red de rescate compara la copia de ESTE navegador contra el servidor y ofrece subir lo que
+   falta. No sabía distinguir «esto nunca subió» de «esto lo borré a propósito en la otra
+   computadora»: el 2026-08-10 un solo clic devolvió 55 ejercicios borrados en la limpieza de la
+   s63, 14 de ellos SIN el video que ya tenían (la copia local era más vieja que el servidor).
+   Medido en la s65 por `xmin`: una sola transacción, 55 filas, ni una de las 345 buenas tocada.
+   La lápida deja constancia del borrado para que el rescate no vuelva a ofrecerlo.
+   Coach-only a propósito: el atleta nunca lee esta tabla. */
+let _tombs=new Set(), _tombNames=new Set(), _tombsFetchOk=false;
+const tombKey=(kind,rid)=>kind+':'+rid;
+/* También por nombre: el mismo ejercicio puede volver con OTRO id desde una copia vieja, igual que
+   ya contempla el cotejo `byName` del rescate. Sin esto la lápida se esquivaría sola. */
+function isTomb(kind,rid,name){
+  return _tombs.has(tombKey(kind,rid))||(name?_tombNames.has(tombKey(kind,exKey(name))):false);
+}
+async function hydrateTombstones(){
+  if(!_supabaseUser||_currentUserId!=='coach')return;
+  _tombsFetchOk=false;
+  try{
+    const{data,error}=await supa.from('library_tombstones').select('kind,rid,name');
+    if(error)return;
+    _tombsFetchOk=true;                     /* leyó bien; vacía es un resultado válido, no un fallo */
+    _tombs=new Set((data||[]).map(r=>tombKey(r.kind,r.rid)));
+    _tombNames=new Set((data||[]).filter(r=>r.name).map(r=>tombKey(r.kind,exKey(r.name))));
+  }catch(e){}
+}
+/* No bloquea el borrado: si la lápida falla, el ejercicio ya quedó borrado igual. Se marca en
+   memoria para que al menos esta sesión no lo ofrezca de vuelta, y se avisa por consola. */
+async function markTomb(kind,rid,name){
+  if(!rid)return;
+  _tombs.add(tombKey(kind,rid));
+  if(name)_tombNames.add(tombKey(kind,exKey(name)));
+  try{const{error}=await supa.from('library_tombstones')
+      .upsert([{coach_uid:_coachUid,kind:kind,rid:rid,name:name||null}],{onConflict:'coach_uid,kind,rid'});
+    if(error)console.warn('[lapida] no quedó registrado el borrado de '+rid+': '+error.message);
+  }catch(e){console.warn('[lapida] no quedó registrado el borrado de '+rid);}
+}
+/* Volver a dar de alta el MISMO id es una decisión explícita del coach: se retira la lápida.
+   El guard evita una consulta de borrado en cada guardado normal. */
+async function clearTomb(kind,rid,name){
+  if(!rid||!isTomb(kind,rid,name))return;
+  _tombs.delete(tombKey(kind,rid));
+  if(name)_tombNames.delete(tombKey(kind,exKey(name)));
+  /* Dos borrados en vez de un `.or(...)`: el nombre puede traer comas o paréntesis
+     («Sentadilla búlgara (mancuernas)») y ahí la sintaxis de PostgREST se rompe.
+     Solo se llega hasta aquí cuando de verdad había lápida, así que no es un coste habitual. */
+  try{await supa.from('library_tombstones').delete().eq('coach_uid',_coachUid).eq('kind',kind).eq('rid',rid);}catch(e){}
+  if(name){try{await supa.from('library_tombstones').delete().eq('coach_uid',_coachUid).eq('kind',kind).eq('name',name);}catch(e){}}
 }
 /* tabla -> hidratador. Permite refrescar SOLO lo que cambió en vez de rebajar las 13. */
 const _HYDRATORS={
@@ -5447,7 +5511,11 @@ function orphList(title,items,fmt){
 }
 function orphModalBody(o){
   let b='<p class="hint">Esto es lo que quedó guardado en <b>este navegador</b> y no está en el servidor. Casi siempre es trabajo hecho con una pestaña vieja o sin conexión.</p>';
-  b+='<div class="notebox mt8">Revísalo antes de subir: si borraste algo <b>a propósito</b> en otra computadora, aquí volvería a aparecer y lo estarías reviviendo.</div>';
+  if(o.sinLapidas)
+    b+='<div class="notebox mt8" style="border-left-color:var(--red)"><b>No pude comprobar qué borraste a propósito.</b> Mientras tanto solo te ofrezco añadir videos a ejercicios que ya existen: eso no puede revivir nada. Recarga la página para volver a intentarlo.</div>';
+  else if(o.ocultos)
+    b+='<div class="notebox mt8">Dejé fuera <b>'+o.ocultos+'</b> que ya habías borrado a propósito. No se suben. Si quieres alguno de vuelta, créalo desde Biblioteca.</div>';
+  b+='<div class="notebox mt8">Revísalo antes de subir: esta copia puede ser más <b>vieja</b> que el servidor.</div>';
   b+=orphList('Videos que le faltan al servidor',o.exVideo,p=>'<span>'+esc(p.loc.name)+'</span><span class="tm" style="max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(vidKey(p.loc.video))+'</span>');
   b+=orphList('Ejercicios que no están en el servidor',o.exNuevos,l=>'<span>'+esc(l.name)+(vidKey(l.video)?' <span class="badge">video</span>':'')+'</span><span class="tm">'+esc(l.group||'')+'</span>');
   b+=orphList('Alimentos que no están en el servidor',o.foods,f=>'<span>'+esc(f.name)+'</span><span class="tm">'+esc(f.cat||'')+'</span>');
@@ -7605,7 +7673,9 @@ async function initAfterAuthUnsafe(user){
   /* Después de render y de hidratar: compara la copia del navegador contra el servidor y avisa
      si algo nunca subió. Va al final a propósito — necesita S ya hidratado para no dar falsos
      positivos, y el banner vive en <body>, así que ningún render posterior lo borra. */
-  try{checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
+  /* Las lápidas van ANTES del aviso: son las que deciden qué se puede ofrecer sin resucitar nada.
+     Fuera de _HYDRATORS a propósito — este aviso es su único consumidor y necesita el orden. */
+  try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
 }
 (async function(){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
