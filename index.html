@@ -4275,18 +4275,31 @@ function wdraftFresh(aid,day){
    Un único camino para las tres salidas —completa, incompleta y no realizada— porque las
    tres acaban siendo una fila de workout_logs. Duplicar el upsert por cada caso es cómo
    se acaba con tres versiones que guardan campos distintos. */
-async function pushWorkoutLog(u,w){
+async function pushWorkoutLog(u,w,silent){
+  try{
   const d=athData(u.id);
-  d.logs.workouts.push(w);
-  d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
-  const auid=_athleteUidByAppId[u.id];
+  if(d){
+    d.logs=d.logs||{};
+    d.logs.workouts=d.logs.workouts||[];
+    if(!d.logs.workouts.some(x=>x&&x.id===w.id))d.logs.workouts.push(w);
+    d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
+  }
+  const auid=_athleteUidByAppId&&_athleteUidByAppId[u.id];
   if(auid&&_supabaseUser){
     try{
       const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},{onConflict:'id'});
-      if(error){console.error('workout_logs',error);toast('No sincronizó: '+error.message);}
-    }catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
-  }else if(_supabaseUser){toast('No sincronizó: sin athlete_uid (mapa vacío)');}
+      if(error){console.error('workout_logs',error);if(!silent)toast('No sincronizó: '+error.message);saveState();return{ok:false,msg:error.message};}
+    }catch(e){console.error(e);if(!silent)toast('No sincronizó: '+(e&&e.message||e));saveState();return{ok:false,msg:(e&&e.message)||String(e)};}
+  }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
+  else{saveState();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
   saveState();
+  return{ok:true};
+  }catch(e){
+    console.error('pushWorkoutLog',e);
+    if(!silent)toast('No sincronizó: '+((e&&e.message)||e));
+    try{saveState();}catch(_){}
+    return{ok:false,msg:(e&&e.message)||String(e)};
+  }
 }
 /* Vuelca el borrador a una fila. `status` es la INTENCIÓN del atleta; el estado final puede
    corregirse hacia abajo si no hay trabajo real, para que nunca cuente como sesión algo que
@@ -4321,10 +4334,20 @@ async function saveWorkoutDraft(status,reason,extraCm){
   if(!Object.keys(entries).length&&!doneIds.length)st='missed';  /* no hubo trabajo: es falta */
   const _rpe=parseFloat(WDRAFT.rpe),_dur=parseFloat(WDRAFT.dur);
   const cm=[(WDRAFT.comment||'').trim(),(extraCm||'').trim()].filter(Boolean).join(' · ');
-  const w={id:uid(),date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,
+  /* id estable por borrador: si el primer intento falla, el reintento hace upsert sobre la
+     MISMA fila en vez de crear una segunda. Un id nuevo por intento duplica la sesión. */
+  if(!WDRAFT.wid)WDRAFT.wid=uid();
+  const w={id:WDRAFT.wid,date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,
     rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips};
+  /* El borrador NO se borra hasta que el servidor confirma. Al revés (s67) costó un
+     entrenamiento completo: si el guardado fallaba, ya no quedaba de dónde recuperarlo. */
+  const _res=await pushWorkoutLog(u,w,true);
+  if(!_res||!_res.ok){
+    wdraftSave();
+    alert('No se pudo guardar tu entrenamiento.\n\n'+((_res&&_res.msg)||'Error desconocido')+'\n\nTus datos NO se han borrado: siguen aquí. Revisa tu conexión y vuelve a pulsar Guardar.');
+    return;
+  }
   WDRAFT=null;wdraftSave();
-  await pushWorkoutLog(u,w);
   toast(st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
   nav('ath-hoy');
 }
