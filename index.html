@@ -1140,6 +1140,8 @@ async function purgeAthleteCloud(aid){
   if(auid){
     const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps'];
     for(let i=0;i<tabs.length;i++){try{await supa.from(tabs[i]).delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}}
+    try{await supa.from('athlete_settings').delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}
+    delete _weightUnitByAthUid[auid];
     delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];delete SWAPS[aid];
   }
 }
@@ -1815,6 +1817,37 @@ async function clearTomb(kind,rid,name){
   try{await supa.from('library_tombstones').delete().eq('coach_uid',_coachUid).eq('kind',kind).eq('rid',rid);}catch(e){}
   if(name){try{await supa.from('library_tombstones').delete().eq('coach_uid',_coachUid).eq('kind',kind).eq('name',name);}catch(e){}}
 }
+/* ===== unidad de peso (kg/lb) de las cargas de entrenamiento — tabla propia, la elige el atleta.
+   Deliberadamente FUERA de athlete_profiles: ese perfil es coach-write/athlete-read (ver syncProfiles);
+   esto es lo único que el atleta escribe de sí mismo. El kg sigue siendo la fuente de verdad en
+   WDRAFT y en workout_logs — esto solo cambia cómo se captura y se muestra. */
+let _weightUnitByAthUid={};
+const KG_PER_LB=0.45359237;
+function kg2lb(kg){return(+kg||0)/KG_PER_LB;}
+function lb2kg(lb){return(+lb||0)*KG_PER_LB;}
+function weightUnitOfAuid(auid){return _weightUnitByAthUid[auid]==='lb'?'lb':'kg';}
+function weightUnitForAid(aid){return weightUnitOfAuid(_athleteUidByAppId[aid]);}
+/* Muestra un kg (fuente de verdad) en la unidad elegida. En kg no toca el valor (cero cambio de
+   comportamiento para quien nunca usó el interruptor); en lb redondea a 1 decimal solo para pintar. */
+function dispW(kg,unit){if(kg===''||kg==null)return'';return unit==='lb'?Math.round(kg2lb(kg)*10)/10:kg;}
+async function hydrateWeightUnit(){
+  if(!_supabaseUser||!S)return;
+  try{
+    const{data,error}=await supa.from('athlete_settings').select('athlete_uid,weight_unit');
+    if(error)return;
+    const m={};(data||[]).forEach(r=>{m[r.athlete_uid]=r.weight_unit;});
+    _weightUnitByAthUid=m;
+  }catch(e){}
+}
+/* solo el atleta llama esto, sobre su propia fila (RLS: as_athlete_all) */
+async function setMyWeightUnit(u){
+  if(u!=='kg'&&u!=='lb')return;
+  const auid=_athleteUidByAppId[_currentUserId];
+  if(auid)_weightUnitByAthUid[auid]=u; /* refleja al toque, sin esperar la red */
+  render();
+  if(!auid||!_supabaseUser)return;
+  try{await supa.from('athlete_settings').upsert({athlete_uid:auid,coach_uid:_coachUid,weight_unit:u},{onConflict:'athlete_uid'});}catch(e){}
+}
 /* tabla -> hidratador. Permite refrescar SOLO lo que cambió en vez de rebajar las 13. */
 const _HYDRATORS={
   exercises:()=>hydrateLibrary(),
@@ -1830,6 +1863,7 @@ const _HYDRATORS={
   measurement_logs:()=>hydrateMeasureLogs(),
   chat_logs:()=>hydrateChat(),
   athlete_swaps:()=>hydrateSwaps(),
+  athlete_settings:()=>hydrateWeightUnit(),
   recipes:()=>(_currentUserId==='coach'?hydrateRecipes():Promise.resolve())
 };
 async function refreshAllData(only){
@@ -1887,7 +1921,7 @@ function subscribeData(){
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
   /* `app_state` NO se suscribe a propósito: solo el coach la escribe, así que escucharla
      devolvía el eco de su propio saveState y disparaba una recarga completa por cada clic. */
-  const tables=['athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps'];
+  const tables=['athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps','athlete_settings'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
   const flt=_coachUid?'coach_uid=eq.'+_coachUid:null;
   tables.forEach(t=>{
@@ -4639,6 +4673,7 @@ VIEWS['ath-wlog']=function(u){
   const day=rt.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
   if(!day){return VIEWS['ath-hoy'](u);}
   const last=lastWorkoutForDay(aid,day.id);
+  const unit=weightUnitForAid(aid);
   let blocks='';
   day.exercises.forEach(e=>{
     const sets=WDRAFT.sets[e.id]||[];
@@ -4649,7 +4684,7 @@ VIEWS['ath-wlog']=function(u){
     let rows='';
     sets.forEach((s,si)=>{
       const ref=lsets&&lsets[si]?lsets[si]:null;
-      const phW=ref&&ref.w?String(ref.w):'kg', phR=ref&&ref.r?String(ref.r):'reps';
+      const phW=ref&&ref.w?String(dispW(ref.w,unit)):unit, phR=ref&&ref.r?String(ref.r):'reps';
       /* Marca de la serie: un solo botón de 3 estados. Sin motivo a propósito — preguntar
          «¿por qué?» en cada serie es donde la gente deja de registrar a mitad del entreno.
          El motivo se pide una vez por ejercicio, que es donde de verdad informa. */
@@ -4657,10 +4692,10 @@ VIEWS['ath-wlog']=function(u){
       const skTxt=sk==='none'?'✕':sk==='partial'?'½':'○';
       const skTit=sk==='none'?'No la hice — toca otra vez para «no la terminé»':sk==='partial'?'No la terminé — toca otra vez para quitar la marca':'Marcar: 1 toque = no la hice · 2 = no la terminé';
       const dis=sk==='none'?' disabled':'';
-      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':s.w)+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
+      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':dispW(s.w,unit))+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
     });
     let lastTxt='';
-    if(last&&last.entries[e.id])lastTxt='<div class="last">Última sesión: '+last.entries[e.id].map(s=>(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+' ('+fmtDate(last.date)+')</div>';
+    if(last&&last.entries[e.id])lastTxt='<div class="last">Última sesión: '+last.entries[e.id].map(s=>dispW(s.w||0,unit)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+' ('+fmtDate(last.date)+')</div>';
     const lib=e.libId?libById(e.libId):null;
     const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:14.5px;font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue)" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
     const exDone=!!(WDRAFT.done&&WDRAFT.done[e.id]);
@@ -4675,7 +4710,7 @@ VIEWS['ath-wlog']=function(u){
       :'<button class="skipbtn" data-act="wlog-exskip-ask" data-ex="'+e.id+'">✕ No lo hice</button>';
     const headBtn=exSk?'':'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button>';
     blocks+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+swapUI+skUI+revBtn+lastTxt+'</div>'+
-    '<div class="sethead"><span></span><span>Peso (kg)</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
+    '<div class="sethead"><span></span><span>Peso ('+unit+')</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
   /* Un ejercicio cuenta como hecho si está marcado O si tiene alguna serie anotada.
@@ -4686,8 +4721,13 @@ VIEWS['ath-wlog']=function(u){
     if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nDone++;
   });
   const legend='<p class="sklegend" style="padding:0 0 12px">En cada serie, el botón <b>○</b> marca lo que no hiciste: <b>1 toque</b> = no la hice · <b>2 toques</b> = no la terminé. No hace falta explicar nada ahí; el motivo se pregunta una sola vez por ejercicio.</p>';
+  /* Unidad de peso: la elige el atleta, vive en athlete_settings (no en el blob) y aplica
+     a todo lo que ve de sus cargas de entreno. Un toque re-pinta con la conversión ya aplicada. */
+  const unitToggle='<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px"><span class="tiny muted">Unidad de peso</span>'+
+    '<button class="btn btn-sm '+(unit==='kg'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="kg">kg</button>'+
+    '<button class="btn btn-sm '+(unit==='lb'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="lb">lb</button></div>';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
-    body:legend+blocks+
+    body:unitToggle+legend+blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
     '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
@@ -4842,6 +4882,7 @@ Object.assign(ACTIONS,{
     nav('ath-wlog');
   },
   'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});wdraftTouch();render();},
+  'wunit-set':async el=>{await setMyWeightUnit(el.dataset.u);},
   'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);wdraftTouch();render();},
   'wlog-done':el=>{
     WDRAFT.done=WDRAFT.done||{};
@@ -5121,7 +5162,17 @@ document.addEventListener('input',e=>{
   if(el.dataset&&el.dataset.exvol){renderExVol();}
   if(el.dataset&&el.dataset.bind&&WDRAFT){
     const s=WDRAFT.sets[el.dataset.ex][parseInt(el.dataset.idx,10)];
-    if(s){s[el.dataset.bind]=el.value;wdraftTouch();}
+    if(s){
+      /* El peso se captura en la unidad que el atleta eligió, pero WDRAFT y el servidor SIEMPRE
+         guardan kg (fuente de verdad): se convierte aquí, en la única entrada de este campo. */
+      if(el.dataset.bind==='w'&&weightUnitForAid(_currentUserId)==='lb'){
+        const n=el.value===''?NaN:parseFloat(el.value);
+        s.w=isNaN(n)?'':+lb2kg(n).toFixed(3);
+      }else{
+        s[el.dataset.bind]=el.value;
+      }
+      wdraftTouch();
+    }
   }
   /* RPE, duración y comentario vivían SOLO en el DOM: cualquier render() (añadir serie,
      marcar «Hecho», un evento de realtime) los borraba. Mismo patrón que la s54. */
