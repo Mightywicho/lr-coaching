@@ -4608,7 +4608,9 @@ VIEWS['ath-hoy']=function(u){
 
   /* data-keep: lo tecleado sobrevive a render(). Antes, cambiarse de pantalla sin pulsar
      «Guardar» borraba el número en silencio. Las claves las limpia cada handler al guardar. */
-  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
+  /* El aviso «en kg» solo se pinta si el atleta capturó sus cargas en lb: para quien usa kg
+     en todo sería ruido, y para quien usa lb es justo la duda que se le crea al ver el interruptor. */
+  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas'+(weightUnitForAid(aid)==='lb'?' · en kg':'')+'</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
     '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p>';
 
   const todayM=measureLogs(aid).find(m=>m.date===todayISO());
@@ -4723,7 +4725,7 @@ VIEWS['ath-wlog']=function(u){
   const legend='<p class="sklegend" style="padding:0 0 12px">En cada serie, el botón <b>○</b> marca lo que no hiciste: <b>1 toque</b> = no la hice · <b>2 toques</b> = no la terminé. No hace falta explicar nada ahí; el motivo se pregunta una sola vez por ejercicio.</p>';
   /* Unidad de peso: la elige el atleta, vive en athlete_settings (no en el blob) y aplica
      a todo lo que ve de sus cargas de entreno. Un toque re-pinta con la conversión ya aplicada. */
-  const unitToggle='<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px"><span class="tiny muted">Unidad de peso</span>'+
+  const unitToggle='<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px"><span class="tiny muted">Unidad de las cargas</span>'+
     '<button class="btn btn-sm '+(unit==='kg'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="kg">kg</button>'+
     '<button class="btn btn-sm '+(unit==='lb'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="lb">lb</button></div>';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
@@ -4803,14 +4805,18 @@ VIEWS['ath-prog']=function(u){
   const allEx=[];d.routine.days.forEach(day=>day.exercises.forEach(e=>allEx.push(e)));
   const selId=route.params.ex||(allEx[0]?allEx[0].id:null);
   let opts='';allEx.forEach(e=>{opts+='<option value="'+e.id+'"'+(e.id===selId?' selected':'')+'>'+esc(e.name)+'</option>';});
+  /* Unidad de CARGAS del atleta (kg o lb). El kg sigue siendo la fuente de verdad: aquí solo
+     se convierte al pintar, con dispW. El peso corporal NO usa esto: la báscula se queda en kg
+     por decisión de Luis (20-ago) — el motivo de la feature son los discos del gym, no la báscula. */
+  const wu=weightUnitForAid(aid);
   let exChart='<div class="empty"><b>Sin datos de este ejercicio</b>Registra entrenamientos para ver tu progresión de cargas.</div>',exTable='';
   if(selId){
     const hist=exHistory(aid,selId);
-    if(hist.length>=2)exChart=svgLine(hist.map(h=>({x:h.date,y:h.best})),{color:'#cdf563',unit:'kg'});
-    else if(hist.length===1)exChart='<div class="empty"><b>1 sesión registrada</b>Mejor serie: '+hist[0].best+' kg × '+hist[0].reps+'. Registra otra para ver la curva.</div>';
+    if(hist.length>=2)exChart=svgLine(hist.map(h=>({x:h.date,y:+dispW(h.best,wu)})),{color:'#cdf563',unit:wu});
+    else if(hist.length===1)exChart='<div class="empty"><b>1 sesión registrada</b>Mejor serie: '+dispW(hist[0].best,wu)+' '+wu+' × '+hist[0].reps+'. Registra otra para ver la curva.</div>';
     if(hist.length){
-      let rows='';hist.slice().reverse().slice(0,8).forEach(h=>{rows+='<tr><td>'+fmtDateFull(h.date)+'</td><td class="num">'+h.sets.map(s=>(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+'</td><td class="num"><b>'+h.best+' kg</b></td></tr>';});
-      exTable='<div class="tblwrap mt16"><table class="tbl" style="min-width:auto"><thead><tr><th>Fecha</th><th>Series (kg×reps @RIR)</th><th>Mejor</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+      let rows='';hist.slice().reverse().slice(0,8).forEach(h=>{rows+='<tr><td>'+fmtDateFull(h.date)+'</td><td class="num">'+h.sets.map(s=>dispW(s.w||0,wu)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+'</td><td class="num"><b>'+dispW(h.best,wu)+' '+wu+'</b></td></tr>';});
+      exTable='<div class="tblwrap mt16"><table class="tbl" style="min-width:auto"><thead><tr><th>Fecha</th><th>Series ('+wu+'×reps @RIR)</th><th>Mejor</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     }
   }
   const d30=weightDelta(aid,30),w7=workoutsInLast(aid,7),adh=adherenceAvg(aid,7);
