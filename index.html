@@ -2928,7 +2928,10 @@ VIEWS['coach-ath']=function(u){
   else if(tab==='nutricion')body+=coachTabNutri(aid);
   else if(tab==='reporte')body+=coachTabReporte(aid);
   else body+=coachTabHistorial(aid);
-  return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal),back:{v:'coach-dash'},actions:'<button class="btn btn-g btn-sm" data-act="invite-ath" data-aid="'+aid+'">🔗 Invitar atleta</button>',body};
+  /* Aviso discreto: este atleta captura y ve sus cargas en libras. El panel del coach SIEMPRE va en kg
+     (decisión 20-ago: con varios atletas, cada uno en su unidad, comparar sería inmanejable). */
+  const wuTag=weightUnitForAid(aid)==='lb'?' <span class="badge orange" title="Este atleta registra y ve sus cargas en libras. Tú se las programas en kg y él las verá convertidas.">captura en lb</span>':'';
+  return{title:esc(a.name),crumb:esc(d.profile.category)+' · '+esc(d.profile.goal)+wuTag,back:{v:'coach-dash'},actions:'<button class="btn btn-g btn-sm" data-act="invite-ath" data-aid="'+aid+'">🔗 Invitar atleta</button>',body};
 };
 
 /* Cambios de ejercicio hechos por el atleta. Los permanentes esperan tu decisión; los de un día son informativos. */
