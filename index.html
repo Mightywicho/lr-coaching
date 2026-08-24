@@ -6997,15 +6997,36 @@ function nutriTargets(aid){
   let carbs=Math.round((target-(protein*4+fat*9))/4);if(carbs<0)carbs=0;
   return {tdee,rmr:rmrObj.name,pal,target,goalTxt,protein,carbs,fat,fromW:W,pctUsed,dir:tgt.dir,protGkg};
 }
-function autoNutrition(aid){
+/* Nota automática: REEMPLAZA la etiqueta [..] que dejó una generación anterior en vez de apilarla
+   (correr el generador dos veces dejaba la misma frase repetida en la vista del atleta) y conserva
+   intacto lo que el coach haya escrito a mano. */
+function autoNote(prev,tag){
+  const base=String(prev||'').replace(/\[(Plan autogenerado|Menú generado|Macros ajustados)[^\]]*\]/g,'').replace(/\s+/g,' ').trim();
+  return (base?base+' ':'')+tag;
+}
+/* useOwn=true: NO recalcula nada desde el perfil. Toma como objetivo los kcal/macros que el plan YA tiene
+   (los que escribió el coach) y solo arma el menú de comidas con esos números. useOwn=false: lo de siempre,
+   manda el perfil del atleta y los macros del plan se reemplazan. */
+function autoNutrition(aid,useOwn){
   const d=athData(aid),plan=activePlanOf(aid);
+  if(useOwn){
+    const P=Math.round(+plan.protein||0),C=Math.round(+plan.carbs||0),Fg=Math.round(+plan.fat||0);
+    if(P+C+Fg<=0)return{err:'Este plan todavía no tiene macros escritos.'};
+    plan.protein=P;plan.carbs=C;plan.fat=Fg;
+    plan.kcal=Math.round(+plan.kcal||0)||kcalFromMacros({protein:P,carbs:C,fat:Fg});
+    plan.mode='menu';
+    const Nm=Math.max(1,plan.mealsPerDay||4);
+    plan.meals=buildAutoMeals(Nm,P,C,Fg);
+    plan.notes=autoNote(plan.notes,'[Menú generado con los macros de este plan: P'+P+' C'+C+' G'+Fg+' en '+Nm+' comidas. Ajusta gramos a tu gusto.]');
+    return {target:plan.kcal,protein:P,carbs:C,fat:Fg,N:Nm,own:true};
+  }
   const tg=nutriTargets(aid);
   if(tg.err)return tg;
   plan.kcal=tg.target;plan.protein=tg.protein;plan.carbs=tg.carbs;plan.fat=tg.fat;plan.mode='menu';
   d.profile.targetRatePct=tg.dir<0?-tg.pctUsed:tg.dir>0?tg.pctUsed:0;
   const N=Math.max(1,plan.mealsPerDay||4);
   plan.meals=buildAutoMeals(N,tg.protein,tg.carbs,tg.fat);
-  plan.notes=(plan.notes?plan.notes+' ':'')+'[Plan autogenerado: '+tg.goalTxt+', '+tg.protGkg+' g/kg proteína. Ajusta gramos a tu gusto.]';
+  plan.notes=autoNote(plan.notes,'[Plan autogenerado: '+tg.goalTxt+', '+tg.protGkg+' g/kg proteína. Ajusta gramos a tu gusto.]');
   return {tdee:tg.tdee,rmr:tg.rmr,pal:tg.pal,target:tg.target,goalTxt:tg.goalTxt,protein:tg.protein,carbs:tg.carbs,fat:tg.fat,N,fromW:tg.fromW};
 }
 /* Reescala las macros de un plan (respetando su estructura de comidas/alimentos) a un nuevo objetivo de
@@ -7032,7 +7053,7 @@ function rescalePlanMacros(plan,tg){
     }
   });
   plan.kcal=tg.target;plan.protein=tg.protein;plan.carbs=tg.carbs;plan.fat=tg.fat;
-  plan.notes=(plan.notes?plan.notes+' ':'')+'[Macros ajustados automáticamente al perfil del atleta: '+tg.goalTxt+', TDEE≈'+tg.tdee+' kcal ('+tg.rmr+'). Se conservó la estructura de comidas del documento; cantidades aproximadas — ajusta a tu gusto.]';
+  plan.notes=autoNote(plan.notes,'[Macros ajustados automáticamente al perfil del atleta: '+tg.goalTxt+', TDEE≈'+tg.tdee+' kcal ('+tg.rmr+'). Se conservó la estructura de comidas del documento; cantidades aproximadas — ajusta a tu gusto.]');
 }
 /* Ajuste automático al asignar una plantilla de NUTRICIÓN importada por IA: los kcal/macros del documento
    se descartan y se recalculan siempre con el perfil real del atleta (nutriTargets); la estructura de
@@ -7176,19 +7197,41 @@ Object.assign(ACTIONS,{
   },
   'nutri-auto-ask':el=>{
     const aid=el.dataset.aid,d=athData(aid),lw=lastWeight(aid);
-    const miss=[];if(!lw)miss.push('un pesaje');if(!d.profile.heightCm)miss.push('la altura');
-    if(miss.length){toast('Falta '+miss.join(' y ')+' para autogenerar (pestaña Resumen → perfil)');return;}
+    /* Lo que el coach acaba de escribir en los campos vive solo en el DOM: se lee AQUÍ, antes de
+       cualquier render, para que el generador use sus números aunque no haya dado «Guardar plan». */
+    pnutriReadTargets(aid);
     const ap=activePlanOf(aid);
-    openModal('Generar plan de nutrición automático',
-      '<p class="muted" style="margin-bottom:10px">Se calculará a partir de: peso <b>'+lw.kg+' kg</b>, '+(d.profile.bodyFat?'<b>'+d.profile.bodyFat+'%</b> grasa, ':'')+'fase <b>'+esc(phaseName(d.profile.phase))+'</b>, <b>'+d.routine.days.length+'</b> días/sem de entreno.</p>'+
-      '<ul class="tiny" style="margin:0 0 12px 18px"><li>Calorías objetivo (TDEE ± ritmo de la fase)</li><li>Macros: proteína 2–2,2 g/kg, grasa 25%, resto carbohidratos</li><li>Menú de '+(ap.mealsPerDay||4)+' comidas con alimentos de tu base, en gramos</li></ul>'+
-      '<p class="tiny" style="color:var(--orange)">⚠ Reemplaza los macros y el menú del plan «'+esc(ap.name)+'». No toca otros planes de día. Ajustas lo que quieras después.</p>',
-      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="nutri-auto-do" data-aid="'+aid+'">Generar plan</button>');
+    const own=(Math.round(+ap.protein||0)+Math.round(+ap.carbs||0)+Math.round(+ap.fat||0))>0;
+    const ownKcal=Math.round(+ap.kcal||0)||kcalFromMacros({protein:+ap.protein||0,carbs:+ap.carbs||0,fat:+ap.fat||0});
+    const N=ap.mealsPerDay||4;
+    const tg=nutriTargets(aid);
+    const miss=[];if(!lw)miss.push('un pesaje');if(!d.profile.heightCm)miss.push('la altura');
+    /* Sin macros escritos y sin perfil no hay de dónde partir: es el único caso que se bloquea. */
+    if(!own&&tg.err){toast('Falta '+miss.join(' y ')+' para autogenerar (pestaña Resumen → perfil)');return;}
+    let body='';
+    if(own&&!tg.err){
+      body+='<p class="muted" style="margin-bottom:10px">Este plan ya tiene objetivos escritos. Elige con cuáles armar el menú de <b>'+N+'</b> comidas:</p>'+
+        '<div class="grid g2 mb16">'+
+        '<div class="stat"><div class="k">Los de este plan</div><div class="v">'+ownKcal+'<small> kcal</small></div><div class="sub">P'+Math.round(+ap.protein||0)+' · C'+Math.round(+ap.carbs||0)+' · G'+Math.round(+ap.fat||0)+'</div></div>'+
+        '<div class="stat"><div class="k">Calculado del perfil</div><div class="v">'+tg.target+'<small> kcal</small></div><div class="sub">P'+tg.protein+' · C'+tg.carbs+' · G'+tg.fat+'</div></div></div>'+
+        '<p class="tiny" style="margin-bottom:10px">El cálculo del perfil parte de: peso <b>'+lw.kg+' kg</b>, '+(d.profile.bodyFat?'<b>'+d.profile.bodyFat+'%</b> grasa, ':'')+'fase <b>'+esc(phaseName(d.profile.phase))+'</b>, <b>'+d.routine.days.length+'</b> días/sem → '+esc(tg.goalTxt)+', proteína '+tg.protGkg+' g/kg.</p>';
+    }else if(own){
+      body+='<p class="muted" style="margin-bottom:10px">Se armará un menú de <b>'+N+'</b> comidas con los objetivos de este plan: <b>'+ownKcal+' kcal</b> · P'+Math.round(+ap.protein||0)+' · C'+Math.round(+ap.carbs||0)+' · G'+Math.round(+ap.fat||0)+'.</p>'+
+        '<p class="tiny" style="margin-bottom:10px">No se puede calcular desde el perfil: falta '+miss.join(' y ')+' (pestaña Resumen → perfil).</p>';
+    }else{
+      body+='<p class="muted" style="margin-bottom:10px">Se calculará a partir de: peso <b>'+lw.kg+' kg</b>, '+(d.profile.bodyFat?'<b>'+d.profile.bodyFat+'%</b> grasa, ':'')+'fase <b>'+esc(phaseName(d.profile.phase))+'</b>, <b>'+d.routine.days.length+'</b> días/sem de entreno.</p>'+
+        '<ul class="tiny" style="margin:0 0 12px 18px"><li>Calorías objetivo (TDEE ± ritmo de la fase)</li><li>Macros: proteína 2–2,2 g/kg, grasa 25%, resto carbohidratos</li><li>Menú de '+N+' comidas con alimentos de tu base, en gramos</li></ul>';
+    }
+    body+='<p class="tiny" style="color:var(--orange)">⚠ En cualquier caso se reemplaza el menú del plan «'+esc(ap.name)+'» y queda en «Menú cerrado». No toca otros planes de día. Ajustas lo que quieras después.</p>';
+    let foot='<button class="btn btn-g" data-act="modal-close">Cancelar</button>';
+    if(!tg.err)foot+='<button class="btn '+(own?'btn-g':'btn-p')+'" data-act="nutri-auto-do" data-aid="'+aid+'">'+(own?'Recalcular del perfil':'Generar plan')+'</button>';
+    if(own)foot+='<button class="btn btn-p" data-act="nutri-auto-do" data-aid="'+aid+'" data-own="1">Usar mis macros</button>';
+    openModal('Generar plan de nutrición automático',body,foot);
   },
   'nutri-auto-do':el=>{
-    const res=autoNutrition(el.dataset.aid);
+    const res=autoNutrition(el.dataset.aid,el.dataset.own==='1');
     if(res.err){toast(res.err);return;}
-    saveState();closeModal();toast('Plan generado: '+res.target+' kcal · P'+res.protein+' C'+res.carbs+' G'+res.fat+' · '+res.N+' comidas');render();
+    saveState();closeModal();toast((res.own?'Menú armado con tus macros: ':'Plan generado: ')+res.target+' kcal · P'+res.protein+' C'+res.carbs+' G'+res.fat+' · '+res.N+' comidas');render();
   },
   'voltargets-auto':el=>{
     const n=autoFillVolTargets(el.dataset.aid);
