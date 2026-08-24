@@ -6942,7 +6942,7 @@ function applyAiRoutineAdjust(aid){
 }
 
 /* ===== GENERADOR DE NUTRICIÓN AUTOMÁTICA (objetivos + comidas con alimentos) ===== */
-function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)return 0;return Math.max(0,Math.round(targetMacro/(per/100)/5)*5);}
+function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)return 0;if(food.unit==='u'){return Math.max(0,Math.round(targetMacro/per*2)/2);}return Math.max(0,Math.round(targetMacro/(per/100)/5)*5);}
 function foodPools(){
   const F=S.foods||[];
   return {
@@ -6956,7 +6956,7 @@ function buildAutoMeals(N,P,C,Fg){
   const pools=foodPools();const meals=[];const mp=P/N,mc=C/N,mf=Fg/N;
   for(let i=0;i<N;i++){
     const items=[];let uP=0,uC=0,uF=0;
-    const addF=(fo,g)=>{if(!fo||g<=0)return;const m=foodMacros(fo.name,g);if(!m)return;items.push({food:fo.name,qty:g+' g',grams:g,p:m.p,c:m.c,f:m.f});uP+=m.p;uC+=m.c;uF+=m.f;};
+    const addF=(fo,g)=>{if(!fo||g<=0)return;const m=foodMacros(fo.name,g);if(!m)return;const isU=fo.unit==='u';items.push({food:fo.name,qty:isU?(g+' '+(fo.unitLabel||'unidades')):(g+' g'),grams:isU?0:g,p:m.p,c:m.c,f:m.f});uP+=m.p;uC+=m.c;uF+=m.f;};
     /* verdura fija (volumen y micros) en comidas alternas */
     if(pools.veg.length&&i%2===0){const vf=pools.veg[i%pools.veg.length];addF(vf,100);}
     /* grasa: cubre la grasa restante de la comida */
