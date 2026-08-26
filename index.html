@@ -221,6 +221,18 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .setrow input{padding:7px 10px;text-align:center;font-variant-numeric:tabular-nums}
 .setrow .del{color:var(--tx3);line-height:0;padding:6px;border-radius:7px}
 .setrow .del:hover{color:var(--red);background:var(--danger-08)}
+.subrow{display:grid;grid-template-columns:54px 1fr;gap:8px;align-items:start;padding:0 16px 9px}
+.subrow .sl{font-size:10px;font-weight:700;color:var(--volt);text-transform:uppercase;letter-spacing:.03em;line-height:1.25;padding-top:9px}
+.subrow .subs{display:flex;flex-wrap:wrap;gap:6px}
+.subcell{display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:3px 7px}
+.subcell>span{font-size:10.5px;font-weight:700;color:var(--tx3);min-width:15px}
+.subcell input{width:58px;padding:6px 6px;text-align:center;font-variant-numeric:tabular-nums}
+.techchip{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;background:var(--volt-12);color:var(--volt);vertical-align:2px}
+.grpchip{display:inline-block;margin-right:5px;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:700;background:var(--volt-16);color:var(--volt)}
+.bigrp{border:1.5px solid var(--volt-22);border-radius:16px;margin-bottom:14px;overflow:hidden}
+.bigrp-h{padding:9px 15px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--volt);background:var(--volt-08)}
+.bigrp .wlog-ex{margin:9px;border-radius:12px}
+.techhint{font-size:11.5px;color:var(--tx2);margin-top:3px;line-height:1.4}
 .addset{margin:4px 16px 12px;font-size:12.5px;color:var(--volt);font-weight:600;padding:5px 8px;border-radius:7px}
 .addset:hover{background:var(--volt-08)}
 .sethead{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;padding:8px 16px 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600}
@@ -1410,6 +1422,56 @@ const MISS_REASONS={tiempo:'Falta de tiempo',trabajo:'Trabajo o imprevisto',enfe
 const SKIP_REASONS={dolor:'Me dolió o me molestó',fatiga:'No pude con el peso',tiempo:'Me quedé sin tiempo',equipo:'Equipo ocupado o no disponible',tecnica:'No supe hacerlo bien',otro:'Otro motivo'};
 const missLbl=k=>MISS_REASONS[k]||'Sin motivo';
 const skipLbl=k=>SKIP_REASONS[k]||'Sin motivo';
+/* ---------- Biseries y técnicas de intensificación (s71) ----------
+   Lista CERRADA a propósito, igual que MISS_REASONS: con texto libre cada técnica se escribe
+   distinto cada vez y después no hay forma de contarla ni graficarla.
+   `sub`  = la técnica produce mini-series que el atleta anota APARTE de la serie. Las mini-series
+            NO son series: no entran en ningún conteo de volumen ni en el e1RM. Sí suman tonelaje
+            (son reps reales) — ver exTonnage/sessTonnage.
+   `subW` = esas mini-series llevan su propio peso. Solo el dropset lo baja; en myo reps y cluster
+            el peso es el mismo de la serie, así que pedirlo otra vez sería ruido en el gimnasio. */
+const TECHS={
+  myo:{lbl:'Myo reps',sub:true,subW:false,hint:'Serie de activación y luego mini-series de pocas reps con 3-5 s de descanso.'},
+  cluster:{lbl:'Cluster',sub:true,subW:false,hint:'La serie se parte en tandas con descanso corto entre ellas.'},
+  drop:{lbl:'Dropset',sub:true,subW:true,hint:'Al llegar al fallo, baja el peso y sigue sin descanso.'},
+  iso:{lbl:'Isométrico / pausa',sub:false,subW:false,hint:'Mantén la pausa indicada en cada repetición.'},
+  parc:{lbl:'Parciales al fallo',sub:false,subW:false,hint:'Al llegar al fallo, sigue con repeticiones parciales.'}
+};
+const GRPLET=['A','B','C','D'];
+function techOf(e){return (e&&e.tech&&TECHS[e.tech])?TECHS[e.tech]:null;}
+function techN(e){const n=parseInt(e&&e.techN,10);return n>0?Math.min(n,8):3;}
+/* ¿Esta serie (índice 0-based) lleva mini-series? `techOn:'last'` = solo la última. */
+function techOnSet(e,i,n){const t=techOf(e);if(!t||!t.sub)return false;return e.techOn==='last'?i===(n-1):true;}
+/* Agrupa por letra los ejercicios CONSECUTIVOS. Una letra repetida más abajo, con otro ejercicio
+   en medio, es un grupo distinto: agrupar por letra suelta reordenaría la sesión del atleta a sus
+   espaldas, y el orden de los ejercicios es una decisión del coach. */
+function exGroups(list){
+  const out=[];
+  (list||[]).forEach(e=>{
+    const g=e.grp||'',last=out[out.length-1];
+    if(g&&last&&last.grp===g)last.items.push(e);else out.push({grp:g,items:[e]});
+  });
+  return out;
+}
+function grpLbl(n){return n>=4?'Cuádruple serie':n===3?'Triserie':'Biserie';}
+function techChip(e){
+  const t=techOf(e);if(!t)return '';
+  const n=t.sub?' · '+techN(e)+(e.techOn==='last'?' mini en la última':' mini por serie'):'';
+  return '<span class="techchip" title="'+esc(t.hint)+'">'+esc(t.lbl+n)+'</span>';
+}
+/* Tonelaje de las mini-series. Sin peso propio se usa el de la serie (myo reps, cluster). */
+function subTon(s){let t=0;((s&&s.sub)||[]).forEach(m=>{t+=(+m.w||+s.w||0)*(+m.r||0);});return t;}
+/* Reajusta qué series del borrador llevan mini-series después de añadir o quitar una serie
+   (con `techOn:'last'` la última cambia de sitio). NUNCA borra unas mini-series con algo
+   escrito dentro: quitar una serie no puede llevarse por delante lo que el atleta ya anotó. */
+function retechSets(e,arr){
+  if(!e||!arr)return;
+  const n=arr.length;
+  arr.forEach((s,i)=>{
+    if(techOnSet(e,i,n)){if(!s.sub||!s.sub.length)s.sub=Array.from({length:techN(e)},()=>({w:'',r:''}));}
+    else if(s.sub&&!s.sub.some(m=>m&&(m.r!==''&&m.r!=null)))delete s.sub;
+  });
+}
 /* Una sesión marcada «no entrené» NO es un entreno: no puede sumar en ningún conteo de
    cumplimiento, o el atleta que falta subiría su adherencia por reportar la falta. */
 const isMissed=w=>!!(w&&w.status==='missed');
@@ -2317,7 +2379,7 @@ function keyExHistory(aid,ident,cutoff){
   return Object.values(byDate).sort((a,b)=>a.date<b.date?-1:1);
 }
 function topSetOf(sets){let best=null;(sets||[]).forEach(s=>{if(!best||(+s.w||0)>(+best.w||0))best=s;});return best;}
-function exTonnage(sets){let t=0;(sets||[]).forEach(s=>{t+=(+s.w||0)*(+s.r||0);});return t;}
+function exTonnage(sets){let t=0;(sets||[]).forEach(s=>{t+=(+s.w||0)*(+s.r||0)+subTon(s);});return t;}
 function exNameOf(d,exId){let nm='Ejercicio';d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f)nm=f.name;});return nm;}
 /* serie completa de un ejercicio (todo el historial) con calidad (reps/RIR del top set) y PRs acumulados */
 function exSeries(aid,exId){
@@ -2357,7 +2419,7 @@ function blockInfoForDate(aid,iso){
   return{block:info.block,week:wk};
 }
 /* carga de sesión: interna (sRPE = RPE×min) y externa (tonelaje = Σ peso×reps) */
-function sessTonnage(w){let t=0;Object.values(w.entries||{}).forEach(ss=>ss.forEach(s=>{t+=(+s.w||0)*(+s.r||0);}));return t;}
+function sessTonnage(w){let t=0;Object.values(w.entries||{}).forEach(ss=>ss.forEach(s=>{t+=(+s.w||0)*(+s.r||0)+subTon(s);}));return t;}
 function sessSRPE(w){return(+w.rpe||0)*(+w.dur||0);}
 function sessLoad(w,metric){return metric==='tonnage'?sessTonnage(w):sessSRPE(w);}
 /* ACWR acoplada: carga aguda (7d) ÷ carga crónica (media semanal de 28d) */
@@ -3016,7 +3078,7 @@ function coachTabRutina(aid){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button> <span class="mini-chip" title="'+esc(lib.focus||'Trabajo general del grupo')+'">'+esc(lib.group+(lib.cat?' · '+lib.cat:''))+'</span>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Tiene video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
       '<td><div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></td></tr>';
     });
     if(!rows)rows='<tr><td colspan="7" class="tiny" style="text-align:center;padding:18px">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</td></tr>';
@@ -3484,8 +3546,10 @@ function coachTabRegistros(aid){
         if(!presc){d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f){presc=presc||f;exName=f.name;}});}
         const ss=w.entries[exId];
         totalSets+=ss.length;
-        let exTon=0;ss.forEach(s=>{exTon+=(s.w||0)*(s.r||0);});tonnage+=exTon;
-        const setsTxt=ss.map((s,i)=>'<span class="setpill"'+(s.sk==='partial'?' style="border-color:var(--orange);color:var(--orange)" title="El atleta la marcó como no terminada"':'')+'>S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+(s.sk==='partial'?' ½':'')+'</span>').join(' ');
+        /* Pasa por exTonnage y no por una suma suelta: es la única forma de que las mini-series
+           de las técnicas cuenten aquí igual que en las gráficas. */
+        const exTon=exTonnage(ss);tonnage+=exTon;
+        const setsTxt=ss.map((s,i)=>'<span class="setpill"'+(s.sk==='partial'?' style="border-color:var(--orange);color:var(--orange)" title="El atleta la marcó como no terminada"':'')+'>S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+(s.sk==='partial'?' ½':'')+((s.sub&&s.sub.length)?' <small title="Mini-series de la técnica — no cuentan como series">+'+s.sub.map(m=>(m.w?m.w+'×':'')+(m.r||0)).join('+')+'</small>':'')+'</span>').join(' ');
         const tgt=presc?('<span class="tiny">'+esc(presc.sets)+'×'+esc(presc.reps)+' · RIR '+esc(presc.rir)+(presc.rest?' · '+esc(presc.rest):'')+'</span>'):'<span class="tiny">—</span>';
         const fb=presc?(ss.length<(parseInt(presc.sets,10)||0)?'<span class="badge orange" title="Hizo menos series que las prescritas">'+ss.length+'/'+presc.sets+' series</span>':'<span class="badge green">'+ss.length+' series</span>'):('<span class="badge">'+ss.length+' series</span>');
         rows+='<tr><td class="exname">'+esc(exName)+'<div>'+tgt+'</div></td><td>'+setsTxt+'</td><td style="white-space:nowrap">'+fb+'</td><td class="num">'+(exTon?Math.round(exTon)+' kg':'—')+'</td></tr>';
@@ -3896,13 +3960,24 @@ Object.assign(ACTIONS,{
     const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);
     const lib=libByName(name);
     const data={name:lib?lib.name:name,sets:num('e_sets')||3,reps:val('e_reps')||'8-10',rir:val('e_rir')||'2',rest:val('e_rest')||'2 min',notes:val('e_notes'),libId:lib?lib.id:null,revLink:normUrl(val('e_rev'))};
+    /* Biserie y técnica. Solo se guardan si el coach eligió algo: un ejercicio sin técnica no
+       carga con `tech:''` para siempre, y el atleta lo ve exactamente igual que hoy. */
+    const _gl=val('e_grpl'),_tk=val('e_tech');
+    data.grp=GRPLET.indexOf(_gl)>=0?_gl:'';
+    data.tech=TECHS[_tk]?_tk:'';
+    if(data.tech){data.techN=Math.min(Math.max(num('e_techn')||3,1),8);data.techOn=val('e_techon')==='last'?'last':'all';}
     if(el.dataset.ex){
       const e=day.exercises.find(x=>x.id===el.dataset.ex);
       const det=exDiff(e,data);
       Object.assign(e,data);if(!data.libId)delete e.libId;if(!data.revLink)delete e.revLink;
+      if(!data.grp)delete e.grp;
+      if(!data.tech){delete e.tech;delete e.techN;delete e.techOn;}
       if(det)logChange(el.dataset.aid,'ajuste',det,day.name,data.name);
     }
-    else{if(!data.libId)delete data.libId;if(!data.revLink)delete data.revLink;day.exercises.push(Object.assign({id:uid()},data));
+    else{if(!data.libId)delete data.libId;if(!data.revLink)delete data.revLink;
+      if(!data.grp)delete data.grp;
+      if(!data.tech){delete data.tech;delete data.techN;delete data.techOn;}
+      day.exercises.push(Object.assign({id:uid()},data));
       logChange(el.dataset.aid,'alta',data.sets+'×'+data.reps+' · RIR '+data.rir,day.name,data.name);}
     saveState();closeModal();render();toast('Rutina actualizada');
   },
@@ -4236,11 +4311,24 @@ function exForm(e,aid,exId,dayId,gForce){
   gopts+='<optgroup label="'+(low.length?'Resto de grupos':'Grupo muscular')+'">';rest.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';
   gopts+='<optgroup label="Otros (no cuentan volumen)">';XGROUPS.forEach(m=>{gopts+=gopt(m,g0);});gopts+='</optgroup>';
   const dl='<datalist id="exlist">'+exListOpts(g0)+'</datalist>';
+  /* Biserie por LETRA: los ejercicios seguidos con la misma letra se agrupan. Se eligió letra y
+     no arrastrar porque el coach ya ordena con las flechas de la tabla, y así agrupar no obliga
+     a rehacer el orden. */
+  let glOpts='<option value="">Sin biserie</option>';
+  GRPLET.forEach(L=>{glOpts+='<option value="'+L+'"'+(e.grp===L?' selected':'')+'>Grupo '+L+'</option>';});
+  let tOpts='<option value="">Sin técnica</option>';
+  Object.keys(TECHS).forEach(k=>{tOpts+='<option value="'+k+'"'+(e.tech===k?' selected':'')+'>'+esc(TECHS[k].lbl)+'</option>';});
+  const tSel=techOf(e);
+  const techBlk='<div class="frow3"><div><label>Biserie</label><select id="e_grpl">'+glOpts+'</select></div>'+
+    '<div><label>Técnica</label><select id="e_tech">'+tOpts+'</select></div>'+
+    '<div><label>Mini-series</label><input id="e_techn" type="number" min="1" max="8" value="'+esc(e.techN||3)+'"></div></div>'+
+    '<div class="frow"><label>La técnica aplica a</label><select id="e_techon"><option value="all"'+(e.techOn==='last'?'':' selected')+'>Todas las series</option><option value="last"'+(e.techOn==='last'?' selected':'')+'>Solo la última serie</option></select>'+
+    '<p class="tiny" style="margin-top:5px">'+(tSel?esc(tSel.hint)+(tSel.sub?' Las mini-series se anotan aparte: <b>no cuentan como series</b>, pero sí suman al tonelaje.':' Solo es una indicación: el atleta registra la serie como siempre.'):'Myo reps, cluster y dropset le piden al atleta anotar cada mini-serie. Isométrico y parciales son solo indicación.')+'</p></div>';
   const origen=aid?('<p class="tiny" style="margin:0 0 5px;color:var(--tx3)">'+(ses?'Las series que faltan son las de <b>esta sesión</b> (reparto del paso 2).':'Esta sesión no tiene reparto en el paso 2, así que lo que falta se mide contra la <b>meta semanal</b>.')+'</p>'):'';
   return dl+'<div class="frow"><label>Filtrar por grupo muscular</label>'+origen+'<select id="e_grp" data-change="ex-grp" data-aid="'+esc(aid||'')+'" data-day="'+esc(dayId||'')+'" data-ex="'+esc(exId||'')+'">'+gopts+'</select><p class="tiny" style="margin-top:5px" id="e_grp_hint">'+esc(exGrpHint(g0,aid,dayId,exId))+'</p></div>'+
   '<div class="frow"><label>Ejercicio</label><input id="e_name" list="exlist" data-exvol="1" value="'+esc(e.name||'')+'" placeholder="Escribe o abre la lista para elegir…"><p class="tiny" style="margin-top:5px">Si coincide con uno de la biblioteca, queda vinculado: hereda video y músculos.</p></div>'+
   '<div class="frow3"><div><label>Series</label><input id="e_sets" type="number" data-exvol="1" value="'+esc(e.sets||3)+'"></div><div><label>Reps</label><input id="e_reps" value="'+esc(e.reps||'8-10')+'"></div><div><label>RIR</label><input id="e_rir" value="'+esc(e.rir||'2')+'"></div></div>'+
-  '<div class="frow"><label>Descanso</label><input id="e_rest" value="'+esc(e.rest||'2 min')+'"></div>'+
+  '<div class="frow"><label>Descanso</label><input id="e_rest" value="'+esc(e.rest||'2 min')+'"></div>'+techBlk+
   '<div class="frow"><label>Indicaciones técnicas (opcional)</label><input id="e_notes" value="'+esc(e.notes||'')+'" placeholder="Pausa 1 s, tempo 3-0-1…"></div>'+
   '<div class="frow"><label>Link de revisión (opcional)</label><input id="e_rev" value="'+esc(e.revLink||'')+'" placeholder="Loom, YouTube… tu video corrigiendo la técnica"><p class="tiny" style="margin-top:5px">El atleta verá un botón «Revisión de tu coach» en este ejercicio.</p></div>'+
   (aid?'<div class="card" style="margin:14px 0 0;padding:12px 14px;background:var(--bg2)"><h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx2)">Impacto en el volumen semanal</h4><div id="exvolbox" data-aid="'+aid+'" data-ex="'+(exId||'')+'">'+exVolCore(aid,exId||'',e.name||'',e.sets||0)+'</div></div>':'');
@@ -4297,6 +4385,12 @@ function wdraftLoad(aid){
    ejercicio y ahora además en el placeholder de cada casilla, que es donde de verdad se
    necesita. Lo único que se hereda es el NÚMERO de series, para no tener que añadirlas
    a mano cada vez; eso no es un dato registrado, es la forma de la sesión. */
+/* El ejercicio prescrito que corresponde a una fila del borrador (para saber su técnica). */
+function wdraftExOf(exId){
+  if(!WDRAFT||!WDRAFT.aid)return null;
+  const day=(athData(WDRAFT.aid).routine.days||[]).find(x=>x.id===WDRAFT.dayId);
+  return day?(day.exercises.find(x=>x.id===exId)||null):null;
+}
 function wdraftFresh(aid,day){
   const last=lastWorkoutForDay(aid,day.id);
   const sets={};
@@ -4304,7 +4398,13 @@ function wdraftFresh(aid,day){
     const lastSets=last&&last.entries[e.id]?last.entries[e.id]:null;
     const nsets=lastSets?lastSets.length:(parseInt(e.sets,10)||3);
     sets[e.id]=[];
-    for(let i=0;i<nsets;i++)sets[e.id].push({w:'',r:'',rir:''});
+    for(let i=0;i<nsets;i++){
+      const o={w:'',r:'',rir:''};
+      /* Las mini-series de la técnica nacen vacías junto a la serie. Van en `sub` y NO son
+         series: nada que cuente `sets.length` se entera de ellas. */
+      if(techOnSet(e,i,nsets))o.sub=Array.from({length:techN(e)},()=>({w:'',r:''}));
+      sets[e.id].push(o);
+    }
   });
   return{aid,dayId:day.id,date:todayISO(),sets,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
 }
@@ -4356,6 +4456,16 @@ async function saveWorkoutDraft(status,reason,extraCm){
       if(s.w!==''||s.r!==''){
         const o={w:parseFloat(s.w)||0,r:parseInt(s.r,10)||0,rir:s.rir===''||s.rir==null?null:parseFloat(s.rir)};
         if(s.sk)o.sk=s.sk;
+        /* Mini-series de la técnica: solo las que tienen reps. Una mini vacía es una que no se
+           hizo, y un 0 aquí ensuciaría el tonelaje igual que una serie de 0×0 ensucia el e1RM.
+           El peso solo se guarda si es distinto del de la serie (dropset); si no, se hereda. */
+        const sub=(s.sub||[]).map(m=>{
+          const r=parseInt(m&&m.r,10)||0;if(r<=0)return null;
+          const x={r:r},pw=parseFloat(m.w);
+          if(!isNaN(pw)&&pw>0&&pw!==(parseFloat(s.w)||0))x.w=pw;
+          return x;
+        }).filter(Boolean);
+        if(sub.length)o.sub=sub;
         filled.push(o);
       }else if(s.sk)setSk[i+1]=s.sk;
     });
@@ -4680,7 +4790,13 @@ VIEWS['ath-wlog']=function(u){
   const last=lastWorkoutForDay(aid,day.id);
   const unit=weightUnitForAid(aid);
   let blocks='';
-  day.exercises.forEach(e=>{
+  /* Las biseries se pintan envueltas en un solo bloque para que el atleta vea de un golpe que
+     esos ejercicios van seguidos, sin descanso entre ellos. Cada uno sigue registrando sus
+     propias series: agrupar es presentación, no cambia ni un dato guardado. */
+  exGroups(day.exercises).forEach(gr=>{
+  const multi=!!gr.grp&&gr.items.length>1;
+  let inner='';
+  gr.items.forEach((e,gi)=>{
     const sets=WDRAFT.sets[e.id]||[];
     /* El peso y las reps de la serie equivalente de la última sesión van al PLACEHOLDER,
        no al value: se ven en gris como referencia de qué superar, pero la casilla está
@@ -4698,6 +4814,19 @@ VIEWS['ath-wlog']=function(u){
       const skTit=sk==='none'?'No la hice — toca otra vez para «no la terminé»':sk==='partial'?'No la terminé — toca otra vez para quitar la marca':'Marcar: 1 toque = no la hice · 2 = no la terminé';
       const dis=sk==='none'?' disabled':'';
       rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':dispW(s.w,unit))+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
+      /* Mini-series de la técnica: cuelgan de la serie, con su propia fila. No llevan botón de
+         marca ni de borrar — el número de mini-series lo pauta el coach, no el atleta. Si la
+         serie está marcada como no hecha no se pintan: no hay nada que anotar. */
+      if(s.sub&&s.sub.length&&!dis){
+        const tq=techOf(e),pre=(tq&&tq.subW)?'D':'m';
+        let ms='';
+        s.sub.forEach((m,mi)=>{
+          ms+='<div class="subcell"><span>'+pre+(mi+1)+'</span>'+
+            ((tq&&tq.subW)?'<input type="number" step="0.5" placeholder="'+esc(unit)+'" value="'+(m.w===''||m.w==null?'':dispW(m.w,unit))+'" data-sub="w" data-ex="'+e.id+'" data-idx="'+si+'" data-mi="'+mi+'">':'')+
+            '<input type="number" placeholder="reps" value="'+(m.r===''||m.r==null?'':m.r)+'" data-sub="r" data-ex="'+e.id+'" data-idx="'+si+'" data-mi="'+mi+'"></div>';
+        });
+        rows+='<div class="subrow"><span class="sl">'+esc(tq?tq.lbl:'Mini')+'</span><div class="subs">'+ms+'</div></div>';
+      }
     });
     let lastTxt='';
     if(last&&last.entries[e.id])lastTxt='<div class="last">Última sesión: '+last.entries[e.id].map(s=>dispW(s.w||0,unit)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+' ('+fmtDate(last.date)+')</div>';
@@ -4714,9 +4843,17 @@ VIEWS['ath-wlog']=function(u){
       ?'<div class="skipbadge'+(exSk.k==='partial'?' half':'')+'">'+(exSk.k==='partial'?'½':'✕')+'<span>'+(exSk.k==='partial'?'Lo dejaste a medias':'No lo hiciste')+' · '+esc(skipLbl(exSk.why))+'</span><button class="u" data-act="wlog-exskip-undo" data-ex="'+e.id+'">Deshacer</button></div>'+(exSk.cm?'<div class="tiny" style="margin-top:4px">«'+esc(exSk.cm)+'»</div>':'')
       :'<button class="skipbtn" data-act="wlog-exskip-ask" data-ex="'+e.id+'">✕ No lo hice</button>';
     const headBtn=exSk?'':'<button class="exdone'+(exDone?' on':'')+'" data-act="wlog-done" data-ex="'+e.id+'">'+(exDone?I.check+'Hecho':'Marcar hecho')+'</button>';
-    blocks+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+nameH+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+esc(e.rest)+(e.notes?' — '+esc(e.notes):'')+'</div>'+swapUI+skUI+revBtn+lastTxt+'</div>'+
+    const posH=multi?'<span class="grpchip">'+gr.grp+(gi+1)+'</span>':'';
+    /* En biserie el descanso va al final del grupo, no entre ejercicios: decirlo aquí evita que
+       el atleta descanse donde no toca y convierta la biserie en dos series normales. */
+    const restTxt=multi?(gi<gr.items.length-1?'sin descanso, pasa al siguiente':esc(e.rest)+' al terminar el grupo'):esc(e.rest);
+    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+(e.notes?' — '+esc(e.notes):'')+'</div>'+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>':'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso ('+unit+')</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
+  });
+  blocks+=multi
+    ?'<div class="bigrp"><div class="bigrp-h">'+grpLbl(gr.items.length)+' '+gr.grp+' · alterna los ejercicios sin descansar entre ellos</div>'+inner+'</div>'
+    :inner;
   });
   /* Un ejercicio cuenta como hecho si está marcado O si tiene alguna serie anotada.
      Uno marcado como NO hecho no cuenta aunque tenga series sueltas: manda lo que dijo. */
@@ -4752,7 +4889,7 @@ VIEWS['ath-rutina']=function(u){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+'</td><td>'+nameCell+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
     const wd=wp.byDay[day.id],md=wp.missDay[day.id];
     const tag=wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+(wd.partial?' · incompleta':'')+'</span>'
@@ -4890,9 +5027,9 @@ Object.assign(ACTIONS,{
     wdraftSave();
     nav('ath-wlog');
   },
-  'wlog-addset':el=>{WDRAFT.sets[el.dataset.ex].push({w:'',r:'',rir:''});wdraftTouch();render();},
+  'wlog-addset':el=>{const a=WDRAFT.sets[el.dataset.ex];a.push({w:'',r:'',rir:''});retechSets(wdraftExOf(el.dataset.ex),a);wdraftTouch();render();},
   'wunit-set':async el=>{await setMyWeightUnit(el.dataset.u);},
-  'wlog-delset':el=>{WDRAFT.sets[el.dataset.ex].splice(parseInt(el.dataset.idx,10),1);wdraftTouch();render();},
+  'wlog-delset':el=>{const a=WDRAFT.sets[el.dataset.ex];a.splice(parseInt(el.dataset.idx,10),1);retechSets(wdraftExOf(el.dataset.ex),a);wdraftTouch();render();},
   'wlog-done':el=>{
     WDRAFT.done=WDRAFT.done||{};
     const on=!WDRAFT.done[el.dataset.ex];
@@ -5179,6 +5316,21 @@ document.addEventListener('input',e=>{
         s.w=isNaN(n)?'':+lb2kg(n).toFixed(3);
       }else{
         s[el.dataset.bind]=el.value;
+      }
+      wdraftTouch();
+    }
+  }
+  /* Mini-series de las técnicas. Mismo trato que la serie: el peso entra en la unidad elegida
+     y se guarda SIEMPRE en kg, que es la fuente de verdad. */
+  if(el.dataset&&el.dataset.sub&&WDRAFT){
+    const s=(WDRAFT.sets[el.dataset.ex]||[])[parseInt(el.dataset.idx,10)];
+    const m=(s&&s.sub)?s.sub[parseInt(el.dataset.mi,10)]:null;
+    if(m){
+      if(el.dataset.sub==='w'&&weightUnitForAid(_currentUserId)==='lb'){
+        const n=el.value===''?NaN:parseFloat(el.value);
+        m.w=isNaN(n)?'':+lb2kg(n).toFixed(3);
+      }else{
+        m[el.dataset.sub]=el.value;
       }
       wdraftTouch();
     }
