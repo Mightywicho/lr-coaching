@@ -597,6 +597,21 @@ const _lsAtBoot=(function(){
 const SUPABASE_URL='https://vflzzokyaiddsxyeoigu.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbHp6b2t5YWlkZHN4eWVvaWd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDg2MDQsImV4cCI6MjA5Nzg4NDYwNH0.IH9oemMJ3HuqrHsHqWv5EugF_PgxOyPBvB9iN-FJ0vg';
 const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+/* Recuperación de contraseña. El enlace del correo devuelve al atleta aquí con
+   #type=recovery (o con un error si ya caducó o se usó). Hay que leerlo EN ESTA MISMA
+   vuelta síncrona: supabase-js consume y limpia el hash por su cuenta unos ms después,
+   así que cualquier lectura posterior llegaría tarde y el atleta entraría a su panel
+   sin que se le pidiera la contraseña nueva. */
+const _recovery=(function(){
+  try{
+    const p=new URLSearchParams((location.hash||'').replace(/^#/,''));
+    const q=new URLSearchParams((location.search||'').replace(/^\?/,''));
+    const err=p.get('error_code')||q.get('error_code')||p.get('error')||q.get('error');
+    if(err)return{err:err};
+    if((p.get('type')||q.get('type'))==='recovery')return{ok:true};
+  }catch(e){}
+  return null;
+})();
 let _supabaseUser=null;
 let _currentUserId=null;
 let _coachUid=null;
@@ -2561,11 +2576,23 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot">LR Coaching · <a href="#" data-act="show-signup" style="color:var(--volt)">Cuenta coach</a> · <a href="#" data-act="show-ath-signup" style="color:var(--blue)">Soy atleta</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label style="margin-top:4px">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div><div style="text-align:center;margin-top:2px"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:12px;text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div></div><div class="login-foot">LR Coaching · <a href="#" data-act="show-signup" style="color:var(--volt)">Cuenta coach</a> · <a href="#" data-act="show-ath-signup" style="color:var(--blue)">Soy atleta</a></div></div></div>';
   setTimeout(()=>{
     const em=document.getElementById('l_email');if(em)em.focus();
     const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
   },50);
+}
+/* Pide el correo de recuperación. Vive fuera de VIEWS a propósito: como el resto de
+   pantallas de acceso, se pinta con innerHTML directo porque aquí todavía no hay sesión
+   ni estado que render() pueda usar. */
+function renderForgot(){
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny" style="margin-top:8px">Escribe el email con el que entras y te mandamos un enlace para crear una contraseña nueva.</p><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:13px;min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+  setTimeout(()=>{const em=document.getElementById('f_email');if(em){em.focus();em.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-forgot"]')?.click();}});}},50);
+}
+/* Se pinta solo cuando el atleta vuelve del enlace del correo (ver _recovery y el arranque). */
+function renderNewPass(){
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Elige tu contraseña nueva</p></div><div class="login-card"><h3>Contraseña nueva</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Contraseña</label><input type="password" id="n_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label style="margin-top:4px">Repítela</label><input type="password" id="n_pass2" placeholder="La misma otra vez" autocomplete="new-password"><button class="btn btn-p" data-act="auth-newpass" style="margin-top:6px;width:100%;padding:12px">Guardar y entrar →</button><div id="n_err" style="color:var(--red);font-size:13px;min-height:18px;text-align:center"></div></div></div><div class="login-foot">Este enlace funciona una sola vez</div></div></div>';
+  setTimeout(()=>{const p=document.getElementById('n_pass');if(p){p.focus();}const p2=document.getElementById('n_pass2');if(p2)p2.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-newpass"]')?.click();}});},50);
 }
 function navItemsFor(u){
   if(u.role==='coach'){
@@ -2716,6 +2743,40 @@ const ACTIONS={
     setTimeout(()=>{document.getElementById('r_name')?.focus();},50);
   },
   'back-login':()=>render(),
+  'show-forgot':()=>renderForgot(),
+  'auth-forgot':async()=>{
+    const email=(document.getElementById('f_email')?.value||'').trim();
+    const msg=document.getElementById('f_msg');
+    if(msg){msg.style.color='var(--tx2)';msg.textContent='';}
+    if(!email){if(msg){msg.style.color='var(--red)';msg.textContent='Escribe tu email';}return;}
+    const btn=document.querySelector('[data-act="auth-forgot"]');
+    if(btn){btn.disabled=true;btn.textContent='Enviando…';}
+    const{error}=await supa.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    if(error&&(error.status===429||/rate|too many/i.test(error.message||''))){
+      if(msg){msg.style.color='var(--red)';msg.textContent='Ya se pidió uno hace poco. Espera un minuto y vuelve a intentar.';}
+      if(btn){btn.disabled=false;btn.textContent='Enviarme el enlace';}return;
+    }
+    /* Misma respuesta exista o no la cuenta: decir «ese correo no está registrado»
+       dejaría averiguar quiénes son los atletas probando direcciones. */
+    if(msg){msg.style.color='var(--green)';msg.textContent='Si esa dirección tiene cuenta, en un minuto te llega el correo. Revisa también la carpeta de spam.';}
+    if(btn)btn.textContent='✓ Correo enviado';
+  },
+  'auth-newpass':async()=>{
+    const p1=document.getElementById('n_pass')?.value||'';
+    const p2=document.getElementById('n_pass2')?.value||'';
+    const err=document.getElementById('n_err');
+    if(err)err.textContent='';
+    if(p1.length<8||!/[a-zA-Z]/.test(p1)||!/[0-9]/.test(p1)){if(err)err.textContent='La contraseña debe tener al menos 8 caracteres con letras y números';return;}
+    if(p1!==p2){if(err)err.textContent='Las dos contraseñas no son iguales';return;}
+    const btn=document.querySelector('[data-act="auth-newpass"]');
+    if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+    const{data,error}=await supa.auth.updateUser({password:p1});
+    if(error){if(err)err.textContent=(/different from the old/i.test(error.message||'')?'Elige una contraseña distinta a la que ya tenías':('No se pudo guardar: '+error.message));if(btn){btn.disabled=false;btn.textContent='Guardar y entrar →';}return;}
+    let u=(data&&data.user)||null;
+    if(!u){try{u=(await supa.auth.getUser()).data.user;}catch(e){}}
+    if(!u){renderLogin();const le=document.getElementById('l_err');if(le){le.style.color='var(--green)';le.textContent='Contraseña actualizada. Entra con ella.';}return;}
+    await initAfterAuth(u);
+  },
   'auth-signup':async()=>{
     const name=(document.getElementById('r_name')?.value||'').trim();
     const email=(document.getElementById('r_email')?.value||'').trim();
@@ -7957,7 +8018,26 @@ async function initAfterAuthUnsafe(user){
 }
 (async function(){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
-  const{data:{session}}=await supa.auth.getSession();
+  if(_recovery&&_recovery.err){
+    try{history.replaceState(null,'',location.pathname);}catch(e){}
+    renderLogin();
+    const le=document.getElementById('l_err');
+    if(le)le.textContent='Ese enlace ya caducó o se usó. Pide uno nuevo.';
+    startVersionWatch();return;
+  }
+  let{data:{session}}=await supa.auth.getSession();
+  if(_recovery&&_recovery.ok){
+    /* getSession ya espera a que supabase-js procese el hash, pero se reintenta unas
+       veces por si el canje del enlace va lento: entrar al panel sin pedir la contraseña
+       nueva dejaría al atleta igual de bloqueado la próxima vez. */
+    for(let i=0;i<10&&!session;i++){await new Promise(r=>setTimeout(r,200));session=(await supa.auth.getSession()).data.session;}
+    try{history.replaceState(null,'',location.pathname);}catch(e){}
+    if(session){renderNewPass();startVersionWatch();return;}
+    renderLogin();
+    const le=document.getElementById('l_err');
+    if(le)le.textContent='Ese enlace ya caducó o se usó. Pide uno nuevo.';
+    startVersionWatch();return;
+  }
   if(session){await initAfterAuth(session.user);}
   else{render();}
   startVersionWatch(); /* también en la pantalla de login: una pestaña ahí también envejece */
