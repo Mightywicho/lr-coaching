@@ -4843,7 +4843,7 @@ VIEWS['ath-hoy']=function(u){
   /* El aviso «en kg» solo se pinta si el atleta capturó sus cargas en lb: para quien usa kg
      en todo sería ruido, y para quien usa lb es justo la duda que se le crea al ver el interruptor. */
   const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas'+(weightUnitForAid(aid)==='lb'?' · en kg':'')+'</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
-    '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p>';
+    '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p><button class="btn btn-g btn-sm mt8" data-act="steps-back">Días anteriores</button>';
 
   const todayM=measureLogs(aid).find(m=>m.date===todayISO());
   const lm=lastMeasure(aid);
@@ -5337,6 +5337,47 @@ Object.assign(ACTIONS,{
     if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
     keepClear('s_today');
     saveState();toast(synced?('Pasos guardados: '+st.toLocaleString('es-ES')):('Pasos guardados local: '+st.toLocaleString('es-ES')));render();
+  },
+  /* Pasos de días pasados: el atleta suele acordarse tarde de copiar el total del reloj.
+     Ventana de 6 días atrás (hoy se registra arriba). Un campo vacío NO borra lo ya registrado.
+     nofocus: con 6 filas, enfocar el primer campo abre el teclado del móvil y tapa «Guardar». */
+  'steps-back':()=>{
+    const u=userById(getSession().userId);if(!u||u.role!=='athlete')return;
+    const arr=athData(u.id).logs.steps||[];
+    let rows='';
+    for(let n=1;n<=6;n++){
+      const iso=daysAgoISO(n);
+      const[yy,mm,dd]=iso.split('-').map(Number);
+      const lbl=(n===1?'Ayer':DIAS[new Date(yy,mm-1,dd).getDay()]);
+      const prev=arr.find(s=>s.date===iso);
+      rows+='<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><label style="flex:1;margin:0">'+lbl+' <span class="hint">'+fmtDate(iso)+'</span></label><input id="sb_'+iso+'" type="number" step="100" min="0" placeholder="pasos" value="'+(prev?prev.steps:'')+'" style="max-width:150px"></div>';
+    }
+    openModal('Pasos de días anteriores',
+      '<p class="tiny mb16">Rellena los días que te falten. Lo que dejes en blanco se queda como está.</p>'+rows,
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="steps-back-save">Guardar</button>',
+      {nofocus:true});
+  },
+  'steps-back-save':async()=>{
+    const u=userById(getSession().userId);if(!u)return;
+    const d=athData(u.id);
+    /* Leer TODOS los campos y validarlos antes de escribir nada: o entran todos o no entra ninguno. */
+    const picks=[];
+    for(let n=1;n<=6;n++){
+      const iso=daysAgoISO(n),raw=val('sb_'+iso);
+      if(!raw)continue;
+      const st=Math.round(parseFloat(raw.replace(',','.')));
+      if(!st||isNaN(st)||st<100||st>100000){toast('Pasos fuera de rango en '+fmtDate(iso)+' (100 a 100.000)','err');return;}
+      picks.push({date:iso,steps:st});
+    }
+    if(!picks.length){closeModal();return;}
+    if(!d.logs.steps)d.logs.steps=[];
+    picks.forEach(p=>{const ex=d.logs.steps.find(s=>s.date===p.date);if(ex)ex.steps=p.steps;else d.logs.steps.push({date:p.date,steps:p.steps});});
+    d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
+    let synced=true;const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert(picks.map(p=>({athlete_uid:auid,coach_uid:_coachUid,date:p.date,steps:p.steps})),{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    saveState();closeModal();
+    toast((synced?'Guardado: ':'Guardado local: ')+picks.length+(picks.length===1?' día':' días'));
+    render();
   },
   'measures-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
