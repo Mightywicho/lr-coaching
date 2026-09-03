@@ -355,6 +355,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 #toast-root{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center}
 .toast{background:var(--card2);border:1px solid var(--volt);color:var(--tx);padding:11px 20px;border-radius:12px;font-weight:600;font-size:13.5px;box-shadow:var(--shadow);animation:pop .2s;display:flex;gap:9px;align-items:center}
 .toast svg{color:var(--volt)}
+.toast.err{border-color:var(--red)}
+.toast.err svg{color:var(--red)}
 
 /* ---------- misc ---------- */
 .empty{border:1px dashed var(--line2);border-radius:var(--r);padding:34px 20px;text-align:center;color:var(--tx3);font-size:13.5px}
@@ -618,6 +620,12 @@ let _coachUid=null;
 let _chatChannel=null;
 let _dataChannel=null;
 let _blobChannel=null;
+/* Sesión de esta pestaña. supabase-js guarda el token en localStorage, COMPARTIDO por todas las
+   pestañas del mismo navegador: cerrar sesión o entrar con otra cuenta en una deja a las demás
+   sin token aunque sigan pintadas. _selfSignOut evita que el logout de esta misma pestaña
+   dispare el aviso; _sessionLost es el candado para no avisar dos veces. */
+let _selfSignOut=false;
+let _sessionLost=false;
 /* Candado optimista del blob (s50). _blobRev = la versión que ESTA pestaña leyó del
    servidor; se manda en cada guardado y el update solo entra si el servidor sigue en esa
    versión. null = todavía no hay fila (coach recién dado de alta) → toca insert.
@@ -939,7 +947,7 @@ let _savePending=null;
    confirmó; _saveInFlight = el upsert está en vuelo. Los usa el detector de versión
    para no recargar la página encima de un guardado sin confirmar. */
 let _saveInFlight=false,_saveDirty=false;
-window._lrLogout=async function(){try{await supa.auth.signOut();}catch(e){}location.reload();};
+window._lrLogout=async function(){_selfSignOut=true;try{await supa.auth.signOut();}catch(e){}location.reload();};
 function showBootError(msg){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
 }
@@ -1258,6 +1266,8 @@ function saveOk(){
 function saveFailed(e){
   try{console.error('saveState() falló:',e);}catch(_){}
   _saveDirty=true; /* sigue sucio: no recargar la página encima de esto */
+  if(_sessionLost)return;  /* ya hay un aviso mejor: el de sesión */
+  authFail(e);             /* si el rechazo fue por falta de sesión, ese es el aviso correcto */
   bottomBanner('saveErrBanner','warn',12,
     '<b>No se pudo guardar en la nube.</b> Tus cambios están en este dispositivo, pero aún no en el servidor. No cierres esta pestaña.'+
     '<button onclick="saveState()" style="'+BTN_CSS+'">Reintentar</button>');
@@ -2537,7 +2547,7 @@ function openModal(title,bodyHTML,footHTML,opts){
   setTimeout(()=>{try{fi.focus();}catch(e){}},60);
 }
 function closeModal(){const mr=$('#modal-root');const r=mr._returnFocus;mr.innerHTML='';if(r&&r.focus){try{r.focus();}catch(e){}}}
-function toast(msg){const t=document.createElement('div');t.className='toast';t.innerHTML=I.check+'<span>'+esc(msg)+'</span>';$('#toast-root').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';},2200);setTimeout(()=>t.remove(),2600);}
+function toast(msg,tone){const t=document.createElement('div');t.className='toast'+(tone==='err'?' err':'');t.innerHTML=(tone==='err'?I.x:I.check)+'<span>'+esc(msg)+'</span>';$('#toast-root').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';},2200);setTimeout(()=>t.remove(),2600);}
 function confirmModal(title,msg,act,args){
   openModal(title,'<p class="muted">'+esc(msg)+'</p>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-d" data-act="'+act+'" '+(args||'')+'>'+esc(title)+'</button>');
 }
@@ -2638,6 +2648,52 @@ function bottomBanner(id,tone,bottom,html){
   return b;
 }
 
+/* ===== Sesión perdida (2-sep-2026) =====
+   El token vive en localStorage, compartido entre pestañas: cerrar sesión —o entrar con otra
+   cuenta— en una pestaña deja a las demás sin identidad aunque sigan pintadas y pareciendo
+   vivas. Cada escritura sale entonces como anónima: PostgREST responde 401 y Postgres lo cuenta
+   como violación de RLS («new row violates row-level security policy»), un mensaje que no le
+   dice nada a nadie. Pasó al invitar a una atleta con el panel de coach abierto en una pestaña
+   vieja mientras se probaba la cuenta de atleta en otra. */
+function sessionLost(motivo){
+  if(_sessionLost)return;
+  _sessionLost=true;
+  /* Este aviso sustituye a los otros: son consecuencia suya, no problemas aparte. */
+  ['saveErrBanner','blobConflictBanner','newVerBanner'].forEach(function(id){try{var b=document.getElementById(id);if(b)b.remove();}catch(e){}});
+  bottomBanner('sessionLostBanner','warn',12,
+    '<b>Tu sesión se cerró'+(motivo?' '+motivo:'')+'.</b> Esta pestaña ya no puede guardar nada en el servidor. Vuelve a entrar para seguir; lo que escribiste y no llegó a guardarse sigue en este navegador.'+
+    '<button onclick="location.reload()" style="'+BTN_CSS+'">Volver a entrar</button>');
+}
+/* Traduce el rechazo del servidor cuando la causa es la falta de sesión: con auth.uid() nulo,
+   el 401 y el 42501 llegan con el mismo texto de RLS. Devuelve el mensaje para el usuario, o
+   null si el error es de otra cosa (red, constraint, conflicto). */
+function authFail(error){
+  if(!error)return null;
+  var st=error.status||error.statusCode||0;
+  var code=error.code||'';
+  var msg=String(error.message||'');
+  if(st!==401&&st!==403&&code!=='42501'&&code!=='PGRST301'&&!/row-level security|JWT|not authenticated/i.test(msg))return null;
+  confirmSessionLost();  /* confirmar antes de acusar: un 42501 con sesión viva sería otra cosa */
+  return 'Tu sesión ya no es válida. Vuelve a entrar y repite la acción.';
+}
+async function confirmSessionLost(){
+  try{
+    var s=(await supa.auth.getSession()).data.session;
+    if(s&&s.user&&_supabaseUser&&s.user.id===_supabaseUser.id)return; /* sigue viva: no es la sesión */
+    sessionLost(s&&s.user?'porque entró otra cuenta en este navegador':'');
+  }catch(e){sessionLost('');}
+}
+/* Chequeo previo a una escritura cuyo resultado el usuario está esperando ver. Vale la vuelta
+   extra: enseñar el motivo real antes vale más que un error de Postgres después. */
+async function sessionAlive(){
+  var s=null;
+  try{s=(await supa.auth.getSession()).data.session;}catch(e){}
+  if(s&&s.user&&_supabaseUser&&s.user.id===_supabaseUser.id)return true;
+  sessionLost(s&&s.user?'porque entró otra cuenta en este navegador':'');
+  toast('Tu sesión ya no es válida. Vuelve a entrar.','err');
+  return false;
+}
+
 /* ===== Detector de versión nueva =====
    Una pestaña que quedó abierta sigue corriendo el código viejo tras un deploy y —lo
    grave— guarda en memoria una copia vieja del blob: en cuanto toca algo, `saveState`
@@ -2720,7 +2776,7 @@ function renderUnsafe(){
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
   'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
-  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
+  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}_selfSignOut=true;await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
     /* Se limpia la MEMORIA, no el disco: el borrador y lo escrito siguen en localStorage
        ligados a su uid, así que el dueño los recupera al volver a entrar, y el siguiente
        usuario de esta pestaña no ve nada del anterior (keepLoad/wdraftLoad validan el uid). */
@@ -2822,8 +2878,9 @@ const ACTIONS={
   'invite-coach':async()=>{
     const code='LRC-'+Math.random().toString(36).slice(2,8).toUpperCase();
     const label=(val('ci_label')||'').trim();
+    if(!await sessionAlive())return;
     const{error}=await supa.from('coach_invites').insert({code,created_by:_supabaseUser.id,label:label||null});
-    if(error){toast('Error: '+error.message);return;}
+    if(error){toast(authFail(error)||('Error: '+error.message),'err');return;}
     openModal('Código de invitación de coach',
       '<p style="margin-bottom:12px">Compártelo solo con quien vaya a trabajar contigo:</p>'+
       '<div style="background:var(--s2);border-radius:10px;padding:20px;text-align:center;font-size:28px;font-family:monospace;letter-spacing:4px;color:var(--volt);font-weight:bold">'+esc(code)+'</div>'+
@@ -2833,9 +2890,10 @@ const ACTIONS={
   },
   'invite-ath':async el=>{
     const aid=el.dataset.aid;
+    if(!await sessionAlive())return;
     const code=Math.random().toString(36).slice(2,10).toUpperCase();
     const{error}=await supa.from('athlete_invites').insert({code,coach_uid:_supabaseUser.id,athlete_id:aid});
-    if(error){toast('Error: '+error.message);return;}
+    if(error){toast(authFail(error)||('Error: '+error.message),'err');return;}
     openModal('Código de acceso del atleta',
       '<p style="margin-bottom:12px">Comparte este código con el atleta:</p>'+
       '<div style="background:var(--s2);border-radius:10px;padding:20px;text-align:center;font-size:32px;font-family:monospace;letter-spacing:6px;color:var(--volt);font-weight:bold">'+esc(code)+'</div>'+
@@ -7956,6 +8014,8 @@ async function initAfterAuth(user){
   }
 }
 async function initAfterAuthUnsafe(user){
+  _selfSignOut=false;_sessionLost=false;
+  try{var _slb=document.getElementById('sessionLostBanner');if(_slb)_slb.remove();}catch(e){}
   _supabaseUser=user;
   _coachUid=user.id;
   _currentUserId='coach';
@@ -8016,6 +8076,29 @@ async function initAfterAuthUnsafe(user){
      Fuera de _HYDRATORS a propósito — este aviso es su único consumidor y necesita el orden. */
   try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
 }
+/* Dos vigilantes de la sesión, no uno: supabase-js avisa por su canal entre pestañas cuando el
+   token cambia o desaparece, y el listener de `storage` es la red de seguridad por si ese canal
+   no está disponible. Los dos solo actúan si esta pestaña YA tenía a alguien dentro. */
+try{
+  supa.auth.onAuthStateChange(function(event,session){
+    if(_selfSignOut||!_supabaseUser)return;
+    if(event==='SIGNED_OUT'||!session){sessionLost('');return;}
+    if(session.user&&session.user.id!==_supabaseUser.id)sessionLost('porque entró otra cuenta en este navegador');
+  });
+}catch(e){}
+try{
+  var _AUTH_KEY='sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token';
+  window.addEventListener('storage',function(ev){
+    if(_selfSignOut||_sessionLost||!_supabaseUser)return;
+    if(!ev||ev.key!==_AUTH_KEY)return;                 /* solo la llave de la sesión */
+    if(!ev.newValue){sessionLost('en otra pestaña');return;}
+    try{
+      var raw=JSON.parse(ev.newValue);                 /* si viene en base64 esto truena y no pasa nada */
+      var u=(raw&&raw.user)||(raw&&raw.currentSession&&raw.currentSession.user)||null;
+      if(u&&u.id&&u.id!==_supabaseUser.id)sessionLost('porque entró otra cuenta en este navegador');
+    }catch(e){}
+  });
+}catch(e){}
 (async function(){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
   if(_recovery&&_recovery.err){
