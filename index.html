@@ -488,6 +488,11 @@ td.sesion-total.hot{color:var(--orange)}
 .volbar{height:8px;border-radius:5px;background:var(--bg2);position:relative;overflow:hidden;min-width:80px}
 .volbar .rng{position:absolute;top:0;bottom:0;background:var(--volt-22);border-left:1px solid var(--volt);border-right:1px solid var(--volt)}
 .volbar .act{position:absolute;top:0;bottom:0;width:3px;background:var(--tx);border-radius:2px}
+.volbar .tgt{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--blue);border-radius:2px}
+input.meta-in{width:62px;text-align:center;font-variant-numeric:tabular-nums}
+input.meta-in.off{border-color:var(--orange);color:var(--orange)}
+input.meta-in.old{border-style:dashed}
+.volstale{border:1px solid rgba(255,180,92,.45);background:rgba(255,180,92,.10);border-radius:var(--r-s);padding:10px 12px;margin:12px 0 0;font-size:12.5px;color:var(--tx2);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
 .refgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .kpill{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;font-variant-numeric:tabular-nums}
 .kpill.vm{background:rgba(101,113,131,.2);color:var(--tx2)}
@@ -823,6 +828,14 @@ function targetStatus(actual,tgt,L){
  if(dfx===0)return{cls:'green',txt:'Objetivo cubierto'};
  return{cls:'volt',txt:'+'+dfx+' sobre objetivo'};
 }
+/* Sellado de metas de volumen: guarda con que fase+bloque se fijo la meta de CADA grupo,
+   para poder avisar cuando el atleta cambia de bloque y sus metas siguen siendo las viejas.
+   Solo informa: nunca modifica una meta por su cuenta. */
+function volCtxKey(p){return (p.phase||'')+'|'+(p.block||1);}
+function stampVolTarget(p,g){if(!p)return;p.volTargetsCtx=p.volTargetsCtx||{};const t=(p.volTargets||{})[g];if(t==null||t==='')delete p.volTargetsCtx[g];else p.volTargetsCtx[g]=volCtxKey(p);}
+function stampAllVolTargets(p){if(!p)return;p.volTargetsCtx=p.volTargetsCtx||{};const k=volCtxKey(p);GROUPS.forEach(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')delete p.volTargetsCtx[g];else p.volTargetsCtx[g]=k;});}
+function staleVolGroups(p){if(!p)return[];const k=volCtxKey(p),c=p.volTargetsCtx||{};return GROUPS.filter(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')return false;const s=c[g];return !!s&&s!==k;});}
+function volCtxLabel(k){const a=String(k||'').split('|');return phaseName(a[0])+' · Bloque '+(a[1]||'1');}
 function defaultPriorities(){const o={};GROUPS.forEach(g=>o[g]=2);return o;}
 function ensureProgramming(st){
  Object.keys(st.athletes).forEach(aid=>{
@@ -833,6 +846,8 @@ function ensureProgramming(st){
    p.priorities=p.priorities||{};
    GROUPS.forEach(g=>{if(p.priorities[g]==null)p.priorities[g]=2;});
    if(!p.volTargets)p.volTargets={};
+   /* metas viejas sin sello: se sellan con el contexto actual para no lanzar un aviso falso */
+   if(!p.volTargetsCtx){p.volTargetsCtx={};GROUPS.forEach(g=>{const t=p.volTargets[g];if(t!=null&&t!=='')p.volTargetsCtx[g]=(p.phase||'')+'|'+(p.block||1);});}
    if(!p.memStart)p.memStart=(st.athletes[aid].routine&&st.athletes[aid].routine.startDate)||todayISO();
    if(p.inactive==null)p.inactive=false;
  });
@@ -3278,6 +3293,7 @@ function coachTabVolumen(aid){
   const order={4:0,1:1,2:2,3:3,0:4};
   const rows=GROUPS.slice().sort((a,b)=>(order[p.priorities[a]]-order[p.priorities[b]])||GROUPS.indexOf(a)-GROUPS.indexOf(b));
   let trs='';
+  const staleList=staleVolGroups(p),staleSet=new Set(staleList);
   rows.forEach(g=>{
     const prio=p.priorities[g],act=directOf(g);
     const mxRec=volumeRecMatrix(prio,exp,phase);
@@ -3286,29 +3302,41 @@ function coachTabVolumen(aid){
     psel+='</select>';
     const fq=freqOf(g);
     const meta=(p.volTargets||{})[g];
-    const planning=(prio!==0&&mxRec&&act===0);   /* rutina vacía para este grupo → planear la meta a mano */
-    const eff=planning?(+meta||0):act;
-    let recCell,bar,stCell,progCell;
-    if(prio===0||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0?'orange':'')+'">'+( act>0?'Sin prioridad':'—')+'</span>';progCell='<b>'+act+'</b>';}
+    const hasMeta=(meta!=null&&meta!=='');
+    const mt=hasMeta?(+meta||0):0;
+    const LM=landmarks(g,exp);
+    const staleG=staleSet.has(g);
+    let recCell,bar,stCell,progCell,metaCell;
+    if(prio===0||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0?'orange':'')+'">'+( act>0?'Sin prioridad':'—')+'</span>';progCell='<b>'+act+'</b>';metaCell='<span class="tiny">—</span>';}
     else{
       recCell='<b class="num">'+mxRec.lo+'–'+mxRec.hi+'</b> <span class="tiny">series/sem</span>';
-      const scale=Math.max(mxRec.hi*1.4,eff,1);
-      const left=Math.round(mxRec.lo/scale*100),w=Math.max(2,Math.round((mxRec.hi-mxRec.lo)/scale*100)),ax=Math.min(100,Math.round(eff/scale*100));
-      bar='<div class="volbar" title="Recomendado: '+mxRec.lo+'–'+mxRec.hi+' series/sem'+(planning?' · meta '+eff:'')+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
+      /* La meta es editable SIEMPRE, tenga o no ejercicios el grupo: al empezar un bloque nuevo
+         (regeneracion → introduccion → acumulacion) la rutina ya esta cargada y hay que poder
+         reprogramar el volumen sin borrarla antes. */
+      const offBand=hasMeta&&(mt<mxRec.lo||mt>mxRec.hi);
+      let mTit='Series semanales que quieres programar para este grupo en este bloque. Vacío = sin meta: el semáforo usa la banda recomendada.';
+      if(offBand)mTit='Tu meta ('+mt+') queda fuera de la banda recomendada para esta fase ('+mxRec.lo+'–'+mxRec.hi+'). Puede ser deliberado. '+mTit;
+      if(staleG)mTit='Esta meta se fijó en '+volCtxLabel((p.volTargetsCtx||{})[g])+', no en la fase actual. '+mTit;
+      metaCell='<input type="number" min="0" max="60" placeholder="—" value="'+(hasMeta?mt:'')+'" class="meta-in'+(offBand?' off':'')+(staleG?' old':'')+'" data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'" title="'+esc(mTit)+'">';
+      progCell='<b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'');
+      const scale=Math.max(mxRec.hi*1.4,act,mt,1);
+      const left=Math.round(mxRec.lo/scale*100),w=Math.max(2,Math.round((mxRec.hi-mxRec.lo)/scale*100)),ax=Math.min(100,Math.round(act/scale*100)),tgx=Math.min(100,Math.round(mt/scale*100));
+      bar='<div class="volbar" title="Recomendado: '+mxRec.lo+'–'+mxRec.hi+' series/sem'+(hasMeta?' · tu meta: '+mt:'')+' · programado: '+act+'"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span>'+(hasMeta?'<span class="tgt" style="left:'+tgx+'%"></span>':'')+'<span class="act" style="left:'+ax+'%"></span></div>';
       let st;
-      if(eff<=0)st={cls:planning?'':'red',txt:planning?'Define tu meta':'Sin volumen'};
-      else if(eff<mxRec.lo)st={cls:'orange',txt:'Bajo'};
-      else if(eff>mxRec.hi)st={cls:'volt',txt:'Alto (tolerable)'};
+      if(hasMeta)st=targetStatus(act,mt,LM);
+      else if(act<=0)st={cls:'red',txt:'Sin volumen'};
+      else if(act<mxRec.lo)st={cls:'orange',txt:'Bajo'};
+      else if(act>mxRec.hi)st={cls:'volt',txt:'Alto (tolerable)'};
       else st={cls:'green',txt:'En rango'};
       stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';
-      if(planning)progCell='<input type="number" min="0" max="60" placeholder="meta" value="'+(meta!=null&&meta!==''?meta:'')+'" data-change="voltarget" data-aid="'+aid+'" data-group="'+esc(g)+'" style="width:58px" title="Meta de planeación: escribe las series que quieres programar para este grupo. Al agregar ejercicios, se mostrará el volumen real.">';
-      else progCell='<b>'+act+'</b>'+(fq?' <span class="tiny">('+fq+'×/sem)</span>':'');
     }
-    trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num">'+progCell+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
+    trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num">'+metaCell+'</td><td class="num">'+progCell+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
-  const table='<div class="card"><h3>1 · Volumen semanal por grupo <span class="hint">compara lo programado con la banda recomendada</span><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:130px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+
-    '<p class="tiny mt8">El estado compara lo programado vs la banda recomendada. «Programado» son las series directas de los ejercicios vinculados; si un grupo aún no tiene ejercicios, puedes escribir ahí tu meta de planeación y el semáforo la usará hasta que empieces a cargar la rutina. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
+  const staleCtx=staleList.length?((p.volTargetsCtx||{})[staleList[0]]||''):'';
+  const staleBox=staleList.length?'<div class="volstale"><span>⚠ <b>'+staleList.length+' grupo'+(staleList.length>1?'s tienen metas':' tiene una meta')+' del bloque anterior</b> ('+esc(volCtxLabel(staleCtx))+'). El atleta ya está en <b>'+esc(phaseName(phase)+' · Bloque '+block)+'</b>: la banda recomendada cambió, tus metas no. Están marcadas con borde punteado.</span><button class="btn btn-g btn-sm" data-act="voltargets-auto-ask" data-aid="'+aid+'">Rellenar metas con el recomendado de esta fase</button></div>':'';
+  const table='<div class="card"><h3>1 · Volumen semanal por grupo <span class="hint">tu meta del bloque frente a lo que suma la rutina</span><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
+    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:78px">Meta</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:140px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+staleBox+
+    '<p class="tiny mt8"><b>Meta</b> son las series semanales que tú decides para este bloque — se puede escribir siempre, tenga o no ejercicios el grupo. <b>Programado</b> son las series directas que ya suman los ejercicios vinculados. Con meta escrita, el estado te dice cuánto falta o sobra para cumplirla; si la dejas vacía, se compara contra la banda recomendada. Una meta con el número en naranja queda fuera de esa banda. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
 
   return ctx+table+coachDistSesiones(aid);
 }
@@ -5595,14 +5623,19 @@ document.addEventListener('change',e=>{
     _pd.volTargets=_pd.volTargets||{};
     if(_pv===0){delete _pd.volTargets[_pg];}
     else{const _pr=volumeRecMatrix(_pv,_pd.experience,_pd.phase);if(_pr)_pd.volTargets[_pg]=_pr.lo;}
+    stampVolTarget(_pd,_pg);
     saveState();render();
   }
   else if(el.dataset.change==='voltarget'){
     const p2=athData(el.dataset.aid).profile;p2.volTargets=p2.volTargets||{};
-    const v=el.value.trim();
-    if(v==='')delete p2.volTargets[el.dataset.group];
-    else p2.volTargets[el.dataset.group]=Math.min(60,Math.max(0,parseInt(v,10)||0));
+    const v=el.value.trim(),_vg=el.dataset.group,_va=el.dataset.aid;
+    if(v==='')delete p2.volTargets[_vg];
+    else p2.volTargets[_vg]=Math.min(60,Math.max(0,parseInt(v,10)||0));
+    stampVolTarget(p2,_vg);
     saveState();render();
+    /* render() rehace el DOM entero y el foco se pierde: sin esto habria que volver a hacer
+       clic en cada grupo para escribir la meta siguiente. */
+    try{const _n=document.querySelector('input[data-change="voltarget"][data-aid="'+_va+'"][data-group="'+_vg+'"]');if(_n){_n.focus();_n.select();}}catch(e){}
   }
   else if(el.dataset.change==='sv-m'){route.params.svm=el.value;render();}
   else if(el.dataset.change==='lib-m'){route.params.m=el.value;render();}
@@ -7118,7 +7151,7 @@ function autoSplit(aid,nDays,style,emphasis,opts){
   /* asegura objetivos de volumen */
   p.volTargets=p.volTargets||{};
   let anyTgt=GROUPS.some(g=>p.volTargets[g]!=null&&p.volTargets[g]!==''&&p.priorities[g]!==0);
-  if(!anyTgt){GROUPS.forEach(g=>{const prio=p.priorities[g];if(prio===0){delete p.volTargets[g];return;}const rec=volumeRecMatrix(prio,p.experience,p.phase);if(rec)p.volTargets[g]=rec.lo;});}
+  if(!anyTgt){GROUPS.forEach(g=>{const prio=p.priorities[g];if(prio===0){delete p.volTargets[g];return;}const rec=volumeRecMatrix(prio,p.experience,p.phase);if(rec)p.volTargets[g]=rec.lo;});stampAllVolTargets(p);}
   const tpl=splitTemplate(nDays,p.experience,style);
   const days=tpl.map(t=>({id:uid(),name:t.name,region:t.region,exercises:[],plan:{}}));
   /* grupos que realmente se entrenan y tienen día donde caer en este split */
@@ -7190,6 +7223,7 @@ function autoFillVolTargets(aid){
     const rec=volumeRecMatrix(prio,p.experience,p.phase);
     if(rec){p.volTargets[g]=rec.lo;n++;}
   });
+  stampAllVolTargets(p);
   return n;
 }
 /* Reparte p.volTargets entre las sesiones ya existentes (day.plan). Compartida por el botón "Repartir automático" y el ajuste automático de plantillas IA. */
@@ -7573,9 +7607,12 @@ Object.assign(ACTIONS,{
     if(res.err){toast(res.err);return;}
     saveState();closeModal();toast((res.own?'Menú armado con tus macros: ':'Plan generado: ')+res.target+' kcal · P'+res.protein+' C'+res.carbs+' G'+res.fat+' · '+res.N+' comidas');render();
   },
+  'voltargets-auto-ask':el=>{
+    confirmModal('Rellenar metas','Se sobrescriben las metas de TODOS los grupos con el mínimo recomendado para la fase y el bloque actuales. Lo que hayas escrito a mano se pierde. La rutina y los ejercicios no se tocan.','voltargets-auto','data-aid="'+el.dataset.aid+'"');
+  },
   'voltargets-auto':el=>{
     const n=autoFillVolTargets(el.dataset.aid);
-    saveState();toast('Objetivos rellenados con el recomendado ('+n+' grupos)');render();
+    saveState();closeModal();toast('Metas rellenadas con el recomendado ('+n+' grupos)');render();
   },
   'voltargets-from-routine':el=>{
     const aid=el.dataset.aid,d=athData(aid),r=d.routine;
@@ -7587,6 +7624,7 @@ Object.assign(ACTIONS,{
     /* Objetivo = lo programado (no la recomendación genérica) */
     d.profile.volTargets=d.profile.volTargets||{};
     GROUPS.forEach(g=>{if(d.profile.priorities[g]===0||!vol[g]){delete d.profile.volTargets[g];}else{d.profile.volTargets[g]=vol[g];}});
+    stampAllVolTargets(d.profile);
     const nd=distributePlanFromRoutine(aid);
     saveState();toast('Prioridades, objetivos y distribución calculados desde la rutina'+(nd?' ('+nd+' grupos repartidos)':''));render();
   },
