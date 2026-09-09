@@ -37,6 +37,9 @@
   --blue:#7cd0fb; --orange:#ffb45c; --red:#f59e0b; --green:#52d98a; --purple:#b69cff;
   --danger-08:rgba(245,158,11,.08); --danger-10:rgba(245,158,11,.1); --danger-12:rgba(245,158,11,.12); --danger-14:rgba(245,158,11,.14); --danger-16:rgba(245,158,11,.16); --danger-30:rgba(245,158,11,.3); --danger-35:rgba(245,158,11,.35);
   --r:14px; --r-s:10px;
+  /* alto de la barra de navegación inferior en móvil. Vive aquí para que .wlbar se apoye
+     en ella sin repetir el número: si cambia el nav, la barra de guardado le sigue sola. */
+  --navh:76px;
   --shadow:0 10px 30px rgba(0,0,0,.35);
   --font-d:'Sora',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif;
 }
@@ -239,11 +242,14 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 /* Barra de cierre pegada al fondo: el botón de guardar estaba al final de la lista, así que
    con 8 ejercicios el atleta tenía que recorrer toda la pantalla para cerrar la sesión.
    En móvil se sube por encima de la barra de navegación (que es fixed con z-index 60). */
-.wlbar{position:sticky;bottom:12px;z-index:35;margin-top:16px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line2);background:var(--bg2);box-shadow:0 -8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wlbar{position:sticky;bottom:12px;z-index:35;margin-top:16px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line2);background:var(--bg2);box-shadow:0 -8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  /* capa propia de composición: sin esto, en Android la barra pegajosa se repinta en cada
+     fotograma de scroll y se ve arrastrarse medio segundo por detrás del dedo. */
+  transform:translateZ(0);backface-visibility:hidden}
 .wlbar .wlb-c{flex:1;min-width:150px;font-size:12.5px;color:var(--tx3);line-height:1.45}
 .wlbar .wlb-c b{color:var(--tx);font-size:13.5px}
 .wlbar .btn{white-space:nowrap}
-@media(max-width:920px){.wlbar{bottom:76px}}
+@media(max-width:920px){.wlbar{bottom:calc(var(--navh) + env(safe-area-inset-bottom,0px))}}
 
 /* ---------- adherence ---------- */
 .adh-pick{display:flex;gap:6px}
@@ -516,7 +522,10 @@ input.meta-in.old{border-style:dashed}
 
 @media(max-width:920px){
   .shell{grid-template-columns:1fr}
-  .sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;align-items:center;padding:6px 10px;border-right:none;border-top:1px solid var(--line);z-index:60;gap:2px}
+  .sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;align-items:center;padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px));border-right:none;border-top:1px solid var(--line);z-index:60;gap:2px;
+    /* misma razón que .wlbar: capa propia para que el scroll no la arrastre, y transición
+       para que al esconderse con el teclado se deslice en vez de parpadear. */
+    transform:translateZ(0);backface-visibility:hidden;transition:transform .18s ease}
   .brand,.side-foot .side-user .who{display:none}
   .nav-item{flex-direction:column;gap:3px;font-size:11px;padding:8px 6px;flex:1;align-items:center}
   .side-foot{margin:0;border:none;padding:0}
@@ -524,6 +533,14 @@ input.meta-in.old{border-style:dashed}
   .content{padding:18px 14px 110px}
   .topbar{padding:14px 16px}
   .frow2,.frow3{grid-template-columns:1fr}
+  /* ---- teclado abierto (body.kbd-open, ver kbdWatch en el JS) ----
+     Al enfocar un campo el teclado encoge el viewport y las barras fijas saltaban por encima
+     de la fila que el atleta estaba anotando: escribía el peso a ciegas. Mientras escribe,
+     el nav se desliza fuera y la barra de guardado vuelve al flujo (deja de flotar).
+     Ambas reaparecen solas al cerrar el teclado; nada de esto toca WDRAFT ni el guardado. */
+  body.kbd-open .sidebar{transform:translateY(110%);pointer-events:none}
+  body.kbd-open .wlbar{position:static;box-shadow:none}
+  body.kbd-open .content{padding-bottom:24px}
 }
 @media(max-width:560px){.g3,.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}.week{gap:4px}}
 /* ---- targets táctiles: solo en dispositivos de puntero grueso (no afecta densidad en escritorio) ---- */
@@ -5569,6 +5586,29 @@ document.addEventListener('keydown',e=>{
   const el=e.target;
   if(el&&el.id==='chat_input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();ACTIONS['chat-send']({dataset:{aid:el.dataset.chatAid,from:el.dataset.chatFrom}});}
 });
+/* ---- kbdWatch: teclado abierto en móvil (s74) ----
+   El atleta se quejaba de que "las barras se mueven" al anotar una serie: el teclado encoge
+   el viewport y las barras fijas (nav y .wlbar) se reposicionan encima del campo. Aquí solo
+   marcamos body.kbd-open; esconderlas es cosa del CSS, así que en escritorio no pasa nada.
+   focusout se retrasa a propósito: render() re-pinta la pantalla entera y el foco se pierde
+   un instante: sin el retardo las barras parpadearían en cada «Añadir serie». */
+const KBD_FIELDS=/^(INPUT|TEXTAREA|SELECT)$/;
+const KBD_NOTYPE={checkbox:1,radio:1,button:1,submit:1,file:1,range:1,color:1};
+function kbdIsField(el){return!!(el&&el.tagName&&KBD_FIELDS.test(el.tagName)&&!KBD_NOTYPE[el.type]);}
+function kbdSet(on){document.body.classList.toggle('kbd-open',!!on);}
+(function kbdWatch(){
+  let t=null;
+  const clear=()=>{if(t){clearTimeout(t);t=null;}};
+  document.addEventListener('focusin',e=>{if(kbdIsField(e.target)){clear();kbdSet(true);}});
+  document.addEventListener('focusout',()=>{clear();t=setTimeout(()=>{t=null;if(!kbdIsField(document.activeElement))kbdSet(false);},200);});
+  /* Refuerzo: al cerrar el teclado con la tecla atrás de Android el foco NO se pierde,
+     así que focusout nunca llega y las barras se quedarían escondidas. */
+  if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>{
+    const shrunk=(window.innerHeight-window.visualViewport.height)>140;
+    if(!shrunk)kbdSet(false);
+    else if(kbdIsField(document.activeElement))kbdSet(true);
+  });
+})();
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset&&el.dataset.exvol){renderExVol();}
