@@ -4565,6 +4565,60 @@ function wdraftFresh(aid,day){
   });
   return{aid,dayId:day.id,date:todayISO(),sets,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
 }
+/* ---------- Corregir una sesión YA guardada (s76) ----------
+   El atleta que guarda y se da cuenta de que le faltó marcar un ejercicio no tenía forma de
+   volver: pulsar «Registrar» otra vez abría un borrador NUEVO y vacío, así que al guardar
+   creaba una SEGUNDA fila del mismo día — con los ejercicios marcados pero sin una sola
+   serie dentro. Pasó de verdad el 10-sep. Este borrador conserva el `wid` y la `date` de la
+   fila original, así que `saveWorkoutDraft` hace upsert SOBRE ELLA y nunca duplica el día. */
+function wdraftSetsFromLog(fil,sk){
+  fil=(fil||[]).slice();
+  const marks={};
+  Object.keys((sk&&sk.sets)||{}).forEach(k=>{const i=parseInt(k,10);if(i>0)marks[i-1]=sk.sets[k];});
+  const n=fil.length+Object.keys(marks).length;
+  const out=[];let fi=0;
+  for(let i=0;i<n;i++){
+    /* Las series marcadas sin números no viajan en `entries`: van en `skips.sets`, con su
+       índice 1-based ORIGINAL. Recolocarlas primero es lo que devuelve el orden real. */
+    if(marks[i]!=null){out.push({w:'',r:'',rir:'',sk:marks[i]});continue;}
+    const s=fil[fi++]||{};
+    const o={w:(s.w==null?'':String(s.w)),r:(s.r==null?'':String(s.r)),rir:(s.rir==null?'':String(s.rir))};
+    if(s.sk)o.sk=s.sk;
+    if(s.sub&&s.sub.length)o.sub=s.sub.map(m=>({w:(m&&m.w!=null?String(m.w):''),r:(m&&m.r!=null?String(m.r):'')}));
+    out.push(o);
+  }
+  return out;
+}
+function wdraftFromLog(aid,day,log){
+  const w=wdraftFresh(aid,day);
+  const entries=(log&&log.entries)||{},skips=(log&&log.skips)||{};
+  const ids={};Object.keys(entries).forEach(k=>ids[k]=1);Object.keys(skips).forEach(k=>ids[k]=1);
+  Object.keys(ids).forEach(exId=>{
+    /* Un ejercicio que ya no está en la rutina se copia igual: no se ve en pantalla, pero
+       vuelve a guardarse tal cual. Corregir una sesión no puede borrar trabajo por el camino. */
+    w.sets[exId]=wdraftSetsFromLog(entries[exId],skips[exId]);
+    const ex=(day.exercises||[]).find(x=>x.id===exId);
+    if(ex)retechSets(ex,w.sets[exId]);
+    /* Solo la marca de EJERCICIO va a WDRAFT.skips. Si la fila solo traía marcas de serie,
+       meter aquí un objeto sin `k` pintaría un «No lo hiciste» que el atleta nunca dijo. */
+    const s=skips[exId];
+    if(s&&s.k){const o={k:s.k};if(s.why!=null)o.why=s.why;if(s.cm!=null)o.cm=s.cm;w.skips[exId]=o;}
+  });
+  (log&&log.done||[]).forEach(id=>{w.done[id]=true;});
+  w.wid=log.id;
+  w.date=log.date||w.date;
+  w.rpe=(log.rpe==null?'':String(log.rpe));
+  w.dur=(log.dur==null?'':String(log.dur));
+  w.comment=log.comment||'';
+  w.editing=true;
+  return w;
+}
+/* La última sesión REAL de un día registrada hoy (la que se puede corregir). Una falta no
+   entra: para eso está su propio camino («No pude»), y corregirla ahí sería otra cosa. */
+function todayLogForDay(aid,dayId){
+  const ws=(athData(aid).logs.workouts||[]).filter(w=>w&&w.dayId===dayId&&w.date===todayISO()&&!isMissed(w));
+  return ws.length?ws[ws.length-1]:null;
+}
 /* ---------- Guardado de una sesión (s62) ----------
    Un único camino para las tres salidas —completa, incompleta y no realizada— porque las
    tres acaban siendo una fila de workout_logs. Duplicar el upsert por cada caso es cómo
@@ -4575,7 +4629,11 @@ async function pushWorkoutLog(u,w,silent){
   if(d){
     d.logs=d.logs||{};
     d.logs.workouts=d.logs.workouts||[];
-    if(!d.logs.workouts.some(x=>x&&x.id===w.id))d.logs.workouts.push(w);
+    /* Si la fila ya existe se REEMPLAZA, no se ignora: el upsert del servidor la sobrescribe,
+       y dejar la versión vieja en memoria hacía que una corrección se guardara bien en la
+       nube pero siguiera viéndose sin corregir hasta recargar. */
+    const _ix=d.logs.workouts.findIndex(x=>x&&x.id===w.id);
+    if(_ix>=0)d.logs.workouts[_ix]=w;else d.logs.workouts.push(w);
     d.logs.workouts.sort((a,b)=>a.date<b.date?-1:1);
   }
   const auid=_athleteUidByAppId&&_athleteUidByAppId[u.id];
@@ -4641,6 +4699,7 @@ async function saveWorkoutDraft(status,reason,extraCm){
   /* id estable por borrador: si el primer intento falla, el reintento hace upsert sobre la
      MISMA fila en vez de crear una segunda. Un id nuevo por intento duplica la sesión. */
   if(!WDRAFT.wid)WDRAFT.wid=uid();
+  const _wasEdit=!!WDRAFT.editing;
   const w={id:WDRAFT.wid,date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,
     rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips};
   /* El borrador NO se borra hasta que el servidor confirma. Al revés (s67) costó un
@@ -4652,7 +4711,7 @@ async function saveWorkoutDraft(status,reason,extraCm){
     return;
   }
   WDRAFT=null;wdraftSave();
-  toast(st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
+  toast(_wasEdit?'Registro corregido ✓':st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
   nav('ath-hoy');
 }
 /* Nombre del día del borrador en curso, o '' si no hay nada que continuar. */
@@ -4796,7 +4855,8 @@ VIEWS['ath-hoy']=function(u){
   }
   /* El borrador ya no se pierde, pero hay que poder VOLVER a él: sin este aviso el atleta
      no tiene ninguna pista de que su entreno a medias sigue vivo. */
-  const wdUI=_wdName?'<div class="coachnote" style="border-left-color:var(--blue);cursor:pointer" data-act="wlog-resume"><b style="color:var(--blue)">Entreno sin guardar · '+esc(_wdName)+'</b>Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».</div>':'';
+  const _wdEdit=!!(WDRAFT&&WDRAFT.editing);
+  const wdUI=_wdName?'<div class="coachnote" style="border-left-color:var(--blue);cursor:pointer" data-act="wlog-resume"><b style="color:var(--blue)">'+(_wdEdit?'Correcciones sin guardar · ':'Entreno sin guardar · ')+esc(_wdName)+'</b>'+(_wdEdit?'Cambiaste algo de tu registro de hoy y todavía no lo has guardado. Toca aquí para terminar y pulsar «Guardar cambios».':'Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».')+'</div>':'';
   const np=nutriOf(aid),n=athPlanOf(aid);
   const todayMealsDone=(todayN&&todayN.mealsDone)||[];
   const curAdh=todayN&&todayN.adherence!=null?todayN.adherence:null;
@@ -4963,6 +5023,11 @@ VIEWS['ath-wlog']=function(u){
     sets.forEach((s,si)=>{
       const ref=lsets&&lsets[si]?lsets[si]:null;
       const phW=ref&&ref.w?String(dispW(ref.w,unit)):unit, phR=ref&&ref.r?String(ref.r):'reps';
+      /* El RIR también lleva su referencia en gris. Sin ella, al volver a entrar el peso y las
+         reps «aparecían» (son placeholders de la última sesión) y el RIR salía vacío: una
+         atleta lo leyó como que se le había borrado el RIR de todos los ejercicios. O los tres
+         campos muestran referencia, o ninguno. */
+      const phRir=(ref&&ref.rir!=null&&ref.rir!=='')?String(ref.rir):'RIR';
       /* Marca de la serie: un solo botón de 3 estados. Sin motivo a propósito — preguntar
          «¿por qué?» en cada serie es donde la gente deja de registrar a mitad del entreno.
          El motivo se pide una vez por ejercicio, que es donde de verdad informa. */
@@ -4970,7 +5035,7 @@ VIEWS['ath-wlog']=function(u){
       const skTxt=sk==='none'?'✕':sk==='partial'?'½':'○';
       const skTit=sk==='none'?'No la hice — toca otra vez para «no la terminé»':sk==='partial'?'No la terminé — toca otra vez para quitar la marca':'Marcar: 1 toque = no la hice · 2 = no la terminé';
       const dis=sk==='none'?' disabled':'';
-      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':dispW(s.w,unit))+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="RIR" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
+      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':dispW(s.w,unit))+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="'+esc(phRir)+'" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
       /* Mini-series de la técnica: cuelgan de la serie, con su propia fila. No llevan botón de
          marca ni de borrar — el número de mini-series lo pauta el coach, no el atleta. Si la
          serie está marcada como no hecha no se pintan: no hay nada que anotar. */
@@ -5025,15 +5090,18 @@ VIEWS['ath-wlog']=function(u){
   const unitToggle='<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px"><span class="tiny muted">Unidad de las cargas</span>'+
     '<button class="btn btn-sm '+(unit==='kg'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="kg">kg</button>'+
     '<button class="btn btn-sm '+(unit==='lb'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="lb">lb</button></div>';
+  /* Corrigiendo: hay que decirlo en pantalla. Si no, la atleta no distingue esto de empezar
+     una sesión nueva — que es exactamente el equívoco que creó la fila duplicada. */
+  const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote" style="border-left-color:var(--blue);margin-bottom:14px"><b style="color:var(--blue)">Estás corrigiendo tu registro de hoy</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra.</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
-    body:unitToggle+legend+blocks+
+    body:editUI+unitToggle+legend+blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
     '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
        ve cuántos lleva y puede cerrar la sesión sin recorrer toda la lista hasta abajo. */
-    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b>'+(nSkip?' · <b style="color:var(--red)">'+nSkip+' sin hacer</b>':'')+'<br>Lo que anotas se guarda en este dispositivo mientras entrenas.</div>'+
+    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b>'+(nSkip?' · <b style="color:var(--red)">'+nSkip+' sin hacer</b>':'')+'<br>'+((WDRAFT&&WDRAFT.editing)?'Los cambios no llegan a tu coach hasta que pulses «Guardar cambios».':'Lo que anotas se guarda en este dispositivo mientras entrenas.')+'</div>'+
     '<button class="btn btn-g" data-act="wlog-partial-ask">Terminar incompleta</button>'+
-    '<button class="btn btn-p" data-act="wlog-save">'+I.check+' Guardar entrenamiento</button></div>'};
+    '<button class="btn btn-p" data-act="wlog-save">'+I.check+' '+((WDRAFT&&WDRAFT.editing)?'Guardar cambios':'Guardar entrenamiento')+'</button></div>'};
 };
 
 VIEWS['ath-rutina']=function(u){
@@ -5165,12 +5233,46 @@ Object.assign(ACTIONS,{
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id){
       if(WDRAFT.dayId===day.id){nav('ath-wlog');return;} /* el mismo día: se continúa sin preguntar */
       const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||'otro día';
-      openModal('Tienes un entreno sin guardar',
-        '<p class="muted">Dejaste series anotadas en <b>'+esc(dn)+'</b>'+(WDRAFT.date&&WDRAFT.date!==todayISO()?' ('+fmtDate(WDRAFT.date)+')':'')+' y todavía no las has guardado. Si empiezas <b>'+esc(day.name)+'</b> ahora, se pierden.</p>',
+      openModal(WDRAFT.editing?'Tienes correcciones sin guardar':'Tienes un entreno sin guardar',
+        '<p class="muted">'+(WDRAFT.editing
+          ?'Cambiaste algo de tu registro de <b>'+esc(dn)+'</b> y todavía no lo has guardado. Si empiezas <b>'+esc(day.name)+'</b> ahora, esos cambios se pierden (el registro original se queda como estaba).'
+          :'Dejaste series anotadas en <b>'+esc(dn)+'</b>'+(WDRAFT.date&&WDRAFT.date!==todayISO()?' ('+fmtDate(WDRAFT.date)+')':'')+' y todavía no las has guardado. Si empiezas <b>'+esc(day.name)+'</b> ahora, se pierden.')+'</p>',
         '<button class="btn btn-g" data-act="wlog-discard" data-day="'+day.id+'">Descartar y empezar '+esc(day.name)+'</button>'+
         '<button class="btn btn-p" data-act="wlog-resume">Continuar '+esc(dn)+'</button>');
       return;
     }
+    /* Ya hay una sesión de este día guardada HOY: casi siempre el atleta vuelve a corregir
+       algo, no a entrenar otra vez. Preguntar aquí es lo que evita la fila duplicada vacía. */
+    const prev=todayLogForDay(u.id,day.id);
+    if(prev){
+      const nEx=Object.keys(prev.entries||{}).length;
+      const nSe=Object.values(prev.entries||{}).reduce((a,b)=>a+((b&&b.length)||0),0);
+      const det=nSe?nEx+(nEx===1?' ejercicio':' ejercicios')+' con '+nSe+(nSe===1?' serie anotada':' series anotadas'):(prev.done||[]).length+' ejercicios marcados como hechos';
+      openModal('Ya registraste '+esc(day.name)+' hoy',
+        '<p class="muted">Tienes esta sesión guardada hoy: <b>'+esc(det)+'</b>.</p>'+
+        '<p class="muted">Si te faltó marcar un ejercicio o quieres cambiar una serie, corrige ese registro: se actualiza el mismo, no se crea otro. Empieza uno nuevo solo si de verdad vas a entrenar <b>una segunda vez</b> hoy.</p>',
+        '<button class="btn btn-g" data-act="wlog-again" data-day="'+day.id+'">Entrenar otra vez</button>'+
+        '<button class="btn btn-p" data-act="wlog-edit" data-day="'+day.id+'">Corregir el de hoy</button>');
+      return;
+    }
+    WDRAFT=wdraftFresh(u.id,day);
+    wdraftSave();
+    nav('ath-wlog');
+  },
+  'wlog-edit':el=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const log=todayLogForDay(u.id,day.id);
+    if(!log){toast('No encontré el registro de hoy');return;}
+    closeModal();
+    WDRAFT=wdraftFromLog(u.id,day,log);
+    wdraftSave();
+    nav('ath-wlog');
+  },
+  'wlog-again':el=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    closeModal();
     WDRAFT=wdraftFresh(u.id,day);
     wdraftSave();
     nav('ath-wlog');
