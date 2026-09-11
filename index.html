@@ -245,9 +245,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .wlbar .btn{white-space:nowrap}
 
 /* ---------- adherence ---------- */
-.adh-pick{display:flex;gap:6px}
-.adh-pick button{flex:1;padding:10px 0;border-radius:var(--r-s);border:1px solid var(--line2);background:var(--bg2);font-size:16px;transition:all .12s}
-.adh-pick button.on{background:var(--card2);border-color:var(--tx3)}
 
 /* ---------- week strip ---------- */
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
@@ -331,7 +328,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .acc>summary:hover{background:var(--card2)}
 .acc-body{padding:0 20px 20px}
 .acc-body>.card,.acc-body>.card+.card{margin-top:0;border:0;padding:0;background:transparent}
-.acc-done{color:var(--green);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 
 /* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(5,7,10,.7);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;animation:fade .15s}
@@ -395,7 +391,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .setsk:hover{border-color:var(--line2);color:var(--tx2)}
 .setsk.none{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,transparent);background:var(--danger-08)}
 .setsk.partial{color:var(--orange);border-color:color-mix(in srgb,var(--orange) 45%,transparent)}
-.setrow.sk-none input{opacity:.35}
 .sklegend{font-size:11.5px;color:var(--tx3);padding:6px 16px 0;line-height:1.45}
 .skipbtn{display:inline-flex;align-items:center;gap:5px;margin-top:6px;margin-left:6px;padding:4px 9px;border-radius:999px;background:transparent;border:1px dashed var(--line2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
 .skipbtn:hover{border-color:var(--red);border-style:solid;color:var(--red)}
@@ -466,8 +461,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .delta-pill.up{background:rgba(82,217,138,.14);color:var(--green)}
 .delta-pill.down{background:var(--danger-14);color:var(--red)}
 .delta-pill.flat{background:var(--bg2);color:var(--tx3)}
-.vt-input{width:78px;padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
-.vt-input::placeholder{color:var(--tx3);font-size:12px}
 .dcell{display:inline-flex;align-items:center;gap:5px;justify-content:center}
 .dcell b{min-width:18px;text-align:center;font-variant-numeric:tabular-nums}
 .dcell.zero b{color:var(--tx3);font-weight:500}
@@ -493,11 +486,6 @@ input.meta-in.off{border-color:var(--orange);color:var(--orange)}
 input.meta-in.old{border-style:dashed}
 .volstale{border:1px solid rgba(255,180,92,.45);background:rgba(255,180,92,.10);border-radius:var(--r-s);padding:10px 12px;margin:12px 0 0;font-size:12.5px;color:var(--tx2);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
 .refgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.kpill{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;font-variant-numeric:tabular-nums}
-.kpill.vm{background:rgba(101,113,131,.2);color:var(--tx2)}
-.kpill.vme{background:rgba(124,208,251,.16);color:var(--blue)}
-.kpill.vma{background:var(--volt-16);color:var(--volt)}
-.kpill.vmr{background:var(--danger-16);color:var(--red)}
 .mtx{width:100%;border-collapse:separate;border-spacing:6px}
 .mtx th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:600;padding:4px 8px;text-align:center}
 .mtx th.rowh,.mtx td.rowh{text-align:left;width:120px}
@@ -821,15 +809,6 @@ function volumeRec(group,exp,phase,block,priority){
  if(hi<lo)hi=lo;
  return{lo,hi,target:mid(lo,hi),L};
 }
-/* Estado del volumen programado frente a la recomendación y al VMR. */
-function volumeStatus(actual,rec,priority){
- if(priority===0)return actual>0?{cls:'orange',txt:'Programado sin prioridad'}:{cls:'',txt:'—'};
- if(actual<=0)return{cls:'red',txt:'Sin volumen'};
- if(rec.L&&actual>rec.L.vmr)return{cls:'red',txt:'Excede VMR'};
- if(actual<rec.lo)return{cls:'orange',txt:'Bajo'};
- if(actual>rec.hi)return{cls:'volt',txt:'Alto (tolerable)'};
- return{cls:'green',txt:'En rango'};
-}
 /* Estado del volumen programado frente al objetivo asignado por el coach. */
 function targetStatus(actual,tgt,L){
  const dfx=actual-tgt;
@@ -846,7 +825,6 @@ function stampVolTarget(p,g){if(!p)return;p.volTargetsCtx=p.volTargetsCtx||{};co
 function stampAllVolTargets(p){if(!p)return;p.volTargetsCtx=p.volTargetsCtx||{};const k=volCtxKey(p);GROUPS.forEach(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')delete p.volTargetsCtx[g];else p.volTargetsCtx[g]=k;});}
 function staleVolGroups(p){if(!p)return[];const k=volCtxKey(p),c=p.volTargetsCtx||{};return GROUPS.filter(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')return false;const s=c[g];return !!s&&s!==k;});}
 function volCtxLabel(k){const a=String(k||'').split('|');return phaseName(a[0])+' · Bloque '+(a[1]||'1');}
-function defaultPriorities(){const o={};GROUPS.forEach(g=>o[g]=2);return o;}
 function ensureProgramming(st){
  Object.keys(st.athletes).forEach(aid=>{
    const p=st.athletes[aid].profile;
@@ -2306,8 +2284,6 @@ function rmrEquations(W,H,A,sex,FFM){
   return e;
 }
 const PAL_LEVELS=[[1.2,'Sedentario · sin ejercicio'],[1.375,'Ligero · 1-3 d/sem'],[1.55,'Moderado · 3-5 d/sem'],[1.725,'Alto · 6-7 d/sem'],[1.9,'Muy alto · 2×/día o trabajo físico'],[2.1,'Extremo · atleta élite']];
-/* gasto por METs: 1 MET ≈ 1 kcal/kg/h → TDEE = Σ (MET_i × peso × horas_i) */
-function metTDEE(W,buckets){let kcal=0,h=0;buckets.forEach(b=>{kcal+=(b.met||0)*W*(b.h||0);h+=(b.h||0);});return{kcal:Math.round(kcal),hours:+h.toFixed(1)};}
 const KCAL_PER_KG=7700; /* equivalente energético aprox. de 1 kg de peso corporal */
 function workoutsInLast(aid,days){const cutoff=daysAgoISO(days);return athData(aid).logs.workouts.filter(w=>w.date>=cutoff&&!isMissed(w)).length;}
 function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
@@ -2486,12 +2462,6 @@ function acwrZone(r){
   if(r<=1.3)return{cls:'green',lbl:'Óptimo',msg:'Zona de buena gestión de carga (sweet spot 0,8–1,3). Mantén la progresión gradual.'};
   if(r<=1.5)return{cls:'orange',lbl:'Exceso — precaución',msg:'Pico de carga moderado (1,3–1,5). No subas volumen ni intensidad esta semana; vigila sueño, dolor muscular y RPE.'};
   return{cls:'red',lbl:'Riesgo alto de lesión',msg:'Carga aguda muy por encima de la crónica (>1,5). Reduce volumen/intensidad o intercala una descarga; cruza con el check-in de fatiga antes de seguir.'};
-}
-function loadWeekly(aid,metric,nWeeks){
-  const today=todayISO(),ws=athData(aid).logs.workouts,buckets={};
-  ws.forEach(w=>{const age=daysBetweenISO(w.date,today);if(age<0)return;const b=Math.floor(age/7);if(b<nWeeks)buckets[b]=(buckets[b]||0)+sessLoad(w,metric);});
-  const out=[];for(let b=nWeeks-1;b>=0;b--)out.push({x:daysAgoISO(b*7+6),y:Math.round(buckets[b]||0)});
-  return out;
 }
 
 /* ================= NÚCLEO (render, navegación, UI) ================= */
@@ -2800,7 +2770,6 @@ function renderUnsafe(){
 
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
-  'login':el=>{setSession({userId:el.dataset.uid});const u=userById(el.dataset.uid);route={view:u.role==='coach'?'coach-dash':'ath-hoy',params:{}};render();},
   'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}_selfSignOut=true;await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
     /* Se limpia la MEMORIA, no el disco: el borrador y lo escrito siguen en localStorage
        ligados a su uid, así que el dueño los recupera al volver a entrar, y el siguiente
@@ -4777,7 +4746,6 @@ function keepApply(){
 window.addEventListener('pagehide',keepFlush);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)keepFlush();});
 
-let ADH_PICK=null; /* selección temporal de adherencia */
 let DIETRES=null; /* último resultado del dietocálculo, para aplicar a objetivos */
 
 /* Resumen de volumen para el atleta — reutiliza muscleVolume + volumeRecMatrix + prioridades del perfil (sin cambiar la lógica) */
@@ -5447,7 +5415,6 @@ Object.assign(ACTIONS,{
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
-  'plan-followed':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.planFollowed=el.dataset.v==='1';recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveState();toast('Registro de nutrición guardado');render();},
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
