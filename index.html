@@ -4607,9 +4607,12 @@ async function pushWorkoutLog(u,w,silent){
   }
   const auid=_athleteUidByAppId&&_athleteUidByAppId[u.id];
   if(auid&&_supabaseUser){
+    /* Chequeo previo: una sesión muerta manda el upsert como anon y Postgres lo rechaza
+       por RLS con un mensaje que no le dice nada al atleta (bitácora del bug de guardado). */
+    if(!await sessionAlive())return{ok:false,msg:'Tu sesión ya no es válida. Vuelve a entrar y repite la acción.'};
     try{
       const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},{onConflict:'id'});
-      if(error){console.error('workout_logs',error);if(!silent)toast('No sincronizó: '+error.message);saveState();return{ok:false,msg:error.message};}
+      if(error){console.error('workout_logs',error);const _msg=authFail(error)||error.message;if(!silent)toast('No sincronizó: '+_msg);saveState();return{ok:false,msg:_msg};}
     }catch(e){console.error(e);if(!silent)toast('No sincronizó: '+(e&&e.message||e));saveState();return{ok:false,msg:(e&&e.message)||String(e)};}
   }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
   else{saveState();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
