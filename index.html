@@ -2845,7 +2845,7 @@ const ACTIONS={
     if(codeErr||!valid){if(err)err.textContent='Código inválido, vencido o ya utilizado';return;}
     const btn=document.querySelector('[data-act="auth-signup"]');
     if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
-    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'coach'}}});
+    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'coach'},emailRedirectTo:location.origin+location.pathname}});
     if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
     if(data.user){
       const{data:link,error:linkErr}=await supa.rpc('use_coach_invite',{invite_code:code,p_coach_uid:data.user.id});
@@ -2915,7 +2915,7 @@ const ACTIONS={
     if(invErr||!invOk){if(err)err.textContent='Código inválido, vencido o ya utilizado';return;}
     const btn=document.querySelector('[data-act="auth-ath-signup"]');
     if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
-    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'}}});
+    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'},emailRedirectTo:location.origin+location.pathname}});
     if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
     if(data.user){
       const{data:link,error:linkErr}=await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
