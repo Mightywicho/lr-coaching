@@ -2591,7 +2591,7 @@ function renderLogin(){
    pantallas de acceso, se pinta con innerHTML directo porque aquí todavía no hay sesión
    ni estado que render() pueda usar. */
 function renderForgot(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny" style="margin-top:8px">Escribe el email con el que entras y te mandamos un enlace para crear una contraseña nueva.</p><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:13px;min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny" style="margin-top:8px">Escribe el email con el que te diste de alta y te mandamos un enlace para crear una contraseña nueva. Tiene que ser esa misma dirección, no otra.</p><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:13px;min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
   setTimeout(()=>{const em=document.getElementById('f_email');if(em){em.focus();em.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-forgot"]')?.click();}});}},50);
 }
 /* Se pinta solo cuando el atleta vuelve del enlace del correo (ver _recovery y el arranque). */
@@ -2807,8 +2807,10 @@ const ACTIONS={
       if(btn){btn.disabled=false;btn.textContent='Enviarme el enlace';}return;
     }
     /* Misma respuesta exista o no la cuenta: decir «ese correo no está registrado»
-       dejaría averiguar quiénes son los atletas probando direcciones. */
-    if(msg){msg.style.color='var(--green)';msg.textContent='Si esa dirección tiene cuenta, en un minuto te llega el correo. Revisa también la carpeta de spam.';}
+       dejaría averiguar quiénes son los atletas probando direcciones. Sí repetimos
+       la dirección tal cual la escribió: eso no filtra nada que ella no supiera ya,
+       y es lo que deja ver el typo, que es de donde salen casi todos los «no me llega». */
+    if(msg){msg.style.color='var(--green)';msg.textContent='El enlace va en camino a '+email+'. Revisa también la carpeta de spam. Si en 5 minutos no aparece, casi siempre es porque esa no es exactamente la dirección con la que te diste de alta: inténtalo con la correcta o pídele a tu coach que la verifique.';}
     if(btn)btn.textContent='✓ Correo enviado';
   },
   'auth-newpass':async()=>{
