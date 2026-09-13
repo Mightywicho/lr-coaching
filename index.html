@@ -165,10 +165,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 
 /* ---------- day block ---------- */
 .dayblk{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:16px;background:var(--card)}
-.dayblk-h{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--card2)}
+.dayblk-h{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 18px;background:var(--card2)}
 .dayblk-h h4{font-size:14.5px}
 .dayblk-h .cnt{font-size:12px;color:var(--tx3)}
-.dayblk-h .sp{margin-left:auto;display:flex;gap:6px}
+/* Los botones del día bajan de línea en vez de salirse: en móvil, con «Corregir anterior»
+   en la fila, «Registrar» se quedaba cortado fuera de la pantalla. */
+.dayblk-h .sp{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
 .dayblk .tblwrap{border:none;border-radius:0}
 
 /* ---------- macros ---------- */
@@ -1503,7 +1505,13 @@ function retechSets(e,arr){
 /* Una sesión marcada «no entrené» NO es un entreno: no puede sumar en ningún conteo de
    cumplimiento, o el atleta que falta subiría su adherencia por reportar la falta. */
 const isMissed=w=>!!(w&&w.status==='missed');
-const skipsOfLog=w=>(w&&w.skips)||{};
+/* En `skips` viaja, además de lo no cumplido, una clave reservada `__edit` con la marca de
+   corrección posterior (s77). Es la única columna jsonb libre de la fila, así que la marca
+   vive ahí; filtrarla AQUÍ es lo que evita que se cuele como un ejercicio fantasma en
+   «Lo que no se cumplió» del coach o que haga pasar por trabajo real una sesión vacía. */
+const skipsOfLog=w=>{const s=(w&&w.skips)||{},o={};Object.keys(s).forEach(k=>{if(k.slice(0,2)!=='__')o[k]=s[k];});return o;};
+/* Marca de «esta sesión se corrigió días después de entrenarla». null si nunca se tocó fuera de su día. */
+const editMarkOf=w=>{const m=w&&w.skips&&w.skips.__edit;return(m&&m.at)?m:null;};
 /* Cuántos ejercicios y series quedaron sin hacer en una sesión guardada. */
 function skipCounts(w){
   const sk=skipsOfLog(w);let ex=0,sets=0;
@@ -3708,13 +3716,17 @@ function coachTabRegistros(aid){
       skHTML='<div style="margin-top:8px"><div class="tiny" style="margin-bottom:5px;font-weight:700;color:var(--tx2)">Lo que no se cumplió</div>'+li+'</div>';
     }
     const miss=isMissed(w),part=w.status==='partial';
+    /* Una sesión corregida días después cambia números de una semana que quizá ya diste por
+       cerrada. Verlo aquí es la diferencia entre «este dato es raro» y «ah, la corrigió». */
+    const _mk=editMarkOf(w);
+    const edBadge=_mk?'<span class="badge blue" title="El atleta corrigió este registro el '+esc(fmtDateFull(_mk.at))+(_mk.n>1?' — '+_mk.n+' correcciones en total':'')+', después del día que entrenó">✎ corregida '+esc(fmtDate(_mk.at))+'</span>':'';
     const stBadge=miss?'<span class="badge red">✕ No entrenó</span>':part?'<span class="badge orange">Sesión incompleta</span>':'';
     const stWhy=(miss||part)&&w.reason?'<span class="tiny">'+esc(missLbl(w.reason))+'</span>':'';
     const skBadge=(!miss&&sc.ex+sc.sets)?'<span class="badge orange" title="Reportado por el atleta">'+(sc.ex?sc.ex+' ej.':'')+(sc.ex&&sc.sets?' · ':'')+(sc.sets?sc.sets+' series':'')+' sin hacer</span>':'';
     const pct=planDay&&planDay.exercises.length?Math.round((keys.length/planDay.exercises.length)*100):null;
     const meta=miss?'<span class="tiny">no se registró trabajo</span>'
       :'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':'<span class="tiny">sin detalle de series</span>');
-    wk+='<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+stBadge+stWhy+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>';
+    wk+='<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+stBadge+stWhy+edBadge+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>';
   });
   if(!wk)wk='<div class="empty"><b>Sin entrenamientos registrados</b></div>';
   let nut='';
@@ -4562,7 +4574,7 @@ function wdraftSetsFromLog(fil,sk){
 }
 function wdraftFromLog(aid,day,log){
   const w=wdraftFresh(aid,day);
-  const entries=(log&&log.entries)||{},skips=(log&&log.skips)||{};
+  const entries=(log&&log.entries)||{},skips=skipsOfLog(log);
   const ids={};Object.keys(entries).forEach(k=>ids[k]=1);Object.keys(skips).forEach(k=>ids[k]=1);
   Object.keys(ids).forEach(exId=>{
     /* Un ejercicio que ya no está en la rutina se copia igual: no se ve en pantalla, pero
@@ -4582,6 +4594,9 @@ function wdraftFromLog(aid,day,log){
   w.dur=(log.dur==null?'':String(log.dur));
   w.comment=log.comment||'';
   w.editing=true;
+  /* La marca de correcciones anteriores se arrastra: si se pierde aquí, al volver a guardar
+     el contador arrancaría de cero y el coach vería «1ª corrección» en la tercera. */
+  w.editMark=editMarkOf(log);
   return w;
 }
 /* La última sesión REAL de un día registrada hoy (la que se puede corregir). Una falta no
@@ -4589,6 +4604,26 @@ function wdraftFromLog(aid,day,log){
 function todayLogForDay(aid,dayId){
   const ws=(athData(aid).logs.workouts||[]).filter(w=>w&&w.dayId===dayId&&w.date===todayISO()&&!isMissed(w));
   return ws.length?ws[ws.length-1]:null;
+}
+/* ---------- Corregir una sesión de DÍAS ANTERIORES (s77) ----------
+   Hasta ahora solo se podía corregir la sesión del MISMO día: quien se daba cuenta el viernes
+   de que el martes se le olvidó anotar un ejercicio no tenía ningún camino. La ventana de 14
+   días cubre ese olvido sin dejar que se reescriba historial viejo que ya alimentó volumen,
+   ACWR y el cierre del bloque. Una falta («No pude») sigue fuera: no es una sesión que corregir. */
+const WLOG_EDIT_DAYS=14;
+function pastLogsForDay(aid,dayId){
+  const cutoff=daysAgoISO(WLOG_EDIT_DAYS),today=todayISO();
+  return (athData(aid).logs.workouts||[])
+    .filter(w=>w&&w.dayId===dayId&&!isMissed(w)&&w.date>=cutoff&&w.date<today)
+    .slice().sort((a,b)=>a.date<b.date?1:-1);
+}
+function logById(aid,id){return (athData(aid).logs.workouts||[]).find(w=>w&&w.id===id)||null;}
+/* Resumen de una línea de una sesión guardada, para poder elegirla sin abrirla. */
+function logSummaryTxt(w){
+  const nEx=Object.keys(w.entries||{}).length;
+  const nSe=Object.values(w.entries||{}).reduce((a,b)=>a+((b&&b.length)||0),0);
+  if(nSe)return nEx+(nEx===1?' ejercicio':' ejercicios')+' · '+nSe+(nSe===1?' serie anotada':' series anotadas');
+  return ((w.done||[]).length)+' ejercicios marcados como hechos';
 }
 /* ---------- Guardado de una sesión (s62) ----------
    Un único camino para las tres salidas —completa, incompleta y no realizada— porque las
@@ -4674,6 +4709,14 @@ async function saveWorkoutDraft(status,reason,extraCm){
      MISMA fila en vez de crear una segunda. Un id nuevo por intento duplica la sesión. */
   if(!WDRAFT.wid)WDRAFT.wid=uid();
   const _wasEdit=!!WDRAFT.editing;
+  /* Corregir una sesión de OTRO día deja marca: el coach no puede encontrarse números
+     cambiados en una semana que ya dio por cerrada sin saber que se tocaron. Se estampa aquí,
+     DESPUÉS de los chequeos de arriba: si entrara antes, `skips` dejaría de estar vacío y una
+     sesión sin trabajo pasaría el filtro o se marcaría «incompleta» sin motivo. */
+  const _wasPast=(WDRAFT.date||todayISO())!==todayISO();
+  const _prevMark=(WDRAFT.editMark&&WDRAFT.editMark.at)?WDRAFT.editMark:null;
+  if(_wasEdit&&_wasPast)skips.__edit={at:todayISO(),n:((_prevMark&&_prevMark.n)||0)+1};
+  else if(_prevMark)skips.__edit=_prevMark;
   const w={id:WDRAFT.wid,date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,
     rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips};
   /* El borrador NO se borra hasta que el servidor confirma. Al revés (s67) costó un
@@ -4685,8 +4728,9 @@ async function saveWorkoutDraft(status,reason,extraCm){
     return;
   }
   WDRAFT=null;wdraftSave();
-  toast(_wasEdit?'Registro corregido ✓':st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
-  nav('ath-hoy');
+  toast(_wasEdit?(_wasPast?'Sesión del '+fmtDate(w.date)+' corregida ✓':'Registro corregido ✓'):st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
+  /* Corregir una sesión pasada se entra desde «Mi rutina»; devolver ahí es volver de donde vino. */
+  nav(_wasEdit&&_wasPast?'ath-rutina':'ath-hoy');
 }
 /* Nombre del día del borrador en curso, o '' si no hay nada que continuar. */
 function wdraftDayName(aid){
@@ -4829,7 +4873,8 @@ VIEWS['ath-hoy']=function(u){
   /* El borrador ya no se pierde, pero hay que poder VOLVER a él: sin este aviso el atleta
      no tiene ninguna pista de que su entreno a medias sigue vivo. */
   const _wdEdit=!!(WDRAFT&&WDRAFT.editing);
-  const wdUI=_wdName?'<div class="coachnote" style="border-left-color:var(--blue);cursor:pointer" data-act="wlog-resume"><b style="color:var(--blue)">'+(_wdEdit?'Correcciones sin guardar · ':'Entreno sin guardar · ')+esc(_wdName)+'</b>'+(_wdEdit?'Cambiaste algo de tu registro de hoy y todavía no lo has guardado. Toca aquí para terminar y pulsar «Guardar cambios».':'Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».')+'</div>':'';
+  const _wdDay=(WDRAFT&&WDRAFT.date&&WDRAFT.date!==todayISO())?WDRAFT.date:null;
+  const wdUI=_wdName?'<div class="coachnote" style="border-left-color:var(--blue);cursor:pointer" data-act="wlog-resume"><b style="color:var(--blue)">'+(_wdEdit?'Correcciones sin guardar · ':'Entreno sin guardar · ')+esc(_wdName)+(_wdDay?' · '+fmtDate(_wdDay):'')+'</b>'+(_wdEdit?'Cambiaste algo de tu registro '+(_wdDay?'del '+fmtDateFull(_wdDay):'de hoy')+' y todavía no lo has guardado. Toca aquí para terminar y pulsar «Guardar cambios».':'Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».')+'</div>':'';
   const np=nutriOf(aid),n=athPlanOf(aid);
   const todayMealsDone=(todayN&&todayN.mealsDone)||[];
   const curAdh=todayN&&todayN.adherence!=null?todayN.adherence:null;
@@ -4945,10 +4990,15 @@ VIEWS['ath-hoy']=function(u){
 
   const fatInner=sv.tr?(function(){
     const pf=fatiguePending(aid),last=fatigueLast(aid);
+    /* La semana pasada sin responder se dice AQUÍ y con su propio botón: el selector vive
+       dentro del formulario, y nadie lo abre para rellenar una semana que no sabe que falta. */
+    const wks=fqWeeksOpen(aid),prevW=wks.length>1?wks[1]:null;
+    const faltaPrev=prevW&&!fatigueLogs(aid).some(e=>e.week===prevW);
     return '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
     (pf?'<span class="badge orange">Pendiente esta semana</span><p class="muted" style="flex:1;min-width:160px">Tu coach lo usa para decidir si subir, mantener o bajar tus series.</p>':
       '<span class="badge green">Completado · '+(last?last.gs+'/25':'')+'</span><p class="muted" style="flex:1;min-width:160px">Puedes actualizarlo si algo cambió esta semana.</p>')+
-    '<button class="btn '+(pf?'btn-p':'btn-g')+'" data-act="fq-open">'+(pf?'Responder ahora':'Actualizar respuestas')+'</button></div>';
+    '<button class="btn '+(pf?'btn-p':'btn-g')+'" data-act="fq-open">'+(pf?'Responder ahora':'Actualizar respuestas')+'</button></div>'+
+    (faltaPrev?'<div class="notebox mt8" style="border-left-color:var(--orange)"><b>Te falta el de la semana pasada (S'+prevW+').</b> Todavía puedes responderlo: se guarda en esa semana, no en esta. <button class="btn btn-g btn-sm" style="margin-top:8px" data-act="fq-open" data-week="'+prevW+'">Responder la S'+prevW+'</button></div>':'');
   })():'';
 
   /* ENSAMBLADO DE ACORDEONES */
@@ -5065,7 +5115,8 @@ VIEWS['ath-wlog']=function(u){
     '<button class="btn btn-sm '+(unit==='lb'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="lb">lb</button></div>';
   /* Corrigiendo: hay que decirlo en pantalla. Si no, la atleta no distingue esto de empezar
      una sesión nueva — que es exactamente el equívoco que creó la fila duplicada. */
-  const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote" style="border-left-color:var(--blue);margin-bottom:14px"><b style="color:var(--blue)">Estás corrigiendo tu registro de hoy</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra.</div>':'';
+  const _edPast=!!(WDRAFT&&WDRAFT.editing&&(WDRAFT.date||todayISO())!==todayISO());
+  const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote" style="border-left-color:var(--blue);margin-bottom:14px"><b style="color:var(--blue)">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
     body:editUI+unitToggle+legend+blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
@@ -5089,10 +5140,14 @@ VIEWS['ath-rutina']=function(u){
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
       rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
+    /* Corregir una sesión de días anteriores. Solo se ofrece si de verdad hay alguna dentro
+       de la ventana: un botón que siempre está y casi siempre dice «no hay nada» es ruido. */
+    const nPast=pastLogsForDay(u.id,day.id).length;
+    const pastBtn=nPast?'<button class="btn btn-g btn-sm" data-act="wlog-past-list" data-day="'+day.id+'" title="Corregir una sesión de días anteriores">'+I.edit+' Corregir anterior</button> ':'';
     const wd=wp.byDay[day.id],md=wp.missDay[day.id];
     const tag=wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+(wd.partial?' · incompleta':'')+'</span>'
       :md?'<span class="daydone" style="background:var(--danger-08);color:var(--red)">✕ no la hiciste</span>':'';
-    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
+    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+pastBtn+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
   /* Mismo resumen de semana que en «Hoy»: es la vista donde el atleta decide qué toca,
@@ -5237,6 +5292,49 @@ Object.assign(ACTIONS,{
     const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
     const log=todayLogForDay(u.id,day.id);
     if(!log){toast('No encontré el registro de hoy');return;}
+    closeModal();
+    WDRAFT=wdraftFromLog(u.id,day,log);
+    wdraftSave();
+    nav('ath-wlog');
+  },
+  /* Sesiones de ESTE día que todavía están dentro de la ventana de corrección. */
+  'wlog-past-list':el=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const logs=pastLogsForDay(u.id,day.id);
+    if(!logs.length){toast('No tienes sesiones de '+day.name+' en los últimos '+WLOG_EDIT_DAYS+' días');return;}
+    let rows='';
+    logs.forEach(w=>{
+      const mk=editMarkOf(w);
+      rows+='<div class="logitem" style="display:flex;align-items:center;gap:10px;margin:0 0 8px"><div style="flex:1">'+
+        '<b>'+fmtDateFull(w.date)+'</b>'+
+        (w.status==='partial'?' <span class="badge orange">incompleta</span>':'')+
+        (mk?' <span class="badge blue" title="Ya la corregiste el '+esc(fmtDateFull(mk.at))+'">✎ corregida</span>':'')+
+        '<div class="tiny">'+esc(logSummaryTxt(w))+'</div></div>'+
+        '<button class="btn btn-p btn-sm" data-act="wlog-past-edit" data-day="'+day.id+'" data-id="'+w.id+'">Corregir</button></div>';
+    });
+    openModal('Corregir una sesión de '+esc(day.name),
+      '<p class="muted" style="margin-bottom:12px">Elige la sesión que quieres corregir. Se actualiza <b>ese mismo registro</b>: no se crea otro y la fecha no cambia, así que tu historial sigue cuadrando.</p>'+rows+
+      '<p class="tiny mt8" style="color:var(--tx3)">Solo salen las sesiones de los últimos '+WLOG_EDIT_DAYS+' días. Tu coach verá que la corregiste.</p>',
+      '<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+  },
+  'wlog-past-edit':el=>{
+    const u=userById(getSession().userId),d=athData(u.id);
+    const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const log=logById(u.id,el.dataset.id);
+    if(!log){toast('No encontré ese registro');return;}
+    /* Se revalida la ventana aquí y no solo al pintar: entre que se abre el modal y se pulsa
+       puede cambiar el día, y la regla tiene que vivir donde se ejecuta la acción. */
+    if(log.date<daysAgoISO(WLOG_EDIT_DAYS)||log.date>=todayISO()||isMissed(log)){toast('Esa sesión ya no se puede corregir desde aquí');return;}
+    /* Un borrador con cosas escritas no se pisa en silencio, igual que al empezar un día. */
+    if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.wid!==log.id){
+      const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||'otro día';
+      openModal(WDRAFT.editing?'Tienes correcciones sin guardar':'Tienes un entreno sin guardar',
+        '<p class="muted">Lo que tienes anotado en <b>'+esc(dn)+'</b> todavía no se ha guardado. Si abres la sesión del <b>'+fmtDate(log.date)+'</b> ahora, se pierde.</p>',
+        '<button class="btn btn-g" data-act="wlog-past-edit" data-day="'+day.id+'" data-id="'+log.id+'" data-force="1">Descartar y corregir el '+fmtDate(log.date)+'</button>'+
+        '<button class="btn btn-p" data-act="wlog-resume">Continuar '+esc(dn)+'</button>');
+      return;
+    }
     closeModal();
     WDRAFT=wdraftFromLog(u.id,day,log);
     wdraftSave();
@@ -7972,8 +8070,24 @@ Object.assign(ACTIONS,{
 });
 const fatigueLast=aid=>{const f=fatigueLogs(aid);return f.length?f[f.length-1]:null;};
 const fatiguePending=aid=>{const w=weekOf(aid);return !fatigueLogs(aid).some(e=>e.week===w);};
-function fqForm(prev){
+/* Semanas que el atleta puede responder: la actual y, si existe, la inmediatamente anterior.
+   Más atrás no: un check-in de fatiga se contesta de memoria, y a dos semanas vista lo que
+   se rellena ya no es una señal, es una suposición que después mueve series de verdad. */
+const fqWeeksOpen=aid=>{const w=weekOf(aid);return w>1?[w,w-1]:[w];};
+/* Fecha con la que se guarda un check-in. La semana en curso se fecha hoy; una semana ya
+   cerrada se fecha en SU último día, para que las gráficas y el cruce con las sesiones
+   (fatigueForDate, ±6 días) la coloquen donde de verdad ocurrió y no en la semana de hoy. */
+function fqWeekDateISO(aid,w){
+  if(w>=weekOf(aid))return todayISO();
+  const st=athData(aid).routine.startDate||todayISO();
+  const d=addDaysISO(st,w*7-1);
+  return d>todayISO()?todayISO():d;
+}
+function fqForm(prev,wk){
  prev=prev||{};const g=prev.g||{};
+ /* La semana elegida viaja en el propio formulario: `fq-save` no tiene forma de saber en qué
+    pestaña estaba el atleta si no queda escrita aquí. */
+ const wkH=wk?'<input type="hidden" id="fq_week" value="'+wk+'">':'';
  const sel=(id,opts,def)=>{let h='<select id="'+id+'">';opts.forEach(o=>{h+='<option value="'+o[0]+'"'+((g[id.slice(3)]!=null?g[id.slice(3)]:def)===o[0]?' selected':'')+'>'+o[1]+'</option>';});return h+'</select>';};
  let h='';
  FQ_ITEMS.forEach(it=>{h+='<div class="frow"><label>'+it[1]+'</label><select id="fq_'+it[0]+'">'+it[2].map(o=>'<option value="'+o[0]+'"'+((g[it[0]]!=null?g[it[0]]:3)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>';});
@@ -7982,7 +8096,7 @@ function fqForm(prev){
  h+='<div class="frow2"><div><label>RPE medio de las sesiones (1-10)</label><input id="fq_rpe" type="number" min="1" max="10" step="0.5" value="'+(prev.rpe||7)+'"></div><div><label>Tu rendimiento esta semana</label><select id="fq_perf">'+FQ_PERF.map(o=>'<option value="'+o[0]+'"'+((prev.perf||2)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div></div>';
  h+='<div class="frow"><label>Hambre / apetito esta semana</label><select id="fq_hunger">'+FQ_HUNGER.map(o=>'<option value="'+o[0]+'"'+((prev.hunger||3)===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>';
  h+='<div class="frow"><label>Comentario para tu coach (opcional)</label><input id="fq_c" value="'+esc(prev.comment||'')+'" placeholder="Contexto: trabajo, viajes, molestias…"></div>';
- return h;
+ return wkH+h;
 }
 /* ===== ACWR · carga aguda:crónica (objetivo, complementa el check-in de fatiga) ===== */
 /* serie por sesión: carga + ACWR móvil (línea solo cuando hay base crónica suficiente) */
@@ -8115,11 +8229,25 @@ function fatigueCard(aid){
  return '<div class="card mb16"><h3>Fatiga global y decisión semanal <span class="hint">cuestionario de monitoreo · ≤6 sube 2 · 7-9 sube 1 · 10-12 mantén · ≥13 reduce</span></h3>'+body+'</div>';
 }
 Object.assign(ACTIONS,{
- 'fq-open':()=>{
+ 'fq-open':el=>{
    const u=userById(getSession().userId);if(!u||u.role!=='athlete')return;
-   const w=weekOf(u.id);
-   const prev=fatigueLogs(u.id).find(e=>e.week===w)||fatigueLast(u.id);
-   openModal('Check-in semanal · semana '+w,fqForm(prev&&prev.week===w?prev:null),
+   const open=fqWeeksOpen(u.id),cur=open[0];
+   /* Los botones de semana reabren ESTE mismo modal con `data-week`: así el formulario se
+      repinta ya precargado con lo que respondió esa semana, sin un segundo camino que mantener. */
+   let w=parseInt(el&&el.dataset&&el.dataset.week,10);
+   if(!w||open.indexOf(w)<0)w=cur;
+   const logs=fatigueLogs(u.id);
+   const prev=logs.find(e=>e.week===w)||null;
+   let picker='';
+   if(open.length>1){
+     const opt=n=>'<button class="btn btn-sm '+(n===w?'btn-p':'btn-g')+'" data-act="fq-open" data-week="'+n+'">'+(n===cur?'Semana actual':'Semana anterior')+' · S'+n+(logs.some(e=>e.week===n)?' ✓':'')+'</button>';
+     picker='<div class="frow"><label>¿De qué semana es este check-in?</label>'+
+       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+open.map(opt).join('')+'</div>'+
+       '<p class="tiny mt8" style="color:var(--tx3)">'+(prev
+         ?'Ya respondiste la S'+w+' ('+fmtDate(prev.date)+'): abajo están tus respuestas y al guardar se <b>actualizan</b>, no se duplica nada.'
+         :'Todavía no has respondido la S'+w+'.')+' La ✓ marca las semanas que ya contestaste.</p></div>';
+   }
+   openModal('Check-in semanal · semana '+w,picker+fqForm(prev,w),
      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="fq-save">Guardar check-in</button>');
  },
  'fq-save':async()=>{
@@ -8131,15 +8259,23 @@ Object.assign(ACTIONS,{
    const rpe=parseFloat(val('fq_rpe'))||7;
    const perf=parseInt(val('fq_perf'),10)||2;
    const hunger=parseInt(val('fq_hunger'),10)||3;
-   const e={id:uid(),date:todayISO(),week:weekOf(u.id),g,gs,gl:fqGlobalLevel(gs),loc,rpe,rl:fqRpeLevel(rpe),perf,injRaw,risk:fqRiskLevel(injRaw),hunger,comment:val('fq_c')};
-   e.total=e.gl+e.loc+e.rl+e.perf+e.risk;
+   /* La semana la manda el formulario, no el reloj: si no, responder «la semana pasada» el
+      lunes guardaría la respuesta sobre la semana en curso y movería la decisión equivocada. */
+   const open=fqWeeksOpen(u.id);
+   let wk=parseInt(val('fq_week'),10);
+   if(!wk||open.indexOf(wk)<0)wk=open[0];
    const logs=fatigueLogs(u.id);
+   const old=logs.find(x=>x.week===wk)||null;
+   /* Al reeditar se conservan id y fecha del original: es la misma respuesta corregida, y
+      cambiarle la fecha la movería de sitio en la gráfica y en el cruce con las sesiones. */
+   const e={id:(old&&old.id)||uid(),date:(old&&old.date)||fqWeekDateISO(u.id,wk),week:wk,g,gs,gl:fqGlobalLevel(gs),loc,rpe,rl:fqRpeLevel(rpe),perf,injRaw,risk:fqRiskLevel(injRaw),hunger,comment:val('fq_c')};
+   e.total=e.gl+e.loc+e.rl+e.perf+e.risk;
    const i=logs.findIndex(x=>x.week===e.week);
    if(i>=0)logs[i]=e;else logs.push(e);
    logs.sort((a,b)=>a.week-b.week);
    const auid=_athleteUidByAppId[u.id];
    if(auid&&_supabaseUser){try{await supa.from('fatigue_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,week:e.week,date:e.date,data:e},{onConflict:'athlete_uid,week'});}catch(err){}}
-   saveState();closeModal();toast('Check-in guardado — puntaje '+e.gs+'/25');render();
+   saveState();closeModal();toast('Check-in de la semana '+e.week+' guardado — puntaje '+e.gs+'/25');render();
  }
 });
 
