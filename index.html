@@ -644,10 +644,23 @@ input.meta-in.old{border-style:dashed}
   background:var(--card2);border:1px solid var(--volt-40);color:var(--tx);border-radius:999px;
   padding:9px 14px;font:600 13px/1 var(--font-b);box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer}
 #pwaInstall:hover{border-color:var(--volt)}
-#pwaInstall .pwa-x{margin-left:2px;padding:2px 4px;font-weight:400;color:var(--tx3);font-size:15px;line-height:1;border-radius:6px}
-#pwaInstall .pwa-x:hover{color:var(--tx)}
+/* El aspa medía 15px con 2px de padding: unos 20px de área táctil, pegada a un botón que
+   ocupa TODA la pastilla. Con el pulgar se falla, y fallarla abría justo lo que se quería
+   cerrar. 36px reales y separada del borde: cerrar deja de ser puntería. */
+#pwaInstall .pwa-x{margin:-6px -4px -6px 2px;width:36px;height:36px;flex:0 0 auto;display:inline-flex;
+  align-items:center;justify-content:center;font-weight:400;color:var(--tx3);font-size:20px;line-height:1;
+  border-radius:50%;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#pwaInstall .pwa-x:hover,#pwaInstall .pwa-x:focus-visible{color:var(--tx);background:rgba(255,255,255,.07)}
+/* Mismo criterio para el aspa de un aviso dentro del contenido. */
+.notex{flex:0 0 auto;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
+  background:none;border:0;border-radius:50%;color:var(--tx3);font-size:20px;line-height:1;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.notex:hover,.notex:focus-visible{background:var(--bg2);color:var(--tx)}
 /* arriba de la barra de navegacion movil (.sidebar pasa a bottom en <=920px) */
-@media(max-width:920px){#pwaInstall{bottom:calc(72px + env(safe-area-inset-bottom,0px));right:10px;left:10px;justify-content:center}}
+/* El aspa se va al borde derecho y el texto queda centrado: en el ancho completo del móvil,
+   pegada al texto, el pulgar no sabe dónde apuntar y acaba tocando la pastilla. */
+@media(max-width:920px){#pwaInstall{bottom:calc(72px + env(safe-area-inset-bottom,0px));right:10px;left:10px}
+  #pwaInstall>span:first-child{flex:1;text-align:center;padding-left:36px}}
 @media print{
   .sidebar,.topbar,.tabs,.report-actions,.rep-controls,#pwaInstall{display:none!important}
   .shell,.main,.content{display:block!important;margin:0!important;padding:0!important}
@@ -4985,7 +4998,7 @@ function wdraftRowEmpty(s){
 function wdraftSyncPlan(day){
   if(!WDRAFT||WDRAFT.editing||!day)return '';
   WDRAFT.tgt=WDRAFT.tgt||{};
-  const avisos=[];let dirty=false;
+  const avisos=[],ser=n=>n===1?' serie':' series';let dirty=false;
   day.exercises.forEach(e=>{
     const presc=parseInt(e.sets,10)||0;
     if(!presc)return;
@@ -4995,7 +5008,7 @@ function wdraftSyncPlan(day){
     if(!rows){
       WDRAFT.sets[e.id]=wdraftRows(e,presc);
       WDRAFT.tgt[e.id]=presc;dirty=true;
-      avisos.push(e.name+': ejercicio nuevo, '+presc+(presc===1?' serie':' series'));
+      avisos.push(e.name+': ejercicio nuevo, '+presc+ser(presc));
       return;
     }
     /* Los borradores guardados antes de esta versión no traen `tgt`: lo pintado hace de baseline. */
@@ -5004,15 +5017,33 @@ function wdraftSyncPlan(day){
       const before=rows.length;
       if(presc>base){for(let k=0;k<presc-base;k++)rows.push({w:'',r:'',rir:''});}
       else{let rm=presc-base;while(rm<0&&rows.length>1&&wdraftRowEmpty(rows[rows.length-1])){rows.pop();rm++;}}
-      if(rows.length!==before){
-        retechSets(e,rows);
-        avisos.push(e.name+': '+before+' → '+rows.length+(rows.length===1?' serie':' series'));
-      }
+      const after=rows.length;
+      if(after!==before)retechSets(e,rows);
+      /* Dos cosas distintas que decir, y pueden darse a la vez. La primera es qué cambió en
+         pantalla. La segunda es la que se callaba: al BAJAR series, las de abajo que ya
+         tenían números no se borran —eso no se toca nunca— así que el atleta se queda con
+         más casillas de las que pauta el coach y sin aviso no tiene forma de saber por qué;
+         la bajada aplica de verdad en su siguiente sesión. Sobrar casillas porque él mismo
+         añadió una no es noticia, por eso esto solo se dice cuando hubo bajada. */
+      const bits=[];
+      if(after!==before)bits.push(before+' → '+after+ser(after));
+      if(presc<base&&after>presc)bits.push('el plan baja a '+presc+ser(presc)+' · aplica en tu próxima sesión');
+      if(bits.length)avisos.push(e.name+': '+bits.join(' · '));
       WDRAFT.tgt[e.id]=presc;dirty=true;
     }
   });
   if(dirty)wdraftSave();
   return avisos.length?('Tu coach ajustó tu plan de hoy · '+avisos.join(' · ')):'';
+}
+/* El aviso dura 10 s y luego se va solo. Se quita del documento a mano, sin pasar por
+   render(): un repintado entero mientras el atleta escribe una serie le mueve el foco de la
+   casilla, y arreglar un estorbo creando otro no es arreglarlo. El observador de cuerpo se
+   entera del cambio, así que el siguiente render() no toma el atajo con el HTML viejo. */
+let _plNoteT=null;
+function planNoteQuitar(){
+  clearTimeout(_plNoteT);_plNoteT=null;
+  if(WDRAFT&&WDRAFT.planNote){delete WDRAFT.planNote;wdraftSave();}
+  const n=document.getElementById('planNoteBox');if(n)n.remove();
 }
 /* ---------- Corregir una sesión YA guardada (s76) ----------
    El atleta que guarda y se da cuenta de que le faltó marcar un ejercicio no tenía forma de
@@ -5498,6 +5529,7 @@ VIEWS['ath-wlog']=function(u){
      exactamente igual de desconcertante que no verla aparecer. */
   const _plNote=wdraftSyncPlan(day);
   if(_plNote)WDRAFT.planNote=_plNote;
+  if(WDRAFT.planNote&&!_plNoteT)_plNoteT=setTimeout(planNoteQuitar,10000);
   const last=lastWorkoutForDay(aid,day.id);
   const unit=weightUnitForAid(aid);
   let blocks='';
@@ -5587,7 +5619,7 @@ VIEWS['ath-wlog']=function(u){
   /* Corrigiendo: hay que decirlo en pantalla. Si no, la atleta no distingue esto de empezar
      una sesión nueva — que es exactamente el equívoco que creó la fila duplicada. */
   const _edPast=!!(WDRAFT&&WDRAFT.editing&&(WDRAFT.date||todayISO())!==todayISO());
-  const planUI=(WDRAFT&&WDRAFT.planNote)?'<div class="coachnote" style="margin-bottom:14px"><b>Tu plan cambió</b>'+esc(WDRAFT.planNote)+'. Las casillas de esta sesión ya están cuadradas con lo nuevo; lo que tenías anotado sigue donde estaba.<div style="margin-top:8px"><button class="btn btn-g btn-sm" data-act="wlog-plannote-ok">Entendido</button></div></div>':'';
+  const planUI=(WDRAFT&&WDRAFT.planNote)?'<div id="planNoteBox" class="coachnote" style="margin-bottom:14px;display:flex;align-items:flex-start;gap:6px"><div style="flex:1"><b>Tu plan cambió</b>'+esc(WDRAFT.planNote)+'. Lo que tenías anotado sigue donde estaba.</div><button class="notex" data-act="wlog-plannote-ok" aria-label="Cerrar aviso">&times;</button></div>':'';
   const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote" style="border-left-color:var(--blue);margin-bottom:14px"><b style="color:var(--blue)">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
     body:planUI+editUI+unitToggle+legend+blocks+
@@ -5829,9 +5861,9 @@ Object.assign(ACTIONS,{
     wdraftSave();
     nav('ath-wlog');
   },
-  /* El aviso de plan cambiado lo cierra el atleta: si se fuera solo al primer repintado, el
-     que estaba escribiendo una serie no llegaría a leerlo. */
-  'wlog-plannote-ok':()=>{if(WDRAFT){delete WDRAFT.planNote;wdraftSave();}render();},
+  /* Sin render(): el aviso se quita del documento y ya. Repintar la vista entera por cerrar
+     un aviso le movería el foco al que está escribiendo una serie. */
+  'wlog-plannote-ok':()=>{planNoteQuitar();},
   'wlog-addset':el=>{const a=WDRAFT.sets[el.dataset.ex];a.push({w:'',r:'',rir:''});retechSets(wdraftExOf(el.dataset.ex),a);wdraftTouch();render();},
   'wunit-set':async el=>{await setMyWeightUnit(el.dataset.u);},
   'wlog-delset':el=>{const a=WDRAFT.sets[el.dataset.ex];a.splice(parseInt(el.dataset.idx,10),1);retechSets(wdraftExOf(el.dataset.ex),a);wdraftTouch();render();},
@@ -9242,8 +9274,10 @@ try{
    El registro va después del arranque a propósito: si sw.js fallara, la app tiene que
    seguir funcionando como siempre. Es una mejora, no un requisito.
 ============================================================================ */
-const LS_PWA_NO='lrc_pwa_no_v1'; /* «no me lo vuelvas a ofrecer» */
-let _pwaPrompt=null;
+const LS_PWA_NO='lrc_pwa_no_v1'; /* «no me lo vuelvas a ofrecer» (el aspa) */
+const LS_PWA_PAUSA='lrc_pwa_pausa_v1'; /* «ahora no» (se fue sola) */
+const PWA_PAUSA_DIAS=7;
+let _pwaPrompt=null,_pwaT=null;
 function pwaInstalada(){
   try{
     if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)return true;
@@ -9252,7 +9286,18 @@ function pwaInstalada(){
   }catch(e){return false;}
 }
 function pwaRechazada(){try{return localStorage.getItem(LS_PWA_NO)==='1';}catch(e){return false;}}
-function pwaCerrar(){try{localStorage.setItem(LS_PWA_NO,'1');}catch(e){}const b=document.getElementById('pwaInstall');if(b)b.remove();}
+/* Una pastilla que se queda puesta hasta que la cierres es un estorbo con horario propio:
+   en «Registrar» tapa la barra de guardar, y el atleta está ahí para anotar series, no para
+   decidir si instala nada. Se va sola a los 12 s y no vuelve a asomar en una semana.
+   Irse sola NO es lo mismo que el aspa: el aspa sigue queriendo decir «no me lo vuelvas a
+   ofrecer» y se guarda aparte, para no convertir un descuido en un no definitivo. */
+function pwaEnPausa(){
+  try{const t=parseInt(localStorage.getItem(LS_PWA_PAUSA),10);
+    return !!t&&(Date.now()-t)<PWA_PAUSA_DIAS*86400000;}catch(e){return false;}
+}
+function pwaQuitar(){clearTimeout(_pwaT);_pwaT=null;const b=document.getElementById('pwaInstall');if(b)b.remove();}
+function pwaPausar(){try{localStorage.setItem(LS_PWA_PAUSA,String(Date.now()));}catch(e){}pwaQuitar();}
+function pwaCerrar(){try{localStorage.setItem(LS_PWA_NO,'1');}catch(e){}pwaQuitar();}
 function pwaPastilla(texto,alTocar){
   if(document.getElementById('pwaInstall'))return;
   const b=document.createElement('div');
@@ -9260,9 +9305,11 @@ function pwaPastilla(texto,alTocar){
   b.innerHTML='<span></span><span class="pwa-x" role="button" tabindex="0" aria-label="No, gracias">&times;</span>';
   b.firstChild.textContent=texto;
   b.querySelector('.pwa-x').addEventListener('click',function(ev){ev.stopPropagation();pwaCerrar();});
-  b.addEventListener('click',alTocar);
-  b.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();alTocar();}});
+  b.addEventListener('click',function(){clearTimeout(_pwaT);_pwaT=null;alTocar();});
+  b.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();clearTimeout(_pwaT);_pwaT=null;alTocar();}});
   document.body.appendChild(b);
+  clearTimeout(_pwaT);
+  _pwaT=setTimeout(pwaPausar,12000);
 }
 /* iPhone: Safari no dispara `beforeinstallprompt`, así que no hay botón que instale.
    Lo único posible —y lo que el atleta no encuentra solo— es enseñarle el camino. */
@@ -9300,7 +9347,7 @@ function pwaOfrecerInstalacion(){
      Esto NO le quita la opción al coach: si algún día la quiere en el teléfono, el
      menú del navegador («Instalar app» / «Agregar a inicio») sigue estando ahí. */
   if(_currentUserId==='coach')return;
-  if(pwaInstalada()||pwaRechazada())return;
+  if(pwaInstalada()||pwaRechazada()||pwaEnPausa())return;
   if(_offlineMode)return; /* ya hay un banner abajo; no se le apilan dos avisos */
   if(_pwaPrompt){
     pwaPastilla('Instalar app',async function(){
