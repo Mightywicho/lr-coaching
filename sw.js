@@ -28,7 +28,7 @@
 
 /* Sube este número cuando cambien PRECACHE o la estrategia. No hace falta
    tocarlo en cada deploy de index.html: el HTML va por red de todos modos. */
-const SW_VERSION = 'v1';
+const SW_VERSION = 'v2';
 const CACHE_SHELL = 'lrc-shell-' + SW_VERSION;  /* archivos propios */
 const CACHE_DEPS  = 'lrc-deps-'  + SW_VERSION;  /* CDN y fuentes */
 const VIGENTES = [CACHE_SHELL, CACHE_DEPS];
@@ -53,13 +53,19 @@ const PRECACHE = [
    sin señal no tiene segunda visita.
    Se piden en no-cors: la respuesta es opaca (ilegible desde JS, status 0) pero el
    navegador sí la ejecuta cuando este worker la devuelve, que es lo único que importa.
-   Las fuentes NO van aquí a propósito: si faltan, la app cae a la tipografía del
-   sistema y se ve distinta pero funciona. supabase-js si falta, no arranca nada.
-   OJO: estas URLs deben ser IDÉNTICAS a las de los <script> de index.html — la cache
-   se busca por URL exacta. Si allá se sube de versión, hay que subirla aquí también. */
+   supabase-js si falta, no arranca nada. La hoja de fuentes va aquí no por estética
+   sino por velocidad: el <link> está ANTES de los <script> en el <head>, así que
+   hasta que responde no corre una línea de la app. Con Google Fonts lento (datos
+   móviles malos) el atleta se queda mirando una pantalla en blanco aunque todo lo
+   demás ya esté en el dispositivo. Cacheada, responde al instante. Los .woff2 que
+   esa hoja referencia viven en otro dominio y los recoge cachePrimero por su cuenta;
+   si faltan, se cae a la tipografía del sistema y la app funciona igual.
+   OJO: estas URLs deben ser IDÉNTICAS a las de index.html — la cache se busca por URL
+   exacta. Si allá se sube de versión, hay que subirla aquí también. */
 const DEPS_PRECACHE = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+  'https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap'
 ];
 
 /* Orígenes externos que la app necesita para arrancar. Cualquier otro se deja
@@ -72,6 +78,22 @@ const DEPS_HOSTS = [
 ];
 
 /* ---------- instalación ---------- */
+
+/* Descarga con plazo. Sin él, un solo servidor lento retrasa —o impide para siempre—
+   la instalación entera, y mientras el worker no se active NO hay copia offline: el
+   atleta con mala señal, que es justo quien la necesita, se queda sin ella en todas
+   sus visitas. Lo que no baje aquí lo recoge cachePrimero en otra visita. */
+const PLAZO_DESCARGA = 15000;
+async function traer(url, opciones) {
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const t = ctrl ? setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, PLAZO_DESCARGA) : null;
+  try {
+    return await fetch(url, Object.assign({}, opciones, ctrl ? { signal: ctrl.signal } : null));
+  } finally {
+    if (t) clearTimeout(t);
+  }
+}
+
 /* addAll() es todo-o-nada: un 404 en un solo archivo dejaría la app sin cache
    entera y sin offline. Se guardan uno por uno para que lo que sí bajó sirva. */
 self.addEventListener('install', ev => {
@@ -81,14 +103,14 @@ self.addEventListener('install', ev => {
       try {
         /* cache:'reload' salta la cache HTTP del navegador: al instalar
            queremos el archivo recién publicado, no el que traía el disco. */
-        const res = await fetch(new Request(url, { cache: 'reload' }));
+        const res = await traer(url, { cache: 'reload' });
         if (res && res.ok) await cache.put(url, res);
       } catch (e) { /* sin red al instalar: se poblará al primer uso */ }
     }));
     const deps = await caches.open(CACHE_DEPS);
     await Promise.all(DEPS_PRECACHE.map(async url => {
       try {
-        const res = await fetch(new Request(url, { mode: 'no-cors', cache: 'reload' }));
+        const res = await traer(url, { mode: 'no-cors', cache: 'reload' });
         /* opaca (status 0) es lo normal aquí y se guarda igual; un 404 real no. */
         if (res && (res.ok || res.type === 'opaque')) await deps.put(url, res);
       } catch (e) { /* sin red al instalar: cachePrimero lo recogerá en otra visita */ }

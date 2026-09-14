@@ -23,7 +23,15 @@
 <meta name="twitter:image" content="og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Las fuentes NO deben bloquear el arranque. Este <link> va antes de los <script>,
+     y una hoja de estilos bloquea a los scripts que vienen detrás: con Google Fonts lento
+     (datos móviles malos, portal cautivo) la app no ejecutaba ni una línea y el atleta se
+     quedaba mirando la pantalla de carga aunque TODO lo demás ya estuviera en su teléfono.
+     media="print" hace que el navegador la baje sin bloquear nada; al llegar se pasa a
+     media="all" y se aplica. Mientras tanto se ve la tipografía del sistema, que es lo
+     mismo que ya pasaba con display=swap. -->
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <script>
 /* ===== PWA: registro del service worker =====
    Va en su PROPIO <script> y antes de los CDN a propósito. supabase-js entra abajo como
@@ -666,6 +674,27 @@ function esFalloDeRed(err){
   const m=String(err.message||err.error_description||err||'');
   return /failed to fetch|load failed|networkerror|network request failed|network error|err_internet|err_network|timeout/i.test(m);
 }
+/* Plazo máximo para las consultas de las que depende el arranque.
+   Sin esto la app se queda clavada en «Cargando datos…» para siempre en modo avión, y
+   no por culpa de la red: cuando el token está vencido, supabase-js intenta renovarlo
+   ANTES de mandar la consulta y reintenta hasta 10 veces con espera creciente
+   (200 ms, 400, 800… ~100 s en total) porque el fallo es de red. La promesa nunca se
+   resuelve ni se rechaza en un tiempo razonable, y todo lo que viene después —incluido
+   el modo sin conexión— jamás llega a ejecutarse. Pasado el plazo se trata como fallo
+   de red, que es lo que es.
+   Dos plazos: si el navegador YA sabe que no hay red basta poco más de un segundo;
+   si cree que sí la hay (wifi sin internet, o `navigator.onLine` que todavía no se
+   entera) se da margen a una conexión lenta antes de rendirse.
+   Que el plazo se quede corto con una conexión mala pero viva no es grave: se entra
+   en solo lectura con su aviso, y vigilarReconexion() recarga sola en cuanto el
+   servidor responda. Quedarse clavado en «Cargando datos…» sí es grave. */
+function plazoRed(){return sinRed()?1200:6000;}
+function errRed(msg){const e=new Error(msg||'La red no respondió a tiempo.');e.code='OFFLINE';return e;}
+function conPlazo(promesa,ms){
+  return Promise.race([promesa,new Promise(function(_,rechaza){
+    setTimeout(function(){rechaza(errRed());},ms||plazoRed());
+  })]);
+}
 /* Un solo cerrojo para las ~40 escrituras del archivo. Ponerlo en cada una sería
    olvidar alguna, y justo la olvidada es la que borra datos. Todas pasan por
    `supa.from(tabla)`, así que aquí se les cambian los cuatro métodos que escriben. */
@@ -1044,7 +1073,10 @@ async function loadStateFromSupabase(){
   /* C3: maybeSingle + error separado de "sin fila"; jamás bootstrapear ante error (evita pisar el blob del coach) */
   let data=null,error=null;
   try{
-    const res=await supa.from('app_state').select('state,rev').eq('user_id',_coachUid).maybeSingle();
+    /* Si la consulta anterior ya demostró que no hay red, esta no se dispara siquiera:
+       repetir la espera es hacer esperar al atleta por una respuesta que no va a venir. */
+    if(_offlineMode)throw errRed('Sin conexión.');
+    const res=await conPlazo(supa.from('app_state').select('state,rev').eq('user_id',_coachUid).maybeSingle());
     data=res.data;error=res.error;
   }catch(e){error=e;}
   if(error){
@@ -1472,7 +1504,7 @@ async function buildAthleteUidMaps(){
     if(_currentUserId!=='coach'){
       _athleteUidByAppId[_currentUserId]=_supabaseUser.id;
       _appIdByAthleteUid[_supabaseUser.id]=_currentUserId;
-    }else{
+    }else if(!_offlineMode){
       const{data}=await supa.from('athlete_access').select('athlete_uid,athlete_id').eq('coach_uid',_supabaseUser.id);
       (data||[]).forEach(r=>{_athleteUidByAppId[r.athlete_id]=r.athlete_uid;_appIdByAthleteUid[r.athlete_uid]=r.athlete_id;});
     }
@@ -8526,7 +8558,7 @@ async function initAfterAuthUnsafe(user){
   const role=(user.user_metadata||{}).role;
   let access=null,accessErr=null;
   try{
-    const res=await supa.from('athlete_access').select('coach_uid,athlete_id').eq('athlete_uid',user.id).maybeSingle();
+    const res=await conPlazo(supa.from('athlete_access').select('coach_uid,athlete_id').eq('athlete_uid',user.id).maybeSingle());
     access=res.data;accessErr=res.error;
   }catch(e){accessErr=e;}
   /* Sin red no hay forma de preguntar a que coach pertenece el atleta. Si ya entro antes
@@ -8546,25 +8578,32 @@ async function initAfterAuthUnsafe(user){
   if(_currentUserId==='coach')aiDraftLoad(); /* analisis de IA sin guardar: sobrevive a recargar */
   ensureBrand(S);applyBrand(S.brandColor); /* tema de marca (coach lo define; el atleta lo hereda del blob) */
   await buildAthleteUidMaps();
-  await hydratePlans();
-  await backfillPlans();
-  await hydrateProfiles();
-  await backfillProfiles();
-  /* Migración blob -> tablas: SOLO si el blob todavía trae datos viejos.
-     Antes corría en cada login, y cada UPSERT dispara un evento de realtime que
-     hacía refrescar a todos los clientes conectados: con más atletas, una tormenta. */
-  if(blobHasLegacyLogs()){
-    await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
-    await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
+  /* Sin red no se hidrata nada. Son ~15 viajes al servidor que van a fallar de todas
+     formas, y basta con que UNO se quede colgado para dejar al atleta mirando
+     «Cargando datos…» — que es exactamente lo que pasaba. La copia local ya trae
+     rutina, plan y registros dentro, así que no aportan nada; lo que aportan es
+     riesgo. Se pintan los datos que hay y listo. */
+  if(!_offlineMode){
+    await hydratePlans();
+    await backfillPlans();
+    await hydrateProfiles();
+    await backfillProfiles();
+    /* Migración blob -> tablas: SOLO si el blob todavía trae datos viejos.
+       Antes corría en cada login, y cada UPSERT dispara un evento de realtime que
+       hacía refrescar a todos los clientes conectados: con más atletas, una tormenta. */
+    if(blobHasLegacyLogs()){
+      await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
+      await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
+    }
+    /* hidratación en paralelo: 12 SELECT independientes, no 12 await encadenados */
+    await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
+    /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
+    await backfillLibrary();
+    await backfillFoods();
+    subscribeChat();
+    subscribeData();
+    subscribeBlob();
   }
-  /* hidratación en paralelo: 12 SELECT independientes, no 12 await encadenados */
-  await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
-  /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
-  await backfillLibrary();
-  await backfillFoods();
-  subscribeChat();
-  subscribeData();
-  subscribeBlob();
   /* red de seguridad: si hydrateProfiles no repuso la identidad (p.ej. fallo de red), el atleta no debe caer al panel de coach */
   if(_currentUserId!=='coach'&&!userById(_currentUserId)){
     const meta=_supabaseUser.user_metadata||{},nm=meta.name||_supabaseUser.email||'Atleta';
@@ -8584,7 +8623,9 @@ async function initAfterAuthUnsafe(user){
      positivos, y el banner vive en <body>, así que ningún render posterior lo borra. */
   /* Las lápidas van ANTES del aviso: son las que deciden qué se puede ofrecer sin resucitar nada.
      Fuera de _HYDRATORS a propósito — este aviso es su único consumidor y necesita el orden. */
-  try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
+  if(!_offlineMode){
+    try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
+  }
   /* ===== PWA: dejar listo el arranque sin conexión de la próxima vez =====
      Se hace AQUÍ, al final de un arranque bueno, no al guardar: un atleta que solo mira
      su rutina nunca dispara saveState, y sin esta copia la app abriría sin señal pero
