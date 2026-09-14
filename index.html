@@ -24,6 +24,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* ===== PWA: registro del service worker =====
+   Va en su PROPIO <script> y antes de los CDN a propósito. supabase-js entra abajo como
+   <script> bloqueante: si el CDN falla, `supabase` no existe y el script grande de la app
+   truena en la primera línea. Si el registro viviera ahí dentro, ese fallo dejaría al
+   dispositivo sin copia offline justo cuando más la necesita — y sin forma de salir del
+   hoyo, porque la copia es precisamente lo que haría que supabase-js ya no dependiera del
+   CDN. Aquí arriba se registra pase lo que pase.
+   Exige https (o localhost); en file:// y http se salta sin ruido y la app funciona igual,
+   solo sin offline. */
+if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname))){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js',{scope:'./'})
+      .catch(function(e){try{console.warn('[pwa] sw.js no se registró:',e);}catch(_){}});
+  });
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -570,8 +587,17 @@ input.meta-in.old{border-style:dashed}
 .report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .wbbar-l{display:flex;justify-content:space-between;font-size:12px;color:var(--tx2)}
 .wbbar-t{height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;margin-top:3px}
+/* ---------- PWA: pastilla de "Instalar app" ---------- */
+#pwaInstall{position:fixed;right:14px;bottom:24px;z-index:9997;display:flex;align-items:center;gap:8px;
+  background:var(--card2);border:1px solid var(--volt-40);color:var(--tx);border-radius:999px;
+  padding:9px 14px;font:600 13px/1 var(--font-b);box-shadow:0 8px 24px rgba(0,0,0,.45);cursor:pointer}
+#pwaInstall:hover{border-color:var(--volt)}
+#pwaInstall .pwa-x{margin-left:2px;padding:2px 4px;font-weight:400;color:var(--tx3);font-size:15px;line-height:1;border-radius:6px}
+#pwaInstall .pwa-x:hover{color:var(--tx)}
+/* arriba de la barra de navegacion movil (.sidebar pasa a bottom en <=920px) */
+@media(max-width:920px){#pwaInstall{bottom:calc(72px + env(safe-area-inset-bottom,0px));right:10px;left:10px;justify-content:center}}
 @media print{
-  .sidebar,.topbar,.tabs,.report-actions,.rep-controls{display:none!important}
+  .sidebar,.topbar,.tabs,.report-actions,.rep-controls,#pwaInstall{display:none!important}
   .shell,.main,.content{display:block!important;margin:0!important;padding:0!important}
   body{background:#fff}
   .report-sheet{border:none;padding:0}
@@ -594,6 +620,22 @@ const LS_KEY='lrc_state_v1', LS_SES='lrc_session_v1';
    `LS_RESCUE` es la copia de respaldo que se estampa solo cuando hay algo pendiente: sobrevive
    a recargas, y `saveState` nunca la toca. */
 const LS_RESCUE='lrc_rescue_v1', LS_ORPH_OK='lrc_rescue_visto_v1';
+/* Identidad resuelta del ultimo arranque BUENO (a qué coach pertenece este usuario).
+   Sin red no se puede consultar `athlete_access`, y sin eso la app no sabe de quién
+   son los datos de su copia local: sin esta llave no hay arranque sin conexión. */
+const LS_IDENT='lrc_ident_v1';
+function identSave(authUid,coachUid,currentUserId){
+  try{localStorage.setItem(LS_IDENT,JSON.stringify({uid:authUid,coachUid:coachUid,currentUserId:currentUserId,ts:Date.now()}));}catch(e){}
+}
+function identLoad(authUid){
+  try{
+    const o=JSON.parse(localStorage.getItem(LS_IDENT)||'null');
+    /* solo sirve si es del MISMO usuario: si entró otra cuenta en este navegador,
+       reusar esta identidad le enseñaría los datos del anterior */
+    if(o&&o.uid===authUid&&o.coachUid&&o.currentUserId)return o;
+  }catch(e){}
+  return null;
+}
 const _lsAtBoot=(function(){
   try{
     const rescue=JSON.parse(localStorage.getItem(LS_RESCUE)||'null');
@@ -604,6 +646,48 @@ const _lsAtBoot=(function(){
 const SUPABASE_URL='https://vflzzokyaiddsxyeoigu.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbHp6b2t5YWlkZHN4eWVvaWd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDg2MDQsImV4cCI6MjA5Nzg4NDYwNH0.IH9oemMJ3HuqrHsHqWv5EugF_PgxOyPBvB9iN-FJ0vg';
 const supa=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+/* ===== Modo sin conexión (PWA, SOLO LECTURA) =====
+   sw.js hace que la app ABRA sin señal, pero abrir no es tener datos: todo vive en
+   Supabase. Cuando el arranque no logra leer el servidor y hay una copia del estado
+   en este navegador, la app se levanta con esa copia y entra en modo solo lectura.
+   El cerrojo no es opcional: subir una copia vieja encima de la buena es exactamente
+   como se borran datos (bitácora s42), y aquí la copia vieja es la norma, no la
+   excepción. El modo NUNCA se apaga sin recargar la página — en cuanto vuelve la red
+   se recarga (o se ofrece recargar) para traer los datos de verdad. */
+let _offlineMode=false;
+function sinRed(){try{return navigator.onLine===false;}catch(e){return false;}}
+/* `navigator.onLine` en true miente a menudo (wifi sin internet, túnel del metro),
+   así que también se acepta la forma del error. Safari dice "Load failed", Chrome
+   "Failed to fetch", y supabase-js deja status 0 cuando ni salió la petición. */
+function esFalloDeRed(err){
+  if(sinRed())return true;
+  if(!err)return false;
+  if(err.status===0||err.code==='OFFLINE')return true;
+  const m=String(err.message||err.error_description||err||'');
+  return /failed to fetch|load failed|networkerror|network request failed|network error|err_internet|err_network|timeout/i.test(m);
+}
+/* Un solo cerrojo para las ~40 escrituras del archivo. Ponerlo en cada una sería
+   olvidar alguna, y justo la olvidada es la que borra datos. Todas pasan por
+   `supa.from(tabla)`, así que aquí se les cambian los cuatro métodos que escriben. */
+const _supaFrom=supa.from.bind(supa);
+supa.from=function(tabla){
+  const q=_supaFrom(tabla);
+  if(!_offlineMode)return q;
+  ['insert','update','upsert','delete'].forEach(function(m){q[m]=function(){return _rechazoOffline();};});
+  return q;
+};
+/* Imitador de la cadena de postgrest-js: cualquier .select().eq().match()... devuelve
+   el mismo objeto y al await-earlo sale {data:null,error}. Así cada escritura recibe
+   el error por su vía normal y avisa como ya sabe hacerlo, sin tocarlas una por una. */
+function _rechazoOffline(){
+  const res={data:null,error:{message:'Sin conexión: el cambio no se guardó.',code:'OFFLINE',details:'',hint:''},status:0,statusText:'offline',count:null};
+  const p=Promise.resolve(res);
+  const stub={then:p.then.bind(p),catch:p.catch.bind(p)};
+  stub['finally']=p['finally']?p['finally'].bind(p):function(f){return p.then(f,f);};
+  ['select','eq','neq','gt','gte','lt','lte','like','ilike','is','in','contains','match','not','or','filter','order','limit','range','single','maybeSingle','csv','returns','throwOnError','abortSignal','setHeader']
+    .forEach(function(m){stub[m]=function(){return stub;};});
+  return stub;
+}
 /* Recuperación de contraseña. El enlace del correo devuelve al atleta aquí con
    #type=recovery (o con un error si ya caducó o se usó). Hay que leerlo EN ESTA MISMA
    vuelta síncrona: supabase-js consume y limpia el hash por su cuenta unos ms después,
@@ -963,7 +1047,10 @@ async function loadStateFromSupabase(){
     const res=await supa.from('app_state').select('state,rev').eq('user_id',_coachUid).maybeSingle();
     data=res.data;error=res.error;
   }catch(e){error=e;}
-  if(error){showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;}
+  if(error){
+    if(cargarCopiaLocal(error))return true; /* sin red: se abre en solo lectura */
+    showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;
+  }
   if(data&&data.state){S=data.state;_blobRev=(data.rev==null?0:data.rev);ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);return true;}
   const meta=_supabaseUser.user_metadata||{};
   /* C1: solo un coach real bootstrapea estado nuevo */
@@ -977,6 +1064,63 @@ async function loadStateFromSupabase(){
   }
   showBootError(_coachUid===_supabaseUser.id?'Tu cuenta no tiene un rol válido. Contacta a tu coach.':'Los datos de tu coach aún no están disponibles. Intenta más tarde.');
   return false;
+}
+/* Levantar la app con la copia del navegador. Solo cuando el fallo fue de RED: si el
+   servidor contestó un error de verdad (RLS, fila borrada), enseñar datos viejos como si
+   nada sería taparlo justo cuando hay que verlo. */
+function cargarCopiaLocal(error){
+  if(!esFalloDeRed(error))return false;
+  let copia=null;
+  try{copia=JSON.parse(localStorage.getItem(LS_KEY)||'null');}catch(e){}
+  if(!copia||!copia.users||!Array.isArray(copia.users))return false;
+  S=copia;
+  _blobRev=null;      /* no se leyó el servidor: no hay versión que reclamar */
+  _offlineMode=true;  /* cerrojo: de aqui no sale nada hasta recargar con red */
+  ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);
+  return true;
+}
+/* Aviso de que aqui no se guarda. Estrangulado: un render puede llamar a saveState
+   varias veces seguidas y no vamos a tapar la pantalla de toasts. */
+let _avisoOfflineTs=0;
+function avisoOffline(){
+  const ahora=Date.now();
+  if(ahora-_avisoOfflineTs<6000)return;
+  _avisoOfflineTs=ahora;
+  toast('Sin conexión: este cambio no se guardó','err');
+}
+function bannerOffline(){
+  bottomBanner('offlineBanner','warn',12,
+    '<b>Sin conexión.</b> Estás viendo la última copia guardada en este dispositivo. '+
+    'Lo que cambies aquí <b>no</b> se guardará hasta que vuelva la señal.');
+}
+/* Volver de la nada. El evento `online` no es de fiar por sí solo (avisa al enganchar el
+   wifi, no al tener internet), así que además se toca la puerta cada 20 s. */
+let _reconTimer=null;
+function vigilarReconexion(){
+  if(!_offlineMode)return;
+  bannerOffline();
+  const intentar=async function(){
+    if(!_offlineMode)return;
+    if(sinRed())return;
+    let vivo=false;
+    try{
+      const base=location.pathname.replace(/[^/]*$/,'');
+      const r=await fetch(base+'index.html?nc='+Date.now(),{method:'HEAD',cache:'no-store'});
+      vivo=!!(r&&r.ok);
+    }catch(e){vivo=false;}
+    if(!vivo)return;
+    if(_reconTimer){clearInterval(_reconTimer);_reconTimer=null;}
+    /* Recargar es lo único que saca del modo solo lectura: hay que rehacer el arranque
+       completo (identidad, blob, tablas) y volver a poner _blobRev. Si está a media
+       captura o con un modal abierto, se le pregunta en vez de borrarle lo escrito. */
+    if(safeToReload()){location.reload();return;}
+    bottomBanner('offlineBanner','ok',12,
+      '<b>Volvió la conexión.</b> Recarga para traer tus datos y poder guardar de nuevo.'+
+      '<button onclick="location.reload()" style="'+BTN_CSS+'">Recargar</button>');
+  };
+  try{window.addEventListener('online',intentar);}catch(e){}
+  _reconTimer=setInterval(intentar,20000);
+  try{document.addEventListener('visibilitychange',function(){if(!document.hidden)intentar();});}catch(e){}
 }
 function stateForCloud(){
   /* logs viven en tablas con RLS; rutina, plan de nutrición y perfil viven en tablas — se excluyen del blob */
@@ -1237,6 +1381,14 @@ async function pushBlob(){
   return{ok:false,conflict:false,err:new Error('El servidor no aceptó el guardado (0 filas actualizadas).')};
 }
 function saveState(){
+  /* Sin conexión no se escribe NADA, ni el navegador. La copia local es lo único que
+     permite abrir offline la próxima vez: pisarla con cambios que nunca van a subir la
+     convertiría en datos fantasma — el atleta vería su entreno «guardado» un día y
+     desaparecido al siguiente. El borrador de entreno (LS_WDRAFT) y los campos sueltos
+     (LS_KEEP) SÍ se siguen guardando por su cuenta: son borradores, están pensados para
+     reponerse al recargar, y es lo que permite apuntar la sesión sin señal y guardarla
+     de verdad al volver. */
+  if(_offlineMode){avisoOffline();return;}
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
   if(!_supabaseUser)return;
   if(_currentUserId!=='coach')return; /* el atleta no escribe el blob del coach (RLS lo bloquea; evitamos el tráfico) */
@@ -8377,6 +8529,13 @@ async function initAfterAuthUnsafe(user){
     const res=await supa.from('athlete_access').select('coach_uid,athlete_id').eq('athlete_uid',user.id).maybeSingle();
     access=res.data;accessErr=res.error;
   }catch(e){accessErr=e;}
+  /* Sin red no hay forma de preguntar a que coach pertenece el atleta. Si ya entro antes
+     en este dispositivo la identidad quedo guardada: se reusa para poder abrir en modo
+     solo lectura en vez de dejarlo mirando un error. */
+  if(accessErr&&esFalloDeRed(accessErr)){
+    const _id=identLoad(user.id);
+    if(_id){access={coach_uid:_id.coachUid,athlete_id:_id.currentUserId};accessErr=null;_offlineMode=true;}
+  }
   if(role==='athlete'){
     if(accessErr){showBootError('No se pudo verificar tu acceso. Revisa tu conexión e intenta de nuevo.');return;}
     if(!access){showBootError('Tu cuenta aún no está vinculada a un coach. Pide a tu coach un código nuevo.');return;}
@@ -8426,6 +8585,18 @@ async function initAfterAuthUnsafe(user){
   /* Las lápidas van ANTES del aviso: son las que deciden qué se puede ofrecer sin resucitar nada.
      Fuera de _HYDRATORS a propósito — este aviso es su único consumidor y necesita el orden. */
   try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
+  /* ===== PWA: dejar listo el arranque sin conexión de la próxima vez =====
+     Se hace AQUÍ, al final de un arranque bueno, no al guardar: un atleta que solo mira
+     su rutina nunca dispara saveState, y sin esta copia la app abriría sin señal pero
+     vacía — lo peor de los dos mundos. Va con todo hidratado (rutina, plan, logs) para
+     que la copia sea la foto completa de lo que ve en pantalla. */
+  if(!_offlineMode){
+    identSave(_supabaseUser.id,_coachUid,_currentUserId);
+    try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+  }else{
+    vigilarReconexion();
+  }
+  setTimeout(pwaOfrecerInstalacion,2500); /* nunca durante el login ni encima del primer render */
 }
 /* Dos vigilantes de la sesión, no uno: supabase-js avisa por su canal entre pestañas cuando el
    token cambia o desaparece, y el listener de `storage` es la red de seguridad por si ese canal
@@ -8476,6 +8647,89 @@ try{
   else{render();}
   startVersionWatch(); /* también en la pantalla de login: una pestaña ahí también envejece */
 })();
+
+/* ============================================================================
+   PWA — instalar en el teléfono y funcionar sin conexión
+   ============================================================================
+   sw.js guarda la app (index.html, iconos, supabase-js, fuentes, recetario) en el
+   dispositivo: abre al instante y abre sin señal. Los DATOS no se cachean nunca — de
+   eso se encarga el modo solo lectura de arriba.
+   El registro va después del arranque a propósito: si sw.js fallara, la app tiene que
+   seguir funcionando como siempre. Es una mejora, no un requisito.
+============================================================================ */
+const LS_PWA_NO='lrc_pwa_no_v1'; /* «no me lo vuelvas a ofrecer» */
+let _pwaPrompt=null;
+function pwaInstalada(){
+  try{
+    if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)return true;
+    if(window.matchMedia&&window.matchMedia('(display-mode: minimal-ui)').matches)return true;
+    return navigator.standalone===true; /* iOS */
+  }catch(e){return false;}
+}
+function pwaRechazada(){try{return localStorage.getItem(LS_PWA_NO)==='1';}catch(e){return false;}}
+function pwaCerrar(){try{localStorage.setItem(LS_PWA_NO,'1');}catch(e){}const b=document.getElementById('pwaInstall');if(b)b.remove();}
+function pwaPastilla(texto,alTocar){
+  if(document.getElementById('pwaInstall'))return;
+  const b=document.createElement('div');
+  b.id='pwaInstall';b.setAttribute('role','button');b.tabIndex=0;
+  b.innerHTML='<span></span><span class="pwa-x" role="button" tabindex="0" aria-label="No, gracias">&times;</span>';
+  b.firstChild.textContent=texto;
+  b.querySelector('.pwa-x').addEventListener('click',function(ev){ev.stopPropagation();pwaCerrar();});
+  b.addEventListener('click',alTocar);
+  b.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();alTocar();}});
+  document.body.appendChild(b);
+}
+/* iPhone: Safari no dispara `beforeinstallprompt`, así que no hay botón que instale.
+   Lo único posible —y lo que el atleta no encuentra solo— es enseñarle el camino. */
+function pwaModalIOS(){
+  if(document.getElementById('pwaIosModal'))return;
+  const o=document.createElement('div');
+  o.id='pwaIosModal';
+  o.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(5,7,10,.72);display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML='<div style="background:#151921;border:1px solid #2f3845;border-radius:16px;padding:20px;max-width:330px;color:#e9edf4;font:14px/1.55 system-ui;box-shadow:0 18px 50px rgba(0,0,0,.6)">'+
+    '<p style="font-weight:700;font-size:15px;margin-bottom:10px">Instalar LR Coaching en tu iPhone</p>'+
+    '<ol style="margin:0 0 4px 18px;color:#c9d2df">'+
+      '<li style="margin-bottom:7px">Toca el botón <b>Compartir</b> abajo en Safari (el cuadrito con la flecha hacia arriba).</li>'+
+      '<li style="margin-bottom:7px">Desliza y elige <b>Agregar a inicio</b>.</li>'+
+      '<li>Toca <b>Agregar</b>. Te queda el icono en la pantalla, como cualquier app.</li>'+
+    '</ol>'+
+    '<p style="color:#8a96a8;font-size:12.5px;margin-top:12px">Tiene que ser en Safari. Desde Chrome o el navegador de Instagram no aparece la opción.</p>'+
+    '<button id="pwaIosOk" style="background:#f5484b;color:#f6f6f6;border:0;border-radius:10px;padding:10px 0;width:100%;font:600 14px system-ui;margin-top:14px;cursor:pointer">Entendido</button>'+
+    '<button id="pwaIosNo" style="background:none;border:0;color:#8a96a8;font-size:12.5px;margin-top:8px;width:100%;cursor:pointer;text-decoration:underline">No me lo vuelvas a mostrar</button>'+
+  '</div>';
+  o.addEventListener('click',function(ev){if(ev.target===o)o.remove();});
+  document.body.appendChild(o);
+  document.getElementById('pwaIosOk').addEventListener('click',function(){o.remove();});
+  document.getElementById('pwaIosNo').addEventListener('click',function(){o.remove();pwaCerrar();});
+}
+function esIOS(){
+  const ua=navigator.userAgent||'';
+  /* el iPad se anuncia como Macintosh desde iPadOS 13: la pista es que sea táctil */
+  return /iphone|ipad|ipod/i.test(ua)||(/Macintosh/.test(ua)&&(navigator.maxTouchPoints||0)>1);
+}
+function pwaOfrecerInstalacion(){
+  if(pwaInstalada()||pwaRechazada())return;
+  if(_offlineMode)return; /* ya hay un banner abajo; no se le apilan dos avisos */
+  if(_pwaPrompt){
+    pwaPastilla('Instalar app',async function(){
+      const p=_pwaPrompt;if(!p)return;
+      _pwaPrompt=null;
+      const el=document.getElementById('pwaInstall');if(el)el.remove();
+      try{p.prompt();await p.userChoice;}catch(e){}
+    });
+    return;
+  }
+  if(esIOS())pwaPastilla('Instalar app',pwaModalIOS);
+}
+/* Chrome/Edge/Android avisan cuando la app es instalable. Puede llegar antes del login
+   (se guarda y se ofrece al terminar el arranque) o después (se ofrece en el momento). */
+window.addEventListener('beforeinstallprompt',function(ev){
+  ev.preventDefault();
+  _pwaPrompt=ev;
+  if(_supabaseUser)pwaOfrecerInstalacion();
+});
+window.addEventListener('appinstalled',function(){pwaCerrar();});
+
 </script>
 </body>
 </html>
