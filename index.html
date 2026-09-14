@@ -8749,6 +8749,13 @@ function esIOS(){
   return /iphone|ipad|ipod/i.test(ua)||(/Macintosh/.test(ua)&&(navigator.maxTouchPoints||0)>1);
 }
 function pwaOfrecerInstalacion(){
+  /* Solo al atleta. El coach trabaja desde la computadora, con varias pestañas y el
+     navegador abierto a propósito: ofrecerle instalar una app de pantalla completa ahí
+     estorba más que ayuda. El atleta es quien la usa en el gimnasio, a una mano y a
+     veces sin señal, que es para quien se hizo todo esto.
+     Esto NO le quita la opción al coach: si algún día la quiere en el teléfono, el
+     menú del navegador («Instalar app» / «Agregar a inicio») sigue estando ahí. */
+  if(_currentUserId==='coach')return;
   if(pwaInstalada()||pwaRechazada())return;
   if(_offlineMode)return; /* ya hay un banner abajo; no se le apilan dos avisos */
   if(_pwaPrompt){
