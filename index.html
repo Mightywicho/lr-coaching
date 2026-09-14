@@ -50,8 +50,10 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- html2canvas YA NO se carga aquí. Son ~180 KB de <script> bloqueante que retrasaban
-     el arranque de TODAS las aperturas para una función que se usa en un solo sitio:
+<!-- html2canvas YA NO se carga aquí. Eran ~180 KB de etiqueta script bloqueante (sin el
+     tag literal: un "<"+"script>" aquí rompe el extractor con el que se valida este
+     archivo antes de cada deploy) que retrasaban el arranque de TODAS las aperturas
+     para una función que se usa en un solo sitio:
      el botón de exportar el reporte a imagen. Ahora se baja la primera vez que se pulsa
      ese botón (ver cargarHtml2canvas). El service worker lo sigue precacheando, así que
      esa primera vez también funciona sin señal. -->
