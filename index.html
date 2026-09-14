@@ -4293,10 +4293,19 @@ Object.assign(ACTIONS,{
     if(el.dataset.ex){
       const e=day.exercises.find(x=>x.id===el.dataset.ex);
       const det=exDiff(e,data);
+      /* Grupo y series ANTES de pisar el ejercicio, para saber si esto es una decisión de
+         volumen o un cambio de ejercicio. Solo lo primero mueve la meta y el plan: si el
+         coach sustituye el ejercicio por otro de distinto grupo (o lo vincula/desvincula de
+         la biblioteca), el hueco que deja en la meta es información real que hay que ver,
+         no un desfase que tapar — igual que al eliminar un ejercicio. */
+      const gOld=e.libId?(libById(e.libId)||{}).group:null;
+      const setsOld=parseInt(e.sets,10)||0,setsNew=parseInt(data.sets,10)||0;
       Object.assign(e,data);if(!data.libId)delete e.libId;if(!data.revLink)delete e.revLink;
       if(!data.grp)delete e.grp;
       if(!data.tech){delete e.tech;delete e.techN;delete e.techOn;}
-      if(det)logChange(el.dataset.aid,'ajuste',det,day.name,data.name);
+      const gNew=e.libId?(libById(e.libId)||{}).group:null;
+      const sync=(gOld&&gNew===gOld&&setsNew!==setsOld)?syncPlanToSets(el.dataset.aid,day,gOld,setsNew-setsOld):null;
+      if(det)logChange(el.dataset.aid,'ajuste',det+(sync?' · '+sync:''),day.name,data.name);
     }
     else{if(!data.libId)delete data.libId;if(!data.revLink)delete data.revLink;
       if(!data.grp)delete data.grp;
