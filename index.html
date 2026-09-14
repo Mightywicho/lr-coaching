@@ -8505,20 +8505,30 @@ function applyCard(aid){
         if(!exs.length)return;
         const gsets=exs.reduce((a,e)=>a+(parseInt(e.sets,10)||0),0);
         const est=estSessionMin(day),rs=realSessionStats(aid,day.id);
-        const exTxt=exs.map(e=>esc(e.name)+' ('+e.sets+')').join(' · ');
-        rows+='<tr><td><b>D'+(di+1)+'</b> <span class="tiny">'+esc(day.name)+'</span><div class="tiny" style="margin-top:2px;color:var(--tx2)">'+exTxt+'</div></td>'+
+        /* Con varios ejercicios del grupo el mismo día, un solo botón por sesión obligaba a
+           que el código eligiera el ejercicio por el coach. Ahora la sesión se despliega en
+           una fila por ejercicio, cada una con sus botones: la serie va donde tú decidas. */
+        const multi=exs.length>1;
+        const pmBtns=ex=>'<span class="dcell"><button class="setpm" title="Quitar una serie de '+esc(ex?ex.name:g)+' aquí" data-act="apply-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'"'+(ex?' data-ex="'+ex.id+'"':'')+' data-d="-1">−</button><button class="setpm" title="Añadir una serie de '+esc(ex?ex.name:g)+' aquí" data-act="apply-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'"'+(ex?' data-ex="'+ex.id+'"':'')+' data-d="1">+</button></span>';
+        rows+='<tr><td><b>D'+(di+1)+'</b> <span class="tiny">'+esc(day.name)+'</span><div class="tiny" style="margin-top:2px;color:var(--tx2)">'+(multi?exs.length+' ejercicios de '+esc(g)+' — elige abajo en cuál aplicarla':esc(exs[0].name))+'</div></td>'+
           '<td class="num" style="text-align:center"><b>'+gsets+'</b></td>'+
           '<td class="num" style="text-align:center" title="Duración estimada de la sesión completa (series × ejecución + descansos)">≈'+est+'′</td>'+
           '<td class="num" style="text-align:center" title="Duración real media (últimos registros)">'+(rs.dur?rs.dur+'′':'—')+'</td>'+
           '<td class="num" style="text-align:center" title="RPE medio reportado en esta sesión">'+(rs.rpe!=null?rs.rpe:'—')+'</td>'+
-          '<td style="text-align:center"><span class="dcell"><button class="setpm" title="Quitar una serie de '+esc(g)+' aquí" data-act="apply-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'" data-d="-1">−</button><button class="setpm" title="Añadir la serie de '+esc(g)+' aquí" data-act="apply-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'" data-d="1">+</button></span></td></tr>';
+          '<td style="text-align:center">'+(multi?'<span class="tiny" style="color:var(--tx3)">por ejercicio ↓</span>':pmBtns(exs[0]))+'</td></tr>';
+        if(multi)exs.forEach(ex=>{
+          rows+='<tr style="background:var(--card2)"><td style="padding-left:28px"><span style="color:var(--tx3)">↳</span> '+esc(ex.name)+'</td>'+
+            '<td class="num" style="text-align:center">'+(parseInt(ex.sets,10)||0)+'</td>'+
+            '<td colspan="3"></td>'+
+            '<td style="text-align:center">'+pmBtns(ex)+'</td></tr>';
+        });
       });
       if(!rows)rows='<tr><td colspan="6" class="tiny">Este grupo aún no tiene ejercicios en la rutina — añádelos en la pestaña Rutina.</td></tr>';
       const pr=PRIOS[p.priorities[g]];
       inner+='<div class="sect-h" style="margin:14px 0 8px"><h2 style="font-size:14px">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+cur+' series/sem'+(!dec||dec.k==='manten'?' · recomendado mantener':' → sugerido <b>'+sug+'</b>'+(dec.k==='reduce'?' (−10-20%)':''))+'</span></div>'+
         '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Sesión y ejercicios del grupo</th><th style="width:60px">Series</th><th style="width:64px">Est.</th><th style="width:64px">Real</th><th style="width:56px">RPE</th><th style="width:88px">Aplicar</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     });
-    inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad); «+» se la suma al ejercicio del grupo con menos series ese día y queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
+    inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad). Si la sesión tiene varios ejercicios del grupo, elige en su propia fila a cuál se la sumas o quitas; con uno solo, «+» y «−» van directos a él. Todo cambio queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
   }
   return '<div class="card mb16"><h3>Aplicar la decisión semanal <span class="hint">'+(dec?dec.lbl:'sin check-in esta semana')+' · en músculos primarios y máximos</span></h3>'+inner+'</div>';
 }
@@ -8529,11 +8539,17 @@ Object.assign(ACTIONS,{
     if(!day)return;
     const exs=day.exercises.filter(e=>{const l=e.libId?libById(e.libId):null;return l&&l.group===g;});
     if(!exs.length)return;
-    exs.sort((a,b)=>(parseInt(a.sets)||0)-(parseInt(b.sets)||0));
-    const ex=delta>0?exs[0]:exs[exs.length-1];
-    const cur=parseInt(ex.sets)||0;
-    ex.sets=String(Math.max(0,cur+delta));
-    saveState();render();toast(delta>0?'Serie añadida':'Serie reducida');
+    /* Si el botón trae `data-ex` manda el coach: es el ejercicio de esa fila. Sin él — un
+       único ejercicio del grupo ese día — no hay nada que elegir y se resuelve solo. */
+    let ex=el.dataset.ex?exs.find(e=>e.id===el.dataset.ex):null;
+    if(!ex){exs.sort((a,b)=>(parseInt(a.sets)||0)-(parseInt(b.sets)||0));ex=delta>0?exs[0]:exs[exs.length-1];}
+    /* Mismo suelo que en la pestaña Rutina: bajar a 0 dejaba el ejercicio en la sesión sin
+       series, que no es ni quitarlo ni programarlo. Para eliminarlo se usa Rutina. */
+    const oldS=parseInt(ex.sets,10)||0,newS=Math.max(1,oldS+delta);
+    if(newS===oldS){toast('Mínimo 1 serie — para quitar el ejercicio, hazlo en la pestaña Rutina');return;}
+    ex.sets=String(newS);
+    logChange(aid,'ajuste','Series '+oldS+'→'+newS,day.name,ex.name);
+    saveState();render();toast((delta>0?'Serie añadida a ':'Serie quitada de ')+ex.name);
   },
 });
 
