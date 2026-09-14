@@ -4,14 +4,18 @@
    Qué resuelve: que la app abra al instante (y que abra aunque no haya señal)
    en el celular del atleta, sin volver a bajar los ~700 KB del index cada vez.
 
-   REGLA DE ORO — el HTML nunca se sirve de cache si hay red.
-   La app ya trae su propio detector de versión (checkAppVersion en index.html):
-   pide index.html por HEAD y compara el etag para recargar la pestaña vieja
-   tras un deploy. Si este worker sirviera HTML cacheado, ese detector vería
-   siempre el mismo etag y el atleta se quedaría clavado en una versión vieja
-   —exactamente el fallo que ese detector existe para evitar (bitácora s42)—.
-   Por eso: navegación e index.html van SIEMPRE a la red primero; la cache es
-   solo el paracaídas de cuando la red falla.
+   REGLA DE ORO — el HTML se sirve de cache Y se revalida por detrás.
+   Antes iba por red primero, para no pisar el detector de versión de la app
+   (checkAppVersion en index.html). El costo era que NADA corría hasta bajar los
+   ~750 KB del index: con datos móviles malos, el atleta miraba una pantalla
+   muerta con la app entera ya guardada en su teléfono.
+   Ahora la copia guardada se devuelve al instante y la versión del servidor se
+   baja en paralelo para la próxima apertura. El detector de versión NO se rompe:
+   pregunta por HEAD, y un HEAD no es GET, así que este worker ni lo toca — sigue
+   viendo el etag real del servidor y sigue avisando (bitácora s42).
+   La pieza que cierra el círculo es REFRESCAR_HTML: antes de recargar, la app
+   pide por mensaje que se traiga el HTML nuevo a la cache, así la recarga abre
+   ya con la versión nueva en vez de repetir la vieja en bucle.
 
    Lo que SÍ se cachea agresivamente son las dependencias que no cambian:
    supabase-js, html2canvas y las fuentes. Sin ellas en cache la app no arranca
@@ -27,8 +31,9 @@
 'use strict';
 
 /* Sube este número cuando cambien PRECACHE o la estrategia. No hace falta
-   tocarlo en cada deploy de index.html: el HTML va por red de todos modos. */
-const SW_VERSION = 'v2';
+   tocarlo en cada deploy de index.html: el HTML no se versiona por aquí, se
+   revalida solo en cada apertura (ver cacheLuegoRed). */
+const SW_VERSION = 'v3';
 const CACHE_SHELL = 'lrc-shell-' + SW_VERSION;  /* archivos propios */
 const CACHE_DEPS  = 'lrc-deps-'  + SW_VERSION;  /* CDN y fuentes */
 const VIGENTES = [CACHE_SHELL, CACHE_DEPS];
@@ -130,6 +135,26 @@ self.addEventListener('activate', ev => {
 
 self.addEventListener('message', ev => {
   if (ev.data === 'SKIP_WAITING') self.skipWaiting();
+  /* La app detectó (por HEAD) que hay una versión nueva en el servidor y va a recargar.
+     Como el HTML ahora se sirve de cache, recargar sin más volvería a abrir la copia
+     vieja y el aviso saldría otra vez, y otra. Aquí se baja la versión nueva y se deja
+     guardada ANTES de recargar; se contesta por el puerto para que la app sepa cuándo.
+     Si algo falla se contesta igual: la app recarga de todas formas y, en el peor caso,
+     entra en la siguiente apertura — nunca se queda esperando. */
+  if (ev.data && ev.data.tipo === 'REFRESCAR_HTML') {
+    ev.waitUntil((async () => {
+      let ok = false;
+      try {
+        const res = await traer('./index.html', { cache: 'reload' });
+        if (res && res.ok) {
+          const cache = await caches.open(CACHE_SHELL);
+          await cache.put('./index.html', res.clone());
+          ok = true;
+        }
+      } catch (e) {}
+      try { if (ev.ports && ev.ports[0]) ev.ports[0].postMessage({ ok: ok }); } catch (e) {}
+    })());
+  }
 });
 
 /* ---------- estrategias ---------- */
@@ -150,6 +175,30 @@ async function redPrimero(req, nombreCache, claveCache) {
     if (hit) return hit;
     throw e;
   }
+}
+
+/* Cache primero y se revalida por detrás, para el HTML de la app.
+   Devuelve la copia guardada AL INSTANTE —sin esperar a la red— y en paralelo baja
+   la versión del servidor para dejarla lista para la próxima apertura.
+   El porqué: index.html pesa ~750 KB y con «red primero» el atleta no ejecutaba una
+   sola línea hasta tenerlo entero. Con datos móviles malos eso son segundos mirando
+   una pantalla muerta con la app YA en su teléfono.
+   Lo que se pierde: la primera apertura después de un deploy puede ir una versión
+   atrás. No queda a ciegas — el detector de versión de la app hace un HEAD contra el
+   servidor (no pasa por aquí: no es GET) y avisa. Y cuando esa recarga llega, la app
+   pide antes REFRESCAR_HTML, así que recarga ya con la versión nueva, no en bucle. */
+async function cacheLuegoRed(req, nombreCache, claveCache) {
+  const cache = await caches.open(nombreCache);
+  const clave = claveCache || req;
+  const hit = await cache.match(clave, { ignoreSearch: true });
+  const viaje = fetch(req).then(res => {
+    /* Solo respuestas buenas: guardar un 404 o un 500 de Pages dejaría al atleta
+       con una pantalla en blanco guardada para siempre. */
+    if (res && res.ok && res.type !== 'opaque') cache.put(clave, res.clone()).catch(() => {});
+    return res;
+  });
+  if (hit) { viaje.catch(() => {}); return hit; }
+  return viaje;   /* primera visita: no hay copia, toca esperar a la red */
 }
 
 /* Cache primero y se revalida por detrás. Para lo que no cambia: iconos,
@@ -189,7 +238,7 @@ self.addEventListener('fetch', ev => {
   if (req.mode === 'navigate') {
     ev.respondWith((async () => {
       try {
-        return await redPrimero(req, CACHE_SHELL, './index.html');
+        return await cacheLuegoRed(req, CACHE_SHELL, './index.html');
       } catch (e) {
         const cache = await caches.open(CACHE_SHELL);
         const hit = (await cache.match('./index.html')) || (await cache.match('./'));
@@ -210,9 +259,9 @@ self.addEventListener('fetch', ev => {
   }
 
   if (mismoOrigen) {
-    /* 2. El HTML pedido por fetch (no navegación): red primero, igual que arriba. */
+    /* 2. El HTML pedido por fetch (no navegación): cache primero, igual que arriba. */
     if (/\/(index\.html)?$/.test(url.pathname) || url.pathname.endsWith('.html')) {
-      ev.respondWith(redPrimero(req, CACHE_SHELL, './index.html').catch(async () => {
+      ev.respondWith(cacheLuegoRed(req, CACHE_SHELL, './index.html').catch(async () => {
         const c = await caches.open(CACHE_SHELL);
         return (await c.match('./index.html')) || Response.error();
       }));

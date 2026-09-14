@@ -50,7 +50,11 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- html2canvas YA NO se carga aquí. Son ~180 KB de <script> bloqueante que retrasaban
+     el arranque de TODAS las aperturas para una función que se usa en un solo sitio:
+     el botón de exportar el reporte a imagen. Ahora se baja la primera vez que se pulsa
+     ese botón (ver cargarHtml2canvas). El service worker lo sigue precacheando, así que
+     esa primera vez también funciona sin señal. -->
 <style>
 :root{
   --bg:#0b0d11; --bg2:#11141a; --card:#151921; --card2:#1a202b; --line:#232a36; --line2:#2f3845;
@@ -384,6 +388,20 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .toast svg{color:var(--volt)}
 .toast.err{border-color:var(--red)}
 .toast.err svg{color:var(--red)}
+
+/* Píldora de «trayendo el resto de tus datos». Abajo a la derecha y fuera del paso:
+   informa sin tapar nada ni pedir que la cierres, porque se va sola al terminar.
+   pointer-events:none a propósito — jamás debe robarle un toque a un botón. */
+#lrActualizando{position:fixed;right:14px;bottom:14px;z-index:60;display:flex;align-items:center;gap:8px;
+  background:var(--card2);border:1px solid var(--line2);color:var(--tx2);
+  padding:7px 13px;border-radius:999px;font-size:12px;font-weight:600;
+  box-shadow:var(--shadow);pointer-events:none;animation:pop .2s}
+.lrspin{width:11px;height:11px;flex:none;border-radius:50%;border:2px solid var(--line2);
+  border-top-color:var(--volt);animation:lrgira .7s linear infinite}
+@keyframes lrgira{to{transform:rotate(360deg)}}
+/* En móvil la barra de navegación es fija abajo: la píldora se sube por encima de ella. */
+@media(max-width:920px){#lrActualizando{bottom:calc(76px + env(safe-area-inset-bottom,0px));right:12px}}
+@media (prefers-reduced-motion:reduce){.lrspin{animation-duration:2.4s}}
 
 /* ---------- misc ---------- */
 .empty{border:1px dashed var(--line2);border-radius:var(--r);padding:34px 20px;text-align:center;color:var(--tx3);font-size:13.5px}
@@ -1072,7 +1090,7 @@ let _savePending=null;
 let _saveInFlight=false,_saveDirty=false;
 window._lrLogout=async function(){_selfSignOut=true;try{await supa.auth.signOut();}catch(e){}location.reload();};
 function showBootError(msg){
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
+  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="window.lrRecargar?lrRecargar():location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
 }
 async function loadStateFromSupabase(){
   /* C3: maybeSingle + error separado de "sin fila"; jamás bootstrapear ante error (evita pisar el blob del coach) */
@@ -1150,10 +1168,10 @@ function vigilarReconexion(){
     /* Recargar es lo único que saca del modo solo lectura: hay que rehacer el arranque
        completo (identidad, blob, tablas) y volver a poner _blobRev. Si está a media
        captura o con un modal abierto, se le pregunta en vez de borrarle lo escrito. */
-    if(safeToReload()){location.reload();return;}
+    if(safeToReload()){recargarAlDia();return;}
     bottomBanner('offlineBanner','ok',12,
       '<b>Volvió la conexión.</b> Recarga para traer tus datos y poder guardar de nuevo.'+
-      '<button onclick="location.reload()" style="'+BTN_CSS+'">Recargar</button>');
+      '<button onclick="lrRecargar()" style="'+BTN_CSS+'">Recargar</button>');
   };
   try{window.addEventListener('online',intentar);}catch(e){}
   _reconTimer=setInterval(intentar,20000);
@@ -1426,13 +1444,14 @@ function saveState(){
      reponerse al recargar, y es lo que permite apuntar la sesión sin señal y guardarla
      de verdad al volver. */
   if(_offlineMode){avisoOffline();return;}
-  try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+  espejoLocalPronto();
   if(!_supabaseUser)return;
   if(_currentUserId!=='coach')return; /* el atleta no escribe el blob del coach (RLS lo bloquea; evitamos el tráfico) */
   _saveDirty=true;
   clearTimeout(_savePending);
   _savePending=setTimeout(async()=>{
     _savePending=null; /* el id viejo quedaba truthy y confundía a safeToReload() */
+    espejoLocal();     /* antes de subir: que el disco y lo que se envía digan lo mismo */
     _saveInFlight=true;
     /* OJO: supabase-js NO lanza excepción cuando el servidor rechaza; el fallo llega en
        res.error. El try/catch vacío de antes no veía nada, así que un guardado fallido se
@@ -1451,6 +1470,31 @@ function saveState(){
     try{syncProfiles();}catch(e){}
   },1500);
 }
+/* ---- Espejo en el navegador, estrangulado ----
+   Es la copia que permite abrir sin señal. Antes se escribía DENTRO de saveState, y
+   saveState se llama en 90 sitios: cada toque —añadir una serie, marcar «Hecho», mover
+   una comida— hacía un JSON.stringify del estado ENTERO (todos los atletas, rutinas,
+   planes, registros, chat, biblioteca, alimentos) y lo escribía en disco de forma
+   SÍNCRONA, o sea bloqueando el dedo del atleta, para volver a guardar casi lo mismo
+   que ya estaba. En un teléfono de gama media eso son decenas de milisegundos por toque,
+   antes siquiera de empezar a redibujar: es de donde venía buena parte de la sensación
+   de app pesada.
+   Ahora una ráfaga de toques deja UNA escritura. El contenido guardado es idéntico: solo
+   deja de repetirse. Y no se pierde nada si el móvil mata la pestaña —`pagehide` y
+   `visibilitychange`, los dos únicos eventos fiables en iOS, vuelcan lo pendiente ya
+   mismo—, ni si se sube al servidor, porque el envío también vuelca antes de salir. */
+let _espejoT=null;
+function espejoLocal(){
+  if(_espejoT){clearTimeout(_espejoT);_espejoT=null;}
+  if(!S)return;
+  try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+}
+function espejoLocalPronto(){
+  if(_espejoT)return;                    /* ya hay una escritura en cola: esta sobra */
+  _espejoT=setTimeout(espejoLocal,400);
+}
+window.addEventListener('pagehide',espejoLocal);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)espejoLocal();});
 const BTN_CSS='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
 function saveOk(){
   _saveDirty=false;
@@ -2740,6 +2784,22 @@ function openModal(title,bodyHTML,footHTML,opts){
 }
 function closeModal(){const mr=$('#modal-root');const r=mr._returnFocus;mr.innerHTML='';if(r&&r.focus){try{r.focus();}catch(e){}}}
 function toast(msg,tone){const t=document.createElement('div');t.className='toast'+(tone==='err'?' err':'');t.innerHTML=(tone==='err'?I.x:I.check)+'<span>'+esc(msg)+'</span>';$('#toast-root').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';},2200);setTimeout(()=>t.remove(),2600);}
+/* Píldora discreta de «estoy trayendo el resto». Existe porque la app ahora pinta en
+   cuanto tiene rutina y plan, y el historial (gráficas, adherencia, chat) entra después:
+   sin esta marca, una gráfica a medio llenar parece un dato perdido en vez de uno en
+   camino. Vive en <body>, fuera de #app, para que ningún render la borre a media carga. */
+function avisoActualizando(on){
+  try{
+    let el=document.getElementById('lrActualizando');
+    if(!on){if(el)el.remove();return;}
+    if(el)return;
+    el=document.createElement('div');
+    el.id='lrActualizando';
+    el.setAttribute('role','status');
+    el.innerHTML='<span class="lrspin"></span>Actualizando tus datos…';
+    document.body.appendChild(el);
+  }catch(e){}
+}
 function confirmModal(title,msg,act,args){
   openModal(title,'<p class="muted">'+esc(msg)+'</p>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-d" data-act="'+act+'" '+(args||'')+'>'+esc(title)+'</button>');
 }
@@ -2827,7 +2887,7 @@ function showRenderError(e){
   let b=document.getElementById('renderErrBanner');
   if(!b){b=document.createElement('div');b.id='renderErrBanner';b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#2a1416;border:1px solid #7a2b31;color:#ffd9dc;border-radius:12px;padding:12px 14px;font:13px/1.45 system-ui;box-shadow:0 8px 24px rgba(0,0,0,.45)';document.body.appendChild(b);}
   const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
-  b.innerHTML='<b>No se pudo actualizar la pantalla.</b> Lo que ves puede estar desactualizado.<button onclick="location.reload()" style="'+bt+'">Recargar</button><button onclick="this.parentNode.remove()" style="'+bt+';background:none;color:#ffd9dc;text-decoration:underline;font-weight:400">Cerrar</button>'+pre;
+  b.innerHTML='<b>No se pudo actualizar la pantalla.</b> Lo que ves puede estar desactualizado.<button onclick="lrRecargar()" style="'+bt+'">Recargar</button><button onclick="this.parentNode.remove()" style="'+bt+';background:none;color:#ffd9dc;text-decoration:underline;font-weight:400">Cerrar</button>'+pre;
 }
 /* Banner fijo abajo, no destructivo. Cada aviso lleva su propio id y su propia
    altura para que dos avisos simultáneos no se tapen entre sí. */
@@ -2854,7 +2914,7 @@ function sessionLost(motivo){
   ['saveErrBanner','blobConflictBanner','newVerBanner'].forEach(function(id){try{var b=document.getElementById(id);if(b)b.remove();}catch(e){}});
   bottomBanner('sessionLostBanner','warn',12,
     '<b>Tu sesión se cerró'+(motivo?' '+motivo:'')+'.</b> Esta pestaña ya no puede guardar nada en el servidor. Vuelve a entrar para seguir; lo que escribiste y no llegó a guardarse sigue en este navegador.'+
-    '<button onclick="location.reload()" style="'+BTN_CSS+'">Volver a entrar</button>');
+    '<button onclick="lrRecargar()" style="'+BTN_CSS+'">Volver a entrar</button>');
 }
 /* Traduce el rechazo del servidor cuando la causa es la falta de sesión: con auth.uid() nulo,
    el 401 y el 42501 llegan con el mismo texto de RLS. Devuelve el mensaje para el usuario, o
@@ -2915,18 +2975,41 @@ function safeToReload(){
   if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||''))return false; /* está escribiendo */
   return true;
 }
+/* Recargar TRAYENDO ANTES el HTML nuevo a la cache del service worker.
+   Desde que el worker sirve index.html de cache (que es lo que hace que la app abra al
+   instante en vez de esperar ~750 KB), un location.reload() pelado volvería a pintar la
+   versión vieja: el detector la vería otra vez desactualizada y volvería a avisar, en
+   bucle. Con este mensaje el worker deja la versión nueva guardada primero y la recarga
+   ya abre con ella.
+   El plazo de 5 s es a propósito: si el worker no contesta —o no hay worker, como en
+   file:// o http— se recarga igual. Nunca se deja al usuario esperando por esto. */
+async function recargarAlDia(){
+  try{
+    const ctrl=navigator.serviceWorker&&navigator.serviceWorker.controller;
+    if(ctrl){
+      await new Promise(listo=>{
+        const canal=new MessageChannel();
+        const plazo=setTimeout(listo,5000);
+        canal.port1.onmessage=()=>{clearTimeout(plazo);listo();};
+        ctrl.postMessage({tipo:'REFRESCAR_HTML'},[canal.port2]);
+      });
+    }
+  }catch(e){}
+  location.reload();
+}
+window.lrRecargar=recargarAlDia;
 async function checkAppVersion(){
   if(_verBannerUp)return; /* ya avisamos: la decisión es suya */
   const tag=await appVersionTag();
   if(!tag)return;
   if(!_appVerTag){_appVerTag=tag;return;} /* primera lectura: solo se guarda la referencia */
   if(tag===_appVerTag)return;
-  if(safeToReload()){location.reload();return;}
+  if(safeToReload()){recargarAlDia();return;}
   _verBannerUp=true;
   const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
   bottomBanner('newVerBanner','ok',76,
     '<b>Hay una versión nueva de la app.</b> Termina lo que estás haciendo y recarga: esta pestaña todavía trabaja con datos viejos.'+
-    '<button onclick="location.reload()" style="'+bt+'">Recargar</button>');
+    '<button onclick="lrRecargar()" style="'+bt+'">Recargar</button>');
 }
 function startVersionWatch(){
   if(_verTimer)return;
@@ -2938,6 +3021,40 @@ function startVersionWatch(){
 function render(){
   try{renderUnsafe();}catch(e){showRenderError(e);}
 }
+/* ---- El shell se monta UNA vez; después solo se reemplaza lo que cambió ----
+   Antes cada acción reconstruía el documento entero con un solo innerHTML sobre #app:
+   añadir una serie, marcar «Hecho» o abrir un atleta tiraba y volvía a crear también la
+   barra de navegación y la cabecera —con todos sus iconos SVG— aunque no hubieran
+   cambiado ni un píxel. Ahora se arman tres cadenas (lateral, cabecera, contenido) y se
+   escribe solo la que de verdad es distinta a la que ya está puesta. El HTML que acaba
+   en pantalla es exactamente el mismo; lo que desaparece es el trabajo repetido.
+   Las cadenas guardadas se tiran en cuanto #app deja de tener el shell (login, registro,
+   recuperar contraseña): al volver se reconstruye entero y nadie compara contra un
+   recuerdo que ya no está en el documento. */
+let _htmlSide=null,_htmlTop=null,_htmlBody=null;
+/* Guardia del atajo de arriba. Hay una docena de sitios que escriben DENTRO del
+   contenido sin pasar por render(): el resultado de la calculadora de dieta, el del
+   1RM, el buscador de ejercicios, las filas de ingredientes de una receta… Si uno de
+   ellos ya cambió el documento y luego llega un render() cuyo HTML resulta idéntico al
+   de la última vez, saltárselo dejaría en pantalla lo que escribió aquel, no lo que la
+   vista dice ahora. El observador lo detecta y obliga a volver a escribir.
+   Solo mira `childList`: abrir un acordeón o marcar un botón cambia atributos, no hijos,
+   y esos sí queremos que sigan tomando el atajo.
+   Se engancha al `.shell`, que no se sustituye nunca mientras haya sesión, y no al
+   `.content`, que sí cambia de nodo al cambiar de vista: así se crea UN observador por
+   sesión en vez de uno por navegación.
+   takeRecords() justo después de escribir vacía la cola de nuestra propia escritura —el
+   callback aún no ha corrido— para no marcarnos sucios a nosotros mismos. */
+let _cuerpoTocado=false,_obsCuerpo=null;
+function vigilarCuerpo(nodo){
+  if(!nodo||typeof MutationObserver!=='function')return;
+  try{
+    if(_obsCuerpo)_obsCuerpo.disconnect();
+    _obsCuerpo=new MutationObserver(()=>{_cuerpoTocado=true;});
+    _obsCuerpo.observe(nodo,{childList:true,subtree:true});
+  }catch(e){_obsCuerpo=null;}
+}
+function cuerpoLimpio(){try{if(_obsCuerpo)_obsCuerpo.takeRecords();}catch(e){}_cuerpoTocado=false;}
 function renderUnsafe(){
   /* conservar acordeones abiertos y scroll al re-dibujar la misma vista */
   const _openAccs=Array.from(document.querySelectorAll('details.acc[open]')).map(x=>x.id).filter(Boolean);
@@ -2953,11 +3070,41 @@ function renderUnsafe(){
     const on=it.match?it.match(route):route.view===it.v;
     navHTML+='<button class="nav-item'+(on?' on':'')+'" data-act="nav" data-view="'+it.v+'" data-params=\''+(it.p?JSON.stringify(it.p):'{}')+'\'>'+it.icon+'<span class="lbl">'+esc(it.label)+'</span>'+(it.badge?'<span class="navbadge">'+it.badge+'</span>':'')+'</button>';
   });
-  $('#app').innerHTML='<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+navHTML+
-  '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div></aside>'+
-  '<div class="main"><header class="topbar">'+(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div></header><div class="content">'+page.body+'</div></div></div>';
+  const sideHTML='<div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+navHTML+
+    '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
+  const topHTML=(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div>';
+  const bodyHTML=page.body;
+
+  const app=$('#app');
+  let shell=app.querySelector('.shell');
+  if(!shell){
+    app.innerHTML='<div class="shell"><aside class="sidebar"></aside><div class="main"><header class="topbar"></header><div class="content"></div></div></div>';
+    shell=app.querySelector('.shell');
+    _htmlSide=_htmlTop=_htmlBody=null;   /* documento nuevo: lo recordado ya no vale */
+    vigilarCuerpo(shell);
+  }
+  const cambiaSide=(_htmlSide!==sideHTML),cambiaTop=(_htmlTop!==topHTML);
+  const cambioCuerpo=(_htmlBody!==bodyHTML||_cuerpoTocado);
+  if(cambiaSide&&cambiaTop&&cambioCuerpo){
+    /* Cambio de vista: las tres piezas son distintas. Aquí NO se gana nada escribiendo
+       por partes —se pagaría el análisis del HTML tres veces en vez de una—, así que se
+       escribe de un golpe, igual que hacía la versión anterior. El atajo por piezas es
+       para el otro caso, el frecuente: repintar la vista en la que ya estás. */
+    shell.innerHTML='<aside class="sidebar">'+sideHTML+'</aside><div class="main"><header class="topbar">'+topHTML+'</header><div class="content">'+bodyHTML+'</div></div>';
+    _htmlSide=sideHTML;_htmlTop=topHTML;_htmlBody=bodyHTML;
+    cuerpoLimpio();
+  }else if(cambiaSide||cambiaTop||cambioCuerpo){
+    if(cambiaSide){shell.querySelector('.sidebar').innerHTML=sideHTML;_htmlSide=sideHTML;}
+    if(cambiaTop){shell.querySelector('.topbar').innerHTML=topHTML;_htmlTop=topHTML;}
+    if(cambioCuerpo){shell.querySelector('.content').innerHTML=bodyHTML;_htmlBody=bodyHTML;}
+    cuerpoLimpio();
+  }
+
   if(route.view==='ath-chat'||route.view==='coach-chat'){const sc=document.getElementById('chatscroll');if(sc)sc.scrollTop=sc.scrollHeight;}
-  if(_lastRenderView===route.view){
+  /* Solo hace falta reponer acordeones y scroll si el contenido se volvió a escribir.
+     Si no cambió, el navegador ya los conserva solo y tocarlos sería forzar un reflow
+     para dejar exactamente lo que ya había. */
+  if(cambioCuerpo&&_lastRenderView===route.view){
     _openAccs.forEach(id=>{const el=document.getElementById(id);if(el&&el.tagName==='DETAILS')el.open=true;});
     window.scrollTo(0,_scrollY);
   }
@@ -8429,13 +8576,33 @@ VIEWS['ath-reporte']=function(u){
   const controls='<div class="rep-controls" style="margin-bottom:14px"><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div>';
   return{title:'Mi reporte',crumb:'Tu progreso · solo lectura',body:'<div class="card mb16">'+controls+reportSheet(aid,rw,true)+'</div>'};
 };
+/* html2canvas bajo demanda. Se pide una sola vez: la promesa se guarda, así que dos
+   pulsaciones seguidas no disparan dos descargas ni dos <script>. Devuelve null si el
+   CDN no responde — el que llama avisa y la app sigue viva, que es lo que antes no
+   pasaba: el <script> bloqueante en el <head> podía retrasar el arranque entero. */
+let _h2cPromesa=null;
+function cargarHtml2canvas(){
+  if(typeof html2canvas==='function')return Promise.resolve(html2canvas);
+  if(_h2cPromesa)return _h2cPromesa;
+  _h2cPromesa=new Promise(resolve=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    sc.async=true;
+    sc.onload=()=>resolve(typeof html2canvas==='function'?html2canvas:null);
+    sc.onerror=()=>{_h2cPromesa=null;resolve(null);}; /* se podrá reintentar */
+    document.head.appendChild(sc);
+  });
+  return _h2cPromesa;
+}
 Object.assign(ACTIONS,{
- 'report-png':el=>{
+ 'report-png':async el=>{
    const node=document.getElementById('reportSheet');
-   if(!node||typeof html2canvas!=='function'){toast('No se pudo generar la imagen');return;}
-   const name=(el.dataset.name||'atleta').replace(/[^\wáéíóúñÁÉÍÓÚÑ\- ]+/g,'').trim().replace(/\s+/g,'_');
+   if(!node){toast('No se pudo generar la imagen');return;}
    toast('Generando imagen…');
-   html2canvas(node,{backgroundColor:'#0b0d11',scale:2,useCORS:true}).then(c=>{
+   const h2c=await cargarHtml2canvas();
+   if(!h2c){toast('No se pudo cargar el generador de imágenes');return;}
+   const name=(el.dataset.name||'atleta').replace(/[^\wáéíóúñÁÉÍÓÚÑ\- ]+/g,'').trim().replace(/\s+/g,'_');
+   h2c(node,{backgroundColor:'#0b0d11',scale:2,useCORS:true}).then(c=>{
      const a=document.createElement('a');a.download='reporte_'+name+'_'+todayISO()+'.png';a.href=c.toDataURL('image/png');a.click();
    }).catch(err=>{console.error(err);toast('Error al generar la imagen');});
  },
@@ -8806,26 +8973,28 @@ async function initAfterAuthUnsafe(user){
      «Cargando datos…» — que es exactamente lo que pasaba. La copia local ya trae
      rutina, plan y registros dentro, así que no aportan nada; lo que aportan es
      riesgo. Se pintan los datos que hay y listo. */
+  /* ===== Lo IMPRESCINDIBLE para pintar, y nada más =====
+     Antes aquí había ~10 viajes al servidor EN CADENA (planes, perfiles, migraciones,
+     15 hidrataciones, biblioteca, alimentos) y el primer render iba detrás de todos:
+     el atleta miraba «Cargando datos…» mientras bajaba el historial entero de
+     entrenamientos, comidas y chat que ni siquiera tenía delante.
+     Estas cuatro tablas sí van antes de pintar, y NO por estética:
+       · athlete_plans     — la rutina y el plan; sin ellos no hay nada que enseñar.
+       · athlete_profiles  — quién es y qué tiene contratado (entreno / nutrición).
+       · athlete_settings  — kg o lb. Si llegara tarde, un peso escrito en ese hueco se
+                             guardaría convertido al revés. Eso es un dato malo, no un parpadeo.
+       · athlete_swaps     — los cambios de ejercicio ya aplicados. Igual: registrar series
+                             contra el ejercicio que el atleta ya sustituyó ensucia el historial.
+     Las cuatro son consultas pequeñas y van EN PARALELO, no en cadena.
+     Todo lo demás —historial, gráficas, chat, biblioteca, alimentos, recetario— entra
+     por detrás en hidratarResto() y la pantalla se refresca sola al llegar. */
   if(!_offlineMode){
-    await hydratePlans();
-    await backfillPlans();
-    await hydrateProfiles();
-    await backfillProfiles();
-    /* Migración blob -> tablas: SOLO si el blob todavía trae datos viejos.
-       Antes corría en cada login, y cada UPSERT dispara un evento de realtime que
-       hacía refrescar a todos los clientes conectados: con más atletas, una tormenta. */
-    if(blobHasLegacyLogs()){
-      await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
-      await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
-    }
-    /* hidratación en paralelo: 12 SELECT independientes, no 12 await encadenados */
-    await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
-    /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
-    await backfillLibrary();
-    await backfillFoods();
-    subscribeChat();
-    subscribeData();
-    subscribeBlob();
+    await Promise.all([
+      hydratePlans().catch(()=>{}),
+      hydrateProfiles().catch(()=>{}),
+      hydrateWeightUnit().catch(()=>{}),
+      hydrateSwaps().catch(()=>{})
+    ]);
   }
   /* red de seguridad: si hydrateProfiles no repuso la identidad (p.ej. fallo de red), el atleta no debe caer al panel de coach */
   if(_currentUserId!=='coach'&&!userById(_currentUserId)){
@@ -8840,27 +9009,59 @@ async function initAfterAuthUnsafe(user){
   /* Igual con los campos sueltos (peso, pasos, medidas…): también antes del primer render. */
   if(u)keepLoad(u.id);
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
-  render();
-  /* Después de render y de hidratar: compara la copia del navegador contra el servidor y avisa
-     si algo nunca subió. Va al final a propósito — necesita S ya hidratado para no dar falsos
-     positivos, y el banner vive en <body>, así que ningún render posterior lo borra. */
-  /* Las lápidas van ANTES del aviso: son las que deciden qué se puede ofrecer sin resucitar nada.
-     Fuera de _HYDRATORS a propósito — este aviso es su único consumidor y necesita el orden. */
-  if(!_offlineMode){
-    try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
-  }
+  render();          /* ← AQUÍ ve su día / su panel. Lo de abajo ya no lo hace esperar. */
+  if(!_offlineMode)hidratarResto();   /* sin await: corre por detrás */
+  else vigilarReconexion();
+  setTimeout(pwaOfrecerInstalacion,2500); /* nunca durante el login ni encima del primer render */
+}
+/* Todo lo que NO hace falta para pintar la primera pantalla: historial de entrenos, peso,
+   nutrición, comidas, pasos, fatiga, medidas, chat, biblioteca, alimentos y recetario.
+   Corre por detrás con la app ya usable y la refresca al terminar.
+   El orden interno se conserva tal cual estaba — las migraciones antes de las hidrataciones,
+   los backfills de biblioteca después, las lápidas antes del aviso de huérfanos — porque
+   ese orden no era casual. Lo único que cambió es que el usuario ya no lo espera mirando. */
+let _hidratando=false;
+async function hidratarResto(){
+  if(_hidratando)return;
+  _hidratando=true;
+  avisoActualizando(true);
+  try{
+    await backfillPlans();
+    await backfillProfiles();
+    /* Migración blob -> tablas: SOLO si el blob todavía trae datos viejos.
+       Antes corría en cada login, y cada UPSERT dispara un evento de realtime que
+       hacía refrescar a todos los clientes conectados: con más atletas, una tormenta. */
+    if(blobHasLegacyLogs()){
+      await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
+      await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
+    }
+    /* hidratación en paralelo: 15 SELECT independientes, no 15 await encadenados */
+    await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
+    /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
+    await backfillLibrary();
+    await backfillFoods();
+    subscribeChat();
+    subscribeData();
+    subscribeBlob();
+  }catch(e){try{console.warn('hidratarResto falló:',e);}catch(_){}}
+  avisoActualizando(false);
+  /* liveRender y no render(): si al llegar los datos el atleta ya está escribiendo un peso,
+     redibujar encima le borraría el cursor. liveRender lo deja para cuando suelte el campo. */
+  liveRender();
+  /* Compara la copia del navegador contra el servidor y avisa si algo nunca subió. Va al
+     final a propósito — necesita S ya hidratado para no dar falsos positivos, y el banner
+     vive en <body>, así que ningún render posterior lo borra.
+     Las lápidas van ANTES del aviso: son las que deciden qué se puede ofrecer sin resucitar
+     nada. Fuera de _HYDRATORS a propósito — este aviso es su único consumidor y necesita el orden. */
+  try{await hydrateTombstones();checkLocalOrphans();}catch(e){try{console.warn('checkLocalOrphans falló:',e);}catch(_){}}
   /* ===== PWA: dejar listo el arranque sin conexión de la próxima vez =====
      Se hace AQUÍ, al final de un arranque bueno, no al guardar: un atleta que solo mira
      su rutina nunca dispara saveState, y sin esta copia la app abriría sin señal pero
      vacía — lo peor de los dos mundos. Va con todo hidratado (rutina, plan, logs) para
      que la copia sea la foto completa de lo que ve en pantalla. */
-  if(!_offlineMode){
-    identSave(_supabaseUser.id,_coachUid,_currentUserId);
-    try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
-  }else{
-    vigilarReconexion();
-  }
-  setTimeout(pwaOfrecerInstalacion,2500); /* nunca durante el login ni encima del primer render */
+  try{identSave(_supabaseUser.id,_coachUid,_currentUserId);}catch(e){}
+  try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+  _hidratando=false;
 }
 /* Dos vigilantes de la sesión, no uno: supabase-js avisa por su canal entre pestañas cuando el
    token cambia o desaparece, y el listener de `storage` es la red de seguridad por si ese canal
