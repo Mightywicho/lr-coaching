@@ -33,6 +33,141 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <script>
+/* ===== Red de seguridad: nunca dejar una pantalla negra muda =====
+   Va antes que TODO lo demas a proposito, para atrapar tambien un fallo del CDN de
+   supabase-js, que entra mas abajo como etiqueta bloqueante.
+   El porque: si el script grande truena, #app se queda con la pantalla de arranque
+   puesta para siempre y el atleta ve un negro sin explicacion. Peor todavia: en un
+   telefono no hay consola, asi que desde fuera es imposible saber que paso y lo unico
+   que llega es "no me abre". Esto convierte ese negro en un mensaje legible que se
+   puede fotografiar y mandar, mas dos botones para salir del hoyo sin ayuda.
+   Solo pinta si la app NO arranco (la pantalla de arranque sigue en su sitio): un error
+   suelto con la app ya funcionando no debe borrarle la pantalla al usuario a media faena. */
+(function(){
+'use strict';
+var pintado=false,pendiente=null,PLAZO_ARRANQUE=20000;
+
+/* Si .boot ya no esta, el script grande llego a pintar: la app vive y aqui no se toca nada. */
+function arranco(){
+  var app=document.getElementById('app');
+  return !!app && !app.querySelector('.boot');
+}
+
+function entorno(){
+  var sw='no';
+  try{ if('serviceWorker' in navigator) sw = navigator.serviceWorker.controller ? 'activo' : 'registrado sin controlar'; }catch(e){}
+  return 'supabase-js: '+(typeof supabase!=='undefined'&&supabase&&supabase.createClient?'ok':'NO CARGO')
+    +'\nconexion: '+(navigator.onLine?'si':'no')
+    +'\nservice worker: '+sw
+    +'\n'+navigator.userAgent;
+}
+
+function boton(texto,principal,alPulsar){
+  var b=document.createElement('button');
+  b.type='button';
+  b.textContent=texto;
+  b.setAttribute('style','font:600 13.5px/1 system-ui,sans-serif;padding:10px 16px;border-radius:10px;border:1px solid '
+    +(principal?'#f5484b':'#60707f')+';background:'+(principal?'#f5484b':'#1a202b')+';color:'
+    +(principal?'#f6f6f6':'#e9edf4')+';cursor:pointer');
+  b.onclick=alPulsar;
+  return b;
+}
+
+/* Borra la copia guardada y el worker, y recarga saltandose la cache del navegador.
+   Es la salida para el caso en que lo guardado en el telefono este roto: sin esto, la
+   copia mala se sirve en cada apertura y el usuario no tiene forma de romper el bucle. */
+function limpiarYRecargar(){
+  var tareas=[];
+  try{ if(window.caches&&caches.keys) tareas.push(caches.keys().then(function(ns){
+    return Promise.all(ns.map(function(n){return caches.delete(n);}));
+  })); }catch(e){}
+  try{ if('serviceWorker' in navigator) tareas.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+    return Promise.all(rs.map(function(r){return r.unregister();}));
+  })); }catch(e){}
+  var seguir=function(){ try{ location.reload(); }catch(e){} };
+  /* pase lo que pase se recarga: quedarse esperando un borrado que no responde seria
+     cambiar una pantalla muerta por otra */
+  try{ Promise.all(tareas).then(seguir,seguir); setTimeout(seguir,4000); }catch(e){ seguir(); }
+}
+
+function pintar(titulo,detalle){
+  if(pintado)return;
+  if(!document.body){pendiente=[titulo,detalle];return;}
+  if(arranco())return;
+  var app=document.getElementById('app');
+  if(!app)return;
+  pintado=true;
+  app.textContent='';
+
+  var caja=document.createElement('div');
+  caja.setAttribute('style','min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px');
+  var col=document.createElement('div');
+  col.setAttribute('style','max-width:440px;width:100%;font:15px/1.5 system-ui,-apple-system,sans-serif;color:#e9edf4');
+
+  var h=document.createElement('p');
+  h.setAttribute('style','font:700 17px/1.3 system-ui,sans-serif;margin:0 0 8px');
+  h.textContent=titulo;
+  var p=document.createElement('p');
+  p.setAttribute('style','color:#9aa5b6;font-size:13.5px;margin:0 0 14px');
+  p.textContent='Toma una captura de esta pantalla y mandala. Tus datos guardados no se pierden.';
+  var pre=document.createElement('pre');
+  pre.setAttribute('style','white-space:pre-wrap;word-break:break-word;background:#151921;border:1px solid #232a36;'
+    +'border-radius:10px;padding:12px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#ffb45c;margin:0 0 16px');
+  pre.textContent=detalle+'\n\n'+entorno();
+
+  var fila=document.createElement('div');
+  fila.setAttribute('style','display:flex;gap:8px;flex-wrap:wrap');
+  fila.appendChild(boton('Reintentar',true,function(){ try{location.reload();}catch(e){} }));
+  fila.appendChild(boton('Vaciar copia guardada y reintentar',false,limpiarYRecargar));
+
+  col.appendChild(h); col.appendChild(p); col.appendChild(pre); col.appendChild(fila);
+  caja.appendChild(col); app.appendChild(caja);
+}
+
+function detalle(ev){
+  var l=[];
+  try{
+    if(ev&&ev.message)l.push(String(ev.message));
+    if(ev&&ev.filename)l.push(String(ev.filename).replace(/^.*\//,'')+':'+(ev.lineno||'?')+':'+(ev.colno||'?'));
+    if(ev&&ev.error&&ev.error.stack)l.push(String(ev.error.stack).split('\n').slice(0,4).join('\n'));
+  }catch(e){}
+  return l.length?l.join('\n'):'error sin detalle';
+}
+
+window.addEventListener('error',function(ev){
+  /* los fallos al bajar un recurso (una fuente, un icono) llegan aqui sin mensaje y no
+     tumban la app: se ignoran. Si el que falla es supabase-js, el error de verdad llega
+     igual cuando createClient() truena en la primera linea del script grande. */
+  if(!ev||!ev.message)return;
+  pintar('La app no pudo arrancar',detalle(ev));
+});
+
+window.addEventListener('unhandledrejection',function(ev){
+  var r=ev&&ev.reason;
+  var txt='promesa rechazada sin capturar';
+  try{ txt=(r&&(r.stack||r.message))?String(r.stack||r.message):String(r); }catch(e){}
+  pintar('La app no pudo arrancar',txt);
+});
+
+document.addEventListener('DOMContentLoaded',function(){
+  if(pendiente){ var q=pendiente; pendiente=null; pintar(q[0],q[1]); }
+});
+
+/* Vigilante de arranque. Hay fallos que no lanzan ningun error: el CDN que nunca
+   responde, una promesa que se queda colgada, una peticion a Supabase sin plazo. En
+   esos casos la pantalla de arranque se queda girando para siempre y no hay nada que
+   atrapar. Si pasado el plazo el arranque sigue sin terminar, se asume atorado y se
+   muestra el diagnostico, que dice si supabase-js llego a cargar y si hay conexion. */
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    if(arranco())return;
+    pintar('La app tardo demasiado en arrancar',
+      'El arranque no termino en '+Math.round(PLAZO_ARRANQUE/1000)+' segundos.');
+  },PLAZO_ARRANQUE);
+});
+})();
+</script>
+<script>
 /* ===== PWA: registro del service worker =====
    Va en su PROPIO <script> y antes de los CDN a propósito. supabase-js entra abajo como
    <script> bloqueante: si el CDN falla, `supabase` no existe y el script grande de la app
@@ -6961,7 +7096,7 @@ VIEWS['sinvideo']=function(u){
   }else{
     body='<div class="notebox mb16">Pega el link y dale <b>Guardar</b> (o Enter). El renglón desaparece de la lista en cuanto queda guardado en el servidor. Si tienes muchos juntos, usa <b>Pegar varios links</b> arriba.</div>'+
       '<div class="filterbar"><select data-change="sv-m">'+mopts+'</select></div>';
-    let lastG=' ';
+    let lastG='\u0000';
     list.forEach(l=>{
       const g=l.group||'Sin grupo';
       if(g!==lastG){body+='<div class="meal-h" style="margin:14px 0 4px"><span>'+esc(g)+'</span></div>';lastG=g;}
