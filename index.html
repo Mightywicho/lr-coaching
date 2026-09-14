@@ -4919,30 +4919,100 @@ function wdraftLoad(aid){
    el e1RM y la tendencia se llenaban de series que nunca ocurrieron.
    La referencia NO se pierde: sigue a la vista en la línea «Última sesión: …» de cada
    ejercicio y ahora además en el placeholder de cada casilla, que es donde de verdad se
-   necesita. Lo único que se hereda es el NÚMERO de series, para no tener que añadirlas
-   a mano cada vez; eso no es un dato registrado, es la forma de la sesión. */
+   necesita. El NÚMERO de series tampoco se hereda ya (ver wdraftNSets): lo pauta el coach. */
 /* El ejercicio prescrito que corresponde a una fila del borrador (para saber su técnica). */
 function wdraftExOf(exId){
   if(!WDRAFT||!WDRAFT.aid)return null;
   const day=(athData(WDRAFT.aid).routine.days||[]).find(x=>x.id===WDRAFT.dayId);
   return day?(day.exercises.find(x=>x.id===exId)||null):null;
 }
+/* Cuántas casillas se pintan para un ejercicio. Manda el COACH (`e.sets`).
+   Antes se heredaba de la última sesión y el ajuste de la semana se quedaba a medio camino:
+   aplicar la decisión semanal movía la meta, el plan y el «Objetivo: 4 × …» de la ficha, pero
+   el atleta abría el día y seguía viendo 3 casillas, así que tenía que añadir la cuarta a
+   mano — justo el trabajo que el ajuste venía a ahorrarle. Y el camino inverso era peor: una
+   serie que se quedó sin números no viaja en `entries`, así que heredar esa cuenta encogía la
+   sesión siguiente sin que nadie lo hubiera decidido.
+   La sesión anterior sigue siendo el respaldo para un ejercicio sin series prescritas. */
+function wdraftNSets(e,last){
+  const presc=parseInt(e.sets,10)||0;
+  if(presc)return presc;
+  const ls=last&&last.entries[e.id]?last.entries[e.id]:null;
+  return ls?ls.length:3;
+}
+/* Filas vacías para un ejercicio. `retechSets` les cuelga las mini-series de la técnica donde
+   toquen: van en `sub` y NO son series, nada que cuente `sets.length` se entera de ellas. */
+function wdraftRows(e,n){
+  const arr=[];
+  for(let i=0;i<n;i++)arr.push({w:'',r:'',rir:''});
+  retechSets(e,arr);
+  return arr;
+}
 function wdraftFresh(aid,day){
   const last=lastWorkoutForDay(aid,day.id);
-  const sets={};
+  const sets={},tgt={};
   day.exercises.forEach(e=>{
-    const lastSets=last&&last.entries[e.id]?last.entries[e.id]:null;
-    const nsets=lastSets?lastSets.length:(parseInt(e.sets,10)||3);
-    sets[e.id]=[];
-    for(let i=0;i<nsets;i++){
-      const o={w:'',r:'',rir:''};
-      /* Las mini-series de la técnica nacen vacías junto a la serie. Van en `sub` y NO son
-         series: nada que cuente `sets.length` se entera de ellas. */
-      if(techOnSet(e,i,nsets))o.sub=Array.from({length:techN(e)},()=>({w:'',r:''}));
-      sets[e.id].push(o);
+    const n=wdraftNSets(e,last);
+    tgt[e.id]=n;
+    sets[e.id]=wdraftRows(e,n);
+  });
+  /* `tgt` guarda lo prescrito EN EL MOMENTO de armar el borrador. Es el baseline con el que
+     wdraftSyncPlan distingue «el coach movió las series» de «el atleta añadió o quitó una». */
+  return{aid,dayId:day.id,date:todayISO(),sets,tgt,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
+}
+/* ¿Fila sin nada escrito? Solo estas se pueden quitar al cuadrar con el plan. */
+function wdraftRowEmpty(s){
+  if(!s)return true;
+  if(s.w!==''&&s.w!=null)return false;
+  if(s.r!==''&&s.r!=null)return false;
+  if(s.rir!==''&&s.rir!=null)return false;
+  if(s.sk)return false;
+  return !(s.sub||[]).some(m=>m&&((m.w!==''&&m.w!=null)||(m.r!==''&&m.r!=null)));
+}
+/* El plan puede moverse MIENTRAS el atleta tiene la sesión abierta: el coach aplica la
+   decisión semanal el martes por la tarde y el borrador que está en el móvil se quedó con las
+   filas de antes. Esto cuadra el borrador con lo que hay prescrito AHORA, y devuelve el aviso
+   para el atleta (texto plano) o ''.
+   Cuatro cautelas, en este orden:
+   · nunca se borra una fila con algo escrito — al bajar series solo se quitan vacías del
+     final, y si no hay bastantes vacías el borrador se queda como está;
+   · el baseline es `tgt`, no lo que hay pintado, así que una serie que el atleta quitó a mano
+     no reaparece en el siguiente repintado y la que añadió por su cuenta no se le pisa;
+   · `tgt` se sella pase lo que pase, así que esto es idempotente: se aplica UNA vez por
+     cambio del coach y los repintados siguientes no tocan nada;
+   · corregir una sesión ya guardada (`editing`) no se toca: ahí el atleta arregla lo que pasó,
+     no lo que toca hoy. */
+function wdraftSyncPlan(day){
+  if(!WDRAFT||WDRAFT.editing||!day)return '';
+  WDRAFT.tgt=WDRAFT.tgt||{};
+  const avisos=[];let dirty=false;
+  day.exercises.forEach(e=>{
+    const presc=parseInt(e.sets,10)||0;
+    if(!presc)return;
+    const rows=WDRAFT.sets[e.id];
+    /* Ejercicio dado de alta con la sesión ya abierta: sin filas, el atleta lo veía con su
+       objetivo escrito y ni una casilla donde anotarlo. */
+    if(!rows){
+      WDRAFT.sets[e.id]=wdraftRows(e,presc);
+      WDRAFT.tgt[e.id]=presc;dirty=true;
+      avisos.push(e.name+': ejercicio nuevo, '+presc+(presc===1?' serie':' series'));
+      return;
+    }
+    /* Los borradores guardados antes de esta versión no traen `tgt`: lo pintado hace de baseline. */
+    const base=WDRAFT.tgt[e.id]!=null?WDRAFT.tgt[e.id]:rows.length;
+    if(base!==presc){
+      const before=rows.length;
+      if(presc>base){for(let k=0;k<presc-base;k++)rows.push({w:'',r:'',rir:''});}
+      else{let rm=presc-base;while(rm<0&&rows.length>1&&wdraftRowEmpty(rows[rows.length-1])){rows.pop();rm++;}}
+      if(rows.length!==before){
+        retechSets(e,rows);
+        avisos.push(e.name+': '+before+' → '+rows.length+(rows.length===1?' serie':' series'));
+      }
+      WDRAFT.tgt[e.id]=presc;dirty=true;
     }
   });
-  return{aid,dayId:day.id,date:todayISO(),sets,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
+  if(dirty)wdraftSave();
+  return avisos.length?('Tu coach ajustó tu plan de hoy · '+avisos.join(' · ')):'';
 }
 /* ---------- Corregir una sesión YA guardada (s76) ----------
    El atleta que guarda y se da cuenta de que le faltó marcar un ejercicio no tenía forma de
@@ -5423,6 +5493,11 @@ VIEWS['ath-wlog']=function(u){
   const aid=u.id,d=athData(aid),rt=routineForAthlete(aid);
   const day=rt.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
   if(!day){return VIEWS['ath-hoy'](u);}
+  /* El coach pudo mover las series con la sesión ya abierta: cuadrar el borrador ANTES de
+     pintar, y dejar dicho qué cambió — que aparezca una casilla de la nada sin avisar es
+     exactamente igual de desconcertante que no verla aparecer. */
+  const _plNote=wdraftSyncPlan(day);
+  if(_plNote)WDRAFT.planNote=_plNote;
   const last=lastWorkoutForDay(aid,day.id);
   const unit=weightUnitForAid(aid);
   let blocks='';
@@ -5512,9 +5587,10 @@ VIEWS['ath-wlog']=function(u){
   /* Corrigiendo: hay que decirlo en pantalla. Si no, la atleta no distingue esto de empezar
      una sesión nueva — que es exactamente el equívoco que creó la fila duplicada. */
   const _edPast=!!(WDRAFT&&WDRAFT.editing&&(WDRAFT.date||todayISO())!==todayISO());
+  const planUI=(WDRAFT&&WDRAFT.planNote)?'<div class="coachnote" style="margin-bottom:14px"><b>Tu plan cambió</b>'+esc(WDRAFT.planNote)+'. Las casillas de esta sesión ya están cuadradas con lo nuevo; lo que tenías anotado sigue donde estaba.<div style="margin-top:8px"><button class="btn btn-g btn-sm" data-act="wlog-plannote-ok">Entendido</button></div></div>':'';
   const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote" style="border-left-color:var(--blue);margin-bottom:14px"><b style="color:var(--blue)">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
-    body:editUI+unitToggle+legend+blocks+
+    body:planUI+editUI+unitToggle+legend+blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
     '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
@@ -5753,6 +5829,9 @@ Object.assign(ACTIONS,{
     wdraftSave();
     nav('ath-wlog');
   },
+  /* El aviso de plan cambiado lo cierra el atleta: si se fuera solo al primer repintado, el
+     que estaba escribiendo una serie no llegaría a leerlo. */
+  'wlog-plannote-ok':()=>{if(WDRAFT){delete WDRAFT.planNote;wdraftSave();}render();},
   'wlog-addset':el=>{const a=WDRAFT.sets[el.dataset.ex];a.push({w:'',r:'',rir:''});retechSets(wdraftExOf(el.dataset.ex),a);wdraftTouch();render();},
   'wunit-set':async el=>{await setMyWeightUnit(el.dataset.u);},
   'wlog-delset':el=>{const a=WDRAFT.sets[el.dataset.ex];a.splice(parseInt(el.dataset.idx,10),1);retechSets(wdraftExOf(el.dataset.ex),a);wdraftTouch();render();},
