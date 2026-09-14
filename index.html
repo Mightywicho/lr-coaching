@@ -295,6 +295,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .logitem .cm{font-size:13px;color:var(--tx2);margin-top:7px;padding:9px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--line2)}
 .logdetail{margin-top:10px;display:none}
 .logitem.open .logdetail{display:block}
+.netsum{border:1px solid var(--line);border-radius:var(--r-s);padding:12px 15px;margin-bottom:10px;background:var(--bg2)}
+.netsum .nh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:9px}
+.netsum .nh b{font-size:13.5px}
+.netrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--line)}
+.netrow .nx{font-size:13px;font-weight:600}
 
 /* ---------- login ---------- */
 .login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden}
@@ -4293,6 +4298,7 @@ Object.assign(ACTIONS,{
     if(el.dataset.ex){
       const e=day.exercises.find(x=>x.id===el.dataset.ex);
       const det=exDiff(e,data);
+      const _pre={sets:e.sets,reps:e.reps,rir:e.rir,name:e.name};
       /* Grupo y series ANTES de pisar el ejercicio, para saber si esto es una decisión de
          volumen o un cambio de ejercicio. Solo lo primero mueve la meta y el plan: si el
          coach sustituye el ejercicio por otro de distinto grupo (o lo vincula/desvincula de
@@ -4305,16 +4311,19 @@ Object.assign(ACTIONS,{
       if(!data.tech){delete e.tech;delete e.techN;delete e.techOn;}
       const gNew=e.libId?(libById(e.libId)||{}).group:null;
       const sync=(gOld&&gNew===gOld&&setsNew!==setsOld)?syncPlanToSets(el.dataset.aid,day,gOld,setsNew-setsOld):null;
-      if(det)logChange(el.dataset.aid,'ajuste',det+(sync?' · '+sync:''),day.name,data.name);
+      if(det)logChange(el.dataset.aid,'ajuste',det+(sync?' · '+sync:''),day.name,data.name,null,
+        {exId:e.id,from:_pre,to:{sets:data.sets,reps:data.reps,rir:data.rir,name:data.name}});
     }
     else{if(!data.libId)delete data.libId;if(!data.revLink)delete data.revLink;
       if(!data.grp)delete data.grp;
       if(!data.tech){delete data.tech;delete data.techN;delete data.techOn;}
-      day.exercises.push(Object.assign({id:uid()},data));
-      logChange(el.dataset.aid,'alta',data.sets+'×'+data.reps+' · RIR '+data.rir,day.name,data.name);}
+      const _new=Object.assign({id:uid()},data);day.exercises.push(_new);
+      logChange(el.dataset.aid,'alta',data.sets+'×'+data.reps+' · RIR '+data.rir,day.name,data.name,null,
+        {exId:_new.id,from:null,to:{sets:data.sets,reps:data.reps,rir:data.rir,name:data.name}});}
     saveState();closeModal();render();toast('Rutina actualizada');
   },
-  'ex-del':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const ex=day.exercises.find(x=>x.id===el.dataset.ex);day.exercises=day.exercises.filter(x=>x.id!==el.dataset.ex);if(ex)logChange(el.dataset.aid,'baja',(ex.sets||0)+'×'+(ex.reps||''),day.name,ex.name);saveState();render();},
+  'ex-del':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const ex=day.exercises.find(x=>x.id===el.dataset.ex);day.exercises=day.exercises.filter(x=>x.id!==el.dataset.ex);if(ex)logChange(el.dataset.aid,'baja',(ex.sets||0)+'×'+(ex.reps||''),day.name,ex.name,null,
+      {exId:ex.id,from:{sets:ex.sets,reps:ex.reps,rir:ex.rir,name:ex.name},to:null});saveState();render();},
   'ex-sets':el=>{
     const aid=el.dataset.aid;
     const day=athData(aid).routine.days.find(x=>x.id===el.dataset.day);
@@ -4326,7 +4335,8 @@ Object.assign(ACTIONS,{
        así que no hay meta ni plan que mover: se cambian las series y ya. */
     const lib=e.libId?libById(e.libId):null;
     const sync=lib?syncPlanToSets(aid,day,lib.group,newS-oldS):null;
-    logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,e.name);
+    logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,e.name,null,
+      {exId:e.id,from:{sets:oldS,reps:e.reps,rir:e.rir,name:e.name},to:{sets:newS,reps:e.reps,rir:e.rir,name:e.name}});
     saveState();render();
   },
   'ex-move':el=>{
@@ -7360,12 +7370,130 @@ function setupLine(aid,setup){
   return {type:'inicio',day:'Programa',ex:'',date:setup[0].date,
     detail:nD+' día'+(nD===1?'':'s')+' · '+nEx+' ejercicio'+(nEx===1?'':'s')+(org?' · '+org:'')};
 }
-function logChange(aid,type,detail,dayName,exName,origin){
+/* `meta` guarda el cambio en duro ({exId, from:{sets,reps,rir,name}, to:{...}}) además del texto.
+   El resumen neto necesita comparar estados, no leer frases: parsear «Series 3→4» funcionaba
+   para lo ya guardado pero se rompe en cuanto el detalle cambia de redacción. Los registros
+   viejos siguen soportados por chgMeta(), que cae al texto cuando no hay meta. */
+function logChange(aid,type,detail,dayName,exName,origin,meta){
   const r=athData(aid).routine;
   if(!r.changelog)ensureProgression(S);
-  if(!blockStarted(aid)){setupEntry(aid,origin);snapshotWeek(aid);return;}
-  r.changelog.push({id:uid(),date:todayISO(),week:weekOf(aid),type,detail:detail||'',day:dayName||'',ex:exName||''});
+  const row=()=>({id:uid(),date:todayISO(),week:weekOf(aid),type,detail:detail||'',day:dayName||'',ex:exName||'',meta:meta||null});
+  if(!blockStarted(aid)){
+    /* Mientras el atleta no entrena, DAR DE ALTA o QUITAR un ejercicio es armar el programa:
+       no se registra, define la base. Pero mover las series, reps o el RIR de un ejercicio que
+       ya está puesto sí es un ajuste sobre lo armado, y es justo lo que el coach quiere ver
+       al repasar la semana. Se guarda marcado con `pre` para que alimente el resumen neto
+       sin ensuciar la lista movimiento a movimiento, que sigue colapsada en «Programa inicial». */
+    if(type==='ajuste'&&meta&&meta.exId)r.changelog.push(Object.assign(row(),{pre:1}));
+    /* Si el ejercicio se cae mientras se arma, sus ajustes previos dejan de existir: si no,
+       el resumen enseñaría «+2 series» de algo que ya no está en el programa. */
+    else if(type==='baja'&&meta&&meta.exId)r.changelog=r.changelog.filter(x=>!(x.pre&&x.meta&&x.meta.exId===meta.exId));
+    /* Plantilla o split automático rehacen el programa entero: la base es otra y lo anterior
+       ya no compara contra nada. */
+    else if(type==='alta'&&dayName==='Programa')r.changelog=r.changelog.filter(x=>!x.pre);
+    setupEntry(aid,origin);snapshotWeek(aid);return;
+  }
+  r.changelog.push(row());
   snapshotWeek(aid);
+}
+/* ===== RESUMEN NETO DE AJUSTES POR SEMANA =====
+   La lista movimiento a movimiento contesta «qué toqué»; no contesta «cómo quedó la semana».
+   Si subo una serie, me arrepiento, la bajo y la vuelvo a subir, son tres líneas para un +1
+   — y si acabo donde empecé, son dos líneas para nada. El resumen compara el PRIMER estado
+   del ejercicio en esa semana contra el ÚLTIMO: la ida y vuelta se cancela sola y lo que
+   terminó igual que empezó no aparece. El detalle completo no se pierde, queda colapsado. */
+const NET_FLD=['sets','reps','rir','name'];
+function chgMeta(c){
+  if(c.meta)return c.meta;
+  const t=c.detail||'';
+  if(c.type==='alta'){
+    const m=t.match(/^(\d+)×([^·]*)/);if(!m)return null;
+    const r=t.match(/·\s*RIR\s*(.+)$/);
+    return {from:null,to:{sets:m[1],reps:(m[2]||'').trim(),rir:r?r[1].trim():null}};
+  }
+  if(c.type==='baja'){
+    const m=t.match(/^(\d+)×(.*)$/);if(!m)return null;
+    return {from:{sets:m[1],reps:m[2],rir:null},to:null};
+  }
+  const st=t.match(/Series\s(\d+)→(\d+)/),rp=t.match(/Reps\s([^\s·]+)→([^\s·]+)/),
+        ri=t.match(/RIR\s([^\s·]+)→([^\s·]+)/),nm=t.match(/Ejercicio:\s(.+?)\s→\s([^·]+)/);
+  if(!st&&!rp&&!ri&&!nm)return null;
+  return {from:{sets:st?st[1]:null,reps:rp?rp[1]:null,rir:ri?ri[1]:null,name:nm?nm[1]:null},
+          to:{sets:st?st[2]:null,reps:rp?rp[2]:null,rir:ri?ri[2]:null,name:nm?nm[2].trim():null}};
+}
+function chgNetList(aid){
+  const r=athData(aid).routine,f=blockFirstWorkout(aid),weeks={};
+  (r.changelog||[]).forEach(c=>{
+    if(c.type==='inicio')return;
+    /* Mismo corte que chgSplit: lo anterior al primer entreno es armado y no cuenta… salvo
+       lo que se marcó como ajuste sobre el programa ya armado (`pre`). Esto también limpia
+       los bloques viejos, que traen las altas del armado dentro del changelog. */
+    if((!f||(c.date&&c.date<f))&&!c.pre)return;
+    const m=chgMeta(c);if(!m)return;
+    const w=c.week||1,k=m.exId||((c.day||'')+'|'+(c.ex||''));
+    const bag=weeks[w]=weeks[w]||{};
+    const e=bag[k]||(bag[k]={day:c.day||'',name:c.ex||'',first:{},last:{},born:!m.from,gone:false});
+    /* first = el valor más antiguo de cada campo; last = el más reciente. Así el neto sale
+       campo por campo y un registro que solo tocó reps no borra las series del anterior. */
+    if(m.from)NET_FLD.forEach(fd=>{if(e.first[fd]===undefined&&m.from[fd]!=null)e.first[fd]=m.from[fd];});
+    if(m.to){e.gone=false;NET_FLD.forEach(fd=>{if(m.to[fd]!=null)e.last[fd]=m.to[fd];});}
+    else e.gone=true;
+    e.name=c.ex||e.name;e.day=c.day||e.day;
+  });
+  const out=[];
+  Object.keys(weeks).map(Number).sort((a,b)=>b-a).forEach(w=>{
+    const bag=weeks[w],items=[];
+    Object.keys(bag).forEach(k=>{
+      const e=bag[k];
+      if(e.born&&e.gone)return; /* entró y salió la misma semana: el programa quedó igual */
+      const sA=e.born?0:(parseInt(e.first.sets,10)||0);
+      const sB=e.gone?0:(parseInt(e.last.sets!=null?e.last.sets:e.first.sets,10)||0);
+      if(e.born){items.push({kind:'alta',name:e.name,day:e.day,sets:sB,d:sB});return;}
+      if(e.gone){items.push({kind:'baja',name:e.name,day:e.day,sets:sA,d:-sA});return;}
+      const d=sB-sA,bits=[];
+      if(d!==0)bits.push({t:'sets',from:sA,to:sB});
+      ['reps','rir','name'].forEach(fd=>{
+        const a=e.first[fd],b=e.last[fd];
+        if(a==null||b==null)return;
+        if(String(a)!==String(b))bits.push({t:fd,from:a,to:b});
+      });
+      if(!bits.length)return; /* volvió a como estaba: no es un ajuste, es ruido */
+      items.push({kind:'ajuste',name:e.name,day:e.day,d,bits});
+    });
+    if(items.length)out.push({week:w,items,net:items.reduce((a,i)=>a+(i.d||0),0)});
+  });
+  return out;
+}
+function netBitTxt(b){
+  return b.t==='sets'?'Series '+b.from+'→'+b.to
+    :b.t==='reps'?'Reps '+b.from+'→'+b.to
+    :b.t==='rir'?'RIR '+b.from+'→'+b.to
+    :'Ejercicio: '+b.from+' → '+b.to;
+}
+function netSetsPill(n,short){
+  const u=short?'':' serie'+(Math.abs(n)===1?'':'s');
+  return n===0?'<span class="delta-pill flat">'+(short?'=':'= series')+'</span>'
+    :'<span class="delta-pill '+(n>0?'up':'down')+'">'+(n>0?'+':'')+n+u+'</span>';
+}
+function netSumHtml(net,curWeek){
+  let h='';
+  net.forEach(w=>{
+    let rows='';
+    w.items.forEach(it=>{
+      const txt=it.kind==='alta'?'entró al programa con '+it.sets+' serie'+(it.sets===1?'':'s')
+        :it.kind==='baja'?'salió del programa ('+it.sets+' serie'+(it.sets===1?'':'s')+')'
+        :it.bits.map(netBitTxt).join(' · ');
+      const dp=it.d?'<span style="margin-left:auto">'+netSetsPill(it.d,1)+'</span>':'';
+      rows+='<div class="netrow"><span class="nx">'+esc(it.name)+'</span>'+
+        (it.day?'<span class="tiny">'+esc(it.day)+'</span>':'')+
+        '<span class="muted" style="font-size:12.5px">'+esc(txt)+'</span>'+dp+'</div>';
+    });
+    h+='<div class="netsum"><div class="nh"><b>Semana '+w.week+'</b>'+
+      (w.week===curWeek?'<span class="badge volt">en curso</span>':'')+
+      '<span class="tiny">'+w.items.length+' ejercicio'+(w.items.length===1?'':'s')+'</span>'+
+      '<span style="margin-left:auto">'+netSetsPill(w.net)+'</span></div>'+rows+'</div>';
+  });
+  return h;
 }
 function exDiff(o,n){
   const parts=[];
@@ -7894,13 +8022,14 @@ function applyAiNutriAdjust(aid){
 function coachTabSemanas(aid){
   const d=athData(aid),r=d.routine,p=d.profile;
   const week=weekOf(aid),cur=volMap(aid),base=(r.baseline||{}).byGroup||{};
-  const CS=chgSplit(aid),started=blockStarted(aid);
+  const CS=chgSplit(aid);
+  const NET=chgNetList(aid),NETN=NET.reduce((a,w)=>a+w.items.length,0);
   /* --- bloque actual --- */
   const head='<div class="card mb16"><h3>Bloque actual <span class="hint">'+esc(r.name)+'</span></h3>'+
     '<div class="grid g4 mb16">'+
     '<div class="stat"><div class="k">Semana del bloque</div><div class="v">'+week+'</div><div class="sub">desde '+fmtDate(r.startDate)+'</div></div>'+
     '<div class="stat"><div class="k">Fase · Bloque</div><div class="v" style="font-size:17px">'+esc(phaseName(p.phase))+'<small> · B'+p.block+'</small></div><div class="sub">RIR objetivo '+rirFor(p.phase,p.experience)+'</div></div>'+
-    '<div class="stat"><div class="k">Ajustes en el bloque</div><div class="v">'+CS.real.length+'</div><div class="sub">'+(started?'registrados automáticamente':'aún sin entrenar: se arma el programa')+'</div></div>'+
+    '<div class="stat"><div class="k">Ajustes en el bloque</div><div class="v">'+NETN+'</div><div class="sub">'+(NETN?'ejercicios con cambio neto':'sobre el programa armado, sin ruido')+'</div></div>'+
     '<div class="stat"><div class="k">Bloques archivados</div><div class="v">'+(r.history||[]).length+'</div><div class="sub">historial completo abajo</div></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label>Fecha de inicio del bloque</label><input type="date" id="bk_start" value="'+esc(r.startDate)+'"></div>'+
     '<button class="btn btn-g" data-act="startdate-save" data-aid="'+aid+'">Guardar fecha</button>'+
@@ -7936,8 +8065,13 @@ function coachTabSemanas(aid){
       chg+='<div class="logitem"><div class="lh"><span class="badge '+bd[0]+'">'+bd[1]+'</span><b>'+esc(c.ex||c.day)+'</b>'+(c.ex&&c.day?'<span class="tiny">'+esc(c.day)+'</span>':'')+'<span class="muted" style="font-size:12.5px">'+esc(c.detail)+'</span><span class="dt">'+fmtDateFull(c.date)+'</span></div></div>';
     });
   });
-  const chgCard='<div class="card mb16"><h3>Ajustes del bloque <span class="hint">'+(started?'qué, en qué ejercicio y en qué semana':'armando el programa — los cambios se registran desde su primer entreno')+'</span></h3>'+setupHtml+
-    (chg||'<div class="empty"><b>Aún sin ajustes</b>'+(started?'Cada cambio de series, reps, RIR, altas y bajas de ejercicios se registrará aquí solo.':'Mientras armas el programa no se registra nada: solo quedaría el ruido del armado. En cuanto '+esc(((userById(aid)||{}).name)||'el atleta')+' registre su primer entreno, cada cambio de series, reps, RIR, alta o baja aparecerá aquí solo.')+'</div>')+'</div>';
+  /* El detalle no desaparece, se guarda: primero el neto de la semana, y debajo la lista
+     completa a un clic para cuando haga falta rastrear un cambio concreto. */
+  const detHtml=chg?'<div class="logitem" data-act="log-toggle"><div class="lh"><span class="badge blue">Detalle</span><b>Movimiento por movimiento</b><span class="tiny">'+CS.real.length+' registro'+(CS.real.length===1?'':'s')+' · clic para ver</span></div><div class="logdetail">'+chg+'</div></div>':'';
+  const chgCard='<div class="card mb16"><h3>Ajustes del bloque <span class="hint">neto por semana: cómo empezó y cómo quedó cada ejercicio</span></h3>'+setupHtml+
+    (netSumHtml(NET,week)||'<div class="empty"><b>Aún sin ajustes</b>Arma el programa a gusto: montar los días y los ejercicios no cuenta. En cuanto muevas series, reps o RIR sobre lo ya armado —o des de alta o baja un ejercicio con el bloque en marcha— aquí verás el neto de cada semana.</div>')+
+    detHtml+
+    '<p class="tiny mt8">Se compara cómo estaba el ejercicio al empezar la semana contra cómo quedó: si quitas una serie y la vuelves a poner, no aparece nada. Lo que sale es el cambio que de verdad quedó en el programa.</p></div>';
   /* --- bloques anteriores --- */
   let hist='';
   (r.history||[]).slice().reverse().forEach(h=>{
@@ -8620,7 +8754,8 @@ Object.assign(ACTIONS,{
     if(newS===oldS){toast('Mínimo 1 serie — para quitar el ejercicio, hazlo en la pestaña Rutina');return;}
     ex.sets=String(newS);
     const sync=syncPlanToSets(aid,day,g,newS-oldS);
-    logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,ex.name);
+    logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,ex.name,null,
+      {exId:ex.id,from:{sets:oldS,reps:ex.reps,rir:ex.rir,name:ex.name},to:{sets:newS,reps:ex.reps,rir:ex.rir,name:ex.name}});
     saveState();render();toast((delta>0?'Serie añadida a ':'Serie quitada de ')+ex.name);
   },
 });
