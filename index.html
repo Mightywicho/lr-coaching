@@ -4307,12 +4307,17 @@ Object.assign(ACTIONS,{
   },
   'ex-del':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const ex=day.exercises.find(x=>x.id===el.dataset.ex);day.exercises=day.exercises.filter(x=>x.id!==el.dataset.ex);if(ex)logChange(el.dataset.aid,'baja',(ex.sets||0)+'×'+(ex.reps||''),day.name,ex.name);saveState();render();},
   'ex-sets':el=>{
-    const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);
+    const aid=el.dataset.aid;
+    const day=athData(aid).routine.days.find(x=>x.id===el.dataset.day);
     const e=day.exercises.find(x=>x.id===el.dataset.ex);if(!e)return;
     const oldS=parseInt(e.sets,10)||0,newS=Math.max(1,oldS+parseInt(el.dataset.d,10));
     if(newS===oldS)return;
     e.sets=newS;
-    logChange(el.dataset.aid,'ajuste','Series '+oldS+'→'+newS,day.name,e.name);
+    /* Sin ejercicio vinculado a la biblioteca no se sabe a qué grupo pertenece la serie,
+       así que no hay meta ni plan que mover: se cambian las series y ya. */
+    const lib=e.libId?libById(e.libId):null;
+    const sync=lib?syncPlanToSets(aid,day,lib.group,newS-oldS):null;
+    logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,e.name);
     saveState();render();
   },
   'ex-move':el=>{
@@ -7231,6 +7236,42 @@ function catCoverage(aid){
 
 /* ===== SEGUIMIENTO SEMANA A SEMANA (ajustes, snapshots de volumen y cierre de bloque) ===== */
 function volMap(aid){const o={};muscleVolume(aid).forEach(v=>{if(v.d)o[v.m]=v.d;});return o;}
+/* Cambiar las series de un ejercicio dejaba atrás a la planificación: la «Meta» del grupo
+   (paso 1) y el «Plan» de esa sesión (paso 2) seguían con el número viejo, así que aplicar
+   la decisión semanal pintaba de naranja media pestaña Entrenamiento sin que nada estuviera
+   mal. Esta función mueve las dos cifras junto con la serie que sumas o quitas.
+   Dos cautelas: una meta vacía es una decisión deliberada («sin meta» compara contra la
+   banda recomendada), así que no se inventa ninguna; y un grupo que aún no tenía plan en
+   esa sesión se cuadra con lo que quede programado, en vez de nacer en 1 y marcar un
+   desfase que no existe. Devuelve el texto para el registro de cambios, o null. */
+function syncPlanToSets(aid,day,group,delta){
+  if(!group||!delta||!day)return null;
+  const p=athData(aid).profile;
+  const progDay=day.exercises.reduce((a,e)=>{
+    const l=e.libId?libById(e.libId):null;
+    return a+(l&&l.group===group?(parseInt(e.sets,10)||0):0);
+  },0);
+  day.plan=day.plan||{};
+  const hadPlan=day.plan[group]!=null;
+  const oldPlan=day.plan[group]||0;
+  const newPlan=hadPlan?Math.max(0,oldPlan+delta):Math.max(0,progDay);
+  if(!newPlan)delete day.plan[group];else day.plan[group]=newPlan;
+  let oldT=null,newT=null;
+  p.volTargets=p.volTargets||{};
+  const meta=p.volTargets[group];
+  if(meta!=null&&meta!==''&&(p.priorities||{})[group]!==0){
+    oldT=+meta||0;
+    newT=Math.max(0,volMap(aid)[group]||0);
+    p.volTargets[group]=newT;
+    /* La meta se acaba de fijar en la fase y el bloque de hoy: sellarla evita que el aviso
+       de «metas del bloque anterior» la marque como vieja justo después de actualizarla. */
+    stampVolTarget(p,group);
+  }
+  const parts=[];
+  if(newPlan!==oldPlan)parts.push('plan de la sesión '+oldPlan+'→'+newPlan);
+  if(newT!=null&&newT!==oldT)parts.push('meta semanal '+oldT+'→'+newT);
+  return parts.length?parts.join(' · '):null;
+}
 function weekOf(aid){
   const r=athData(aid).routine;
   const days=Math.floor((Date.parse(todayISO())-Date.parse(r.startDate||todayISO()))/86400000);
@@ -8528,7 +8569,7 @@ function applyCard(aid){
       inner+='<div class="sect-h" style="margin:14px 0 8px"><h2 style="font-size:14px">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+cur+' series/sem'+(!dec||dec.k==='manten'?' · recomendado mantener':' → sugerido <b>'+sug+'</b>'+(dec.k==='reduce'?' (−10-20%)':''))+'</span></div>'+
         '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Sesión y ejercicios del grupo</th><th style="width:60px">Series</th><th style="width:64px">Est.</th><th style="width:64px">Real</th><th style="width:56px">RPE</th><th style="width:88px">Aplicar</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     });
-    inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad). Si la sesión tiene varios ejercicios del grupo, elige en su propia fila a cuál se la sumas o quitas; con uno solo, «+» y «−» van directos a él. Todo cambio queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
+    inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad). Si la sesión tiene varios ejercicios del grupo, elige en su propia fila a cuál se la sumas o quitas; con uno solo, «+» y «−» van directos a él. Al aplicar, la meta semanal del grupo y el plan de esa sesión (pestaña Entrenamiento) se mueven solos con la serie, y todo cambio queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
   }
   return '<div class="card mb16"><h3>Aplicar la decisión semanal <span class="hint">'+(dec?dec.lbl:'sin check-in esta semana')+' · en músculos primarios y máximos</span></h3>'+inner+'</div>';
 }
@@ -8548,7 +8589,8 @@ Object.assign(ACTIONS,{
     const oldS=parseInt(ex.sets,10)||0,newS=Math.max(1,oldS+delta);
     if(newS===oldS){toast('Mínimo 1 serie — para quitar el ejercicio, hazlo en la pestaña Rutina');return;}
     ex.sets=String(newS);
-    logChange(aid,'ajuste','Series '+oldS+'→'+newS,day.name,ex.name);
+    const sync=syncPlanToSets(aid,day,g,newS-oldS);
+    logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,ex.name);
     saveState();render();toast((delta>0?'Serie añadida a ':'Serie quitada de ')+ex.name);
   },
 });
