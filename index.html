@@ -7373,6 +7373,18 @@ function volAtWeek(r,w){
   (r.snapshots||[]).forEach(s=>{if(s.week<=w&&(!best||s.week>best.week))best=s;});
   return best?best.byGroup:((r.baseline||{}).byGroup||{});
 }
+/* Volumen con el que ARRANCÓ la semana en curso, para un grupo.
+   El sugerido de la decisión semanal salía de volMap(), que ya incluye las series que
+   acabas de aplicar: con «sube 1» pasabas de 8 a 9 y el sugerido saltaba a 10, así que el
+   objetivo se movía contigo y nunca lo veías cumplido. La base correcta es el último
+   snapshot de una semana ANTERIOR — el de la semana en curso no sirve porque snapshotWeek
+   lo reescribe en cada cambio. Si el grupo no aparece ahí (atleta recién empezado, grupo
+   añadido a media semana) se cae a lo programado hoy, que es el comportamiento de siempre. */
+function weekBaseVol(aid,g){
+  const r=athData(aid).routine;
+  const base=volAtWeek(r,weekOf(aid)-1)[g];
+  return base!=null?base:(volMap(aid)[g]||0);
+}
 const CHG_BADGE={alta:['green','Alta'],baja:['red','Baja'],ajuste:['blue','Ajuste'],inicio:['volt','Programa inicial']};
 
 /* ===== TASA DE CAMBIO DE PESO (regresión lineal sobre la ventana) =====
@@ -8538,8 +8550,17 @@ function applyCard(aid){
     if(!dec)inner+='<p class="muted" style="margin-bottom:12px">Aún sin check-in de fatiga esta semana — ajusta con tu criterio de coach; cada cambio queda registrado.</p>';
     else if(dec.k==='manten')inner+='<div class="notebox" style="margin-bottom:12px">La recomendación es <b>no incrementar</b> (mantén series y progresa con reps/carga). La decisión final es tuya: conoces a tu atleta, y cualquier ajuste que hagas aquí queda registrado.</div>';
     elig.forEach(g=>{
-      const cur=volMap(aid)[g]||0;
-      const sug=!dec||dec.k==='manten'?cur:dec.k==='sube2'?(cur+2):dec.k==='sube1'?(cur+1):Math.max(0,Math.round(cur*0.85));
+      const cur=volMap(aid)[g]||0,base=weekBaseVol(aid,g);
+      const sug=!dec||dec.k==='manten'?base:dec.k==='sube2'?(base+2):dec.k==='sube1'?(base+1):Math.max(0,Math.round(base*0.85));
+      /* Lo que falta o sobra para cumplir la decisión de ESTA semana, para que sepas cuándo
+         has terminado de repartir en vez de perseguir un número que se aleja solo. */
+      const left=sug-cur;
+      let volTxt;
+      if(!dec||dec.k==='manten')volTxt=cur+' series/sem · recomendado mantener'+(cur!==base?' · <span style="color:var(--orange)">la semana empezó en '+base+'</span>':'');
+      else volTxt=cur+' series/sem · sugerido <b>'+sug+'</b> (desde '+base+' al empezar la semana'+(dec.k==='reduce'?', −10-20%':'')+') · '+
+        (left===0?'<span style="color:var(--green)">✓ objetivo de la semana cumplido</span>'
+         :left>0?'falta'+(left>1?'n':'')+' <b>'+left+'</b> serie'+(left>1?'s':'')
+         :'<b>'+(-left)+'</b> serie'+(-left>1?'s':'')+' por encima del sugerido');
       let rows='';
       d.routine.days.forEach((day,di)=>{
         const exs=day.exercises.filter(e=>{const l=e.libId?libById(e.libId):null;return l&&l.group===g;});
@@ -8566,10 +8587,10 @@ function applyCard(aid){
       });
       if(!rows)rows='<tr><td colspan="6" class="tiny">Este grupo aún no tiene ejercicios en la rutina — añádelos en la pestaña Rutina.</td></tr>';
       const pr=PRIOS[p.priorities[g]];
-      inner+='<div class="sect-h" style="margin:14px 0 8px"><h2 style="font-size:14px">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+cur+' series/sem'+(!dec||dec.k==='manten'?' · recomendado mantener':' → sugerido <b>'+sug+'</b>'+(dec.k==='reduce'?' (−10-20%)':''))+'</span></div>'+
+      inner+='<div class="sect-h" style="margin:14px 0 8px"><h2 style="font-size:14px">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+volTxt+'</span></div>'+
         '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Sesión y ejercicios del grupo</th><th style="width:60px">Series</th><th style="width:64px">Est.</th><th style="width:64px">Real</th><th style="width:56px">RPE</th><th style="width:88px">Aplicar</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     });
-    inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad). Si la sesión tiene varios ejercicios del grupo, elige en su propia fila a cuál se la sumas o quitas; con uno solo, «+» y «−» van directos a él. Al aplicar, la meta semanal del grupo y el plan de esa sesión (pestaña Entrenamiento) se mueven solos con la serie, y todo cambio queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
+    inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad). Si la sesión tiene varios ejercicios del grupo, elige en su propia fila a cuál se la sumas o quitas; con uno solo, «+» y «−» van directos a él. El sugerido se calcula sobre el volumen con el que empezó la semana, así que no se mueve mientras repartes las series: cuando llegas a él verás el ✓. Al aplicar, la meta semanal del grupo y el plan de esa sesión (pestaña Entrenamiento) se mueven solos con la serie, y todo cambio queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
   }
   return '<div class="card mb16"><h3>Aplicar la decisión semanal <span class="hint">'+(dec?dec.lbl:'sin check-in esta semana')+' · en músculos primarios y máximos</span></h3>'+inner+'</div>';
 }
