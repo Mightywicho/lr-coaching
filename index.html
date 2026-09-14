@@ -49,7 +49,16 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
   });
 }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- supabase-js YA NO va aquí: se movió justo encima del script de la app, al final del
+     <body>. Una etiqueta de script sin defer en el <head> (no la escribo literal: rompe el
+     extractor con el que se valida este archivo antes de cada deploy) detiene el análisis
+     del HTML hasta que baja y se ejecuta, así que el <body> —y con él la pantalla de
+     arranque— no se pintaba hasta
+     entonces. Abajo se ejecuta igual de temprano respecto a la app (el orden del documento
+     se respeta: supabase-js primero, app después, que es lo único que importa porque
+     supabase.createClient() corre en la primera línea del script grande), pero ya no
+     bloquea el primer píxel. El registro del service worker se queda arriba a propósito,
+     por lo explicado en su propio comentario. -->
 <!-- html2canvas YA NO se carga aquí. Eran ~180 KB de etiqueta script bloqueante (sin el
      tag literal: un "<"+"script>" aquí rompe el extractor con el que se valida este
      archivo antes de cada deploy) que retrasaban el arranque de TODAS las aperturas
@@ -405,6 +414,16 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 @media(max-width:920px){#lrActualizando{bottom:calc(76px + env(safe-area-inset-bottom,0px));right:12px}}
 @media (prefers-reduced-motion:reduce){.lrspin{animation-duration:2.4s}}
 
+/* Pantalla de arranque (ver el comentario del <body>). Sin variables CSS a propósito:
+   se pinta antes de que nada pueda redefinir el color de marca, y un valor heredado a
+   medias se vería como un parpadeo de color justo en el primer fotograma. */
+.boot{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px;color:#9aa5b6}
+.boot-mark{width:54px;height:54px;border-radius:15px;background:#cdf563;color:#0b0d11;display:flex;align-items:center;justify-content:center;font:800 20px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em}
+.boot-name{font:700 17px/1 ui-sans-serif,system-ui,sans-serif;color:#e9edf4}
+.boot-row{display:flex;align-items:center;gap:9px;font:500 13.5px/1 ui-sans-serif,system-ui,sans-serif}
+.boot-spin{width:13px;height:13px;border-radius:50%;border:2px solid #2f3845;border-top-color:#cdf563;animation:lrgira .7s linear infinite}
+@media (prefers-reduced-motion:reduce){.boot-spin{animation-duration:2.4s}}
+
 /* ---------- misc ---------- */
 .empty{border:1px dashed var(--line2);border-radius:var(--r);padding:34px 20px;text-align:center;color:var(--tx3);font-size:13.5px}
 .empty b{display:block;color:var(--tx2);font-size:14.5px;margin-bottom:4px;font-family:var(--font-d)}
@@ -639,9 +658,20 @@ input.meta-in.old{border-style:dashed}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<!-- Pantalla de arranque en el HTML, NO en el JavaScript. El motivo es medible:
+     parsear y ejecutar los ~715 KB del script de abajo cuesta ~640 ms en un Android de
+     gama media, y hasta que no termina no se pinta un solo píxel. Con #app vacío el
+     sistema dejaba su pantalla de logo puesta todo ese rato y la app «se sentía lenta»
+     aunque ya estuviera entera en el teléfono.
+     Esto se pinta en cuanto el navegador lee el <body>, mucho antes de ejecutar nada,
+     así que el arranque se ve inmediato. Ojo: es apariencia, no velocidad real — la app
+     sigue sin responder hasta que el script acaba; lo que se elimina es la pantalla
+     muerta. El JS luego solo cambia el texto (ver pantallaArranque) en vez de rehacer
+     esto, para que no haya un parpadeo entre una versión y otra. -->
+<div id="app"><div class="boot"><div class="boot-mark">LR</div><div class="boot-name">LR Coaching</div><div class="boot-row"><span class="boot-spin"></span><span id="bootmsg">Iniciando…</span></div></div></div>
 <div id="modal-root"></div>
 <div id="toast-root" aria-live="assertive"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
 /* ================= DATOS ================= */
@@ -1091,6 +1121,15 @@ let _savePending=null;
    para no recargar la página encima de un guardado sin confirmar. */
 let _saveInFlight=false,_saveDirty=false;
 window._lrLogout=async function(){_selfSignOut=true;try{await supa.auth.signOut();}catch(e){}location.reload();};
+/* Cambia el TEXTO de la pantalla de arranque que ya viene pintada en el HTML, en vez de
+   volver a construirla. Si no está —porque un render ya sustituyó #app— la repone entera.
+   Así el paso de «Iniciando…» a «Cargando datos…» es un cambio de palabra y no un
+   parpadeo entre dos pantallas de carga distintas. */
+function pantallaArranque(msg){
+  const m=document.getElementById('bootmsg');
+  if(m){m.textContent=msg;return;}
+  $('#app').innerHTML='<div class="boot"><div class="boot-mark">LR</div><div class="boot-name">LR Coaching</div><div class="boot-row"><span class="boot-spin"></span><span id="bootmsg">'+esc(msg)+'</span></div></div>';
+}
 function showBootError(msg){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="window.lrRecargar?lrRecargar():location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
 }
@@ -8945,7 +8984,7 @@ async function initAfterAuthUnsafe(user){
   _supabaseUser=user;
   _coachUid=user.id;
   _currentUserId='coach';
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Cargando datos…</p></div>';
+  pantallaArranque('Cargando datos…');
   /* C1: decidir coach/atleta por user_metadata.role, no solo por la fila de athlete_access */
   const role=(user.user_metadata||{}).role;
   let access=null,accessErr=null;
@@ -9089,7 +9128,7 @@ try{
   });
 }catch(e){}
 (async function(){
-  $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><p style="color:#888;font-size:14px">Iniciando…</p></div>';
+  pantallaArranque('Iniciando…');
   if(_recovery&&_recovery.err){
     try{history.replaceState(null,'',location.pathname);}catch(e){}
     renderLogin();
