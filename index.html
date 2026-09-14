@@ -9288,7 +9288,7 @@ function pwaInstalada(){
 function pwaRechazada(){try{return localStorage.getItem(LS_PWA_NO)==='1';}catch(e){return false;}}
 /* Una pastilla que se queda puesta hasta que la cierres es un estorbo con horario propio:
    en «Registrar» tapa la barra de guardar, y el atleta está ahí para anotar series, no para
-   decidir si instala nada. Se va sola a los 12 s y no vuelve a asomar en una semana.
+   decidir si instala nada. Se va sola a los 6 s y no vuelve a asomar en una semana.
    Irse sola NO es lo mismo que el aspa: el aspa sigue queriendo decir «no me lo vuelvas a
    ofrecer» y se guarda aparte, para no convertir un descuido en un no definitivo. */
 function pwaEnPausa(){
@@ -9309,7 +9309,7 @@ function pwaPastilla(texto,alTocar){
   b.addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();clearTimeout(_pwaT);_pwaT=null;alTocar();}});
   document.body.appendChild(b);
   clearTimeout(_pwaT);
-  _pwaT=setTimeout(pwaPausar,12000);
+  _pwaT=setTimeout(pwaPausar,6000);
 }
 /* iPhone: Safari no dispara `beforeinstallprompt`, así que no hay botón que instale.
    Lo único posible —y lo que el atleta no encuentra solo— es enseñarle el camino. */
