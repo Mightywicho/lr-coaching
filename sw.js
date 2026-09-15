@@ -120,7 +120,13 @@ self.addEventListener('install', ev => {
         if (res && (res.ok || res.type === 'opaque')) await deps.put(url, res);
       } catch (e) { /* sin red al instalar: cachePrimero lo recogerá en otra visita */ }
     }));
-    self.skipWaiting(); /* seguro: el HTML va por red, no hay riesgo de servir uno viejo */
+    /* Tomar el control sin esperar a que se cierren las pestañas viejas. El comentario que
+       había aquí decía que el HTML iba por red y que por eso no había riesgo de servir uno
+       viejo; dejó de ser cierto cuando la navegación pasó a cache-luego-red. Sí puede servir
+       una versión atrás durante una apertura, y eso es deliberado: lo cubre el detector de
+       versión de la app, que va por HEAD (no pasa por aquí) y pide REFRESCAR_HTML antes de
+       recargar. Lo que skipWaiting evita es quedarse con DOS workers y dos estrategias. */
+    self.skipWaiting();
   })());
 });
 
