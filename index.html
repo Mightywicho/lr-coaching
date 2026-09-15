@@ -932,6 +932,7 @@ const PHASES=[['introduccion','Introducción','Microciclos de exploración: cerc
  ['regeneracion','Regeneración','Microciclos de descarga: reducir volumen 30-70% y carga 10-30% para resensibilizar.'],
  ['perdida','Pérdida de peso','Volumen ligeramente sobre el VME para preservar masa en déficit; sesgo a cargas pesadas/preferidas.']];
 const phaseName=k=>{const f=PHASES.find(p=>p[0]===k);return f?f[1]:k;};
+const expName=k=>{const f=EXPERIENCES.find(e=>e[0]===k);return f?f[1]:k;};
 const phaseDesc=k=>{const f=PHASES.find(p=>p[0]===k);return f?f[2]:'';};
 const PRIOS={4:{lbl:'Máxima',short:'★ Máxima',cls:'red',desc:'Especialización (1-2 músculos) — VMR 80-100%, con cautela y justificación'},1:{lbl:'Primaria',short:'1 · Primaria',cls:'volt',desc:'Músculo a desarrollar — mayor volumen, hacia el VMA alto'},2:{lbl:'Secundaria',short:'2 · Secundaria',cls:'blue',desc:'Mantener y progresar desarrollo — volumen medio, VME-VMA'},3:{lbl:'Terciaria',short:'3 · Terciaria',cls:'orange',desc:'Mantenimiento — volumen bajo, VM-VME'},0:{lbl:'No entrenar',short:'— No entrenar',cls:'',desc:'Sin volumen programado para este bloque'}};
 
@@ -1003,11 +1004,21 @@ function targetStatus(actual,tgt,L){
 /* Sellado de metas de volumen: guarda con que fase+bloque se fijo la meta de CADA grupo,
    para poder avisar cuando el atleta cambia de bloque y sus metas siguen siendo las viejas.
    Solo informa: nunca modifica una meta por su cuenta. */
-function volCtxKey(p){return (p.phase||'')+'|'+(p.block||1);}
+/* La banda recomendada sale de prioridad × experiencia × fase, así que la experiencia forma parte
+   del contexto de una meta igual que la fase y el bloque: subir a un atleta de intermedio a
+   avanzado mueve la recomendación y sus metas se quedaban atrás sin que nada las marcara. */
+function volCtxKey(p){return (p.phase||'')+'|'+(p.block||1)+'|'+(p.experience||'');}
 function stampVolTarget(p,g){if(!p)return;p.volTargetsCtx=p.volTargetsCtx||{};const t=(p.volTargets||{})[g];if(t==null||t==='')delete p.volTargetsCtx[g];else p.volTargetsCtx[g]=volCtxKey(p);}
 function stampAllVolTargets(p){if(!p)return;p.volTargetsCtx=p.volTargetsCtx||{};const k=volCtxKey(p);GROUPS.forEach(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')delete p.volTargetsCtx[g];else p.volTargetsCtx[g]=k;});}
-function staleVolGroups(p){if(!p)return[];const k=volCtxKey(p),c=p.volTargetsCtx||{};return GROUPS.filter(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')return false;const s=c[g];return !!s&&s!==k;});}
-function volCtxLabel(k){const a=String(k||'').split('|');return phaseName(a[0])+' · Bloque '+(a[1]||'1');}
+/* Los sellos anteriores a esta versión solo traen fase y bloque. Se comparan tramo a tramo con
+   los que tengan: si no, el primer arranque tras actualizar marcaría como viejas TODAS las metas
+   de TODOS los atletas sin que nada hubiera cambiado de verdad. */
+function volCtxSame(stored,cur){
+  const a=String(stored||'').split('|'),b=String(cur||'').split('|');
+  return a.every((x,i)=>x===b[i]);
+}
+function staleVolGroups(p){if(!p)return[];const k=volCtxKey(p),c=p.volTargetsCtx||{};return GROUPS.filter(g=>{const t=(p.volTargets||{})[g];if(t==null||t==='')return false;const s=c[g];return !!s&&!volCtxSame(s,k);});}
+function volCtxLabel(k){const a=String(k||'').split('|');return phaseName(a[0])+' · Bloque '+(a[1]||'1')+(a[2]?' · '+expName(a[2]):'');}
 function ensureProgramming(st){
  Object.keys(st.athletes).forEach(aid=>{
    const p=st.athletes[aid].profile;
@@ -1018,7 +1029,7 @@ function ensureProgramming(st){
    GROUPS.forEach(g=>{if(p.priorities[g]==null)p.priorities[g]=2;});
    if(!p.volTargets)p.volTargets={};
    /* metas viejas sin sello: se sellan con el contexto actual para no lanzar un aviso falso */
-   if(!p.volTargetsCtx){p.volTargetsCtx={};GROUPS.forEach(g=>{const t=p.volTargets[g];if(t!=null&&t!=='')p.volTargetsCtx[g]=(p.phase||'')+'|'+(p.block||1);});}
+   if(!p.volTargetsCtx){p.volTargetsCtx={};GROUPS.forEach(g=>{const t=p.volTargets[g];if(t!=null&&t!=='')p.volTargetsCtx[g]=volCtxKey(p);});}
    if(!p.memStart)p.memStart=(st.athletes[aid].routine&&st.athletes[aid].routine.startDate)||todayISO();
    if(p.inactive==null)p.inactive=false;
  });
@@ -3727,10 +3738,22 @@ function coachTabVolumen(aid){
     }
     trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num">'+metaCell+'</td><td class="num">'+progCell+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
+  /* Un grupo en «No entrenar» con series repartidas en el paso 2 es una contradicción que se
+     quedaba muda: poner la prioridad en 0 borra su meta, pero nadie toca su plan, y «Repartir
+     objetivos automáticamente» tampoco lo limpia — solo redistribuye los grupos CON objetivo.
+     No se borra nada solo: el reparto puede estar ajustado a mano, y los ejercicios son trabajo
+     real que el atleta quizá esté haciendo esta semana. Se dice, y el coach decide. */
+  const zeroPlan=GROUPS.filter(g=>p.priorities[g]===0&&d.routine.days.some(dy=>((dy.plan||{})[g]||0)>0));
+  const zeroEx=GROUPS.filter(g=>p.priorities[g]===0&&directOf(g)>0);
+  const zBits=[];
+  if(zeroPlan.length)zBits.push('<b>'+zeroPlan.length+(zeroPlan.length>1?' tienen':' tiene')+' series repartidas en el paso 2</b> ('+esc(zeroPlan.join(', '))+')');
+  if(zeroEx.length)zBits.push('<b>'+zeroEx.length+(zeroEx.length>1?' tienen':' tiene')+' ejercicios en la rutina</b> ('+esc(zeroEx.join(', '))+')');
+  const zeroBox=zBits.length?'<div class="volstale"><span>⚠ Marcados como <b>No entrenar</b>, pero '+zBits.join(' y ')+'.'+(zeroEx.length?' Los ejercicios se quitan en la pestaña Rutina: no se tocan solos.':'')+'</span>'+
+    (zeroPlan.length?'<button class="btn btn-g btn-sm" data-act="plan-zero-clean" data-aid="'+aid+'">Quitar su plan del paso 2</button>':'')+'</div>':'';
   const staleCtx=staleList.length?((p.volTargetsCtx||{})[staleList[0]]||''):'';
   const staleBox=staleList.length?'<div class="volstale"><span>⚠ <b>'+staleList.length+' grupo'+(staleList.length>1?'s tienen metas':' tiene una meta')+' del bloque anterior</b> ('+esc(volCtxLabel(staleCtx))+'). El atleta ya está en <b>'+esc(phaseName(phase)+' · Bloque '+block)+'</b>: la banda recomendada cambió, tus metas no. Están marcadas con borde punteado.</span><button class="btn btn-g btn-sm" data-act="voltargets-auto-ask" data-aid="'+aid+'">Rellenar metas con el recomendado de esta fase</button></div>':'';
   const table='<div class="card"><h3>1 · Volumen semanal por grupo <span class="hint">tu meta del bloque frente a lo que suma la rutina</span><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:78px">Meta</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:140px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+staleBox+
+    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:78px">Meta</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:140px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+staleBox+zeroBox+
     '<p class="tiny mt8"><b>Meta</b> son las series semanales que tú decides para este bloque — se puede escribir siempre, tenga o no ejercicios el grupo. <b>Programado</b> son las series directas que ya suman los ejercicios vinculados. Con meta escrita, el estado te dice cuánto falta o sobra para cumplirla; si la dejas vacía, se compara contra la banda recomendada. Una meta con el número en naranja queda fuera de esa banda. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
 
   return ctx+table+coachDistSesiones(aid);
@@ -8673,6 +8696,17 @@ Object.assign(ACTIONS,{
     const g=el.dataset.group,n=Math.max(0,((day.plan[g]||0)+parseInt(el.dataset.d,10)));
     if(n===0)delete day.plan[g];else day.plan[g]=n;
     saveState();render();
+  },
+  /* Quita del paso 2 el reparto de los grupos en «No entrenar». Solo el plan: los ejercicios se
+     quedan donde están, porque quitarlos es una decisión de rutina y se toma en su pestaña. */
+  'plan-zero-clean':el=>{
+    const aid=el.dataset.aid,d=athData(aid);
+    let n=0;
+    GROUPS.filter(g=>d.profile.priorities[g]===0).forEach(g=>{
+      d.routine.days.forEach(dy=>{if(dy.plan&&dy.plan[g]!=null){delete dy.plan[g];n++;}});
+    });
+    if(!n){toast('No había plan que quitar');return;}
+    saveState();toast('Plan quitado de '+n+' celda'+(n===1?'':'s')+' · los ejercicios no se han tocado');render();
   },
   'plan-auto':el=>{
     const aid=el.dataset.aid,d=athData(aid);
