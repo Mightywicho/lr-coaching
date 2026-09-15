@@ -2701,7 +2701,21 @@ function keyExHistory(aid,ident,cutoff){
 }
 function topSetOf(sets){let best=null;(sets||[]).forEach(s=>{if(!best||(+s.w||0)>(+best.w||0))best=s;});return best;}
 function exTonnage(sets){let t=0;(sets||[]).forEach(s=>{t+=(+s.w||0)*(+s.r||0)+subTon(s);});return t;}
-function exNameOf(d,exId){let nm='Ejercicio';d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f)nm=f.name;});return nm;}
+/* Nombre de un ejercicio a partir del id con el que lo guardan los registros. Un ejercicio que
+   el coach quitó o sustituyó ya no está en ningún día, así que el trabajo real que cuelga de
+   su id salía como «Ejercicio» a secas: series que el atleta hizo de verdad, sin nombre, en
+   Registros y en Rendimiento. `routine.exNames` guarda el nombre que tenía AL SALIR, que es
+   la única foto fiel — el de hoy ya es el de otro ejercicio. */
+function exNameOf(d,exId){
+  let nm='';d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f)nm=f.name;});
+  return nm||((d.routine.exNames||{})[exId])||'Ejercicio';
+}
+/* Apunta el nombre de un ejercicio que sale de la rutina (borrado, sustituido, o arrastrado
+   por un día entero) antes de perderlo de vista. */
+function rememberExName(aid,ex){
+  if(!ex||!ex.id||!ex.name)return;
+  const r=athData(aid).routine;r.exNames=r.exNames||{};r.exNames[ex.id]=ex.name;
+}
 /* serie completa de un ejercicio (todo el historial) con calidad (reps/RIR del top set) y PRs acumulados */
 function exSeries(aid,exId){
   const out=[];athData(aid).logs.workouts.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(w=>{
@@ -4067,9 +4081,10 @@ function coachTabRegistros(aid){
     if(keys.length){
       let rows='';
       keys.forEach(exId=>{
-        let presc=null,exName='Ejercicio';
+        let presc=null,exName='';
         if(planDay){const f=planDay.exercises.find(e=>e.id===exId);if(f){presc=f;exName=f.name;}}
         if(!presc){d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f){presc=presc||f;exName=f.name;}});}
+        if(!exName)exName=exNameOf(d,exId); /* ejercicio ya retirado de la rutina: su nombre de entonces */
         const ss=w.entries[exId];
         totalSets+=ss.length;
         /* Pasa por exTonnage y no por una suma suelta: es la única forma de que las mini-series
@@ -4095,9 +4110,9 @@ function coachTabRegistros(aid){
       let li='';
       skIds.forEach(exId=>{
         const s=sk[exId]||{};
-        let nm='Ejercicio';
+        let nm='';
         if(planDay){const f=planDay.exercises.find(e=>e.id===exId);if(f)nm=f.name;}
-        if(nm==='Ejercicio')d.routine.days.forEach(day=>{const f=day.exercises.find(e=>e.id===exId);if(f)nm=f.name;});
+        if(!nm)nm=exNameOf(d,exId);
         const nSets=Object.keys(s.sets||{}).length;
         const cab=s.k==='none'?'<span class="badge red">✕ no lo hizo</span>':s.k==='partial'?'<span class="badge orange">½ a medias</span>':'<span class="badge orange">series sueltas</span>';
         const det=[s.k?skipLbl(s.why):'',nSets?nSets+(nSets===1?' serie':' series')+' sin completar':''].filter(Boolean).join(' · ');
@@ -4481,7 +4496,18 @@ Object.assign(ACTIONS,{
   'day-ren-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);openModal('Renombrar día','<div class="frow"><label>Nombre</label><input id="d_name" value="'+esc(day.name)+'"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-ren-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Guardar</button>');},
   'day-ren-save':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);day.name=val('d_name')||day.name;saveState();closeModal();render();},
   'day-del-ask':el=>confirmModal('Eliminar día','Se borrará el día y sus ejercicios de la rutina.','day-del-do','data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'"'),
-  'day-del-do':el=>{const r=athData(el.dataset.aid).routine;r.days=r.days.filter(x=>x.id!==el.dataset.day);saveState();closeModal();render();},
+  /* Borrar un día se llevaba por delante todos sus ejercicios sin dejar UNA sola línea, cuando
+     quitar uno suelto sí queda registrado. Se apunta antes de filtrar, que es mientras todavía
+     se sabe qué había dentro. */
+  'day-del-do':el=>{
+    const aid=el.dataset.aid,r=athData(aid).routine,day=r.days.find(x=>x.id===el.dataset.day);
+    if(day){
+      (day.exercises||[]).forEach(e=>rememberExName(aid,e));
+      const nEx=(day.exercises||[]).length,nS=(day.exercises||[]).reduce((a,e)=>a+(parseInt(e.sets,10)||0),0);
+      logChange(aid,'baja','Sesión eliminada · '+nEx+(nEx===1?' ejercicio':' ejercicios')+' · '+nS+(nS===1?' serie':' series'),day.name,'Sesión completa');
+    }
+    r.days=r.days.filter(x=>x.id!==el.dataset.day);saveState();closeModal();render();
+  },
   /* data-group llega desde los chips de plan de la cabecera del día: abre el modal ya filtrado por ese grupo */
   'ex-add-modal':el=>openModal('Añadir ejercicio'+(el.dataset.group?' · '+el.dataset.group:''),exForm({},el.dataset.aid,'',el.dataset.day||'',el.dataset.group||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Añadir</button>'),
   'ex-edit-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const e=day.exercises.find(x=>x.id===el.dataset.ex);openModal('Editar ejercicio',exForm(e,el.dataset.aid,el.dataset.ex,el.dataset.day||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'" data-ex="'+el.dataset.ex+'">Guardar</button>');},
@@ -4507,12 +4533,33 @@ Object.assign(ACTIONS,{
          no un desfase que tapar — igual que al eliminar un ejercicio. */
       const gOld=e.libId?(libById(e.libId)||{}).group:null;
       const setsOld=parseInt(e.sets,10)||0,setsNew=parseInt(data.sets,10)||0;
+      /* Cambiar el NOMBRE desde este formulario no es renombrar: es poner OTRO ejercicio en
+         ese renglón. Conservando el id, todo lo que el atleta ya había levantado pasaba a
+         llamarse como el nuevo — el coach veía en Registros 140 kg de un ejercicio que nunca
+         se hizo, el 1RM estimado mezclaba dos, y al atleta le salía ese 140 en gris como
+         referencia a superar en su PRIMERA vez con el ejercicio nuevo. Estrena id: el
+         historial se queda con el viejo (por eso se apunta su nombre antes de perderlo) y el
+         nuevo empieza limpio, sin perder el sitio en la sesión ni obligar a borrar y añadir.
+         Se compara por nombre y no por libId a propósito: vincular a la biblioteca un
+         ejercicio que ya se llamaba igual es el mismo de siempre, no uno nuevo. */
+      const swapped=(e.name||'').trim().toLowerCase()!==(data.name||'').trim().toLowerCase();
+      const oldEx={id:e.id,name:e.name};
       Object.assign(e,data);if(!data.libId)delete e.libId;if(!data.revLink)delete e.revLink;
       if(!data.grp)delete e.grp;
       if(!data.tech){delete e.tech;delete e.techN;delete e.techOn;}
+      if(swapped){rememberExName(el.dataset.aid,oldEx);e.id=uid();}
       const gNew=e.libId?(libById(e.libId)||{}).group:null;
       const sync=(gOld&&gNew===gOld&&setsNew!==setsOld)?syncPlanToSets(el.dataset.aid,day,gOld,setsNew-setsOld):null;
-      if(det)logChange(el.dataset.aid,'ajuste',det+(sync?' · '+sync:''),day.name,data.name,null,
+      /* Una sustitución son dos líneas y no una: un ejercicio se fue y otro entró. Además de
+         leerse mejor, así la baja se lleva por delante los ajustes previos del que ya no está
+         —para eso existe esa rama en logChange— y el nuevo cuenta desde cero. */
+      if(swapped){
+        logChange(el.dataset.aid,'baja',(_pre.sets||0)+'×'+(_pre.reps||'')+' · sustituido por '+data.name,day.name,oldEx.name,null,
+          {exId:oldEx.id,from:_pre,to:null});
+        logChange(el.dataset.aid,'alta',data.sets+'×'+data.reps+' · RIR '+data.rir+' · en lugar de '+oldEx.name+(sync?' · '+sync:''),day.name,data.name,null,
+          {exId:e.id,from:null,to:{sets:data.sets,reps:data.reps,rir:data.rir,name:data.name}});
+      }
+      else if(det)logChange(el.dataset.aid,'ajuste',det+(sync?' · '+sync:''),day.name,data.name,null,
         {exId:e.id,from:_pre,to:{sets:data.sets,reps:data.reps,rir:data.rir,name:data.name}});
     }
     else{if(!data.libId)delete data.libId;if(!data.revLink)delete data.revLink;
@@ -4523,7 +4570,7 @@ Object.assign(ACTIONS,{
         {exId:_new.id,from:null,to:{sets:data.sets,reps:data.reps,rir:data.rir,name:data.name}});}
     saveState();closeModal();render();toast('Rutina actualizada');
   },
-  'ex-del':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const ex=day.exercises.find(x=>x.id===el.dataset.ex);day.exercises=day.exercises.filter(x=>x.id!==el.dataset.ex);if(ex)logChange(el.dataset.aid,'baja',(ex.sets||0)+'×'+(ex.reps||''),day.name,ex.name,null,
+  'ex-del':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const ex=day.exercises.find(x=>x.id===el.dataset.ex);if(ex)rememberExName(el.dataset.aid,ex);day.exercises=day.exercises.filter(x=>x.id!==el.dataset.ex);if(ex)logChange(el.dataset.aid,'baja',(ex.sets||0)+'×'+(ex.reps||''),day.name,ex.name,null,
       {exId:ex.id,from:{sets:ex.sets,reps:ex.reps,rir:ex.rir,name:ex.name},to:null});saveState();render();},
   'ex-sets':el=>{
     const aid=el.dataset.aid;
@@ -4971,7 +5018,9 @@ function wdraftFresh(aid,day){
   });
   /* `tgt` guarda lo prescrito EN EL MOMENTO de armar el borrador. Es el baseline con el que
      wdraftSyncPlan distingue «el coach movió las series» de «el atleta añadió o quitó una». */
-  return{aid,dayId:day.id,date:todayISO(),sets,tgt,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
+  /* `dayName` es una copia, no una referencia: si el día desaparece de la rutina con la sesión
+     abierta, es lo único que queda para poder guardar el entreno con nombre. */
+  return{aid,dayId:day.id,dayName:day.name,date:todayISO(),sets,tgt,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
 }
 /* ¿Fila sin nada escrito? Solo estas se pueden quitar al cuadrar con el plan. */
 function wdraftRowEmpty(s){
@@ -5165,8 +5214,15 @@ async function pushWorkoutLog(u,w,silent){
    ninguna gráfica de cargas, tonelaje ni 1RM ve una serie de 0×0 que nadie hizo. */
 async function saveWorkoutDraft(status,reason,extraCm){
   const u=userById(getSession().userId),d=athData(u.id);
-  const day=d.routine.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
-  if(!day)return;
+  if(!WDRAFT)return;
+  const day=d.routine.days.find(x=>x.id===(WDRAFT.dayId));
+  /* El día puede haber desaparecido mientras la sesión estaba abierta: el coach lo borró, o
+     aplicó una plantilla que lo llama distinto. Antes esto era un `return` mudo — el atleta
+     pulsaba Guardar, no pasaba NADA, y no tenía ni aviso ni forma de recuperar lo anotado.
+     El entreno lo hizo igual, así que se guarda igual, con el nombre que el día tenía al
+     abrirlo: es por ahí por donde Registros lo vuelve a enganchar cuando el id ya no existe. */
+  const dayNm=(day?day.name:WDRAFT.dayName)||'Sesión';
+  const dayIdSave=(day?day.id:WDRAFT.dayId)||null;
   const skDraft=WDRAFT.skips||{},entries={},skips={};
   Object.keys(WDRAFT.sets).forEach(exId=>{
     const exSk=skDraft[exId],setSk={},filled=[];
@@ -5214,7 +5270,7 @@ async function saveWorkoutDraft(status,reason,extraCm){
   const _prevMark=(WDRAFT.editMark&&WDRAFT.editMark.at)?WDRAFT.editMark:null;
   if(_wasEdit&&_wasPast)skips.__edit={at:todayISO(),n:((_prevMark&&_prevMark.n)||0)+1};
   else if(_prevMark)skips.__edit=_prevMark;
-  const w={id:WDRAFT.wid,date:WDRAFT.date||todayISO(),dayId:day.id,dayName:day.name,entries,done:doneIds,
+  const w={id:WDRAFT.wid,date:WDRAFT.date||todayISO(),dayId:dayIdSave,dayName:dayNm,entries,done:doneIds,
     rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips};
   /* El borrador NO se borra hasta que el servidor confirma. Al revés (s67) costó un
      entrenamiento completo: si el guardado fallaba, ya no quedaba de dónde recuperarlo. */
@@ -5234,7 +5290,9 @@ function wdraftDayName(aid){
   if(!wdraftDirty(WDRAFT)||WDRAFT.aid!==aid)return '';
   const rt=routineForAthlete(aid);
   const day=(rt.days||[]).find(x=>x.id===WDRAFT.dayId);
-  return day?day.name:'';
+  /* Si el día ya no está en la rutina, el nombre copiado en el borrador es lo que evita que el
+     aviso de «entreno sin guardar» desaparezca justo cuando más falta hace. */
+  return day?day.name:(WDRAFT.dayName||'');
 }
 /* ---------- KEEP: lo escrito sobrevive a render() ----------
    La app repinta TODO el HTML en cada render(), así que cualquier campo cuyo valor viva
@@ -5523,7 +5581,22 @@ VIEWS['ath-wlog']=function(u){
   if(!svcOf(u.id).tr)return VIEWS['ath-hoy'](u);
   const aid=u.id,d=athData(aid),rt=routineForAthlete(aid);
   const day=rt.days.find(x=>x.id===(WDRAFT&&WDRAFT.dayId));
-  if(!day){return VIEWS['ath-hoy'](u);}
+  /* El día dejó de existir con la sesión abierta (el coach lo borró o le cambió el nombre al
+     aplicar una plantilla). Rebotar a «Hoy» sin decir nada era la peor versión posible: al
+     atleta se le esfumaba la sesión a medias sin una palabra. Si no había escrito nada, el
+     rebote sigue siendo lo correcto — no hay nada que perder ni que explicar. */
+  if(!day){
+    if(!wdraftDirty(WDRAFT)||WDRAFT.aid!==aid)return VIEWS['ath-hoy'](u);
+    let ns=0;Object.keys(WDRAFT.sets||{}).forEach(k=>(WDRAFT.sets[k]||[]).forEach(s=>{if(!wdraftRowEmpty(s))ns++;}));
+    return{title:'Esta sesión ya no está en tu rutina',crumb:fmtDateFull(WDRAFT.date||todayISO()),
+      body:'<div class="card"><div class="empty"><b>Tu coach reorganizó tu rutina</b>'+
+        'El día <b>'+esc(WDRAFT.dayName||'que tenías abierto')+'</b> ya no existe tal cual en tu programa'+
+        (ns?', pero lo que anotaste sigue aquí: <b>'+ns+(ns===1?' serie</b>.':' series</b>.'):'.')+'</div>'+
+        '<p class="tiny">Guárdalo igual: el entreno lo hiciste y tu coach lo verá con el nombre que tenía ese día. O descártalo y empieza la sesión nueva desde «Mi rutina».</p>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">'+
+        '<button class="btn btn-p" data-act="wlog-save">Guardar lo anotado</button>'+
+        '<button class="btn btn-g" data-act="wlog-drop">Descartar</button></div></div>'};
+  }
   /* El coach pudo mover las series con la sesión ya abierta: cuadrar el borrador ANTES de
      pintar, y dejar dicho qué cambió — que aparezca una casilla de la nada sin avisar es
      exactamente igual de desconcertante que no verla aparecer. */
@@ -5764,7 +5837,7 @@ Object.assign(ACTIONS,{
     if(!day||!day.exercises.length){toast('Este día no tiene ejercicios');return;}
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id){
       if(WDRAFT.dayId===day.id){nav('ath-wlog');return;} /* el mismo día: se continúa sin preguntar */
-      const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||'otro día';
+      const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||WDRAFT.dayName||'otro día';
       openModal(WDRAFT.editing?'Tienes correcciones sin guardar':'Tienes un entreno sin guardar',
         '<p class="muted">'+(WDRAFT.editing
           ?'Cambiaste algo de tu registro de <b>'+esc(dn)+'</b> y todavía no lo has guardado. Si empiezas <b>'+esc(day.name)+'</b> ahora, esos cambios se pierden (el registro original se queda como estaba).'
@@ -5832,7 +5905,7 @@ Object.assign(ACTIONS,{
     if(log.date<daysAgoISO(WLOG_EDIT_DAYS)||log.date>=todayISO()||isMissed(log)){toast('Esa sesión ya no se puede corregir desde aquí');return;}
     /* Un borrador con cosas escritas no se pisa en silencio, igual que al empezar un día. */
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.wid!==log.id){
-      const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||'otro día';
+      const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||WDRAFT.dayName||'otro día';
       openModal(WDRAFT.editing?'Tienes correcciones sin guardar':'Tienes un entreno sin guardar',
         '<p class="muted">Lo que tienes anotado en <b>'+esc(dn)+'</b> todavía no se ha guardado. Si abres la sesión del <b>'+fmtDate(log.date)+'</b> ahora, se pierde.</p>',
         '<button class="btn btn-g" data-act="wlog-past-edit" data-day="'+day.id+'" data-id="'+log.id+'" data-force="1">Descartar y corregir el '+fmtDate(log.date)+'</button>'+
@@ -5861,6 +5934,9 @@ Object.assign(ACTIONS,{
     wdraftSave();
     nav('ath-wlog');
   },
+  /* Tirar el borrador sin empezar otro día. Lo usa la pantalla del día que desapareció: ahí no
+     hay ningún día al que saltar, que es justo lo que `wlog-discard` da por hecho. */
+  'wlog-drop':()=>{WDRAFT=null;wdraftSave();toast('Borrador descartado');nav('ath-rutina');},
   /* Sin render(): el aviso se quita del documento y ya. Repintar la vista entera por cerrar
      un aviso le movería el foco al que está escribiendo una serie. */
   'wlog-plannote-ok':()=>{planNoteQuitar();},
@@ -6434,18 +6510,40 @@ function tplFromNutri(aid,name){
   const n=dcopy(stripDiet(nutriOf(aid)));
   return{id:uid(),name:name,activePlan:n.activePlan,plans:n.plans||[],supplements:n.supplements||[],created:todayISO()};
 }
+/* Los entrenos ya registrados cuelgan del `id` del día (`w.dayId`): de ahí salen la comparación
+   de sesiones del coach, la adherencia por día y la referencia en gris de «la vez pasada» que
+   ve el atleta en cada casilla. Rehacer los días con ids nuevos —aplicar plantilla, generar o
+   regenerar el split— cortaba ese hilo en silencio: el historial seguía guardado pero ya no
+   colgaba de ningún día, así que la comparación salía vacía y al atleta le desaparecían todas
+   sus referencias de golpe. Peor: si tenía la sesión abierta, su borrador quedaba apuntando a
+   un día inexistente.
+   Se reusa el id cuando el día nuevo se llama IGUAL que uno que ya existía, cada uno una sola
+   vez. Regenerar una variante del mismo split lo conserva todo (splitTemplate da nombres fijos
+   por estilo y nº de días); cambiar de estilo estrena ids, y eso es lo correcto: «Empuje» no es
+   «Torso», y mezclar sus sesiones en una misma gráfica mentiría más que perder el enlace. */
+function dayIdClaimer(days){
+  /* Una cola por nombre y no un id suelto: si la rutina traía dos días llamados igual, el
+     segundo también tiene derecho a recuperar el suyo en vez de estrenar id por empate. */
+  const byName={};
+  (days||[]).forEach(dy=>{const k=(dy.name||'').trim().toLowerCase();if(k)(byName[k]=byName[k]||[]).push(dy.id);});
+  return nm=>{const k=(nm||'').trim().toLowerCase(),q=k?byName[k]:null;return(q&&q.length)?q.shift():null;};
+}
 function applyTplRoutine(aid,t){
   const d=athData(aid),r=d.routine;
   /* conserva el historial de cargas: reutiliza ids de ejercicios ya programados (por vínculo de biblioteca o nombre), cada uno una sola vez */
   const byLib={},byName={},used={};
   (r.days||[]).forEach(day=>day.exercises.forEach(e=>{if(e.libId&&byLib[e.libId]==null)byLib[e.libId]=e.id;const k=(e.name||'').trim().toLowerCase();if(k&&byName[k]==null)byName[k]=e.id;}));
   const claim=id=>{if(!id||used[id])return null;used[id]=1;return id;};
+  const claimDay=dayIdClaimer(r.days);
   let ex=0;
-  const days=dcopy(t.days).map(day=>{day.id=uid();day.exercises.forEach(e=>{
+  const days=dcopy(t.days).map(day=>{day.id=claimDay(day.name)||uid();day.exercises.forEach(e=>{
     let oid=e.libId?claim(byLib[e.libId]):null;
     if(!oid){const k=(e.name||'').trim().toLowerCase();oid=claim(byName[k]);}
     e.id=oid||uid();delete e.revLink;ex++;
   });return day;});
+  /* Los ejercicios que no reclamó nadie se van con la rutina vieja: se apunta su nombre para
+     que el trabajo que el atleta ya registró bajo ellos no quede sin título en Registros. */
+  (r.days||[]).forEach(dy=>(dy.exercises||[]).forEach(e=>rememberExName(aid,e)));
   r.name=t.name;r.weekNote=t.weekNote||'';r.days=days;r.startDate=todayISO();
   if(!r.changelog)r.changelog=[];if(!r.snapshots)r.snapshots=[];
   r.baseline={date:todayISO(),byGroup:volMap(aid)};
@@ -8031,7 +8129,8 @@ function autoSplit(aid,nDays,style,emphasis,opts){
   let anyTgt=GROUPS.some(g=>p.volTargets[g]!=null&&p.volTargets[g]!==''&&p.priorities[g]!==0);
   if(!anyTgt){GROUPS.forEach(g=>{const prio=p.priorities[g];if(prio===0){delete p.volTargets[g];return;}const rec=volumeRecMatrix(prio,p.experience,p.phase);if(rec)p.volTargets[g]=rec.lo;});stampAllVolTargets(p);}
   const tpl=splitTemplate(nDays,p.experience,style);
-  const days=tpl.map(t=>({id:uid(),name:t.name,region:t.region,exercises:[],plan:{}}));
+  const claimDay=dayIdClaimer(r.days);
+  const days=tpl.map(t=>({id:claimDay(t.name)||uid(),name:t.name,region:t.region,exercises:[],plan:{}}));
   /* grupos que realmente se entrenan y tienen día donde caer en este split */
   const trainable=g=>{const t=p.volTargets[g];return t!=null&&t!==''&&(+t)>0&&p.priorities[g]!==0&&days.some(dy=>REGION_GROUPS[dy.region].indexOf(g)>=0);};
   /* énfasis: músculos de interés elegidos, o —si no hay— 1-2 grupos grandes al azar (coherentes con el split) */
@@ -8079,6 +8178,9 @@ function autoSplit(aid,nDays,style,emphasis,opts){
     });
     delete dy.region;
   });
+  /* El split rehace todos los ejercicios con ids nuevos: se apunta el nombre de los que salen
+     para que lo ya registrado bajo ellos siga teniendo título en Registros. */
+  (r.days||[]).forEach(dy=>(dy.exercises||[]).forEach(e=>rememberExName(aid,e)));
   r.days=days;
   r.startDate=r.startDate||todayISO();
   r.baseline={date:todayISO(),byGroup:volMap(aid)};
