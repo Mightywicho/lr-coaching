@@ -5623,10 +5623,12 @@ VIEWS['ath-wlog']=function(u){
     if(!wdraftDirty(WDRAFT)||WDRAFT.aid!==aid)return VIEWS['ath-hoy'](u);
     let ns=0;Object.keys(WDRAFT.sets||{}).forEach(k=>(WDRAFT.sets[k]||[]).forEach(s=>{if(!wdraftRowEmpty(s))ns++;}));
     return{title:'Esta sesión ya no está en tu rutina',crumb:fmtDateFull(WDRAFT.date||todayISO()),
+      /* `.empty` pone sus <b> en bloque: lleva UN título y una línea suelta, nada más. Todo lo
+         demás va fuera o el texto sale troceado en mitad de la frase. */
       body:'<div class="card"><div class="empty"><b>Tu coach reorganizó tu rutina</b>'+
-        'El día <b>'+esc(WDRAFT.dayName||'que tenías abierto')+'</b> ya no existe tal cual en tu programa'+
-        (ns?', pero lo que anotaste sigue aquí: <b>'+ns+(ns===1?' serie</b>.':' series</b>.'):'.')+'</div>'+
-        '<p class="tiny">Guárdalo igual: el entreno lo hiciste y tu coach lo verá con el nombre que tenía ese día. O descártalo y empieza la sesión nueva desde «Mi rutina».</p>'+
+        'El día «'+esc(WDRAFT.dayName||'que tenías abierto')+'» ya no existe tal cual en tu programa.</div>'+
+        '<p class="tiny mt8">'+(ns?'Lo que anotaste sigue aquí: <b>'+ns+(ns===1?' serie':' series')+'</b>. ':'')+
+        'Guárdalo igual: el entreno lo hiciste y tu coach lo verá con el nombre que tenía ese día. O descártalo y empieza la sesión nueva desde «Mi rutina».</p>'+
         '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">'+
         '<button class="btn btn-p" data-act="wlog-save">Guardar lo anotado</button>'+
         '<button class="btn btn-g" data-act="wlog-drop">Descartar</button></div></div>'};
