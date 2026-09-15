@@ -1209,9 +1209,16 @@ function avisoOffline(){
   toast('Sin conexión: este cambio no se guardó','err');
 }
 function bannerOffline(){
+  /* El texto se parte en dos porque ya no hay una sola verdad: los registros del atleta
+     (entreno, peso, pasos, medidas) SÍ se guardan y suben solos; lo demás —planes,
+     biblioteca, nutrición, chat— sigue sin poder guardarse. Decir «nada se guarda» ahora
+     sería mentir en la dirección contraria, y el atleta dejaría de apuntar su sesión. */
+  const n=outboxPendientes();
   bottomBanner('offlineBanner','warn',12,
     '<b>Sin conexión.</b> Estás viendo la última copia guardada en este dispositivo. '+
-    'Lo que cambies aquí <b>no</b> se guardará hasta que vuelva la señal.');
+    'Puedes registrar tu <b>entreno, peso, pasos y medidas</b>: se guardan aquí y suben solos en cuanto vuelva la señal.'+
+    (n?' Llevas <b>'+n+'</b> '+(n===1?'registro pendiente':'registros pendientes')+'.':'')+
+    '<br>El resto de cambios <b>no</b> se guardará hasta que vuelva la señal.');
 }
 /* Volver de la nada. El evento `online` no es de fiar por sí solo (avisa al enganchar el
    wifi, no al tener internet), así que además se toca la puerta cada 20 s. */
@@ -1229,6 +1236,11 @@ function vigilarReconexion(){
       vivo=!!(r&&r.ok);
     }catch(e){vivo=false;}
     if(!vivo)return;
+    /* Primero subir, después recargar. La recarga rehace el arranque y vuelve a hidratar
+       desde el servidor: si lo pendiente no ha salido antes, el atleta ve cómo su registro
+       desaparece justo en el momento en que vuelve la señal. La cola vive en el navegador,
+       así que sobrevive a la recarga igual, pero subirla ya evita ese susto. */
+    try{await outboxFlush();}catch(e){}
     if(_reconTimer){clearInterval(_reconTimer);_reconTimer=null;}
     /* Recargar es lo único que saca del modo solo lectura: hay que rehacer el arranque
        completo (identidad, blob, tablas) y volver a poner _blobRev. Si está a media
@@ -1242,6 +1254,246 @@ function vigilarReconexion(){
   _reconTimer=setInterval(intentar,20000);
   try{document.addEventListener('visibilitychange',function(){if(!document.hidden)intentar();});}catch(e){}
 }
+/* ===== Cola de pendientes (s63) =====
+   El problema que resuelve: hasta ahora, un registro hecho sin señal se guardaba en
+   memoria, se avisaba «Peso guardado local (sin conexión)» y se PERDÍA. Nadie lo
+   reintentaba nunca, y en el siguiente arranque con red los hidratadores reemplazan
+   `logs.weight`, `logs.steps` y `logs.workouts` enteros con lo que hay en el servidor
+   —donde ese registro no está—. El atleta veía su entreno guardado un día y
+   desaparecido al siguiente. El aviso era verdad a medias y el dato era mentira.
+   Ahora lo que no sube se guarda en una cola en el navegador y se reintenta solo en
+   cuanto vuelve la señal.
+
+   Por qué es seguro reintentar: las cuatro tablas de aquí se escriben SIEMPRE con
+   `upsert` sobre una clave fija (`athlete_uid,date` o `id`). Mandar la misma fila dos
+   veces deja exactamente el mismo resultado que mandarla una, así que un reintento no
+   puede duplicar nada ni pisar un dato más nuevo del servidor que no sea de esa misma
+   fila. Esa es justo la propiedad que NO tiene el blob de `app_state` —una copia entera
+   del estado, donde reenviar una versión vieja borra lo que hicieron los demás (s42)—,
+   y por eso el blob no entra en esta cola y el cerrojo de modo sin conexión lo sigue
+   bloqueando entero.
+
+   Qué NO hace: no toca el chat, ni la nutrición, ni nada del coach. */
+const LS_OUTBOX='lrc_outbox_v1';
+/* Tope de la cola. localStorage son ~5 MB por origen y compartidos con el estado
+   entero, así que no puede crecer sin freno; con el descarte por clave de abajo,
+   400 son meses de registros sin señal. */
+const OUTBOX_MAX=400;
+/* Más allá de esto se descarta al cargar: una fila de hace tres meses ya no describe
+   nada que el atleta reconozca, y mantenerla viva solo alarga la cola para siempre. */
+const OUTBOX_DIAS=90;
+/* tabla -> columnas de la clave de conflicto. Ser esta lista y no otra es el contrato:
+   si una tabla no está aquí, `guardarConCola` se niega en vez de encolar a ciegas algo
+   que no sabe reintentar sin duplicar. */
+const OUTBOX_CLAVE={
+  weight_logs:['athlete_uid','date'],
+  steps_logs:['athlete_uid','date'],
+  measurement_logs:['athlete_uid','date'],
+  workout_logs:['id']
+};
+let _outbox=(function(){
+  let a=null;
+  try{a=JSON.parse(localStorage.getItem(LS_OUTBOX)||'[]');}catch(e){}
+  if(!Array.isArray(a))return[];
+  const limite=Date.now()-OUTBOX_DIAS*86400000;
+  return a.filter(function(e){return e&&e.k&&OUTBOX_CLAVE[e.tabla]&&e.row&&(e.ts||0)>limite;});
+})();
+function outboxGuardar(){try{localStorage.setItem(LS_OUTBOX,JSON.stringify(_outbox));}catch(e){}}
+function outboxClave(tabla,row){
+  return tabla+'|'+(OUTBOX_CLAVE[tabla]||[]).map(function(c){return String(row[c]==null?'':row[c]);}).join('|');
+}
+/* Solo lo de la cuenta que está dentro ahora. Si en este teléfono entró otro atleta, sus
+   filas siguen guardadas pero ni se cuentan ni se mandan: RLS las rechazaría, y sobre
+   todo no son de quien está mirando la pantalla. Vuelven a subir si él vuelve a entrar. */
+function outboxMios(){
+  const uid=_supabaseUser&&_supabaseUser.id;
+  if(!uid)return[];
+  return _outbox.filter(function(e){return !e.uid||e.uid===uid;});
+}
+function outboxPendientes(){return outboxMios().filter(function(e){return !e.muerto;}).length;}
+function outboxRechazados(){return outboxMios().filter(function(e){return e.muerto;}).length;}
+/* Encolar. Se machaca por clave a propósito: si el atleta corrige su peso tres veces sin
+   señal, lo que debe subir es el último, no los tres en fila. */
+function outboxPush(tabla,row){
+  if(!OUTBOX_CLAVE[tabla])return false;
+  const k=outboxClave(tabla,row);
+  const item={k:k,tabla:tabla,row:row,ts:Date.now(),uid:(_supabaseUser&&_supabaseUser.id)||null};
+  const i=_outbox.findIndex(function(e){return e.k===k;});
+  if(i>=0)_outbox[i]=item;else _outbox.push(item);
+  if(_outbox.length>OUTBOX_MAX)_outbox.splice(0,_outbox.length-OUTBOX_MAX);
+  outboxGuardar();
+  bannerPendientes();
+  return true;
+}
+/* Guardar una fila: al servidor si se puede, a la cola si no.
+   Devuelve {ok,encolado,err}. `ok:false` es solo el rechazo REAL del servidor (una
+   restricción, un dato inválido): eso no se encola porque reintentarlo no lo arregla, y
+   el sitio que llamó lo enseña como el error que es. */
+async function guardarConCola(tabla,row){
+  const cols=OUTBOX_CLAVE[tabla];
+  if(!cols){console.error('guardarConCola: tabla fuera de la cola',tabla);return{ok:false,encolado:false,err:new Error('tabla no encolable')};}
+  if(!_supabaseUser)return{ok:false,encolado:false,err:new Error('No hay sesión activa.')};
+  if(_offlineMode||sinRed()){outboxPush(tabla,row);return{ok:true,encolado:true};}
+  let error=null;
+  try{
+    /* `_supaFrom` y no `supa.from`: el cerrojo del modo sin conexión bloquea las cuatro
+       escrituras de golpe, y aquí ya se decidió arriba que esta fila sí puede ir. */
+    const r=await _supaFrom(tabla).upsert(row,{onConflict:cols.join(',')});
+    error=r.error;
+  }catch(e){error=e;}
+  if(!error)return{ok:true,encolado:false};
+  /* Sesión caída también se encola: el dato sobrevive al «vuelve a entrar» y sube en
+     cuanto haya token bueno. Perderlo por un token vencido sería el mismo bug de antes. */
+  if(esFalloDeRed(error)||authFail(error)){outboxPush(tabla,row);return{ok:true,encolado:true};}
+  return{ok:false,encolado:false,err:error};
+}
+/* Vaciar la cola. Secuencial y no en paralelo: con mala señal, diez peticiones a la vez
+   se estorban entre ellas, y en cuanto una falla por red las demás van a fallar igual.
+   Al primer fallo de red se corta y se deja lo que queda para el siguiente intento. */
+let _flushCorriendo=false;
+async function outboxFlush(){
+  if(_flushCorriendo||!_supabaseUser||sinRed())return 0;
+  const lote=outboxMios().filter(function(e){return !e.muerto;});
+  if(!lote.length)return 0;
+  _flushCorriendo=true;
+  let subidas=0,rechazo=null;
+  try{
+    for(let i=0;i<lote.length;i++){
+      const e=lote[i];
+      const cols=OUTBOX_CLAVE[e.tabla];
+      let error=null;
+      try{const r=await _supaFrom(e.tabla).upsert(e.row,{onConflict:cols.join(',')});error=r.error;}
+      catch(ex){error=ex;}
+      if(!error){
+        const ix=_outbox.findIndex(function(x){return x.k===e.k;});
+        if(ix>=0)_outbox.splice(ix,1);
+        subidas++;
+        continue;
+      }
+      /* Red caída o sesión muerta: no es culpa de la fila. Se para aquí y se conserva
+         todo — insistir con el resto solo gasta batería y no va a funcionar. */
+      if(esFalloDeRed(error)||authFail(error))break;
+      /* Rechazo del servidor: la fila tiene algo malo. Se cuentan los intentos y a la
+         tercera se deja quieta, para no repetir para siempre un error que no se arregla
+         solo. No se borra: el dato sigue aquí y el aviso ofrece reintentar a mano. */
+      e.intentos=(e.intentos||0)+1;
+      e.ultErr=String((error&&error.message)||error);
+      if(e.intentos>=3){e.muerto=true;rechazo=e.ultErr;}
+    }
+  }finally{
+    _flushCorriendo=false;
+    outboxGuardar();
+    bannerPendientes();
+  }
+  /* Lo subido ya no es un pendiente: la copia local del estado tiene que decir lo mismo.
+     SOLO con la app en modo normal. El flush también corre en modo sin conexión —lo llama
+     `vigilarReconexion` en cuanto el servidor vuelve a responder, antes de recargar— y
+     allí `S` arrastra los cambios que ese modo RECHAZÓ. Grabarlos los volvería datos
+     fantasma; es el mismo motivo por el que `saveTrasCola` tampoco escribe. Lo pendiente
+     no necesita este espejo para sobrevivir: vive en su propia cola. */
+  if(subidas&&!_offlineMode){
+    try{espejoLocal();}catch(e){}
+  }
+  if(rechazo)toast('El servidor rechazó un registro: '+rechazo,'err');
+  return subidas;
+}
+/* Superponer lo pendiente sobre el estado recién traído del servidor.
+   Sin esto, cada hidratación REEMPLAZA el array entero con lo del servidor y el registro
+   que aún no ha subido desaparece de la pantalla aunque siga en la cola: el atleta lo ve
+   borrarse solo y vuelve a apuntarlo. Se llama después de hidratar, nunca antes. */
+function outboxAplicar(){
+  if(!S||!S.athletes)return;
+  outboxMios().forEach(function(e){
+    const r=e.row;
+    const appId=_appIdByAthleteUid[r.athlete_uid];
+    if(!appId)return;
+    const d=S.athletes[appId];
+    if(!d||!d.logs)return;
+    const porFecha=function(arr,item){
+      const i=arr.findIndex(function(x){return x&&x.date===item.date;});
+      if(i>=0)arr[i]=item;else arr.push(item);
+      arr.sort(function(a,b){return a.date<b.date?-1:1;});
+    };
+    if(e.tabla==='weight_logs'){
+      if(!Array.isArray(d.logs.weight))d.logs.weight=[];
+      porFecha(d.logs.weight,{date:r.date,kg:+r.kg});
+    }else if(e.tabla==='steps_logs'){
+      if(!Array.isArray(d.logs.steps))d.logs.steps=[];
+      porFecha(d.logs.steps,{date:r.date,steps:+r.steps});
+    }else if(e.tabla==='measurement_logs'){
+      if(!Array.isArray(d.logs.measures))d.logs.measures=[];
+      const m=Object.assign({},r.data||{});
+      if(!m.date)m.date=r.date;
+      porFecha(d.logs.measures,m);
+    }else if(e.tabla==='workout_logs'){
+      if(!Array.isArray(d.logs.workouts))d.logs.workouts=[];
+      const w={id:r.id,date:r.date,dayId:r.day_id,dayName:r.day_name,entries:r.entries||{},done:r.done||[],rpe:r.rpe,dur:r.dur,comment:r.comment||'',status:r.status||'done',reason:r.reason||null,skips:r.skips||{}};
+      const i=d.logs.workouts.findIndex(function(x){return x&&x.id===w.id;});
+      if(i>=0)d.logs.workouts[i]=w;else d.logs.workouts.push(w);
+      d.logs.workouts.sort(function(a,b){return a.date<b.date?-1:1;});
+    }
+  });
+}
+/* Aviso de que hay cosas esperando. En modo sin conexión NO se pinta: allí ya manda el
+   banner de «Sin conexión», que ocupa el mismo sitio y dice lo mismo con más contexto. */
+function bannerPendientes(){
+  const quita=function(){try{const b=document.getElementById('outboxBanner');if(b)b.remove();}catch(e){}};
+  if(_offlineMode){
+    quita();
+    /* Sin conexión manda el banner de «Sin conexión», que lleva el contador dentro. Se
+       repinta para que suba al registrar algo — pero solo mientras se siga vigilando la
+       reconexión: si ya volvió la señal, ese hueco lo ocupa el aviso de «Recarga» y
+       pisarlo con el de sin conexión sería retroceder. */
+    try{if(_reconTimer&&document.getElementById('offlineBanner'))bannerOffline();}catch(e){}
+    return;
+  }
+  const n=outboxPendientes(),mal=outboxRechazados();
+  if(!n&&!mal)return quita();
+  if(mal&&!n){
+    bottomBanner('outboxBanner','warn',12,
+      '<b>'+mal+(mal===1?' registro no se pudo guardar':' registros no se pudieron guardar')+'.</b> '+
+      'El servidor los rechazó. Siguen en este dispositivo.'+
+      '<button onclick="lrReintentarPendientes()" style="'+BTN_CSS+'">Reintentar</button>');
+    return;
+  }
+  bottomBanner('outboxBanner','ok',12,
+    '<b>'+n+(n===1?' registro pendiente':' registros pendientes')+' de subir.</b> '+
+    'Ya están guardados en este dispositivo y suben solos en cuanto haya señal.'+
+    '<button onclick="lrReintentarPendientes()" style="'+BTN_CSS+'">Subir ahora</button>');
+}
+/* Reintento a mano: revive también las filas que el servidor rechazó, porque el motivo
+   puede haber dejado de existir (una sesión nueva, un plan que ya se creó). */
+async function lrReintentarPendientes(){
+  _outbox.forEach(function(e){if(e.muerto){e.muerto=false;e.intentos=0;}});
+  outboxGuardar();
+  const n=await outboxFlush();
+  if(n){toast(n===1?'Se subió 1 registro pendiente':'Se subieron '+n+' registros pendientes');try{liveRender();}catch(e){}}
+  else if(outboxPendientes()||outboxRechazados())toast('Todavía no se pudieron subir','err');
+}
+window.lrReintentarPendientes=lrReintentarPendientes;
+/* Guardado local para lo que ya pasó por la cola. Lo único que cambia frente a
+   `saveState` es que sin conexión NO avisa «este cambio no se guardó»: la fila está en la
+   cola y sí se va a guardar, así que ese aviso sería falso y le enseñaría al atleta a
+   desconfiar de lo que apunta.
+   Lo que NO hace, a propósito, es volcar el estado entero a disco sin conexión. Es
+   tentador —parece la forma obvia de que el registro sobreviva a cerrar la app— y es la
+   trampa: `S` en ese momento arrastra también los cambios que el modo sin conexión
+   RECHAZÓ (un plan que el coach tocó, una comida que el atleta marcó), y grabarlos los
+   convertiría en datos fantasma que reaparecen tras recargar y nunca existieron en el
+   servidor. Es exactamente cómo se borran datos (s42).
+   Lo que sobrevive a cerrar la app es la cola, que se guarda sola en `outboxPush` y
+   vuelve a la pantalla en el arranque siguiente vía `outboxAplicar()`. Una sola fuente
+   de verdad para lo pendiente, y es la que sabe lo que de verdad va a subir. */
+function saveTrasCola(){
+  if(_offlineMode)return;
+  saveState();
+}
+/* Intentos automáticos. El `online` del navegador avisa al enganchar el wifi, no al
+   tener internet de verdad, así que además se prueba al volver a la app y cada minuto
+   mientras quede algo en la cola. */
+try{window.addEventListener('online',function(){outboxFlush();});}catch(e){}
+try{document.addEventListener('visibilitychange',function(){if(!document.hidden)outboxFlush();});}catch(e){}
+setInterval(function(){if(outboxPendientes())outboxFlush();},60000);
 function stateForCloud(){
   /* logs viven en tablas con RLS; rutina, plan de nutrición y perfil viven en tablas — se excluyen del blob */
   /* P5 (pendiente, SOLO tras verificar P4 en producción): agregar aquí
@@ -2280,6 +2532,10 @@ async function refreshAllData(only){
   const names=Object.keys(_HYDRATORS).filter(t=>full||only.has(t));
   /* en paralelo: son SELECT independientes sobre tablas distintas, no en cadena de 13 await */
   await Promise.all(names.map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
+  /* Cada hidratador REEMPLAZA su array con lo del servidor. Lo que sigue en la cola no está
+     allí todavía, así que sin esto el registro recién hecho sin señal se borraría de la
+     pantalla él solo. Va después de hidratar, nunca antes. */
+  outboxAplicar();
 }
 function liveRender(){
   /* no redibujar si el usuario está escribiendo en un formulario (salvo el chat, que ya se preserva) */
@@ -2430,7 +2686,11 @@ async function setCoachWeight(aid,kg,date){
   d.logs.weight.sort((a,b)=>a.date<b.date?-1:1);
   let synced=true;const auid=_athleteUidByAppId[aid];
   if(auid&&_supabaseUser){
-    try{const{error}=await supa.from('weight_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:day,kg},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}
+    /* `synced` aquí significa «ya está en el servidor». Encolado NO cuenta como
+       sincronizado: el aviso sigue diciendo «pendiente», que es la verdad. Lo que cambia
+       es que ahora ese pendiente existe de verdad y sube solo, en vez de evaporarse. */
+    const r=await guardarConCola('weight_logs',{athlete_uid:auid,coach_uid:_coachUid,date:day,kg});
+    if(!r.ok||r.encolado)synced=false;
   }else synced=false; /* sin cuenta aún: vive en el perfil hasta que el atleta se registre */
   return{ok:true,synced,date:day};
 }
@@ -5225,20 +5485,27 @@ async function pushWorkoutLog(u,w,silent){
   const auid=_athleteUidByAppId&&_athleteUidByAppId[u.id];
   if(auid&&_supabaseUser){
     /* Chequeo previo: una sesión muerta manda el upsert como anon y Postgres lo rechaza
-       por RLS con un mensaje que no le dice nada al atleta (bitácora del bug de guardado). */
-    if(!await sessionAlive())return{ok:false,msg:'Tu sesión ya no es válida. Vuelve a entrar y repite la acción.'};
-    try{
-      const{error}=await supa.from('workout_logs').upsert({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},{onConflict:'id'});
-      if(error){console.error('workout_logs',error);const _msg=authFail(error)||error.message;if(!silent)toast('No sincronizó: '+_msg);saveState();return{ok:false,msg:_msg};}
-    }catch(e){console.error(e);if(!silent)toast('No sincronizó: '+(e&&e.message||e));saveState();return{ok:false,msg:(e&&e.message)||String(e)};}
-  }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
-  else{saveState();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
-  saveState();
-  return{ok:true};
+       por RLS con un mensaje que no le dice nada al atleta (bitácora del bug de guardado).
+       Sin señal NO se hace: `getSession()` intenta renovar un token vencido, la renovación
+       necesita red y sin ella devuelve nulo — o sea que en el gym sin cobertura este
+       chequeo daba «tu sesión no es válida» y tiraba el entrenamiento entero. Justo el
+       sitio donde peor señal hay. Offline se encola y el token se comprueba al subir. */
+    if(!(_offlineMode||sinRed())&&!await sessionAlive())return{ok:false,msg:'Tu sesión ya no es válida. Vuelve a entrar y repite la acción.'};
+    const r=await guardarConCola('workout_logs',{id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}});
+    if(!r.ok){
+      const _msg=(r.err&&(authFail(r.err)||r.err.message))||'El servidor no aceptó el registro.';
+      console.error('workout_logs',r.err);
+      if(!silent)toast('No sincronizó: '+_msg);
+      saveTrasCola();return{ok:false,msg:_msg};
+    }
+    saveTrasCola();
+    return{ok:true,encolado:!!r.encolado};
+  }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)');saveTrasCola();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
+  else{saveTrasCola();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
   }catch(e){
     console.error('pushWorkoutLog',e);
     if(!silent)toast('No sincronizó: '+((e&&e.message)||e));
-    try{saveState();}catch(_){}
+    try{saveTrasCola();}catch(_){}
     return{ok:false,msg:(e&&e.message)||String(e)};
   }
 }
@@ -5315,7 +5582,10 @@ async function saveWorkoutDraft(status,reason,extraCm){
     return;
   }
   WDRAFT=null;wdraftSave();
-  toast(_wasEdit?(_wasPast?'Sesión del '+fmtDate(w.date)+' corregida ✓':'Registro corregido ✓'):st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
+  /* El borrador se suelta también cuando el entreno quedó ENCOLADO, y es correcto: ya no
+     es un borrador a medias, es una fila cerrada esperando turno. Guardarla dos veces
+     (borrador + cola) sería tener dos verdades distintas del mismo entrenamiento. */
+  toast((_wasEdit?(_wasPast?'Sesión del '+fmtDate(w.date)+' corregida ✓':'Registro corregido ✓'):st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪')+(_res.encolado?' · sube al volver la señal':''));
   /* Corregir una sesión pasada se entra desde «Mi rutina»; devolver ahí es volver de donde vino. */
   nav(_wasEdit&&_wasPast?'ath-rutina':'ath-hoy');
 }
@@ -6138,8 +6408,8 @@ Object.assign(ACTIONS,{
     const ta=document.getElementById('miss_cm'),cm=ta?ta.value.trim():'';
     const w={id:uid(),date:todayISO(),dayId:day.id,dayName:day.name,entries:{},done:[],rpe:null,dur:null,comment:cm,status:'missed',reason:el.dataset.why,skips:{}};
     closeModal();
-    await pushWorkoutLog(u,w);
-    toast('Registrado · tu coach ya lo ve');render();
+    const _r=await pushWorkoutLog(u,w);
+    toast(_r&&_r.encolado?'Registrado · tu coach lo verá al volver la señal':'Registrado · tu coach ya lo ve');render();
   },
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
@@ -6152,13 +6422,13 @@ Object.assign(ACTIONS,{
     const existing=d.logs.weight.find(w=>w.date===todayISO());
     if(existing)existing.kg=kg;else d.logs.weight.push({date:todayISO(),kg});
     d.logs.weight.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){
-      try{const{error}=await supa.from('weight_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),kg},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}
-    }
+    const auid=_athleteUidByAppId[u.id];
+    let r={ok:true,encolado:false};
+    if(auid&&_supabaseUser)r=await guardarConCola('weight_logs',{athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),kg});
     keepClear('w_today'); /* ya está guardado: si no se suelta, se repintaría encima del dato bueno */
-    saveState();
-    toast(synced?('Peso guardado: '+kg+' kg'):('Peso guardado local (sin conexión): '+kg+' kg'));
+    saveTrasCola();
+    if(!r.ok)toast('No se guardó: '+((r.err&&r.err.message)||'error del servidor'),'err');
+    else toast(r.encolado?('Peso guardado: '+kg+' kg · sube al volver la señal'):('Peso guardado: '+kg+' kg'));
     render();
   },
   'steps-save':async()=>{
@@ -6169,10 +6439,14 @@ Object.assign(ACTIONS,{
     const existing=d.logs.steps.find(s=>s.date===todayISO());
     if(existing)existing.steps=st;else d.logs.steps.push({date:todayISO(),steps:st});
     d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    const auid=_athleteUidByAppId[u.id];
+    let r={ok:true,encolado:false};
+    if(auid&&_supabaseUser)r=await guardarConCola('steps_logs',{athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st});
     keepClear('s_today');
-    saveState();toast(synced?('Pasos guardados: '+st.toLocaleString('es-ES')):('Pasos guardados local: '+st.toLocaleString('es-ES')));render();
+    saveTrasCola();
+    if(!r.ok)toast('No se guardaron: '+((r.err&&r.err.message)||'error del servidor'),'err');
+    else toast('Pasos guardados: '+st.toLocaleString('es-ES')+(r.encolado?' · suben al volver la señal':''));
+    render();
   },
   /* Pasos de días pasados: el atleta suele acordarse tarde de copiar el total del reloj.
      Ventana de 6 días atrás (hoy se registra arriba). Un campo vacío NO borra lo ya registrado.
@@ -6209,10 +6483,20 @@ Object.assign(ACTIONS,{
     if(!d.logs.steps)d.logs.steps=[];
     picks.forEach(p=>{const ex=d.logs.steps.find(s=>s.date===p.date);if(ex)ex.steps=p.steps;else d.logs.steps.push({date:p.date,steps:p.steps});});
     d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert(picks.map(p=>({athlete_uid:auid,coach_uid:_coachUid,date:p.date,steps:p.steps})),{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
-    saveState();closeModal();
-    toast((synced?'Guardado: ':'Guardado local: ')+picks.length+(picks.length===1?' día':' días'));
+    /* Fila por fila y no un upsert con las seis juntas: la cola encola filas sueltas,
+       y así un día que el servidor rechace no se lleva por delante a los otros cinco. */
+    const auid=_athleteUidByAppId[u.id];
+    let encolados=0,fallo=null;
+    if(auid&&_supabaseUser){
+      for(const p of picks){
+        const r=await guardarConCola('steps_logs',{athlete_uid:auid,coach_uid:_coachUid,date:p.date,steps:p.steps});
+        if(!r.ok)fallo=(r.err&&r.err.message)||'error del servidor';
+        else if(r.encolado)encolados++;
+      }
+    }
+    saveTrasCola();closeModal();
+    if(fallo)toast('No se guardó todo: '+fallo,'err');
+    else toast('Guardado: '+picks.length+(picks.length===1?' día':' días')+(encolados?' · suben al volver la señal':''));
     render();
   },
   'measures-save':async()=>{
@@ -6224,10 +6508,14 @@ Object.assign(ACTIONS,{
     const i=d.logs.measures.findIndex(x=>x.date===todayISO());
     if(i>=0)d.logs.measures[i]=m;else d.logs.measures.push(m);
     d.logs.measures.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){try{const{error}=await supa.from('measurement_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),data:m},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    const auid=_athleteUidByAppId[u.id];
+    let r={ok:true,encolado:false};
+    if(auid&&_supabaseUser)r=await guardarConCola('measurement_logs',{athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),data:m});
     keepClearPrefix('ms_'); /* las 10 casillas de una vez */
-    saveState();toast(synced?'Medidas guardadas 📏':'Medidas guardadas local (sin conexión)');render();
+    saveTrasCola();
+    if(!r.ok)toast('No se guardaron: '+((r.err&&r.err.message)||'error del servidor'),'err');
+    else toast(r.encolado?'Medidas guardadas 📏 · suben al volver la señal':'Medidas guardadas 📏');
+    render();
   },
   'meal-add':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
@@ -9313,6 +9601,11 @@ async function initAfterAuthUnsafe(user){
   if(_currentUserId==='coach')aiDraftLoad(); /* analisis de IA sin guardar: sobrevive a recargar */
   ensureBrand(S);applyBrand(S.brandColor); /* tema de marca (coach lo define; el atleta lo hereda del blob) */
   await buildAthleteUidMaps();
+  /* Lo pendiente vuelve a la pantalla aquí, antes del primer render y también sin señal
+     (donde no se hidrata nada). Es lo que hace que el entreno apuntado ayer en el gym
+     siga estando al abrir la app hoy, en vez de haberse esfumado. Necesita los mapas de
+     uid de arriba para saber a qué atleta pertenece cada fila. */
+  try{outboxAplicar();}catch(e){}
   /* Sin red no se hidrata nada. Son ~15 viajes al servidor que van a fallar de todas
      formas, y basta con que UNO se quede colgado para dejar al atleta mirando
      «Cargando datos…» — que es exactamente lo que pasaba. La copia local ya trae
@@ -9380,8 +9673,13 @@ async function hidratarResto(){
       await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
       await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
     }
+    /* Lo pendiente sube ANTES de leer: si primero se leyera, el servidor contestaría sin
+       esas filas y habría que reponerlas a mano. Subiéndolas antes, lo que baja ya es la
+       verdad completa. Y aunque falle, `outboxAplicar()` de abajo cubre el hueco. */
+    try{await outboxFlush();}catch(e){}
     /* hidratación en paralelo: 15 SELECT independientes, no 15 await encadenados */
     await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
+    outboxAplicar();
     /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
     await backfillLibrary();
     await backfillFoods();
@@ -9406,6 +9704,7 @@ async function hidratarResto(){
      que la copia sea la foto completa de lo que ve en pantalla. */
   try{identSave(_supabaseUser.id,_coachUid,_currentUserId);}catch(e){}
   try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+  try{bannerPendientes();}catch(e){}
   _hidratando=false;
 }
 /* Dos vigilantes de la sesión, no uno: supabase-js avisa por su canal entre pestañas cuando el
