@@ -3599,13 +3599,15 @@ function coachTabHistorial(aid){
 }
 function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
+  /* Solo los permanentes: un cambio de un día suelto ya se lista en Resumen y aquí sería ruido. */
+  const swPerm={};swapsOf(aid).forEach(s=>{if(s.scope==='always')swPerm[s.exId]=s;});
   let days='';
   r.days.forEach((day,di)=>{
     let rows='';
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button> <span class="mini-chip" title="'+esc(lib.focus||'Trabajo general del grupo')+'">'+esc(lib.group+(lib.cat?' · '+lib.cat:''))+'</span>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Tiene video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+exSwapChip(swPerm,e)+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
       '<td><div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></td></tr>';
     });
     if(!rows)rows='<tr><td colspan="7" class="tiny" style="text-align:center;padding:18px">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</td></tr>';
@@ -4752,6 +4754,15 @@ function exFlagChips(f){
   if(f.avoid)h+=' <span class="badge orange" title="En la lista de evitar: '+esc(f.avoid)+'">🚫 evitar</span>';
   if(f.like)h+=' <span class="badge volt" title="Ejercicio favorito del atleta">★</span>';
   return h;
+}
+/* Un cambio permanente del atleta no mueve ninguna cifra del coach a propósito: el volumen y la
+   cobertura siguen contando lo que ÉL programó, porque la decisión es del atleta y no suya. Pero
+   entonces tiene que VERSE justo donde el coach decide — en la pestaña Rutina —, o se pasa
+   semanas leyendo y ajustando un ejercicio que su atleta no está haciendo. En Resumen ya está la
+   tarjeta para aceptarlo o revertirlo; esto es el aviso en el sitio donde hace falta. */
+function exSwapChip(sw,e){
+  const s=sw&&sw[e.id];if(!s)return '';
+  return ' <span class="badge orange" title="Cambio permanente: el atleta hace «'+esc(s.toName)+'» en lugar de «'+esc(e.name)+'». Tus cifras de volumen y cobertura siguen contando el tuyo. Acéptalo o revértelo en la pestaña Resumen.">⇄ hace: '+esc(s.toName)+'</span>';
 }
 /* términos buscables: frases + palabras significativas (para alergias escritas como frase) */
 function termList(txt,min){min=min||4;const set=new Set();profileTokens(txt,3).forEach(t=>{if(t.length>=min)set.add(t);t.split(/\s+/).forEach(w=>{w=w.replace(/[^a-z0-9ñ]/g,'');if(w.length>=min&&!['para','como','mucha','mucho','poca','poco','algo','alergia','evitar','grandes','cantidades'].includes(w))set.add(w);});});return[...set];}
@@ -6015,8 +6026,15 @@ Object.assign(ACTIONS,{
     const day=(d.routine.days||[]).find(x=>x.id===s.dayId);
     const ex=day&&(day.exercises||[]).find(x=>x.id===s.exId);
     if(!ex){toast('Ese ejercicio ya no está en la rutina');await delSwap(aid,s.id);render();return;}
+    const _from={sets:ex.sets,reps:ex.reps,rir:ex.rir,name:ex.name};
     ex.name=s.toName;ex.libId=s.toLibId||null;
     await delSwap(aid,s.id);
+    /* Aceptar el cambio del atleta ES modificar la rutina, y no dejaba ni una línea: el coach
+       repasaba sus ajustes del bloque y el ejercicio había cambiado solo. El id se conserva a
+       propósito —el atleta ya venía registrando el sustituto bajo él, ese historial es suyo—,
+       así que esto es un ajuste del renglón y no un alta. */
+    logChange(aid,'ajuste','Ejercicio: '+_from.name+' → '+s.toName+' · cambio del atleta aceptado',day.name,s.toName,null,
+      {exId:ex.id,from:_from,to:{sets:ex.sets,reps:ex.reps,rir:ex.rir,name:s.toName}});
     saveState();toast('Rutina actualizada con el sustituto');render();
   },
   'swap-revert':async el=>{
@@ -6853,7 +6871,7 @@ Object.assign(ACTIONS,{
     let extra='';
     if(kind==='routine'){
       applyTplRoutine(aid,t);
-      if(sEl&&sEl.value)athData(aid).routine.startDate=sEl.value;
+      if(sEl&&sEl.value)setBlockStart(aid,sEl.value);
       if(t.source==='ai-import'){applyAiRoutineAdjust(aid);extra=' · prioridades y objetivos de volumen ajustados al atleta';}
     }else{
       applyTplNutri(aid,t);
@@ -6937,7 +6955,7 @@ Object.assign(ACTIONS,{
       const t={id:uid(),name:(A.routineName||'Rutina importada').trim(),weekNote:A.routineNote||'',days:A.routine,source:'ai-import',created:todayISO()};
       S.templates.routines.push(t);
       applyTplRoutine(aid,t);
-      if(sEl&&sEl.value)athData(aid).routine.startDate=sEl.value;
+      if(sEl&&sEl.value)setBlockStart(aid,sEl.value);
       applyAiRoutineAdjust(aid);
       extra+=' · rutina asignada, prioridades y volumen ajustados al atleta';
       tabTo='entrenamiento';
@@ -7688,10 +7706,39 @@ function syncPlanToSets(aid,day,group,delta){
   if(newT!=null&&newT!==oldT)parts.push('meta semanal '+oldT+'→'+newT);
   return parts.length?parts.join(' · '):null;
 }
-function weekOf(aid){
-  const r=athData(aid).routine;
-  const days=Math.floor((Date.parse(todayISO())-Date.parse(r.startDate||todayISO()))/86400000);
+/* Semana del bloque en la que cae una fecha, contando desde su arranque. */
+function weekOfDate(r,iso){
+  const days=Math.floor((Date.parse(iso||todayISO())-Date.parse((r&&r.startDate)||todayISO()))/86400000);
   return Math.max(1,Math.floor(days/7)+1);
+}
+function weekOf(aid){return weekOfDate(athData(aid).routine,todayISO());}
+/* Mover la fecha de inicio mueve la numeración de semanas ENTERA, pero los snapshots de volumen
+   y las líneas del registro de cambios llevan su `week` estampado desde el día en que se
+   crearon: se quedaban apuntando a semanas que ya no existen —una línea en «S3» de un bloque
+   que ahora arranca dos semanas antes— y nada lo avisaba. Cada fila guarda su fecha, así que la
+   semana se recalcula desde ahí y vuelve a cuadrar con la numeración nueva.
+   Devuelve [filas recolocadas, snapshots fusionados]. */
+function renumberWeeks(r){
+  if(!r)return[0,0];
+  let moved=0;
+  (r.changelog||[]).forEach(c=>{const w=weekOfDate(r,c.date);if(c.week!==w){c.week=w;moved++;}});
+  /* Si dos snapshots caen ahora en la misma semana gana el más reciente, que es el que refleja
+     cómo quedó el volumen al cerrarla. Dejar la semana duplicada no es opción: snapshotWeek
+     busca por `week` y escribiría siempre sobre el primero, dejando el otro congelado. */
+  const byWeek={},antes=(r.snapshots||[]).length;
+  (r.snapshots||[]).slice().sort((a,b)=>String(a.date||'')<String(b.date||'')?-1:1).forEach(s=>{
+    const w=weekOfDate(r,s.date);if(s.week!==w)moved++;
+    s.week=w;byWeek[w]=s;
+  });
+  r.snapshots=Object.keys(byWeek).map(k=>byWeek[k]).sort((a,b)=>a.week-b.week);
+  return[moved,antes-r.snapshots.length];
+}
+/* Único sitio por el que se mueve el arranque del bloque, para que recolocar las semanas no
+   dependa de acordarse: lo mueven la fecha del panel de bloque y las dos vías de plantilla
+   (la normal y la del importador con IA). */
+function setBlockStart(aid,iso){
+  const r=athData(aid).routine;r.startDate=iso;
+  return renumberWeeks(r);
 }
 function ensureProgression(st){
   Object.keys(st.athletes).forEach(aid=>{
@@ -8432,7 +8479,7 @@ function coachTabSemanas(aid){
     '<div class="stat"><div class="k">Fase · Bloque</div><div class="v" style="font-size:17px">'+esc(phaseName(p.phase))+'<small> · B'+p.block+'</small></div><div class="sub">RIR objetivo '+rirFor(p.phase,p.experience)+'</div></div>'+
     '<div class="stat"><div class="k">Ajustes en el bloque</div><div class="v">'+NETN+'</div><div class="sub">'+(NETN?'ejercicios con cambio neto':'sobre el programa armado, sin ruido')+'</div></div>'+
     '<div class="stat"><div class="k">Bloques archivados</div><div class="v">'+(r.history||[]).length+'</div><div class="sub">historial completo abajo</div></div></div>'+
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label>Fecha de inicio del bloque</label><input type="date" id="bk_start" value="'+esc(r.startDate)+'"></div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label>Fecha de inicio del bloque</label><input type="date" id="bk_start" value="'+esc(r.startDate)+'" max="'+esc(todayISO())+'"></div>'+
     '<button class="btn btn-g" data-act="startdate-save" data-aid="'+aid+'">Guardar fecha</button>'+
     '<button class="btn btn-p" data-act="block-close-ask" data-aid="'+aid+'">'+I.check+' Cerrar bloque / cambiar fase</button></div>'+
     '<p class="tiny mt8">Al cerrar, el bloque se archiva (volumen inicial → final y todos los ajustes) y el volumen actual pasa a ser el inicial del siguiente. Así comparas bloque contra bloque al transicionar.</p></div>';
@@ -8490,7 +8537,13 @@ function coachTabSemanas(aid){
 Object.assign(ACTIONS,{
   'startdate-save':el=>{
     const v=val('bk_start');if(!v){toast('Elige una fecha');return;}
-    athData(el.dataset.aid).routine.startDate=v;saveState();toast('Fecha de inicio actualizada');render();
+    /* Una fecha futura metería el bloque entero en la semana 1 y fusionaría todos los
+       snapshots en uno. Se rechaza aquí, igual que al aplicar una plantilla. */
+    if(v>todayISO()){toast('La fecha de inicio no puede ser futura');return;}
+    const[moved,merged]=setBlockStart(el.dataset.aid,v);
+    saveState();
+    toast('Fecha de inicio actualizada'+(moved?' · '+moved+(moved===1?' registro recolocado':' registros recolocados')+' en su semana':'')+(merged?' · '+merged+' snapshot'+(merged===1?'':'s')+' fusionado'+(merged===1?'':'s'):''));
+    render();
   },
   'block-close-ask':el=>{
     const p=athData(el.dataset.aid).profile;
