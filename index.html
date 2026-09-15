@@ -6882,13 +6882,7 @@ Object.assign(ACTIONS,{
     const p=athData(aid).profile;
     const bEl=document.getElementById('tplctx_block'),eEl=document.getElementById('tplctx_exp'),phEl=document.getElementById('tplctx_phase'),sEl=document.getElementById('tplctx_start');
     if(kind==='routine'&&sEl&&sEl.value){
-      const chosen=sEl.value,t0=todayISO();
-      if(chosen>t0){toast('La fecha de inicio no puede ser futura');return;}
-      const hist=athData(aid).routine.history;
-      if(hist&&hist.length){
-        const lastEnd=hist[hist.length-1].endDate;
-        if(lastEnd&&chosen<lastEnd){toast('Esa fecha ('+fmtDate(chosen)+') es anterior al fin del bloque anterior ('+fmtDate(lastEnd)+')');return;}
-      }
+      const _m=motivoInicioInvalido(aid,sEl.value);if(_m){toast(_m);return;}
     }
     if(bEl)p.block=parseInt(bEl.value,10)||p.block;
     if(eEl&&eEl.value)p.experience=eEl.value;
@@ -6964,13 +6958,7 @@ Object.assign(ACTIONS,{
     const p=athData(aid).profile;
     const bEl=document.getElementById('tplctx_block'),eEl=document.getElementById('tplctx_exp'),phEl=document.getElementById('tplctx_phase'),sEl=document.getElementById('tplctx_start');
     if(A.routine&&sEl&&sEl.value){
-      const chosen=sEl.value,t0=todayISO();
-      if(chosen>t0){toast('La fecha de inicio no puede ser futura');return;}
-      const hist=athData(aid).routine.history;
-      if(hist&&hist.length){
-        const lastEnd=hist[hist.length-1].endDate;
-        if(lastEnd&&chosen<lastEnd){toast('Esa fecha ('+fmtDate(chosen)+') es anterior al fin del bloque anterior ('+fmtDate(lastEnd)+')');return;}
-      }
+      const _m=motivoInicioInvalido(aid,sEl.value);if(_m){toast(_m);return;}
     }
     if(bEl)p.block=parseInt(bEl.value,10)||p.block;
     if(eEl&&eEl.value)p.experience=eEl.value;
@@ -7757,6 +7745,22 @@ function renumberWeeks(r){
   });
   r.snapshots=Object.keys(byWeek).map(k=>byWeek[k]).sort((a,b)=>a.week-b.week);
   return[moved,antes-r.snapshots.length];
+}
+/* Qué hace válida una fecha de arranque de bloque: ni futura —metería el bloque entero en la
+   semana 1 y fusionaría todos los snapshots en uno— ni anterior al cierre del bloque previo, que
+   solaparía dos bloques en el historial. Estaba copiada palabra por palabra en las dos vías de
+   plantilla, y la del panel de bloque solo comprobaba la primera mitad: se podía arrancar un
+   bloque antes de que terminara el anterior desde ahí y no desde las otras dos.
+   Devuelve el motivo del rechazo listo para el aviso, o null si la fecha vale. */
+function motivoInicioInvalido(aid,iso){
+  if(!iso)return 'Elige una fecha';
+  if(iso>todayISO())return 'La fecha de inicio no puede ser futura';
+  const hist=(athData(aid).routine||{}).history;
+  if(hist&&hist.length){
+    const lastEnd=hist[hist.length-1].endDate;
+    if(lastEnd&&iso<lastEnd)return 'Esa fecha ('+fmtDate(iso)+') es anterior al fin del bloque anterior ('+fmtDate(lastEnd)+')';
+  }
+  return null;
 }
 /* Único sitio por el que se mueve el arranque del bloque, para que recolocar las semanas no
    dependa de acordarse: lo mueven la fecha del panel de bloque y las dos vías de plantilla
@@ -8561,10 +8565,8 @@ function coachTabSemanas(aid){
 
 Object.assign(ACTIONS,{
   'startdate-save':el=>{
-    const v=val('bk_start');if(!v){toast('Elige una fecha');return;}
-    /* Una fecha futura metería el bloque entero en la semana 1 y fusionaría todos los
-       snapshots en uno. Se rechaza aquí, igual que al aplicar una plantilla. */
-    if(v>todayISO()){toast('La fecha de inicio no puede ser futura');return;}
+    const v=val('bk_start');
+    const _m=motivoInicioInvalido(el.dataset.aid,v);if(_m){toast(_m);return;}
     const[moved,merged]=setBlockStart(el.dataset.aid,v);
     saveState();
     toast('Fecha de inicio actualizada'+(moved?' · '+moved+(moved===1?' registro recolocado':' registros recolocados')+' en su semana':'')+(merged?' · '+merged+' snapshot'+(merged===1?'':'s')+' fusionado'+(merged===1?'':'s'):''));
