@@ -12,4 +12,9 @@ respaldo-*.csv
 # Bitacora.md llego a estar descargable con los emails de los atletas dentro.
 # Los .md se trabajan en local pero no se suben. Copia en C:\dev\lr-coaching-docs\
 *.md
+# Excepcion unica: CLAUDE.md son las notas de arranque para Claude Code (mecanicas de git,
+# despliegue y arquitectura). Es el unico archivo que una sesion nueva lee sola, asi que
+# ignorarlo lo volvia inutil. Queda publico como el resto del repo: ahi NO van datos de
+# atletas, emails ni claves (2026-09-17).
+!CLAUDE.md
 *.xlsx
