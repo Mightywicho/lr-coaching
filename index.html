@@ -6574,7 +6574,8 @@ document.addEventListener('change',e=>{
     if(hist.length){const b=hist[hist.length-1].set;if(b){if(wEl)wEl.value=(b.w!=null?b.w:'');if(rEl)rEl.value=(b.r!=null?b.r:'');if(rirEl)rirEl.value=(b.rir!=null?b.rir:'');}}
   }
   else if(el.dataset.change==='ctx-exp'){athData(el.dataset.aid).profile.experience=el.value;saveState();render();}
-  else if(el.dataset.change==='ctx-phase'){athData(el.dataset.aid).profile.phase=el.value;saveState();render();}
+  else if(el.dataset.change==='ctx-phase'){if(setPhase(el.dataset.aid,el.value))saveState();render();}
+  else if(el.dataset.change==='blk-phase'){if(setPhase(el.dataset.aid,el.value)){saveState();toast('Fase actualizada — el bloque sigue abierto');}render();}
   else if(el.dataset.change==='ctx-block'){athData(el.dataset.aid).profile.block=parseInt(el.value,10);saveState();render();}
   else if(el.dataset.change==='prio'){
     const _pd=athData(el.dataset.aid).profile,_pg=el.dataset.group,_pv=parseInt(el.value,10);
@@ -7905,11 +7906,44 @@ function ensureProgression(st){
     if(!r.history)r.history=[];
     if(!r.snapshots)r.snapshots=[];
     if(!r.baseline)r.baseline={date:r.startDate,byGroup:volMap(aid)};
+    /* Las fases por las que pasó el bloque en curso. Los bloques de antes de esta versión
+       solo tienen la fase actual: se siembra con ella desde el arranque del bloque, que es
+       lo único que se sabe con certeza de ellos. */
+    if(!Array.isArray(r.phases)||!r.phases.length)r.phases=[{phase:(st.athletes[aid].profile||{}).phase||'acumulacion',date:r.startDate}];
     r.days.forEach(day=>{if(!day.plan)day.plan={};});
     const lg=st.athletes[aid].logs;if(lg&&!lg.fatigue)lg.fatigue=[];
     /* rellena el resumen de bloques cerrados antes de esta versión */
     (r.history||[]).forEach(h=>{if(!h.summary){try{h.summary=summaryFromHistory(aid,h);}catch(e){}}});
   });
+}
+/* ---------- cambiar de fase SIN cerrar el bloque ----------
+   Terminar una fase y terminar un bloque son cosas distintas: un bloque puede llevar varias
+   fases (introducción → acumulación → mantenimiento…). Pero la única vía visible para cambiar
+   de fase era el botón «Cerrar bloque / cambiar fase», que archiva el bloque entero, así que
+   quien solo quería pasar de fase se llevaba por delante el bloque. De ahí salieron dos
+   atletas con un bloque 1 archivado y un bloque 1 en curso que en realidad eran el mismo.
+   Esta es la única vía que mueve la fase y nada más, y por aquí pasan los dos selectores
+   —el de «Contexto del atleta» y el del panel de bloque— para que ninguno se olvide de
+   apuntar el cambio. Se apunta con fecha porque sin eso el bloque solo sabría decir su última
+   fase y el tramo anterior se perdería. */
+function setPhase(aid,ph){
+  const d=athData(aid),r=d.routine,p=d.profile;
+  if(!ph||ph===p.phase)return false;
+  p.phase=ph;
+  if(!Array.isArray(r.phases))r.phases=[];
+  const hoy=todayISO(),ult=r.phases[r.phases.length-1];
+  /* Dos cambios el mismo día son una corrección, no dos tramos del bloque: se pisa el último.
+     Si al pisarlo queda igual que el anterior, el tramo desaparece en vez de duplicarse. */
+  if(ult&&ult.date===hoy)ult.phase=ph;
+  else r.phases.push({phase:ph,date:hoy});
+  if(r.phases.length>1&&r.phases[r.phases.length-2].phase===r.phases[r.phases.length-1].phase)r.phases.pop();
+  return true;
+}
+/* «Introducción (7 sep) → Acumulación (13 sep)»: un bloque con varias fases no se resume con
+   una sola, ni en el panel del bloque en curso ni en la ficha de los archivados. */
+function phaseTrailTxt(ph){
+  const a=(ph||[]).filter(x=>x&&x.phase);
+  return a.length?a.map(x=>phaseName(x.phase)+(x.date?' ('+fmtDate(x.date)+')':'')).join(' → '):'';
 }
 function snapshotWeek(aid){
   const r=athData(aid).routine,w=weekOf(aid),m=volMap(aid);
@@ -8627,6 +8661,9 @@ function applyAiNutriAdjust(aid){
 function coachTabSemanas(aid){
   const d=athData(aid),r=d.routine,p=d.profile;
   const week=weekOf(aid),cur=volMap(aid),base=(r.baseline||{}).byGroup||{};
+  let phOpts='';PHASES.forEach(ph=>{phOpts+='<option value="'+ph[0]+'"'+(p.phase===ph[0]?' selected':'')+'>'+ph[1]+'</option>';});
+  /* El recorrido solo se pinta si hubo más de una fase: con una sola, el selector ya la dice. */
+  const trail=(r.phases||[]).length>1?'<p class="tiny mt8">Fases de este bloque: <b>'+esc(phaseTrailTxt(r.phases))+'</b></p>':'';
   const CS=chgSplit(aid);
   const NET=chgNetList(aid),NETN=NET.reduce((a,w)=>a+w.items.length,0);
   /* --- bloque actual --- */
@@ -8638,8 +8675,10 @@ function coachTabSemanas(aid){
     '<div class="stat"><div class="k">Bloques archivados</div><div class="v">'+(r.history||[]).length+'</div><div class="sub">historial completo abajo</div></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label>Fecha de inicio del bloque</label><input type="date" id="bk_start" value="'+esc(r.startDate)+'" max="'+esc(todayISO())+'"></div>'+
     '<button class="btn btn-g" data-act="startdate-save" data-aid="'+aid+'">Guardar fecha</button>'+
-    '<button class="btn btn-p" data-act="block-close-ask" data-aid="'+aid+'">'+I.check+' Cerrar bloque / cambiar fase</button></div>'+
-    '<p class="tiny mt8">Al cerrar, el bloque se archiva (volumen inicial → final y todos los ajustes) y el volumen actual pasa a ser el inicial del siguiente. Así comparas bloque contra bloque al transicionar.</p></div>';
+    '<div style="flex:1;min-width:190px"><label>Fase del bloque</label><select data-change="blk-phase" data-aid="'+aid+'" title="Cambia la fase sin tocar el bloque: se aplica al guardar y el bloque sigue abierto.">'+phOpts+'</select></div>'+
+    '<button class="btn btn-p" data-act="block-close-ask" data-aid="'+aid+'">'+I.check+' Cerrar bloque</button></div>'+
+    trail+
+    '<p class="tiny mt8"><b>Cambiar de fase no cierra el bloque:</b> un bloque puede llevar varias fases, así que el selector de arriba solo mueve la fase y deja el bloque en marcha. <b>Cerrar bloque</b> es lo otro: archiva el bloque (volumen inicial → final y todos los ajustes) y el volumen actual pasa a ser el inicial del siguiente, para comparar bloque contra bloque al transicionar.</p></div>';
   /* --- comparación de volumen inicial → semanas → actual --- */
   const groups=GROUPS.filter(g=>base[g]||cur[g]);
   const allWeeks=[];for(let w2=1;w2<=week;w2++)allWeeks.push(w2);
@@ -8684,7 +8723,8 @@ function coachTabSemanas(aid){
     let rows2='';gs.forEach(g=>{const b=h.baseline.byGroup[g]||0,f=h.final[g]||0,dl=f-b;
       rows2+='<tr><td class="exname">'+esc(g)+'</td><td class="num">'+b+'</td><td class="num"><b>'+f+'</b></td><td>'+(dl===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(dl>0?'up':'down')+'">'+(dl>0?'+':'')+dl+'</span>')+'</td></tr>';});
     const sg=h.summary?summaryStatGrid(h.summary,h.phase):'';
-    hist+='<div class="logitem" data-act="log-toggle"><div class="lh"><span class="badge volt">Bloque '+h.block+'</span><b>'+esc(phaseName(h.phase))+'</b><span class="tiny">'+esc(h.name||'')+'</span><span class="tiny">'+h.changes+' ajustes · clic para ver resumen</span><span class="dt">'+fmtDate(h.startDate)+' → '+fmtDate(h.endDate)+'</span></div>'+
+    const hFases=phaseTrailTxt(h.phases)||phaseName(h.phase);
+    hist+='<div class="logitem" data-act="log-toggle"><div class="lh"><span class="badge volt">Bloque '+h.block+'</span><b>'+esc(hFases)+'</b><span class="tiny">'+esc(h.name||'')+'</span><span class="tiny">'+h.changes+' ajustes · clic para ver resumen</span><span class="dt">'+fmtDate(h.startDate)+' → '+fmtDate(h.endDate)+'</span></div>'+
     '<div class="logdetail">'+sg+'<h4 class="mg-h">Volumen por grupo: inicial → final</h4><div class="tblwrap"><table class="tbl" style="min-width:auto"><thead><tr><th>Grupo</th><th>Inicial</th><th>Final</th><th>Δ</th></tr></thead><tbody>'+rows2+'</tbody></table></div></div></div>';
   });
   const histCard=hist?'<div class="sect-h"><h2>Bloques anteriores</h2><span class="tiny">resumen + volumen inicial vs final — para decidir el siguiente bloque</span></div>'+hist:'';
@@ -8718,12 +8758,15 @@ Object.assign(ACTIONS,{
     const aid=el.dataset.aid,d=athData(aid),r=d.routine,p=d.profile;
     r.history=r.history||[];
     const summary=blockSummary(aid);
-    r.history.push({block:p.block||1,phase:p.phase,name:r.name,startDate:r.startDate,endDate:todayISO(),baseline:r.baseline||{date:r.startDate,byGroup:{}},final:volMap(aid),changes:chgSplit(aid).real.length,summary});
+    /* `phase` (la última del bloque) se conserva por los archivados de antes de esta versión;
+       `phases` es el recorrido completo, que es lo que de verdad describe al bloque. */
+    r.history.push({block:p.block||1,phase:p.phase,phases:(r.phases||[]).slice(),name:r.name,startDate:r.startDate,endDate:todayISO(),baseline:r.baseline||{date:r.startDate,byGroup:{}},final:volMap(aid),changes:chgSplit(aid).real.length,summary});
     r.startDate=todayISO();
     r.baseline={date:todayISO(),byGroup:volMap(aid)};
     r.changelog=[];r.snapshots=[];
     p.phase=val('bk_phase')||p.phase;
     p.block=parseInt(val('bk_block'),10)||p.block;
+    r.phases=[{phase:p.phase,date:todayISO()}];
     saveState();closeModal();toast('Bloque archivado — nuevo bloque iniciado');nav('coach-ath',{aid,tab:'semanas'});
   },
   'split-auto-ask':el=>{

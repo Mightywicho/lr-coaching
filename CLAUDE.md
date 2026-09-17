@@ -83,4 +83,9 @@ se atasca: se le añade una línea y se sube.
   de bloque como clave de agrupado ni de id; usa la posición en `history` (o `'cur'`). Y el
   `endDate` del archivado puede ser el mismo día que el `startDate` del nuevo: en ese día manda
   el bloque archivado, que es el que estaba corriendo cuando se registró la sesión.
+- **Fase y bloque son cosas distintas.** Un bloque puede llevar varias fases, así que la fase
+  se cambia sin cerrar nada: todo cambio de fase pasa por `setPhase(aid,fase)`, que además lo
+  apunta con su fecha en `routine.phases` (el recorrido del bloque en curso). Nunca escribas
+  `profile.phase` a mano: te saltarías ese registro y el bloque perdería el tramo anterior.
+  Al cerrar un bloque, `phases` se archiva en la entrada del historial y se reinicia.
 - El panel del coach va **siempre en kg**, aunque el atleta capture en libras.
