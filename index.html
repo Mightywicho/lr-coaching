@@ -375,11 +375,17 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .acc>summary:hover{background:var(--card2)}
 .acc-body{padding:0 20px 20px}
 .acc-body>.card,.acc-body>.card+.card{margin-top:0;border:0;padding:0;background:transparent}
-/* acordeón por semana del historial: mismo .acc, más compacto y sin el aire de sección */
-.wkacc{margin-top:0;margin-bottom:10px}
-.wkacc>summary{padding:11px 14px;font-size:14px;gap:8px;flex-wrap:wrap}
-.wkacc>summary .tiny{font-family:var(--font-b);font-weight:400}
-.wkacc>.acc-body{padding:0 12px 12px}
+/* historial en dos niveles: el bloque por fuera (tarjeta) y sus semanas dentro (hundidas).
+   El escalón de fondo card > bg2 > card es lo que deja leer de un vistazo qué contiene qué:
+   las tarjetas de sesión vuelven a levantarse sobre el fondo hundido de su semana. */
+.blkacc{margin-top:0;margin-bottom:12px}
+.blkacc>summary{padding:13px 16px;font-size:15px;gap:8px;flex-wrap:wrap}
+.blkacc>.acc-body{padding:0 12px 12px}
+.wkacc{margin-top:0;margin-bottom:8px;background:var(--bg2);border-radius:var(--r-s)}
+.wkacc:last-child{margin-bottom:0}
+.wkacc>summary{padding:10px 12px;font-size:13.5px;gap:8px;flex-wrap:wrap}
+.blkacc>summary .tiny,.wkacc>summary .tiny{font-family:var(--font-b);font-weight:400}
+.wkacc>.acc-body{padding:0 10px 10px}
 .wkacc>.acc-body>.logitem:last-child{margin-bottom:0}
 
 /* ---------- modal ---------- */
@@ -4099,40 +4105,79 @@ function buildMacroGuide(aid){
     '</details></div>';
 }
 
-/* ---------- historial agrupado por semana ----------
+/* ---------- historial agrupado por bloque y semana ----------
    La lista del historial era plana: una tarjeta por sesión, todas a la vista, así que a partir
    del segundo mes había que bajar por decenas de tarjetas para llegar a la semana que interesa.
-   Se agrupa por la MISMA semana que cuenta la pestaña Progreso —7 días desde el inicio del
-   bloque, vía blockInfoForDate— para que «Semana 3» signifique lo mismo en los dos sitios.
-   Las sesiones de bloques ya archivados llevan el bloque delante: sin él, la «Semana 2» del
-   bloque 1 y la del bloque 2 se leerían como la misma semana.
+   Ahora va en dos niveles: bloque por fuera, semanas dentro.
+
+   ⚠ EL ANCLA DE LA SEMANA — lo que hacía que todo cayera en «Semana 1».
+   La primera versión contaba con blockInfoForDate, y esa función tiene dos topes que aquí
+   mienten: si `routine.startDate` está vacío toma como inicio la fecha de la propia sesión
+   (toda sesión sale de semana 1), y su Math.max(1,…) aplasta contra la semana 1 cualquier
+   sesión anterior al inicio declarado. Con un bloque cuya fecha se puso después de que el
+   atleta ya llevaba semanas registrando, el historial entero se fundía en un solo grupo.
+   El ancla de cada bloque es ahora la MÁS TEMPRANA de dos fechas: su inicio declarado y su
+   primera sesión registrada. Con la fecha bien puesta el ancla ES el inicio declarado y la
+   numeración sale idéntica a la de la pestaña Progreso, que es lo que se quería conservar;
+   cuando la fecha falta o llegó tarde, el historial se sigue partiendo en semanas en vez de
+   aplastarse, y el encabezado del bloque lo avisa para que se corrija en «Semana a semana».
+   No se toca blockInfoForDate: Progreso y la comparación de sesiones siguen con su criterio.
+
    Los elementos entran ya ordenados (más reciente primero) y el agrupado respeta ese orden
-   dentro de cada semana; solo se ordenan las semanas entre sí.
-   ⚠ El id de cada <details> es estable a propósito: renderUnsafe repone los acordeones abiertos
-   por id al repintar, así que la semana que abras sobrevive a un guardado o a un dato que llega
-   por realtime. Si el id pasara a depender del orden, abrir una semana se desharía solo. */
-function weekGroupsOf(aid,items){
-  const curB=athData(aid).profile.block||1,byKey={},out=[];
+   dentro de cada semana; solo se ordenan los bloques y las semanas entre sí.
+   ⚠ Los id de los <details> salen del bloque y la semana, nunca del orden: renderUnsafe repone
+   por id los acordeones abiertos al repintar, así que lo que abras sobrevive a un guardado o a
+   un dato que llega por realtime. Si dependieran de la posición, se cerrarían solos. */
+function blockOfDate(aid,iso){
+  const d=athData(aid),r=d.routine;let hit=null;
+  (r.history||[]).forEach(h=>{if(h.startDate&&h.endDate&&iso>=h.startDate&&iso<=h.endDate)hit={block:h.block,start:h.startDate,cur:false};});
+  return hit||{block:d.profile.block||1,start:r.startDate||'',cur:true};
+}
+function blockGroupsOf(aid,items){
+  const byB={},out=[];
   items.forEach(it=>{
     if(!it||!it.date)return;
-    const bi=blockInfoForDate(aid,it.date),key=bi.block+'-'+bi.week;
-    let g=byKey[key];
-    if(!g){g=byKey[key]={key:key,block:bi.block,week:bi.week,cur:bi.block===curB,from:it.date,to:it.date,items:[]};out.push(g);}
-    if(it.date<g.from)g.from=it.date;
-    if(it.date>g.to)g.to=it.date;
-    g.items.push(it);
+    const bi=blockOfDate(aid,it.date);
+    let b=byB[bi.block];
+    if(!b){b=byB[bi.block]={block:bi.block,cur:bi.cur,start:bi.start,from:it.date,to:it.date,items:[],weeks:[]};out.push(b);}
+    if(it.date<b.from)b.from=it.date;
+    if(it.date>b.to)b.to=it.date;
+    b.items.push(it);
   });
-  out.sort((a,b)=>(b.block-a.block)||(b.week-a.week));
+  out.sort((a,b)=>b.block-a.block);
+  out.forEach(b=>{
+    b.ancla=(b.start&&b.start<=b.from)?b.start:b.from;
+    b.fechaMala=b.ancla!==b.start?(b.start?'tarde':'falta'):'';
+    const byW={};
+    b.items.forEach(it=>{
+      const w=Math.floor((Date.parse(it.date)-Date.parse(b.ancla))/86400000/7)+1;
+      let g=byW[w];
+      if(!g){g=byW[w]={week:w,from:it.date,to:it.date,items:[]};b.weeks.push(g);}
+      if(it.date<g.from)g.from=it.date;
+      if(it.date>g.to)g.to=it.date;
+      g.items.push(it);
+    });
+    b.weeks.sort((x,y)=>y.week-x.week);
+  });
   return out;
 }
 const WK_CHEV='<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
-/* Una semana plegada tiene que decir sola si merece abrirse: de ahí que el encabezado lleve el
+/* Un grupo plegado tiene que decir solo si merece abrirse: de ahí que el encabezado lleve el
    recuento, el rango de fechas y los avisos de lo que no se cumplió. */
-function wkAcc(id,title,tag,extra,inner,open){
-  return '<details class="acc wkacc" id="'+id+'"'+(open?' open':'')+'><summary>'+esc(title)+'<span class="acc-tag">'+esc(tag)+'</span>'+(extra||'')+WK_CHEV+'</summary><div class="acc-body">'+inner+'</div></details>';
+function wkAcc(cls,id,title,tag,extra,inner,open){
+  return '<details class="acc '+cls+'" id="'+id+'"'+(open?' open':'')+'><summary>'+esc(title)+'<span class="acc-tag">'+esc(tag)+'</span>'+(extra||'')+WK_CHEV+'</summary><div class="acc-body">'+inner+'</div></details>';
 }
-function wkTitle(g){return(g.cur?'':'Bloque '+g.block+' · ')+'Semana '+g.week;}
 function wkRange(g){return g.from===g.to?fmtDate(g.to):fmtDate(g.from)+' – '+fmtDate(g.to);}
+function plural(n,uno,varios){return n+' '+(n===1?uno:varios);}
+/* El aviso de fecha de inicio va en el encabezado del bloque y no en un toast: es un dato del
+   perfil que hay que ir a corregir a «Semana a semana», no algo que se resuelva al vuelo. */
+function blkAviso(b){
+  if(!b.fechaMala)return '';
+  const t=b.fechaMala==='falta'
+    ?'Este bloque no tiene fecha de inicio. Las semanas se cuentan desde la primera sesión registrada ('+fmtDate(b.from)+'). Ponla en la pestaña «Semana a semana» para que cuadren con las de Progreso.'
+    :'El bloque arranca el '+fmtDate(b.start)+', pero hay sesiones desde el '+fmtDate(b.from)+'. Las semanas se cuentan desde la primera sesión para no aplastarlas todas en la semana 1. Revisa la fecha en «Semana a semana».';
+  return '<span class="badge orange" title="'+esc(t)+'">⚠ revisar fecha de inicio</span>';
+}
 function coachTabRegistros(aid){
   const d=athData(aid);
   const wCards=[];
@@ -4198,30 +4243,41 @@ function coachTabRegistros(aid){
       :'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':'<span class="tiny">sin detalle de series</span>');
     wCards.push({date:w.date,log:w,html:'<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+stBadge+stWhy+edBadge+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>'});
   });
-  /* Las dos semanas más recientes se abren solas: es lo que el coach viene a mirar al entrar.
-     El resto quedan plegadas para que el historial no vuelva a ser una lista interminable. */
-  let wk='';
-  weekGroupsOf(aid,wCards).forEach((g,i)=>{
-    let nMiss=0,nPart=0,rpeSum=0,rpeN=0,minSum=0;
+  /* El bloque en curso se abre solo, y dentro de él sus dos semanas más recientes: es lo que el
+     coach viene a mirar al entrar. Los bloques archivados quedan plegados enteros — se abren
+     para comparar, no para leerlos de corrido. */
+  const avisos=g=>{
+    let nMiss=0,nPart=0,rpeSum=0,rpeN=0,minSum=0,h='';
     g.items.forEach(x=>{
       const w=x.log;
       if(isMissed(w))nMiss++;else if(w.status==='partial')nPart++;
       if(+w.rpe>0){rpeSum+=+w.rpe;rpeN++;}
       minSum+=+w.dur||0;
     });
-    let ex='';
-    if(nMiss)ex+='<span class="badge red" title="Sesiones que el atleta marcó como no entrenadas">✕ '+nMiss+' sin entrenar</span>';
-    if(nPart)ex+='<span class="badge orange" title="Sesiones que el atleta cerró a medias">½ '+nPart+' incompleta'+(nPart>1?'s':'')+'</span>';
+    if(nMiss)h+='<span class="badge red" title="Sesiones que el atleta marcó como no entrenadas">✕ '+nMiss+' sin entrenar</span>';
+    if(nPart)h+='<span class="badge orange" title="Sesiones que el atleta cerró a medias">½ '+nPart+' incompleta'+(nPart>1?'s':'')+'</span>';
     const carga=[rpeN?'RPE medio '+(Math.round(rpeSum/rpeN*10)/10):'',minSum?minSum+' min':''].filter(Boolean).join(' · ');
-    if(carga)ex+='<span class="tiny">'+carga+'</span>';
-    wk+=wkAcc('wkh-tr-'+aid+'-'+g.key,wkTitle(g),g.items.length+(g.items.length===1?' sesión · ':' sesiones · ')+wkRange(g),ex,g.items.map(x=>x.html).join(''),i<2);
+    if(carga)h+='<span class="tiny">'+carga+'</span>';
+    return h;
+  };
+  let wk='';
+  blockGroupsOf(aid,wCards).forEach((b,bi)=>{
+    const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-tr-'+aid+'-b'+b.block+'-s'+g.week,'Semana '+g.week,
+      plural(g.items.length,'sesión','sesiones')+' · '+wkRange(g),avisos(g),g.items.map(x=>x.html).join(''),bi===0&&i<2)).join('');
+    wk+=wkAcc('blkacc','wkh-tr-'+aid+'-b'+b.block,'Bloque '+b.block+(b.cur?' · en curso':''),
+      plural(b.items.length,'sesión','sesiones')+' · '+plural(b.weeks.length,'semana','semanas')+' · '+wkRange(b),
+      blkAviso(b)+avisos(b),sem,bi===0);
   });
   if(!wk)wk='<div class="empty"><b>Sin entrenamientos registrados</b></div>';
   const nCards=[];
   d.logs.nutrition.slice().reverse().forEach(n=>{const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+adhBadge(n.adherence)+'<b>Adherencia</b>'+md+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+'</div>'});});
   let nut='';
-  weekGroupsOf(aid,nCards).forEach((g,i)=>{
-    nut+=wkAcc('wkh-nu-'+aid+'-'+g.key,wkTitle(g),g.items.length+(g.items.length===1?' registro · ':' registros · ')+wkRange(g),'',g.items.map(x=>x.html).join(''),i<2);
+  blockGroupsOf(aid,nCards).forEach((b,bi)=>{
+    const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-b'+b.block+'-s'+g.week,'Semana '+g.week,
+      plural(g.items.length,'registro','registros')+' · '+wkRange(g),'',g.items.map(x=>x.html).join(''),bi===0&&i<2)).join('');
+    nut+=wkAcc('blkacc','wkh-nu-'+aid+'-b'+b.block,'Bloque '+b.block+(b.cur?' · en curso':''),
+      plural(b.items.length,'registro','registros')+' · '+plural(b.weeks.length,'semana','semanas')+' · '+wkRange(b),
+      blkAviso(b),sem,bi===0);
   });
   if(!nut)nut='<div class="empty"><b>Sin registros de nutrición</b></div>';
   let wt='';

@@ -67,6 +67,13 @@ se atasca: se le añade una línea y se sube.
   cambiar una decisión, actualiza el comentario que la justificaba.
 - Una "semana" tiene dos definiciones vivas y deliberadas: la de **calendario** (lunes a
   domingo, `weekStartISO`) para el contador del atleta y los promedios, y la del **bloque**
-  (7 días desde `routine.startDate`, vía `blockInfoForDate`) para Progreso y el Historial.
+  (7 días desde `routine.startDate`) para Progreso, «Semana a semana» y el Historial.
   Antes de introducir una tercera, revisa cuál de las dos ya sirve.
+- ⚠ `blockInfoForDate` y `weekOfDate` mienten cuando el dato no es ideal: si
+  `routine.startDate` está vacío toman como inicio la fecha que se les consulta, y su
+  `Math.max(1,…)` aplasta contra la semana 1 todo lo anterior al inicio declarado. Con un
+  bloque cuya fecha se puso tarde, una vista que agrupe por ellas mete el historial entero
+  en «Semana 1». El Historial dejó de usarlas por eso: ancla cada bloque en la más temprana
+  entre su inicio declarado y su primera sesión (`blockGroupsOf`). Si añades otra vista por
+  semanas, decide qué haces con esos dos casos antes de apoyarte en ellas.
 - El panel del coach va **siempre en kg**, aunque el atleta capture en libras.
