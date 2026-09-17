@@ -76,4 +76,11 @@ se atasca: se le añade una línea y se sube.
   en «Semana 1». El Historial dejó de usarlas por eso: ancla cada bloque en la más temprana
   entre su inicio declarado y su primera sesión (`blockGroupsOf`). Si añades otra vista por
   semanas, decide qué haces con esos dos casos antes de apoyarte en ellas.
+- ⚠ **Dos bloques pueden llevar el mismo número.** Cerrar un bloque lo archiva en
+  `routine.history` con el `profile.block` de ese momento, pero no incrementa `profile.block`
+  solo: lo elige el coach en el diálogo, y dejarlo como estaba deja un bloque 1 archivado
+  conviviendo con un bloque 1 en curso (pasa hoy con dos atletas reales). Nunca uses el número
+  de bloque como clave de agrupado ni de id; usa la posición en `history` (o `'cur'`). Y el
+  `endDate` del archivado puede ser el mismo día que el `startDate` del nuevo: en ese día manda
+  el bloque archivado, que es el que estaba corriendo cuando se registró la sesión.
 - El panel del coach va **siempre en kg**, aunque el atleta capture en libras.

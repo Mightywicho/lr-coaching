@@ -4128,23 +4128,32 @@ function buildMacroGuide(aid){
    ⚠ Los id de los <details> salen del bloque y la semana, nunca del orden: renderUnsafe repone
    por id los acordeones abiertos al repintar, así que lo que abras sobrevive a un guardado o a
    un dato que llega por realtime. Si dependieran de la posición, se cerrarían solos. */
+/* ⚠ La clave del grupo es la POSICIÓN en el historial, no el número de bloque. Cerrar un bloque
+   archiva `p.block` pero no lo incrementa solo: el coach elige el número en el diálogo, y dejarlo
+   como estaba deja un bloque 1 archivado conviviendo con un bloque 1 en curso. Agrupando por el
+   número, esos dos se fundían en un solo «Bloque 1» con todo dentro, y encima saltaba el aviso de
+   fecha —las sesiones del bloque archivado son anteriores al inicio del actual, pero no porque la
+   fecha esté mal—. Con datos reales (David y Jenny) es justo lo que pasaba. */
 function blockOfDate(aid,iso){
   const d=athData(aid),r=d.routine;let hit=null;
-  (r.history||[]).forEach(h=>{if(h.startDate&&h.endDate&&iso>=h.startDate&&iso<=h.endDate)hit={block:h.block,start:h.startDate,cur:false};});
-  return hit||{block:d.profile.block||1,start:r.startDate||'',cur:true};
+  (r.history||[]).forEach((h,i)=>{if(h.startDate&&h.endDate&&iso>=h.startDate&&iso<=h.endDate)hit={key:'h'+i,block:h.block,start:h.startDate,cur:false};});
+  return hit||{key:'cur',block:d.profile.block||1,start:r.startDate||'',cur:true};
 }
 function blockGroupsOf(aid,items){
   const byB={},out=[];
   items.forEach(it=>{
     if(!it||!it.date)return;
     const bi=blockOfDate(aid,it.date);
-    let b=byB[bi.block];
-    if(!b){b=byB[bi.block]={block:bi.block,cur:bi.cur,start:bi.start,from:it.date,to:it.date,items:[],weeks:[]};out.push(b);}
+    let b=byB[bi.key];
+    if(!b){b=byB[bi.key]={key:bi.key,block:bi.block,cur:bi.cur,start:bi.start,from:it.date,to:it.date,items:[],weeks:[]};out.push(b);}
     if(it.date<b.from)b.from=it.date;
     if(it.date>b.to)b.to=it.date;
     b.items.push(it);
   });
-  out.sort((a,b)=>b.block-a.block);
+  /* Por fecha y no por número: dos bloques pueden llamarse igual, pero su última sesión no. */
+  out.sort((a,b)=>a.to<b.to?1:a.to>b.to?-1:(a.cur?-1:b.cur?1:0));
+  /* Con el número repetido, «Bloque 1» dos veces no dice cuál es cuál: se marca el archivado. */
+  out.forEach(b=>{b.dup=out.some(o=>o!==b&&String(o.block)===String(b.block));});
   out.forEach(b=>{
     b.ancla=(b.start&&b.start<=b.from)?b.start:b.from;
     b.fechaMala=b.ancla!==b.start?(b.start?'tarde':'falta'):'';
@@ -4171,6 +4180,7 @@ function wkRange(g){return g.from===g.to?fmtDate(g.to):fmtDate(g.from)+' – '+f
 function plural(n,uno,varios){return n+' '+(n===1?uno:varios);}
 /* El aviso de fecha de inicio va en el encabezado del bloque y no en un toast: es un dato del
    perfil que hay que ir a corregir a «Semana a semana», no algo que se resuelva al vuelo. */
+function blkTitulo(b){return 'Bloque '+b.block+(b.cur?' · en curso':b.dup?' · archivado':'');}
 function blkAviso(b){
   if(!b.fechaMala)return '';
   const t=b.fechaMala==='falta'
@@ -4262,9 +4272,9 @@ function coachTabRegistros(aid){
   };
   let wk='';
   blockGroupsOf(aid,wCards).forEach((b,bi)=>{
-    const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-tr-'+aid+'-b'+b.block+'-s'+g.week,'Semana '+g.week,
+    const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-tr-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
       plural(g.items.length,'sesión','sesiones')+' · '+wkRange(g),avisos(g),g.items.map(x=>x.html).join(''),bi===0&&i<2)).join('');
-    wk+=wkAcc('blkacc','wkh-tr-'+aid+'-b'+b.block,'Bloque '+b.block+(b.cur?' · en curso':''),
+    wk+=wkAcc('blkacc','wkh-tr-'+aid+'-'+b.key,blkTitulo(b),
       plural(b.items.length,'sesión','sesiones')+' · '+plural(b.weeks.length,'semana','semanas')+' · '+wkRange(b),
       blkAviso(b)+avisos(b),sem,bi===0);
   });
@@ -4273,9 +4283,9 @@ function coachTabRegistros(aid){
   d.logs.nutrition.slice().reverse().forEach(n=>{const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+adhBadge(n.adherence)+'<b>Adherencia</b>'+md+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+'</div>'});});
   let nut='';
   blockGroupsOf(aid,nCards).forEach((b,bi)=>{
-    const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-b'+b.block+'-s'+g.week,'Semana '+g.week,
+    const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
       plural(g.items.length,'registro','registros')+' · '+wkRange(g),'',g.items.map(x=>x.html).join(''),bi===0&&i<2)).join('');
-    nut+=wkAcc('blkacc','wkh-nu-'+aid+'-b'+b.block,'Bloque '+b.block+(b.cur?' · en curso':''),
+    nut+=wkAcc('blkacc','wkh-nu-'+aid+'-'+b.key,blkTitulo(b),
       plural(b.items.length,'registro','registros')+' · '+plural(b.weeks.length,'semana','semanas')+' · '+wkRange(b),
       blkAviso(b),sem,bi===0);
   });
