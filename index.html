@@ -151,7 +151,7 @@ a{color:var(--blue);text-decoration:none}
 .stat .v{font-family:var(--font-d);font-size:24px;font-weight:700;margin-top:4px}
 .stat .v small{font-size:13px;color:var(--tx3);font-weight:500}
 .stat .sub{font-size:12px;color:var(--tx3);margin-top:2px}
-.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--tx3)}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--tx3)}.pend{color:var(--orange)}
 /* volumen — métrica grande de la vista Hoy */
 .volbig{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
 .volbig-k{font-size:12px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:7px}
@@ -2603,8 +2603,9 @@ function rmrEquations(W,H,A,sex,FFM){
 }
 const PAL_LEVELS=[[1.2,'Sedentario · sin ejercicio'],[1.375,'Ligero · 1-3 d/sem'],[1.55,'Moderado · 3-5 d/sem'],[1.725,'Alto · 6-7 d/sem'],[1.9,'Muy alto · 2×/día o trabajo físico'],[2.1,'Extremo · atleta élite']];
 const KCAL_PER_KG=7700; /* equivalente energético aprox. de 1 kg de peso corporal */
-function workoutsInLast(aid,days){const cutoff=daysAgoISO(days);return athData(aid).logs.workouts.filter(w=>w.date>=cutoff&&!isMissed(w)).length;}
-function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
+/* ⚠ Filtra adherence==null: todayNutriEntry crea la entrada del día en cuanto el atleta
+   abre «Hoy», aunque no marque nada, y esos null convertían la media en NaN. */
+function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff&&n.adherence!=null);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
 function kcalFromMacros(n){return Math.round(n.protein*4+n.carbs*4+n.fat*9);}
 function lastWorkoutForDay(aid,dayId){const ws=athData(aid).logs.workouts.filter(w=>w.dayId===dayId&&w.entries&&Object.keys(w.entries).length);return ws.length?ws[ws.length-1]:null;}
 /* ---------- semana de entrenamiento (lunes a domingo) ----------
@@ -2652,6 +2653,43 @@ function weekProgress(aid){
   const total=days.length,done=days.filter(x=>byDay[x.id]).length;
   const missed=days.filter(x=>missDay[x.id]).length;
   return{from,to,byDay,missDay,done,missed,total,complete:total>0&&done>=total};
+}
+/* ---------- métricas de la SEMANA EN CURSO (lunes a domingo) ----------
+   Antes eran ventanas móviles de 7 días hacia atrás (workoutsInLast / adherenceAvg(7)).
+   El problema no era el cálculo sino que no coincidía con lo que miran coach y atleta:
+   un lunes arrastraba los entrenos del fin de semana anterior, así que la tarjeta podía
+   decir «4 / 3» mientras el contador semanal del atleta —que siempre fue de calendario,
+   decisión de Luis en s61— iba por 0. Dos cifras distintas del mismo dato en la misma app.
+   Ahora todo cuelga de weekStartISO, la misma semana de calendario que ya usan weekProgress
+   y los promedios semanales del reporte. No se guarda dato nuevo: la semana se reinicia
+   sola cada lunes porque weekStartISO(hoy) devuelve otro lunes.
+   ⚠ La semana de BLOQUE (7 días desde routine.startDate) sigue siendo otra cosa y manda en
+   Progreso, «Semana a semana» e Historial. Aquí no se mezcla.
+   ⚠ Los entrenos se cuentan reusando weekProgress, es decir DÍAS DE RUTINA DISTINTOS y no
+   sesiones sueltas: así el denominador (routine.days.length) es real y nunca sale un «5 / 4»
+   por repetir el mismo día. Repetir un día no suma cumplimiento, y esa es la intención. */
+function weekWorkouts(aid){
+  const wp=weekProgress(aid);
+  return{done:wp.done,total:wp.total,missed:wp.missed,pending:Math.max(0,wp.total-wp.done)};
+}
+/* Media de adherencia de los registros de nutrición de la semana en curso.
+   null (y no 0) cuando no hay ninguno: un «—» dice «sin datos», un 0 diría «lo hizo fatal». */
+function adherenceWeek(aid){
+  const from=weekStartISO(todayISO()),to=isoPlus(from,6);
+  const l=athData(aid).logs.nutrition.filter(n=>n.date>=from&&n.date<=to&&n.adherence!=null);
+  if(!l.length)return null;
+  return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);
+}
+/* Texto de lo que falta por entrenar, en una sola línea y con color, para colgarlo del
+   propio dato de entrenos en vez de abrir otra métrica. Se distingue lo que el atleta
+   TODAVÍA PUEDE hacer (naranja) de lo que ya marcó como «no cumplí» (rojo): es la
+   diferencia entre una semana a medias y una semana perdida. */
+function weekPendInfo(aid,ww){
+  const w=ww||weekWorkouts(aid);
+  if(!w.total)return{txt:'sin rutina asignada',cls:'flat'};
+  const miss=w.missed?' · '+w.missed+' sin cumplir':'';
+  if(w.pending<=0)return{txt:'semana completa',cls:'up'};
+  return{txt:(w.pending===1?'falta 1 entreno':'faltan '+w.pending+' entrenos')+miss,cls:w.missed?'down':'pend'};
 }
 /* estado del ciclo de asesoría (membresía) */
 function athStatus(aid){
@@ -3466,8 +3504,8 @@ VIEWS['coach-dash']=function(u){
   }
   const sts={};aths.forEach(a=>{sts[a.id]=athStatus(a.id);});
   const semas={};let semaAtn=0;aths.forEach(a=>{semas[a.id]=semaforo(a.id);if(semas[a.id]&&semas[a.id].k!=='green')semaAtn++;});
-  let totalW7=0,adhs=[];
-  aths.forEach(a=>{if(sts[a.id].k!=='inactivo'){totalW7+=workoutsInLast(a.id,7);const ad=adherenceAvg(a.id,7);if(ad!=null)adhs.push(ad);}});
+  let totalW7=0,totalPend=0,adhs=[];
+  aths.forEach(a=>{if(sts[a.id].k!=='inactivo'){const ww=weekWorkouts(a.id);totalW7+=ww.done;totalPend+=ww.pending;const ad=adherenceWeek(a.id);if(ad!=null)adhs.push(ad);}});
   const adhMean=adhs.length?(adhs.reduce((x,y)=>x+y,0)/adhs.length).toFixed(1):'—';
   const counts={empezando:0,activo:0,finalizando:0,renovar:0,inactivo:0};
   aths.forEach(a=>{counts[sts[a.id].k]++;});
@@ -3483,15 +3521,15 @@ VIEWS['coach-dash']=function(u){
   seg+='</div>';
   let cards='';
   list.forEach(a=>{
-    const d=athData(a.id),st=sts[a.id],sm=semas[a.id],lw=lastWeight(a.id),delta=weightDelta(a.id,30),w7=workoutsInLast(a.id,7),adh=adherenceAvg(a.id,7);
+    const d=athData(a.id),st=sts[a.id],sm=semas[a.id],lw=lastWeight(a.id),delta=weightDelta(a.id,30),ww=weekWorkouts(a.id),pend=weekPendInfo(a.id,ww),adh=adherenceWeek(a.id);
     const lastWk=d.logs.workouts.length?d.logs.workouts[d.logs.workouts.length-1]:null;
     const plan=d.profile.memStart?(fmtDate(d.profile.memStart)+(d.profile.memEnd?' → '+fmtDate(d.profile.memEnd):' → sin fecha de fin')):'sin plan definido';
     cards+='<div class="ath-card'+(st.k==='inactivo'?'" style="opacity:.55':'')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"resumen"}\'>'+
       '<div class="ath-head">'+semaDot(sm)+ava(a,1)+'<span class="nm"><b>'+esc(a.name)+'</b><span>'+esc(d.profile.goal)+'</span></span>'+(unreadByAth[a.id]?'<span class="cdot" title="mensajes sin leer">💬 '+unreadByAth[a.id]+'</span>':'')+'<span class="badge '+st.cls+'" style="margin-left:auto" title="'+esc(st.hint)+'">'+st.lbl+'</span></div>'+
       '<div class="ath-meta">'+
       '<span class="m">Peso<b>'+(lw?lw.kg+' kg':'—')+(delta!=null?' <small class="'+(delta>0?'up':delta<0?'down':'flat')+'">('+(delta>0?'+':'')+delta+')</small>':'')+'</b></span>'+
-      '<span class="m">Entrenos 7d<b>'+w7+' / '+d.routine.days.length+'</b></span>'+
-      '<span class="m">Adherencia 7d<b>'+(adh!=null?adh+' / 5':'—')+'</b></span>'+
+      '<span class="m">Entrenos semana<b>'+ww.done+' / '+ww.total+' <small class="'+pend.cls+'">'+pend.txt+'</small></b></span>'+
+      '<span class="m">Adherencia semana<b>'+(adh!=null?adh+' / 5':'—')+'</b></span>'+
       '<span class="m">Último entreno<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge '+svcOf(a.id).cls+'" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge blue">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge '+(ap.mode==='macros'?'volt':'orange')+'">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
       (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
@@ -3502,8 +3540,8 @@ VIEWS['coach-dash']=function(u){
     actions:'<button class="btn btn-p" data-act="ath-new-modal">'+I.plus+' Nuevo atleta</button>',
     body:'<div class="grid g4 mb16">'+
       '<div class="stat"><div class="k">Atletas activos</div><div class="v">'+(aths.length-counts.inactivo)+'<small> / '+aths.length+'</small></div><div class="sub">en asesoramiento</div></div>'+
-      '<div class="stat"><div class="k">Entrenos esta semana</div><div class="v">'+totalW7+'</div><div class="sub">registrados por tus atletas</div></div>'+
-      '<div class="stat"><div class="k">Adherencia media 7d</div><div class="v">'+adhMean+'<small> / 5</small></div><div class="sub">nutrición</div></div>'+
+      '<div class="stat"><div class="k">Entrenos esta semana</div><div class="v">'+totalW7+'</div><div class="sub">'+(totalPend?'<span class="pend">'+totalPend+' pendiente'+(totalPend===1?'':'s')+' de aquí al domingo</span>':'sin entrenos pendientes')+'</div></div>'+
+      '<div class="stat"><div class="k">Adherencia media · semana</div><div class="v">'+adhMean+'<small> / 5</small></div><div class="sub">nutrición · desde el lunes</div></div>'+
       '<div class="stat"><div class="k">Requieren atención</div><div class="v '+(atn?'down':'')+'">'+atn+'</div><div class="sub">renovaciones y planes por finalizar</div></div></div>'+
       msgNotice+
       '<div class="sect-h"><h2>Tus atletas</h2></div>'+seg+'<div class="grid g2">'+cards+'</div>'};
@@ -3570,7 +3608,7 @@ function coachSwapsCard(aid){
     (hrows?'<hr class="hr"><p class="tiny" style="font-weight:700;margin-bottom:4px">Cambios puntuales (no alteran tu rutina)</p>'+hrows:'')+'</div>';
 }
 function coachTabResumen(aid){
-  const d=athData(aid),lw=lastWeight(aid),d30=weightDelta(aid,30),adh=adherenceAvg(aid,7),sv=svcOf(aid),tr=d.profile.training||{};
+  const d=athData(aid),lw=lastWeight(aid),d30=weightDelta(aid,30),ww=weekWorkouts(aid),pend=weekPendInfo(aid,ww),adh=adherenceWeek(aid),sv=svcOf(aid),tr=d.profile.training||{};
   const pts=d.logs.weight.map(w=>({x:w.date,y:w.kg}));
   let feed='';
   const comments=[];
@@ -3593,8 +3631,8 @@ function coachTabResumen(aid){
   return '<div class="grid g4 mb16">'+
     '<div class="stat"><div class="k">Último peso</div><div class="v">'+(lw?lw.kg+'<small> kg</small>':'—')+'</div><div class="sub">'+(lw?fmtDate(lw.date):'')+'</div></div>'+
     '<div class="stat"><div class="k">Cambio 30 días</div><div class="v '+(d30>0?'up':d30<0?'down':'')+'">'+(d30!=null?(d30>0?'+':'')+d30+'<small> kg</small>':'—')+'</div><div class="sub">tendencia</div></div>'+
-    '<div class="stat"><div class="k">Entrenos 7d</div><div class="v">'+workoutsInLast(aid,7)+'<small> / '+d.routine.days.length+'</small></div><div class="sub">cumplimiento</div></div>'+
-    '<div class="stat"><div class="k">Adherencia 7d</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">nutrición</div></div></div>'+
+    '<div class="stat"><div class="k">Entrenos · esta semana</div><div class="v">'+ww.done+'<small> / '+ww.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>'+
+    '<div class="stat"><div class="k">Adherencia · esta semana</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">nutrición · desde el lunes</div></div></div>'+
     weightTrendCard(aid)+
     '<div class="grid g2"><div class="card"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgLine(pts,{color:'#7cd0fb',unit:'kg'})+'</div>'+
     '<div class="card"><h3>Perfil y notas del coach</h3>'+
@@ -5642,12 +5680,12 @@ VIEWS['ath-hoy']=function(u){
   /* RESUMEN DE LA SEMANA (de un vistazo) */
   const stats=[];
   if(sv.tr){
-    const w7=workoutsInLast(aid,7);
-    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-prog" data-params=\'{}\'><div class="k">Entrenos · 7 días</div><div class="v">'+w7+'<small> / '+d.routine.days.length+'</small></div><div class="sub">registrados esta semana</div></div>');
+    const ww=weekWorkouts(aid),pend=weekPendInfo(aid,ww);
+    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-prog" data-params=\'{}\'><div class="k">Entrenos · esta semana</div><div class="v">'+ww.done+'<small> / '+ww.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>');
   }
   if(sv.nu){
-    const adh=adherenceAvg(aid,7);
-    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-nutri" data-params=\'{}\'><div class="k">Adherencia · 7 días</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">media de tus registros</div></div>');
+    const adh=adherenceWeek(aid);
+    stats.push('<div class="stat statlink" data-act="nav" data-view="ath-nutri" data-params=\'{}\'><div class="k">Adherencia · esta semana</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">media de tus registros desde el lunes</div></div>');
   }
   if(d.logs.weight.length){
     const rate=weeklyRate(aid,3),rcls=rate&&rate.delta>0?'up':(rate&&rate.delta<0?'down':'');
@@ -5953,7 +5991,7 @@ VIEWS['ath-prog']=function(u){
       exTable='<div class="tblwrap mt16"><table class="tbl" style="min-width:auto"><thead><tr><th>Fecha</th><th>Series ('+wu+'×reps @RIR)</th><th>Mejor</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     }
   }
-  const d30=weightDelta(aid,30),w7=workoutsInLast(aid,7),adh=adherenceAvg(aid,7);
+  const d30=weightDelta(aid,30),wkw=weekWorkouts(aid),pend=weekPendInfo(aid,wkw),adh=adherenceWeek(aid);
   const ww=weightWeekly(aid),sw=stepsWeekly(aid);
   const curW=ww.length?ww[ww.length-1]:null,curS=sw.length?sw[sw.length-1]:null;
   const rate=weeklyRate(aid,3);
@@ -5983,8 +6021,8 @@ VIEWS['ath-prog']=function(u){
     '<div class="stat"><div class="k">Peso medio · semana actual</div><div class="v">'+(curW?curW.avg.toFixed(1)+'<small> kg</small>':'—')+'</div><div class="sub">'+(curW?curW.n+' pesaje'+(curW.n===1?'':'s')+' esta semana':'sin pesajes esta semana')+'</div></div></div>'+
     '<div class="grid g3 mb16">'+
     '<div class="stat"><div class="k">Pasos · media semana actual</div><div class="v">'+(curS?Math.round(curS.avg).toLocaleString('es-ES'):'—')+'</div><div class="sub">'+(curS?curS.n+' día'+(curS.n===1?'':'s')+' registrados':'registra tus pasos en «Hoy»')+'</div></div>'+
-    '<div class="stat"><div class="k">Entrenos 7d</div><div class="v">'+w7+'<small> / '+d.routine.days.length+'</small></div></div>'+
-    '<div class="stat"><div class="k">Adherencia 7d</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div></div></div>'+
+    '<div class="stat"><div class="k">Entrenos · semana actual</div><div class="v">'+wkw.done+'<small> / '+wkw.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>'+
+    '<div class="stat"><div class="k">Adherencia · semana actual</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">desde el lunes</div></div></div>'+
     '<div class="card"><h3>Tendencia de peso semanal <span class="hint">media de cada semana — más fiable que el día a día</span></h3>'+wwChart+wwTable+'</div>'+
     '<div class="card"><h3>Peso corporal diario <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgLine(wpts,{color:'#7cd0fb',unit:'kg'})+'</div>'+
     '<div class="card"><h3>Pasos diarios <span class="hint">'+spts.length+' registros</span></h3>'+(spts.length>=2?svgLine(spts,{color:'#ffb45c'}):'<div class="empty"><b>Sin datos de pasos suficientes</b>Registra tus pasos cada día desde «Hoy» para ver la gráfica.</div>')+swTable+'</div>'+
