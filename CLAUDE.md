@@ -89,3 +89,11 @@ se atasca: se le añade una línea y se sube.
   `profile.phase` a mano: te saltarías ese registro y el bloque perdería el tramo anterior.
   Al cerrar un bloque, `phases` se archiva en la entrada del historial y se reinicia.
 - El panel del coach va **siempre en kg**, aunque el atleta capture en libras.
+- **Un atleta nuevo nace igual sin importar por dónde llegue.** Todo el estado se normaliza con
+  `ensureAll(S)` (única cadena de `ensure*`; no la copies) y cualquier sitio que cree o reponga un
+  atleta en caliente debe correr `ensureAthletesShape(S)`. Si añades un `ensure*` nuevo, entra ahí.
+  Un atleta nuevo lleva la nutrición **en 0** a propósito (el coach la define): cualquier vista de
+  metas debe aguantar 0 sin dividir (`macroBars`, `planSinObjetivos`).
+- **El blob `app_state` es legible por TODOS los atletas del coach** (política
+  `athlete_access_coach_state`). `stateForCloud` vacía por eso todo arreglo de `logs` y nulifica
+  perfil, rutina, nutrición y chat: no metas ahí nada por atleta. Lo del atleta va a tablas con RLS.

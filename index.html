@@ -1183,14 +1183,14 @@ async function loadStateFromSupabase(){
     if(cargarCopiaLocal(error))return true; /* sin red: se abre en solo lectura */
     showBootError('No se pudieron cargar tus datos. Revisa tu conexión e intenta de nuevo.');return false;
   }
-  if(data&&data.state){S=data.state;_blobRev=(data.rev==null?0:data.rev);ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);return true;}
+  if(data&&data.state){S=data.state;_blobRev=(data.rev==null?0:data.rev);ensureAll(S);return true;}
   const meta=_supabaseUser.user_metadata||{};
   /* C1: solo un coach real bootstrapea estado nuevo */
   if(_coachUid===_supabaseUser.id&&meta.role==='coach'){
     const coachName=meta.name||_supabaseUser.email||'Coach';
     const ini=coachName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'CO';
     S={users:[{id:'coach',name:coachName,role:'coach',initials:ini,color:'#cdf563',tag:'Coach'}],athletes:{},logs:{workouts:[],weight:[],nutrition:[],steps:[],fatigue:[]},library:[],foods:[],chat:{}};
-    ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);
+    ensureAll(S);
     saveState();
     return true;
   }
@@ -1208,7 +1208,7 @@ function cargarCopiaLocal(error){
   S=copia;
   _blobRev=null;      /* no se leyó el servidor: no hay versión que reclamar */
   _offlineMode=true;  /* cerrojo: de aqui no sale nada hasta recargar con red */
-  ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);
+  ensureAll(S);
   return true;
 }
 /* Aviso de que aqui no se guarda. Estrangulado: un render puede llamar a saveState
@@ -1263,7 +1263,7 @@ function stateForCloud(){
      confirmar, el código viejo ya no encuentra la biblioteca y siembra la de fábrica encima. */
   if(!S)return S;
   const clone=JSON.parse(JSON.stringify(S));
-  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l){l.weight=[];l.workouts=[];l.nutrition=[];l.meals=[];l.steps=[];l.fatigue=[];}clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;clone.athletes[aid].profile=null;});
+  Object.keys(clone.athletes||{}).forEach(aid=>{const l=clone.athletes[aid].logs;if(l)Object.keys(l).forEach(k=>{if(Array.isArray(l[k]))l[k]=[];}); /* TODO arreglo de logs, no una lista: `measures` se quedó fuera de la lista y quedaba legible para todos los atletas del coach */clone.athletes[aid].chat=[];clone.athletes[aid].routine=null;clone.athletes[aid].nutrition=null;clone.athletes[aid].profile=null;});
   /* la identidad del atleta (nombre/inicial/color/tag) vive en athlete_profiles.shared._u; fuera del blob para que un atleta no vea a los demás por devtools */
   clone.users=(clone.users||[]).filter(u=>u.role!=='athlete');
   return clone;
@@ -1271,6 +1271,22 @@ function stateForCloud(){
 /* ===== rutina y plan de nutrición en tabla athlete_plans (write-through con diff) ===== */
 let _planCache={};
 let _plansHydrated=false;
+/* ÚNICA cadena de normalizadores del estado. Antes estaba copiada en cinco sitios (carga del blob,
+   bootstrap del coach, cargarCopiaLocal, refreshAllData…) y cualquier ensure nuevo había que
+   acordarse de añadirlo en los cinco. El orden importa y es el de siempre: las fichas primero,
+   luego lo que las lee. */
+function ensureAll(st){
+  ensurePlanShells(st);ensureProfileShells(st);ensureLibrary(st);ensureAthletesShape(st);
+  ensureFoods(st);ensureTemplates(st);ensureKeyEx(st);
+}
+/* Lo que hace falta para que la FICHA de un atleta tenga la forma completa: metas de
+   programación, historial/fases de la rutina, arreglos de registros diarios y extras del perfil.
+   Es lo que corre ensureAll y también lo que debe correr cualquier sitio que cree o reponga un
+   atleta en caliente: el alta del coach solo corría dos de estas cuatro, y el atleta nuevo se
+   quedaba sin historial, fases ni registros de pasos/comidas/fatiga/medidas hasta recargar. */
+function ensureAthletesShape(st){
+  ensureProgramming(st);ensureProgression(st);ensureDailyLogs(st);ensureProfileExtras(st);
+}
 function ensurePlanShells(st){
   /* evita crashes si el blob viene sin rutina/plan (ya viven en athlete_plans); hydratePlans las repone */
   Object.keys(st.athletes||{}).forEach(aid=>{
@@ -1297,7 +1313,7 @@ function ensureAthleteEntry(aid){
       logs:{weight:[],workouts:[],nutrition:[],meals:[],steps:[],fatigue:[],measures:[]},
       chat:[]
     };
-    try{ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);}catch(e){}
+    try{ensureAthletesShape(S);}catch(e){}
     console.warn('[hydrate] Atleta "'+aid+'" estaba en las tablas pero no en el blob; ficha repuesta.');
   }
   return a;
@@ -1605,7 +1621,7 @@ async function pullBlob(){
   catch(e){toast('No pude traer la versión del servidor');return false;}
   if(res.error||!res.data||!res.data.state){toast('No pude traer la versión del servidor');return false;}
   S=res.data.state;_blobRev=(res.data.rev==null?0:res.data.rev);
-  ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);
+  ensureAll(S);
   _planCache={};   /* el diff de syncPlans se mide contra el estado anterior: con S nuevo, el cache viejo miente */
   /* toma el MISMO candado que runRefresh: dos hidrataciones en paralelo sobre el mismo S
      es la carrera que borró perfiles en la s33. Los eventos que lleguen entretanto se
@@ -2286,7 +2302,7 @@ async function refreshAllData(only){
       const _keepLib=_libHydrated&&S?S.library:null,_keepFoods=_foodsHydrated&&S?S.foods:null;
       if(!error&&data&&data.state){S=data.state;
         if(_keepLib)S.library=_keepLib;if(_keepFoods)S.foods=_keepFoods;
-        ensurePlanShells(S);ensureProfileShells(S);ensureLibrary(S);ensureProgramming(S);ensureProgression(S);ensureDailyLogs(S);ensureProfileExtras(S);ensureFoods(S);ensureTemplates(S);ensureKeyEx(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
+        ensureAll(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
     await buildAthleteUidMaps();
   }
   const names=Object.keys(_HYDRATORS).filter(t=>full||only.has(t));
@@ -2956,11 +2972,14 @@ function svgLine(points,opts){
   const lastLbl='<text x="'+(X(points.length-1)-6)+'" y="'+(Y(last.y)-10)+'" text-anchor="end" font-size="11.5" font-weight="700" fill="'+color+'">'+last.y+(unit?' '+unit:'')+'</text>';
   return '<div class="chart-wrap"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+color+'" stop-opacity=".22"/><stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient></defs>'+grid+'<path d="'+area+'" fill="url(#'+gid+')"/><path d="'+path+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>'+dots+lastLbl+labels+xlabels+'</svg></div>';
 }
+/* Un plan sin ninguna meta definida: es como nace un atleta nuevo (el coach aún no le ha puesto
+   calorías ni macros). El atleta debe ver un aviso claro, no una tarjeta de ceros. */
+const planSinObjetivos=n=>!(n.kcal>0)&&!(n.protein>0)&&!(n.carbs>0)&&!(n.fat>0);
 function macroBars(n,big){
   const kcal=n.kcal||kcalFromMacros(n);
   const rows=[['Proteína',n.protein,'g','#7cd0fb',n.protein*4],['Carbohidratos',n.carbs,'g','#cdf563',n.carbs*4],['Grasas',n.fat,'g','#ffb45c',n.fat*9]];
   let html=big?'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:18px"><span class="kcal-big">'+kcal+'</span><small style="color:var(--tx2)">kcal / día</small></div>':'';
-  rows.forEach(r=>{const pct=Math.min(100,Math.round(r[4]/kcal*100));
+  rows.forEach(r=>{const pct=kcal>0?Math.min(100,Math.round(r[4]/kcal*100)):0; /* sin metas, 0 y no NaN */
     html+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+r[1]+' '+r[2]+' · '+pct+'%</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+r[3]+'"></i></div></div>';});
   return html;
 }
@@ -4642,10 +4661,10 @@ Object.assign(ACTIONS,{
     S.athletes[id]={
       profile:{category:val('na_cat')||'General',goal:val('na_goal')||'Por definir',heightCm:num('na_h')||0,sex:val('na_sex')||'M',age:num('na_age')||null,bodyFat:nbf||null,notes:'',service:(val('na_service')||'ambos'),training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false},
       routine:{name:'Programa inicial',weekNote:'',startDate:todayISO(),days:(function(){const p=parseInt(val('na_days'),10);const n=isNaN(p)?4:Math.min(7,Math.max(1,p));const arr=[];for(let i=1;i<=n;i++)arr.push({id:uid(),name:'Día '+i,exercises:[],plan:{}});return arr;})()},
-      nutrition:(function(){const pid=uid();return{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:val('na_mode')||'macros',kcal:2500,protein:160,carbs:280,fat:70,mealsPerDay:4,meals:[],notes:''}],supplements:[]};})(),
+      nutrition:(function(){const pid=uid();return{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:val('na_mode')||'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''}],supplements:[]};})(),
       logs:{weight:[],workouts:[],nutrition:[]}
     };
-    ensureProgramming(S);ensureProfileExtras(S);
+    ensureAthletesShape(S);
     /* el peso va por setCoachWeight, no dentro del objeto de arriba: tiene que quedar en el perfil Y en
        logs.weight. Aquí el atleta nunca tiene cuenta todavía, así que no hay fila en weight_logs — la sube
        backfillWeightLogs en cuanto se registre. */
@@ -5966,7 +5985,7 @@ VIEWS['ath-nutri']=function(u){
   let hist='';
   d.logs.nutrition.slice().reverse().slice(0,7).forEach(x=>{hist+='<div class="logitem"><div class="lh">'+adhBadge(x.adherence)+'<b>Adherencia</b><span class="dt">'+fmtDateFull(x.date)+'</span></div>'+(x.comment?'<div class="cm">'+esc(x.comment)+'</div>':'')+'</div>';});
   return{title:'Mi nutrición',crumb:'<span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(n.name)+' · '+(n.mode==='macros'?'macros flexibles':'menú cerrado'),
-    body:dayPick+'<div class="grid g2"><div class="card"><h3>Objetivos diarios</h3>'+macroBars(n,true)+(n.mealsPerDay?'<p class="tiny mt8">Repartido en ~'+n.mealsPerDay+' comidas al día.</p>':'')+(n.notes?'<div class="notebox mt16">'+esc(n.notes)+'</div>':'')+'</div>'+
+    body:dayPick+'<div class="grid g2"><div class="card"><h3>Objetivos diarios</h3>'+(planSinObjetivos(n)?'<div class="empty"><b>Tu coach está preparando tu plan</b>Todavía no tiene objetivos de calorías y macros. Cuando los defina los verás aquí.</div>':macroBars(n,true))+(n.mealsPerDay&&!planSinObjetivos(n)?'<p class="tiny mt8">Repartido en ~'+n.mealsPerDay+' comidas al día.</p>':'')+(n.notes?'<div class="notebox mt16">'+esc(n.notes)+'</div>':'')+'</div>'+
     '<div>'+(plan||'')+'<div class="card'+(plan?' mt16':'')+'"><h3>Tus últimos registros</h3>'+(hist||'<div class="empty"><b>Sin registros aún</b>Registra tu adherencia cada día desde «Hoy».</div>')+'</div></div></div>'+supp};
 };
 
@@ -6038,7 +6057,11 @@ Object.assign(ACTIONS,{
     const day=d.routine.days.find(x=>x.id===el.dataset.day);
     if(!day||!day.exercises.length){toast('Este día no tiene ejercicios');return;}
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id){
-      if(WDRAFT.dayId===day.id){nav('ath-wlog');return;} /* el mismo día: se continúa sin preguntar */
+      /* El mismo día de rutina se continúa sin preguntar SOLO si el borrador es de hoy (o es una corrección
+         de una sesión guardada, que conserva a propósito su fecha original). Un borrador de hace días
+         volvía con sus series y sus marcas «No lo hice» como si fueran de hoy: una atleta lo reportó como
+         ejercicios marcados «por defecto». Ahora cae al aviso de abajo, que ya muestra la fecha. */
+      if(WDRAFT.dayId===day.id&&(WDRAFT.editing||!WDRAFT.date||WDRAFT.date===todayISO())){nav('ath-wlog');return;}
       const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||WDRAFT.dayName||'otro día';
       openModal(WDRAFT.editing?'Tienes correcciones sin guardar':'Tienes un entreno sin guardar',
         '<p class="muted">'+(WDRAFT.editing
