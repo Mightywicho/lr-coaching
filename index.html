@@ -360,7 +360,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .statlink{cursor:pointer;transition:border-color .15s}
 .statlink:hover{border-color:var(--line2)}
 .stat .v small{font-size:13px;font-weight:600;color:var(--tx2)}
-.pend{background:rgba(255,180,92,.06);border:1px solid rgba(255,180,92,.3);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
+/* div.pend: SOLO la tarjeta «Pendiente hoy». Antes era .pend a secas y chocaba con .pend{color} (texto naranja de «faltan N entrenos»): esos <span> heredaban borde, relleno y margen de la tarjeta y se veian como una caja encimada */
+div.pend{background:rgba(255,180,92,.06);border:1px solid rgba(255,180,92,.3);border-radius:var(--r);padding:14px 16px;margin-bottom:16px}
 .pend-h{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;color:var(--orange);margin-bottom:10px}
 .pend-chips{display:flex;flex-wrap:wrap;gap:8px}
 .pend-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border:1px solid var(--line2);background:var(--card);border-radius:999px;font-size:13px;color:var(--tx);cursor:pointer;transition:border-color .15s,background .15s}
@@ -401,7 +402,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
 .frow4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:14px}
 @media(max-width:560px){.frow4{grid-template-columns:1fr 1fr}}
-.modal-f{display:flex;gap:10px;justify-content:flex-end;padding:0 22px 22px}
+.modal-f{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;padding:0 22px 22px} /* wrap: dos botones con nombre de dia largo se salian de la pantalla en el movil */
 @keyframes fade{from{opacity:0}}
 @keyframes pop{from{opacity:0;transform:scale(.96) translateY(6px)}}
 
