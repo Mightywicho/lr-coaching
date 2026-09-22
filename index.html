@@ -3344,10 +3344,15 @@ function renderUnsafe(){
 
 /* ---------- registro de acciones ---------- */
 const ACTIONS={
-  'logout':async()=>{try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}_selfSignOut=true;await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
+  /* «Salir» vive en la barra inferior del móvil, junto a las pestañas: un toque de más cerraba
+     la sesión sin aviso (Jenny, 2026-09-22). Siempre se confirma. */
+  'logout':()=>confirmModal('Cerrar sesión',(wdraftDirty(WDRAFT)||Object.keys(KEEP).length)?'Tienes datos sin guardar. Se quedan en este teléfono y los recuperas al volver a entrar con tu cuenta.':'¿Seguro que quieres salir?','logout-ok'),
+  'logout-ok':async()=>{closeModal();wdraftFlush();keepFlush();try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}_selfSignOut=true;await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
     /* Se limpia la MEMORIA, no el disco: el borrador y lo escrito siguen en localStorage
        ligados a su uid, así que el dueño los recupera al volver a entrar, y el siguiente
-       usuario de esta pestaña no ve nada del anterior (keepLoad/wdraftLoad validan el uid). */
+       usuario de esta pestaña no ve nada del anterior (keepLoad/wdraftLoad validan el uid).
+       Arriba ya se volcaron a disco, y wdraftFlush/keepFlush ya no borran el disco al ver la
+       memoria vacía: antes el siguiente `visibilitychange` borraba el borrador del dueño. */
     KEEP={};_keepUid='';WDRAFT=null;
     route={view:'home',params:{}};render();},
   'auth-login':async()=>{
@@ -5397,24 +5402,25 @@ function exForm(e,aid,exId,dayId,gForce){
 const LS_WDRAFT='lrc_wdraft_v1';
 let WDRAFT=null;
 let _wdSaveT=null;
+/* Guardar NUNCA borra: WDRAFT vacío en memoria no significa «descartado» (tras «Salir», o al
+   arrancar antes de cargar el borrador, o si el borrador es de otra cuenta). Borrar el disco
+   es solo cosa de wdraftClear, que se llama al guardar en el servidor o al descartar. */
 function wdraftSave(){
   clearTimeout(_wdSaveT);
   _wdSaveT=setTimeout(()=>{
-    try{
-      if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));
-      else localStorage.removeItem(LS_WDRAFT);
-    }catch(e){}
+    try{if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));}catch(e){}
   },300);
+}
+function wdraftClear(){
+  WDRAFT=null;clearTimeout(_wdSaveT);
+  try{localStorage.removeItem(LS_WDRAFT);}catch(e){}
 }
 function wdraftTouch(){if(WDRAFT){WDRAFT.touched=true;wdraftSave();}}
 /* El debounce de 300 ms se pierde si el navegador congela o descarta la pestaña (móvil).
    `pagehide` y `visibilitychange` son los dos únicos eventos fiables en iOS: se vuelca ya. */
 function wdraftFlush(){
   clearTimeout(_wdSaveT);
-  try{
-    if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));
-    else localStorage.removeItem(LS_WDRAFT);
-  }catch(e){}
+  try{if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));}catch(e){}
 }
 window.addEventListener('pagehide',wdraftFlush);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)wdraftFlush();});
@@ -5736,7 +5742,7 @@ async function saveWorkoutDraft(status,reason,extraCm){
     alert('No se pudo guardar tu entrenamiento.\n\n'+((_res&&_res.msg)||'Error desconocido')+'\n\nTus datos NO se han borrado: siguen aquí. Revisa tu conexión y vuelve a pulsar Guardar.');
     return;
   }
-  WDRAFT=null;wdraftSave();
+  wdraftClear();
   toast(_wasEdit?(_wasPast?'Sesión del '+fmtDate(w.date)+' corregida ✓':'Registro corregido ✓'):st==='missed'?'Registrado como no realizada':st==='partial'?'Sesión guardada como incompleta':'Entrenamiento guardado 💪');
   /* Corregir una sesión pasada se entra desde «Mi rutina»; devolver ahí es volver de donde vino. */
   nav(_wasEdit&&_wasPast?'ath-rutina':'ath-hoy');
@@ -5769,8 +5775,9 @@ let KEEP={};
 let _keepUid='';
 let _keepT=null;
 function keepFlush(){
+  if(!_keepUid)return; /* sin dueño (tras «Salir» o antes de keepLoad): no tocar lo que hay en disco */
   try{
-    if(_keepUid&&Object.keys(KEEP).length)localStorage.setItem(LS_KEEP,JSON.stringify({uid:_keepUid,v:KEEP}));
+    if(Object.keys(KEEP).length)localStorage.setItem(LS_KEEP,JSON.stringify({uid:_keepUid,v:KEEP}));
     else localStorage.removeItem(LS_KEEP);
   }catch(e){}
 }
@@ -6398,7 +6405,7 @@ Object.assign(ACTIONS,{
   },
   /* Tirar el borrador sin empezar otro día. Lo usa la pantalla del día que desapareció: ahí no
      hay ningún día al que saltar, que es justo lo que `wlog-discard` da por hecho. */
-  'wlog-drop':()=>{WDRAFT=null;wdraftSave();toast('Borrador descartado');nav('ath-rutina');},
+  'wlog-drop':()=>{wdraftClear();toast('Borrador descartado');nav('ath-rutina');},
   /* Sin render(): el aviso se quita del documento y ya. Repintar la vista entera por cerrar
      un aviso le movería el foco al que está escribiendo una serie. */
   'wlog-plannote-ok':()=>{planNoteQuitar();},
