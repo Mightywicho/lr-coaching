@@ -847,6 +847,8 @@ let _dirtyTables=null;      /* Set de tablas que cambiaron; null = refresco comp
 let _athleteUidByAppId={};/* appId -> uid auth */
 let _appIdByAthleteUid={};/* uid auth -> appId */
 const uid=()=>Math.random().toString(36).slice(2,9);
+/* códigos de invitación: aleatorio criptográfico; 32 símbolos sin 0/O ni 1/I (256%32==0, sin sesgo) */
+const inviteCode=n=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from(crypto.getRandomValues(new Uint8Array(n)),b=>A[b&31]).join('');};
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const daysAgoISO=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const addDaysISO=(iso,n)=>{const[y,m,dd]=String(iso).split('-').map(Number);const d=new Date(y,m-1,dd);d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -3445,7 +3447,7 @@ const ACTIONS={
     openModal('Códigos de coach',body,'<button class="btn btn-p" data-act="modal-close">Cerrar</button>');
   },
   'invite-coach':async()=>{
-    const code='LRC-'+Math.random().toString(36).slice(2,8).toUpperCase();
+    const code='LRC-'+inviteCode(6);
     const label=(val('ci_label')||'').trim();
     if(!await sessionAlive())return;
     const{error}=await supa.from('coach_invites').insert({code,created_by:_supabaseUser.id,label:label||null});
@@ -3460,7 +3462,7 @@ const ACTIONS={
   'invite-ath':async el=>{
     const aid=el.dataset.aid;
     if(!await sessionAlive())return;
-    const code=Math.random().toString(36).slice(2,10).toUpperCase();
+    const code=inviteCode(8);
     const{error}=await supa.from('athlete_invites').insert({code,coach_uid:_supabaseUser.id,athlete_id:aid});
     if(error){toast(authFail(error)||('Error: '+error.message),'err');return;}
     openModal('Código de acceso del atleta',
