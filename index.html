@@ -1235,8 +1235,8 @@ function avisoOffline(){
 function bannerOffline(){
   bottomBanner('offlineBanner','warn',12,
     '<b>Sin conexión.</b> Estás viendo la última copia guardada en este dispositivo. '+
-    'Tu entreno y tu peso se guardan en el teléfono y se suben solos al volver la señal; '+
-    'otros cambios <b>no</b> se guardarán hasta entonces.');
+    'Lo que registres (entreno, peso, pasos, comidas, mensajes…) se guarda en el teléfono '+
+    'y se sube solo al volver la señal.');
 }
 /* Volver de la nada. El evento `online` no es de fiar por sí solo (avisa al enganchar el
    wifi, no al tener internet), así que además se toca la puerta cada 20 s. */
@@ -1887,9 +1887,10 @@ function swapCandidates(ex,day,reason){
 }
 /* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
 function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed)};}
-async function syncNutriRow(aid){if(!_supabaseUser)return;const e=todayNutriEntry(aid);const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid');return;}try{const{error}=await supa.from('nutrition_logs').upsert(row,{onConflict:'athlete_uid,date'});if(error){console.error('nutrition_logs',error,row);toast('Nutri no sincronizó: '+error.message);}}catch(err){console.error(err);toast('Nutri no sincronizó: '+(err&&err.message||err));}}
-async function syncMealAdd(aid,m){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;try{await supa.from('meal_logs').upsert({id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0},{onConflict:'id'});}catch(err){}}
-async function syncMealDel(id){if(!_supabaseUser)return;try{await supa.from('meal_logs').delete().eq('id',id);}catch(err){}}
+/* Las tres van por la cola de envíos (outboxAdd): se guardan al instante y suben solas. */
+function syncNutriRow(aid){if(!_supabaseUser)return;const e=todayNutriEntry(aid);const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid');return;}outboxAdd('nutrition','nutrition_logs',row.date,'athlete_uid,date',row,e);}
+function syncMealAdd(aid,m){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;outboxAdd('meal','meal_logs',m.id,'id',{id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0},m);}
+function syncMealDel(aid,id){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;outboxAdd('mealDel','meal_logs',id,'id',{athlete_uid:auid},{id});}
 async function backfillNutritionLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   const rows=[];
@@ -1908,7 +1909,7 @@ async function hydrateNutritionLogs(){
     if(error||!data)return;
     const byUid={};
     data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,adherence:(r.adherence!=null?+r.adherence:null),comment:r.comment||'',mealsDone:r.meals_done||[],planFollowed:(r.plan_followed==null?null:r.plan_followed)});});
-    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.nutrition=byUid[uid];});
+    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.nutrition=byUid[uid];});outboxOverlay();
   }catch(e){}
 }
 async function backfillMealLogs(){
@@ -1929,7 +1930,7 @@ async function hydrateMealLogs(){
     if(error||!data)return;
     const byUid={};
     data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,name:r.name||'',p:+r.p||0,c:+r.c||0,f:+r.f||0});});
-    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.meals=byUid[uid];});
+    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.meals=byUid[uid];});outboxOverlay();
   }catch(e){}
 }
 /* ---- StepsLog + FatigueCheckin: 4ª y 5ª series migradas del blob ---- */
@@ -1940,7 +1941,7 @@ async function backfillStepsLogs(){
 }
 async function hydrateStepsLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
-  try{const{data,error}=await supa.from('steps_logs').select('athlete_uid,date,steps').order('date',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,steps:+r.steps});});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.steps=byUid[uid];});}catch(e){}
+  try{const{data,error}=await supa.from('steps_logs').select('athlete_uid,date,steps').order('date',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,steps:+r.steps});});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.steps=byUid[uid];});outboxOverlay();}catch(e){}
 }
 async function backfillFatigueLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;const rows=[];
@@ -1949,17 +1950,17 @@ async function backfillFatigueLogs(){
 }
 async function hydrateFatigueLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
-  try{const{data,error}=await supa.from('fatigue_logs').select('athlete_uid,week,data').order('week',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(r.data);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.fatigue=byUid[uid];});}catch(e){}
+  try{const{data,error}=await supa.from('fatigue_logs').select('athlete_uid,week,data').order('week',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(r.data);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.fatigue=byUid[uid];});outboxOverlay();}catch(e){}
 }
 /* ---- MeasurementLog: circunferencias corporales mensuales (7ª serie con RLS) ---- */
 async function hydrateMeasureLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
-  try{const{data,error}=await supa.from('measurement_logs').select('athlete_uid,date,data').order('date',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;const m=Object.assign({},r.data);if(!m.date)m.date=r.date;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(m);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.measures=byUid[uid];});}catch(e){}
+  try{const{data,error}=await supa.from('measurement_logs').select('athlete_uid,date,data').order('date',{ascending:true});if(error||!data)return;const byUid={};data.forEach(r=>{if(!r.data)return;const m=Object.assign({},r.data);if(!m.date)m.date=r.date;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(m);});Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.measures=byUid[uid];});outboxOverlay();}catch(e){}
 }
 /* ---- Chat: tabla chat_logs con RLS (saca el chat del blob compartido; el atleta ya no escribe app_state) ---- */
 async function syncChatAdd(aid,m){
   if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;
-  try{const{error}=await supa.from('chat_logs').upsert({id:m.id,athlete_uid:auid,coach_uid:_coachUid,sender:m.from,text:m.text||'',ts:m.ts,read:!!m.read},{onConflict:'id'});if(error){console.error('chat_logs',error);toast('Mensaje no sincronizó: '+error.message);}}catch(err){console.error(err);toast('Mensaje no sincronizó: '+(err&&err.message||err));}
+  outboxAdd('chat','chat_logs',m.id,'id',{id:m.id,athlete_uid:auid,coach_uid:_coachUid,sender:m.from,text:m.text||'',ts:m.ts,read:!!m.read},m);
 }
 async function syncChatRead(aid,viewerRole){
   if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;
@@ -1983,7 +1984,7 @@ async function hydrateChat(){
     if(error||!data)return;
     const byUid={};
     data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,from:r.sender,text:r.text||'',ts:+r.ts,read:!!r.read});});
-    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId])S.athletes[appId].chat=byUid[uid];});
+    Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId])S.athletes[appId].chat=byUid[uid];});outboxOverlay();
   }catch(e){}
 }
 /* ---- Chat en tiempo real: suscripción a chat_logs (la RLS filtra por suscriptor) ---- */
@@ -3585,7 +3586,7 @@ const ACTIONS={
     const t=document.getElementById('ath_email_txt');if(t&&t.dataset.aid===aid)t.textContent=email;
   },
   'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
-  'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);saveState();syncChatAdd(aid,m);render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
+  'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);syncChatAdd(aid,m);saveStateCola();render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
   'modal-overlay':()=>{if($('#modal-root').dataset.persist==='1')return;closeModal();},
   'cal-config':()=>openModal('Link de videollamada','<div class="frow"><label>Tu link de Calendly (u otro agendador)</label><input id="cal_url" value="'+esc(S.coachCalendly||'')+'" placeholder="calendly.com/tu-usuario/seguimiento"><p class="tiny" style="margin-top:6px">Tus atletas verán un botón «Agendar videollamada» en su chat. Déjalo vacío para ocultarlo.</p></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="cal-save">Guardar</button>'),
@@ -5664,12 +5665,22 @@ function outboxPersist(){
     else localStorage.removeItem(LS_OUTBOX);
   }catch(e){}
 }
-/* kind: 'workout' | 'weight'. mem = cómo se ve en S (para outboxOverlay). */
+/* Dónde vive cada tipo en memoria y con qué campo se reconoce la fila. `top`: cuelga del
+   atleta y no de logs (el chat). `del`: la entrada es un borrado. */
+const OUTBOX_KINDS={
+  workout:{list:'workouts',mk:'id'},   weight:{list:'weight',mk:'date'},
+  steps:{list:'steps',mk:'date'},      nutrition:{list:'nutrition',mk:'date'},
+  meal:{list:'meals',mk:'id'},         mealDel:{list:'meals',mk:'id',del:true},
+  measure:{list:'measures',mk:'date'}, fatigue:{list:'fatigue',mk:'week'},
+  chat:{list:'chat',mk:'id',top:true}
+};
+/* mem = cómo se ve en S (para outboxOverlay). Para un borrado, row = {athlete_uid} y key = id.
+   Mismo `k` que el alta: borrar algo que aún no subió solo cambia la entrada pendiente. */
 function outboxAdd(kind,tb,key,oc,row,mem){
   if(!_outboxUid&&_supabaseUser)_outboxUid=_supabaseUser.id;
   const k=tb+'|'+key;
   OUTBOX=OUTBOX.filter(x=>x.k!==k);
-  OUTBOX.push({k,kind,tb,oc,row,mem,t:Date.now()});
+  OUTBOX.push({k,kind,tb,oc,key,row,mem,t:Date.now()});
   outboxPersist();
   _outboxHad=true;outboxPill();
   setTimeout(outboxFlush,0);
@@ -5684,7 +5695,8 @@ async function outboxFlush(){
     while(OUTBOX.length){
       const it=OUTBOX[0];
       let res;
-      try{res=await conPlazo(supa.from(it.tb).upsert(it.row,{onConflict:it.oc}),15000);}catch(e){res={error:e};}
+      const K=OUTBOX_KINDS[it.kind]||{};
+      try{res=await conPlazo(K.del?supa.from(it.tb).delete().eq(it.oc,it.key):supa.from(it.tb).upsert(it.row,{onConflict:it.oc}),15000);}catch(e){res={error:e};}
       if(res&&res.error){
         if(!esFalloDeRed(res.error)){
           console.error('outbox '+it.tb,res.error);
@@ -5705,17 +5717,15 @@ function outboxOverlay(){
   if(!OUTBOX.length||!S||!S.athletes)return;
   OUTBOX.forEach(it=>{
     const aid=_appIdByAthleteUid[it.row&&it.row.athlete_uid];
-    const ath=aid&&S.athletes[aid];if(!ath)return;
-    ath.logs=ath.logs||{};
-    if(it.kind==='workout'){
-      const L=ath.logs.workouts=Array.isArray(ath.logs.workouts)?ath.logs.workouts:[];
-      const i=L.findIndex(x=>x&&x.id===it.mem.id);if(i>=0)L[i]=it.mem;else L.push(it.mem);
-      L.sort((a,b)=>a.date<b.date?-1:1);
-    }else if(it.kind==='weight'){
-      const L=ath.logs.weight=Array.isArray(ath.logs.weight)?ath.logs.weight:[];
-      const x=L.find(y=>y.date===it.mem.date);if(x)x.kg=it.mem.kg;else L.push({date:it.mem.date,kg:it.mem.kg});
-      L.sort((a,b)=>a.date<b.date?-1:1);
-    }
+    const ath=aid&&S.athletes[aid],K=OUTBOX_KINDS[it.kind];if(!ath||!K||!it.mem)return;
+    const box=K.top?ath:(ath.logs=ath.logs||{});
+    const L=box[K.list]=Array.isArray(box[K.list])?box[K.list]:[];
+    const i=L.findIndex(x=>x&&x[K.mk]===it.mem[K.mk]);
+    if(K.del){if(i>=0)L.splice(i,1);return;}
+    if(i>=0)L[i]=it.mem;else L.push(it.mem);
+    if(K.mk==='week')L.sort((a,b)=>a.week-b.week);
+    else if(K.list==='chat')L.sort((a,b)=>a.ts-b.ts);
+    else if(L.every(x=>x&&x.date))L.sort((a,b)=>a.date<b.date?-1:1);
   });
 }
 /* Pastilla discreta arriba al centro: solo aparece si hay algo por subir o falló, y al vaciarse
@@ -5742,6 +5752,9 @@ function outboxPill(){
     }
   }catch(e){}
 }
+/* Tras guardar en la cola: con red se sube también el blob como siempre; sin red saveState
+   avisaría «este cambio no se guardó», y sí se guardó (en la cola). */
+function saveStateCola(){if(!_offlineMode)saveState();}
 window.addEventListener('online',function(){outboxFlush();});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)outboxFlush();});
 /* ---------- Guardado de una sesión (s62) ----------
@@ -5769,7 +5782,7 @@ async function pushWorkoutLog(u,w,silent){
     outboxAdd('workout','workout_logs',w.id,'id',{id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},w);
   }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
   else{saveState();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
-  if(!_offlineMode)saveState(); /* sin red saveState avisaría «no se guardó», y sí se guardó: en la cola */
+  saveStateCola();
   return{ok:true};
   }catch(e){
     console.error('pushWorkoutLog',e);
@@ -6084,7 +6097,7 @@ VIEWS['ath-hoy']=function(u){
      «Guardar» borraba el número en silencio. Las claves las limpia cada handler al guardar. */
   /* El aviso «en kg» solo se pinta si el atleta capturó sus cargas en lb: para quien usa kg
      en todo sería ruido, y para quien usa lb es justo la duda que se le crea al ver el interruptor. */
-  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas'+(weightUnitForAid(aid)==='lb'?' · en kg':'')+'</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div>'+
+  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint" style="margin-left:6px">opcional · al despertar, en ayunas'+(weightUnitForAid(aid)==='lb'?' · en kg':'')+'</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div><button class="btn btn-g btn-sm" style="margin:-8px 0 18px" data-act="weight-back">Días anteriores</button>'+
     '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint" style="margin-left:6px">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p><button class="btn btn-g btn-sm mt8" data-act="steps-back">Días anteriores</button>';
 
   const todayM=measureLogs(aid).find(m=>m.date===todayISO());
@@ -6682,10 +6695,10 @@ Object.assign(ACTIONS,{
     await pushWorkoutLog(u,w);
     toast((_offlineMode||sinRed())?'Registrado · se sube en cuanto haya señal':'Registrado · tu coach ya lo ve');render();
   },
-  'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
-  'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
-  'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveState();render();},
-  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveState();toast('Registro de nutrición guardado');render();},
+  'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
+  'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
+  'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
+  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();toast('Registro de nutrición guardado');render();},
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
@@ -6699,7 +6712,7 @@ Object.assign(ACTIONS,{
       outboxAdd('weight','weight_logs',day,'athlete_uid,date',{athlete_uid:auid,coach_uid:_coachUid,date:day,kg},{date:day,kg});
     }
     keepClear('w_today'); /* ya está guardado: si no se suelta, se repintaría encima del dato bueno */
-    if(!_offlineMode)saveState();
+    saveStateCola();
     toast('Peso guardado: '+kg+' kg');
     render();
   },
@@ -6711,10 +6724,50 @@ Object.assign(ACTIONS,{
     const existing=d.logs.steps.find(s=>s.date===todayISO());
     if(existing)existing.steps=st;else d.logs.steps.push({date:todayISO(),steps:st});
     d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),steps:st},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser){const day=todayISO();outboxAdd('steps','steps_logs',day,'athlete_uid,date',{athlete_uid:auid,coach_uid:_coachUid,date:day,steps:st},{date:day,steps:st});}
     keepClear('s_today');
-    saveState();toast(synced?('Pasos guardados: '+st.toLocaleString('es-ES')):('Pasos guardados local: '+st.toLocaleString('es-ES')));render();
+    saveStateCola();toast('Pasos guardados: '+st.toLocaleString('es-ES'));render();
+  },
+  /* Peso de días pasados: mismo patrón que los pasos. Ventana de 6 días atrás (hoy se registra
+     arriba); un campo vacío NO borra lo ya registrado. Cada día es su propia fila de la cola. */
+  'weight-back':()=>{
+    const u=userById(getSession().userId);if(!u||u.role!=='athlete')return;
+    const arr=athData(u.id).logs.weight||[];
+    let rows='';
+    for(let n=1;n<=6;n++){
+      const iso=daysAgoISO(n);
+      const[yy,mm,dd]=iso.split('-').map(Number);
+      const lbl=(n===1?'Ayer':DIAS[new Date(yy,mm-1,dd).getDay()]);
+      const prev=arr.find(w=>w.date===iso);
+      rows+='<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><label style="flex:1;margin:0">'+lbl+' <span class="hint">'+fmtDate(iso)+'</span></label><input id="wb_'+iso+'" type="number" step="0.1" min="0" placeholder="kg" value="'+(prev?prev.kg:'')+'" style="max-width:150px"></div>';
+    }
+    openModal('Peso de días anteriores',
+      '<p class="tiny mb16">Rellena los días que te falten, en kg. Lo que dejes en blanco se queda como está.</p>'+rows,
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="weight-back-save">Guardar</button>',
+      {nofocus:true});
+  },
+  'weight-back-save':()=>{
+    const u=userById(getSession().userId);if(!u)return;
+    const d=athData(u.id);
+    /* Validar todo antes de escribir nada: o entran todos o no entra ninguno. */
+    const picks=[];
+    for(let n=1;n<=6;n++){
+      const iso=daysAgoISO(n),raw=val('wb_'+iso);
+      if(!raw)continue;
+      const kg=Math.round(parseFloat(raw.replace(',','.'))*10)/10;
+      if(!kg||isNaN(kg)||kg<25||kg>300){toast('Peso fuera de rango en '+fmtDate(iso)+' (25 a 300 kg)','err');return;}
+      picks.push({date:iso,kg});
+    }
+    if(!picks.length){closeModal();return;}
+    if(!Array.isArray(d.logs.weight))d.logs.weight=[];
+    picks.forEach(p=>{const ex=d.logs.weight.find(w=>w.date===p.date);if(ex)ex.kg=p.kg;else d.logs.weight.push({date:p.date,kg:p.kg});});
+    d.logs.weight.sort((a,b)=>a.date<b.date?-1:1);
+    const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser)picks.forEach(p=>outboxAdd('weight','weight_logs',p.date,'athlete_uid,date',{athlete_uid:auid,coach_uid:_coachUid,date:p.date,kg:p.kg},{date:p.date,kg:p.kg}));
+    saveStateCola();closeModal();
+    toast('Peso guardado: '+picks.length+(picks.length===1?' día':' días'));
+    render();
   },
   /* Pasos de días pasados: el atleta suele acordarse tarde de copiar el total del reloj.
      Ventana de 6 días atrás (hoy se registra arriba). Un campo vacío NO borra lo ya registrado.
@@ -6751,10 +6804,10 @@ Object.assign(ACTIONS,{
     if(!d.logs.steps)d.logs.steps=[];
     picks.forEach(p=>{const ex=d.logs.steps.find(s=>s.date===p.date);if(ex)ex.steps=p.steps;else d.logs.steps.push({date:p.date,steps:p.steps});});
     d.logs.steps.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){try{const{error}=await supa.from('steps_logs').upsert(picks.map(p=>({athlete_uid:auid,coach_uid:_coachUid,date:p.date,steps:p.steps})),{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
-    saveState();closeModal();
-    toast((synced?'Guardado: ':'Guardado local: ')+picks.length+(picks.length===1?' día':' días'));
+    const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser)picks.forEach(p=>outboxAdd('steps','steps_logs',p.date,'athlete_uid,date',{athlete_uid:auid,coach_uid:_coachUid,date:p.date,steps:p.steps},{date:p.date,steps:p.steps}));
+    saveStateCola();closeModal();
+    toast('Guardado: '+picks.length+(picks.length===1?' día':' días'));
     render();
   },
   'measures-save':async()=>{
@@ -6766,10 +6819,10 @@ Object.assign(ACTIONS,{
     const i=d.logs.measures.findIndex(x=>x.date===todayISO());
     if(i>=0)d.logs.measures[i]=m;else d.logs.measures.push(m);
     d.logs.measures.sort((a,b)=>a.date<b.date?-1:1);
-    let synced=true;const auid=_athleteUidByAppId[u.id];
-    if(auid&&_supabaseUser){try{const{error}=await supa.from('measurement_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date:todayISO(),data:m},{onConflict:'athlete_uid,date'});if(error)synced=false;}catch(e){synced=false;}}
+    const auid=_athleteUidByAppId[u.id];
+    if(auid&&_supabaseUser)outboxAdd('measure','measurement_logs',m.date,'athlete_uid,date',{athlete_uid:auid,coach_uid:_coachUid,date:m.date,data:m},m);
     keepClearPrefix('ms_'); /* las 10 casillas de una vez */
-    saveState();toast(synced?'Medidas guardadas 📏':'Medidas guardadas local (sin conexión)');render();
+    saveStateCola();toast('Medidas guardadas 📏');render();
   },
   'meal-add':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
@@ -6779,13 +6832,13 @@ Object.assign(ACTIONS,{
     if(!d.logs.meals)d.logs.meals=[];
     const _m={id:uid(),date:todayISO(),name,p,c,f};
     d.logs.meals.push(_m);syncMealAdd(u.id,_m);
-    saveState();toast('Comida añadida: '+mealKcal({p,c,f})+' kcal');render();
+    saveStateCola();toast('Comida añadida: '+mealKcal({p,c,f})+' kcal');render();
   },
   'meal-del':el=>{
     const u=userById(getSession().userId),d=athData(u.id);
     d.logs.meals=(d.logs.meals||[]).filter(m=>m.id!==el.dataset.id);
-    syncMealDel(el.dataset.id);
-    saveState();toast('Comida eliminada');render();
+    syncMealDel(u.id,el.dataset.id);
+    saveStateCola();toast('Comida eliminada');render();
   },
   'meal-add-food':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
@@ -6799,7 +6852,7 @@ Object.assign(ACTIONS,{
     if(!d.logs.meals)d.logs.meals=[];
     const _m={id:uid(),date:todayISO(),name:food.name+' · '+label,p:mac.p,c:mac.c,f:mac.f};
     d.logs.meals.push(_m);syncMealAdd(u.id,_m);
-    saveState();toast('Añadido: '+mealKcal(mac)+' kcal');render();
+    saveStateCola();toast('Añadido: '+mealKcal(mac)+' kcal');render();
   },
   /* gestión de la base de alimentos (coach) */
   'food-new-modal':()=>{
@@ -9760,8 +9813,8 @@ Object.assign(ACTIONS,{
    if(i>=0)logs[i]=e;else logs.push(e);
    logs.sort((a,b)=>a.week-b.week);
    const auid=_athleteUidByAppId[u.id];
-   if(auid&&_supabaseUser){try{await supa.from('fatigue_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,week:e.week,date:e.date,data:e},{onConflict:'athlete_uid,week'});}catch(err){}}
-   saveState();closeModal();toast('Check-in de la semana '+e.week+' guardado — puntaje '+e.gs+'/25');render();
+   if(auid&&_supabaseUser)outboxAdd('fatigue','fatigue_logs',e.week,'athlete_uid,week',{athlete_uid:auid,coach_uid:_coachUid,week:e.week,date:e.date,data:e},e);
+   saveStateCola();closeModal();toast('Check-in de la semana '+e.week+' guardado — puntaje '+e.gs+'/25');render();
  }
 });
 
