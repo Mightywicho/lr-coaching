@@ -1166,7 +1166,9 @@ let _savePending=null;
    confirmó; _saveInFlight = el upsert está en vuelo. Los usa el detector de versión
    para no recargar la página encima de un guardado sin confirmar. */
 let _saveInFlight=false,_saveDirty=false;
-window._lrLogout=async function(){_selfSignOut=true;try{await supa.auth.signOut();}catch(e){}location.reload();};
+/* scope local: «Salir» cierra ESTE dispositivo. El default de supabase-js es global y sacaba al
+   atleta también de su otro teléfono o computadora, donde podía estar a media captura. */
+window._lrLogout=async function(){_selfSignOut=true;try{await supa.auth.signOut({scope:'local'});}catch(e){}location.reload();};
 /* Cambia el TEXTO de la pantalla de arranque que ya viene pintada en el HTML, en vez de
    volver a construirla. Si no está —porque un render ya sustituyó #app— la repone entera.
    Así el paso de «Iniciando…» a «Cargando datos…» es un cambio de palabra y no un
@@ -3347,7 +3349,7 @@ const ACTIONS={
   /* «Salir» vive en la barra inferior del móvil, junto a las pestañas: un toque de más cerraba
      la sesión sin aviso (Jenny, 2026-09-22). Siempre se confirma. */
   'logout':()=>confirmModal('Cerrar sesión',(wdraftDirty(WDRAFT)||Object.keys(KEEP).length)?'Tienes datos sin guardar. Se quedan en este teléfono y los recuperas al volver a entrar con tu cuenta.':'¿Seguro que quieres salir?','logout-ok'),
-  'logout-ok':async()=>{closeModal();wdraftFlush();keepFlush();try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}_selfSignOut=true;await supa.auth.signOut();_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
+  'logout-ok':async()=>{closeModal();wdraftFlush();keepFlush();try{if(_chatChannel){supa.removeChannel(_chatChannel);_chatChannel=null;}if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}if(_blobChannel){supa.removeChannel(_blobChannel);_blobChannel=null;}}catch(e){}_selfSignOut=true;await supa.auth.signOut({scope:'local'});_supabaseUser=null;_currentUserId=null;_coachUid=null;_blobRev=null;S=null;
     /* Se limpia la MEMORIA, no el disco: el borrador y lo escrito siguen en localStorage
        ligados a su uid, así que el dueño los recupera al volver a entrar, y el siguiente
        usuario de esta pestaña no ve nada del anterior (keepLoad/wdraftLoad validan el uid).
@@ -9843,6 +9845,7 @@ async function initAfterAuthUnsafe(user){
   if(!_offlineMode)hidratarResto();   /* sin await: corre por detrás */
   else vigilarReconexion();
   setTimeout(pwaOfrecerInstalacion,2500); /* nunca durante el login ni encima del primer render */
+  setTimeout(pwaPedirPersistencia,3000);
 }
 /* Todo lo que NO hace falta para pintar la primera pantalla: historial de entrenos, peso,
    nutrición, comidas, pasos, fatiga, medidas, chat, biblioteca, alimentos y recetario.
@@ -9962,6 +9965,16 @@ function pwaInstalada(){
     if(window.matchMedia&&window.matchMedia('(display-mode: minimal-ui)').matches)return true;
     return navigator.standalone===true; /* iOS */
   }catch(e){return false;}
+}
+/* Con la app instalada, pedir que el navegador no borre sus datos cuando le falte espacio: ahí
+   viven el borrador del entreno y lo escrito sin guardar. Solo instalada, porque ahí Chrome lo
+   concede en silencio (sin ventana) y en iOS la app de inicio ya está fuera del borrado de 7 días.
+   Sin coste: una llamada por arranque, ni un byte más guardado. */
+function pwaPedirPersistencia(){
+  try{
+    if(!pwaInstalada()||!navigator.storage||!navigator.storage.persist)return;
+    navigator.storage.persisted().then(function(ya){if(!ya)navigator.storage.persist().catch(function(){});}).catch(function(){});
+  }catch(e){}
 }
 function pwaRechazada(){try{return localStorage.getItem(LS_PWA_NO)==='1';}catch(e){return false;}}
 /* Una pastilla que se queda puesta hasta que la cierres es un estorbo con horario propio:
