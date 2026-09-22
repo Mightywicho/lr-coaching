@@ -94,6 +94,15 @@ se atasca: se le añade una línea y se sube.
   atleta en caliente debe correr `ensureAthletesShape(S)`. Si añades un `ensure*` nuevo, entra ahí.
   Un atleta nuevo lleva la nutrición **en 0** a propósito (el coach la define): cualquier vista de
   metas debe aguantar 0 sin dividir (`macroBars`, `planSinObjetivos`).
+- **Lo que el atleta edita de sí mismo** (nombre, altura, edad, sexo) vive en `athlete_settings.perfil`
+  (+ `perfil_at`), no en `athlete_profiles`: esa tabla es coach-write y el coach la reescribe entera desde
+  su copia. Manda quien escribió después (`applySelfPerfil` compara `perfil_at` con el `updated_at` de la
+  fila `shared`); no hay estado local, así que da igual desde qué dispositivo abra el coach. Si añades otro
+  campo editable por el atleta, entra en `cleanSelfPerfil` (se sanea al LEER, no solo al guardar).
+- **El correo NO está en el blob ni en ninguna tabla que lea la app**: solo en `auth.users`. El coach lo lee
+  con la RPC `coach_athlete_email` y lo cambia con la Edge Function `coach-set-athlete-email` (necesita la
+  clave de servicio, que jamás debe aparecer en este archivo). Un correo = una cuenta lo impone `auth.users`;
+  el alta debe pasar por `signUpCorreoRepetido` antes de canjear un código de invitación.
 - **El blob `app_state` es legible por TODOS los atletas del coach** (política
   `athlete_access_coach_state`). `stateForCloud` vacía por eso todo arreglo de `logs` y nulifica
   perfil, rutina, nutrición y chat: no metas ahí nada por atleta. Lo del atleta va a tablas con RLS.
