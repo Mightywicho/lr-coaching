@@ -30,8 +30,11 @@ io.open('/tmp/app.js','w',encoding='utf-8').write(max(re.findall(r'<script(?![^>
 ## Despliegue — LEE ESTO ANTES DE DECIR QUÉ ESTÁ PUBLICADO
 
 GitHub Pages publica **`main`** desde la raíz (hay `.nojekyll`, no hay workflow de Actions).
-Push a `main` = publicar. El trabajo se desarrolla en ramas `claude/*` y se lleva a `main`
-con fast-forward cuando el usuario lo autoriza — publicar es decisión suya, no tuya.
+Push a `main` = publicar de inmediato. **Se trabaja directo contra `main`, sin rama `claude/*`
+intermedia ni autorización previa** (cambió el 2026-09-22): Luis prefiere publicar de una vez y
+revertir con `git revert` si algo se rompe, antes que pagar el costo en tokens de una rama +
+fast-forward que no evita nada — sin credenciales git locales, el archivo completo viaja igual
+por la API de GitHub en cualquiera de los dos casos.
 
 ⚠ **El `main` local de una sesión remota puede venir desatrasado respecto a `origin/main`.**
 Pasó el 2026-09-17: el clon traía `main` en un commit viejo, y por leerlo sin actualizar se
@@ -88,6 +91,12 @@ se atasca: se le añade una línea y se sube.
   apunta con su fecha en `routine.phases` (el recorrido del bloque en curso). Nunca escribas
   `profile.phase` a mano: te saltarías ese registro y el bloque perdería el tramo anterior.
   Al cerrar un bloque, `phases` se archiva en la entrada del historial y se reinicia.
+  ⚠ El botón «Cerrar bloque» quedaba visualmente pegado al selector «Fase del bloque» y su
+  propio modal también trae un selector de fase, así que varios coaches (Luis incluido, visto
+  en datos reales el 2026-09-22) lo usaban por error para solo cambiar de fase, archivando el
+  bloque entero sin querer. Se separó visualmente (caja de aviso aparte) y el modal de
+  confirmación lleva una advertencia explícita antes de archivar. Si vuelves a tocar ese panel,
+  no los juntes de nuevo.
 - El panel del coach va **siempre en kg**, aunque el atleta capture en libras.
 - **Un atleta nuevo nace igual sin importar por dónde llegue.** Todo el estado se normaliza con
   `ensureAll(S)` (única cadena de `ensure*`; no la copies) y cualquier sitio que cree o reponga un
