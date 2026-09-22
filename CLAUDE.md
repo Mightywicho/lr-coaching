@@ -32,9 +32,19 @@ io.open('/tmp/app.js','w',encoding='utf-8').write(max(re.findall(r'<script(?![^>
 GitHub Pages publica **`main`** desde la raíz (hay `.nojekyll`, no hay workflow de Actions).
 Push a `main` = publicar de inmediato. **Se trabaja directo contra `main`, sin rama `claude/*`
 intermedia ni autorización previa** (cambió el 2026-09-22): Luis prefiere publicar de una vez y
-revertir con `git revert` si algo se rompe, antes que pagar el costo en tokens de una rama +
-fast-forward que no evita nada — sin credenciales git locales, el archivo completo viaja igual
-por la API de GitHub en cualquiera de los dos casos.
+revertir con `git revert` si algo se rompe.
+
+⚠ **Editar `index.html` con `git` real, nunca con las tools de escritura de la API de GitHub
+(`create_or_update_file`/`push_files` de un MCP, o equivalentes).** Esas tools mandan el
+archivo COMPLETO inline como parámetro de texto (no hay diff), así que un archivo de ~800 KB
+se tiene que leer y reescribir en fragmentos — carísimo y, peor, riesgoso: el 2026-09-22 un
+push por esa vía dejó en una rama un commit con el mensaje correcto pero el contenido de
+`index.html` reemplazado por un string placeholder roto, y se coló porque nadie lo verificó
+con un diff antes de fusionar. Clona con `git clone`, edita el archivo local, corre la
+comprobación de sintaxis de abajo, y `git push` — así el archivo viaja tal cual, sin pasar
+por texto reconstruido a mano. Verifica siempre el resultado clonando de nuevo (`git clone
+--depth 1` a otra carpeta) y comparando con `diff` contra el archivo que editaste, antes de
+darlo por publicado.
 
 ⚠ **El `main` local de una sesión remota puede venir desatrasado respecto a `origin/main`.**
 Pasó el 2026-09-17: el clon traía `main` en un commit viejo, y por leerlo sin actualizar se
