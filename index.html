@@ -8971,10 +8971,18 @@ function coachTabSemanas(aid){
     '<div class="stat"><div class="k">Bloques archivados</div><div class="v">'+(r.history||[]).length+'</div><div class="sub">historial completo abajo</div></div></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label>Fecha de inicio del bloque</label><input type="date" id="bk_start" value="'+esc(r.startDate)+'" max="'+esc(todayISO())+'"></div>'+
     '<button class="btn btn-g" data-act="startdate-save" data-aid="'+aid+'">Guardar fecha</button>'+
-    '<div style="flex:1;min-width:190px"><label>Fase del bloque</label><select data-change="blk-phase" data-aid="'+aid+'" title="Cambia la fase sin tocar el bloque: se aplica al guardar y el bloque sigue abierto.">'+phOpts+'</select></div>'+
-    '<button class="btn btn-p" data-act="block-close-ask" data-aid="'+aid+'">'+I.check+' Cerrar bloque</button></div>'+
+    '<div style="flex:1;min-width:190px"><label>Fase del bloque</label><select data-change="blk-phase" data-aid="'+aid+'" title="Cambia la fase sin tocar el bloque: se aplica al guardar y el bloque sigue abierto.">'+phOpts+'</select></div></div>'+
     trail+
-    '<p class="tiny mt8"><b>Cambiar de fase no cierra el bloque:</b> un bloque puede llevar varias fases, así que el selector de arriba solo mueve la fase y deja el bloque en marcha. <b>Cerrar bloque</b> es lo otro: archiva el bloque (volumen inicial → final y todos los ajustes) y el volumen actual pasa a ser el inicial del siguiente, para comparar bloque contra bloque al transicionar.</p></div>';
+    '<p class="tiny mt8"><b>Cambiar de fase no cierra el bloque:</b> un bloque puede llevar varias fases, así que el selector de arriba solo mueve la fase y deja el bloque en marcha.</p>'+
+    '<div class="hr"></div>'+
+    /* Separado a propósito: quedaba pegado a «Fase del bloque» y se usaba para lo mismo,
+       archivando el bloque entero por error — visto en datos reales de varios atletas.
+       El aviso va repetido en el modal de confirmación, que es el último punto antes
+       de la acción irreversible. */
+    '<div style="border-left:3px solid var(--red);background:var(--bg2);border-radius:var(--r-s);padding:12px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">'+
+    '<p class="tiny" style="margin:0;max-width:540px"><b>Cerrar bloque</b> es otra cosa: archiva el bloque completo (volumen inicial → final y todos los ajustes) y el volumen actual pasa a ser el inicial del siguiente, para comparar bloque contra bloque al transicionar. No lo uses solo para cambiar de fase — para eso está el selector de arriba.</p>'+
+    '<button class="btn btn-p" data-act="block-close-ask" data-aid="'+aid+'">'+I.check+' Cerrar bloque</button>'+
+    '</div></div>';
   /* --- comparación de volumen inicial → semanas → actual --- */
   const groups=GROUPS.filter(g=>base[g]||cur[g]);
   const allWeeks=[];for(let w2=1;w2<=week;w2++)allWeeks.push(w2);
@@ -9044,6 +9052,7 @@ Object.assign(ACTIONS,{
     let bop='';[1,2,3,4].forEach(b=>{bop+='<option value="'+b+'"'+(nextBlock===b?' selected':'')+'>Bloque '+b+'</option>';});
     const sumPrev=summaryStatGrid(blockSummary(el.dataset.aid),p.phase);
     openModal('Cerrar bloque y transicionar',
+      '<div class="notebox" style="border-left-color:var(--red);margin-bottom:12px"><b>¿Solo quieres cambiar de fase?</b> Cancela y usa el selector «Fase del bloque» del panel — no hace falta cerrar el bloque para eso.</div>'+
       '<p class="muted" style="margin-bottom:12px">Resumen del bloque que vas a archivar (fase <b>'+esc(phaseName(p.phase))+'</b> · B'+(p.block||1)+'):</p>'+
       sumPrev+
       '<p class="tiny" style="margin:-4px 0 14px">Este resumen queda guardado y podrás compararlo con bloques futuros. Tras archivar, el volumen actual pasa a ser el inicial del siguiente bloque.</p>'+
