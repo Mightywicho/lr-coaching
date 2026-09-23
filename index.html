@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="lr-build" content="2026-09-23.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3199,13 +3200,23 @@ async function sessionAlive(){
    celular del atleta). El etag lo genera Pages a partir del contenido, así que cambia
    solo cuando el archivo cambia de verdad — a diferencia de `last-modified`, que puede
    verse reciente sirviendo el artefacto viejo. */
-let _appVerTag=null,_verTimer=null,_verBannerUp=false;
-async function appVersionTag(){
+let _verTimer=null,_verBannerUp=false;
+/* Versión PROPIA vs la del servidor, con la marca <meta name="lr-build"> del <head>.
+   Antes se comparaba el etag del servidor contra la primera lectura del etag del servidor:
+   si la app arrancaba con una copia vieja de la cache del worker, esa primera lectura ya era
+   la nueva y el detector jamás veía diferencia (Luis no veía «Peso de días anteriores»
+   aunque ya estaba publicado). Ahora la página sabe qué versión es ella misma.
+   Se piden solo los primeros 2 KB (Range → 206), no los ~850 KB. `Range` hace que el worker
+   la deje pasar sin tocar la cache (ver sw.js). ⚠ Subir la marca en cada deploy (CLAUDE.md). */
+const APP_BUILD=(function(){try{const m=document.querySelector('meta[name="lr-build"]');return m?m.content:'';}catch(e){return '';}})();
+async function serverBuild(){
   const base=location.pathname.replace(/[^/]*$/,'');
   try{
-    const r=await fetch(base+'index.html?nc='+Date.now(),{method:'HEAD',cache:'no-store'});
+    const r=await fetch(base+'index.html?nc='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-2047'}});
     if(!r.ok)return null;
-    return r.headers.get('etag')||r.headers.get('last-modified')||r.headers.get('content-length')||null;
+    const head=r.status===206?await r.text():(await r.text()).slice(0,2048);
+    const m=head.match(/<meta name="lr-build" content="([^"]+)"/);
+    return m?m[1]:null;
   }catch(e){return null;} /* sin red: no molestamos */
 }
 /* Recargar solo cuando no cueste nada. Ante la duda, banner en vez de recarga. */
@@ -3259,12 +3270,14 @@ window.lrVersionNueva=function(){
 };
 if(window._lrVersionPendiente){window._lrVersionPendiente=false;setTimeout(window.lrVersionNueva,0);}
 async function checkAppVersion(){
-  if(_verBannerUp)return; /* ya avisamos: la decisión es suya */
-  const tag=await appVersionTag();
-  if(!tag)return;
-  if(!_appVerTag){_appVerTag=tag;return;} /* primera lectura: solo se guarda la referencia */
-  if(tag===_appVerTag)return;
-  if(safeToReload()){recargarAlDia();return;}
+  if(_verBannerUp||!APP_BUILD)return; /* ya avisamos: la decisión es suya */
+  const srv=await serverBuild();
+  if(!srv||srv===APP_BUILD)return;
+  /* Candado contra bucles: si la CDN tarda en servir la versión nueva, recargar otra vez al
+     instante volvería a abrir la vieja. Una recarga automática por minuto, como mucho. */
+  let reciente=false;
+  try{reciente=Date.now()-(+sessionStorage.getItem('lrc_ver_reload')||0)<60000;}catch(e){}
+  if(!reciente&&safeToReload()){try{sessionStorage.setItem('lrc_ver_reload',String(Date.now()));}catch(e){}recargarAlDia();return;}
   _verBannerUp=true;
   const bt='background:#cdf563;color:#111;border:0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px';
   bottomBanner('newVerBanner','ok',76,

@@ -33,7 +33,7 @@
 /* Sube este número cuando cambien PRECACHE o la estrategia. No hace falta
    tocarlo en cada deploy de index.html: el HTML no se versiona por aquí, se
    revalida solo en cada apertura (ver cacheLuegoRed). */
-const SW_VERSION = 'v4';
+const SW_VERSION = 'v5';
 const CACHE_SHELL = 'lrc-shell-' + SW_VERSION;  /* archivos propios */
 const CACHE_DEPS  = 'lrc-deps-'  + SW_VERSION;  /* CDN y fuentes */
 const VIGENTES = [CACHE_SHELL, CACHE_DEPS];
@@ -256,6 +256,9 @@ self.addEventListener('fetch', ev => {
      versión pasan intactos — un SW no puede cachear nada de eso y meterse
      solo añadiría una capa donde algo puede fallar. */
   if (req.method !== 'GET') return;
+  /* Con Range es el detector de versión de la app leyendo el <head> del servidor: tiene
+     que ir a la red tal cual, nunca a la cache (ni guardarse: sería un HTML cortado). */
+  if (req.headers.has('range')) return;
 
   let url;
   try { url = new URL(req.url); } catch (e) { return; }

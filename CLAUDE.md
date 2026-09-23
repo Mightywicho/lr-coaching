@@ -30,6 +30,11 @@ io.open('/tmp/app.js','w',encoding='utf-8').write(max(re.findall(r'<script(?![^>
 ## Despliegue — LEE ESTO ANTES DE DECIR QUÉ ESTÁ PUBLICADO
 
 GitHub Pages publica **`main`** desde la raíz (hay `.nojekyll`, no hay workflow de Actions).
+
+⚠ **Cada deploy que toque `index.html` sube la marca `<meta name="lr-build" content="AAAA-MM-DD.N">`**
+(línea 4). Con ella la app sabe qué versión es ella misma y se recarga sola cuando el servidor
+tiene otra (`checkAppVersion`, que lee solo los primeros 2 KB con `Range`). Si no se sube, el
+cambio sigue llegando, pero puede tardar varias aperturas en verse.
 Push a `main` = publicar de inmediato. **Se trabaja directo contra `main`, sin rama `claude/*`
 intermedia ni autorización previa** (cambió el 2026-09-22): Luis prefiere publicar de una vez y
 revertir con `git revert` si algo se rompe.
