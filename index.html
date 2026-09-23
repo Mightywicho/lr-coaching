@@ -47,6 +47,14 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
     navigator.serviceWorker.register('sw.js',{scope:'./'})
       .catch(function(e){try{console.warn('[pwa] sw.js no se registró:',e);}catch(_){}});
   });
+  /* El worker avisa cuando la app abrió con una copia guardada y ya bajó la versión nueva
+     (ver cacheLuegoRed en sw.js). Se escucha desde aquí arriba para no perder el aviso si
+     llega mientras la app todavía arranca; lo atiende lrVersionNueva, más abajo. */
+  navigator.serviceWorker.addEventListener('message',function(e){
+    if(e&&e.data&&e.data.tipo==='VERSION_NUEVA'){
+      if(window.lrVersionNueva)window.lrVersionNueva();else window._lrVersionPendiente=true;
+    }
+  });
 }
 </script>
 <!-- supabase-js YA NO va aquí: se movió justo encima del script de la app, al final del
@@ -3234,6 +3242,22 @@ async function recargarAlDia(){
   location.reload();
 }
 window.lrRecargar=recargarAlDia;
+/* La versión nueva ya está en la cache del worker: basta un reload normal. Si recargar
+   costaría algo (entreno a medias, modal, escribiendo), el mismo aviso que el detector.
+   Candado de 60 s en sessionStorage para no entrar nunca en un bucle de recargas. */
+window.lrVersionNueva=function(){
+  try{
+    const t=+sessionStorage.getItem('lrc_sw_reload')||0;
+    if(Date.now()-t<60000)return;
+    if(safeToReload()){sessionStorage.setItem('lrc_sw_reload',String(Date.now()));location.reload();return;}
+  }catch(e){}
+  if(_verBannerUp)return;
+  _verBannerUp=true;
+  bottomBanner('newVerBanner','ok',76,
+    '<b>Hay una versión nueva de la app.</b> Termina lo que estás haciendo y recarga para verla.'+
+    '<button onclick="location.reload()" style="'+BTN_CSS+'">Recargar</button>');
+};
+if(window._lrVersionPendiente){window._lrVersionPendiente=false;setTimeout(window.lrVersionNueva,0);}
 async function checkAppVersion(){
   if(_verBannerUp)return; /* ya avisamos: la decisión es suya */
   const tag=await appVersionTag();

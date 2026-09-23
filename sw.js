@@ -33,7 +33,7 @@
 /* Sube este número cuando cambien PRECACHE o la estrategia. No hace falta
    tocarlo en cada deploy de index.html: el HTML no se versiona por aquí, se
    revalida solo en cada apertura (ver cacheLuegoRed). */
-const SW_VERSION = 'v3';
+const SW_VERSION = 'v4';
 const CACHE_SHELL = 'lrc-shell-' + SW_VERSION;  /* archivos propios */
 const CACHE_DEPS  = 'lrc-deps-'  + SW_VERSION;  /* CDN y fuentes */
 const VIGENTES = [CACHE_SHELL, CACHE_DEPS];
@@ -193,17 +193,41 @@ async function redPrimero(req, nombreCache, claveCache) {
    atrás. No queda a ciegas — el detector de versión de la app hace un HEAD contra el
    servidor (no pasa por aquí: no es GET) y avisa. Y cuando esa recarga llega, la app
    pide antes REFRESCAR_HTML, así que recarga ya con la versión nueva, no en bucle. */
-async function cacheLuegoRed(req, nombreCache, claveCache) {
+/* Firma de una versión: el etag de Pages cambia solo si cambia el contenido. */
+function firma(res) {
+  return res ? (res.headers.get('etag') || res.headers.get('last-modified') || res.headers.get('content-length') || '') : '';
+}
+async function cacheLuegoRed(req, nombreCache, claveCache, ev) {
   const cache = await caches.open(nombreCache);
   const clave = claveCache || req;
   const hit = await cache.match(clave, { ignoreSearch: true });
-  const viaje = fetch(req).then(res => {
+  /* cache:'no-cache' = preguntar SIEMPRE al servidor (con el etag, un 304 si no cambió).
+     Antes iba con la cache HTTP normal y Pages manda max-age=600: durante 10 min tras un
+     deploy la «revalidación» devolvía la copia vieja del disco y la versión nueva no
+     entraba ni a la segunda apertura. */
+  const viaje = fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(async res => {
     /* Solo respuestas buenas: guardar un 404 o un 500 de Pages dejaría al atleta
        con una pantalla en blanco guardada para siempre. */
-    if (res && res.ok && res.type !== 'opaque') cache.put(clave, res.clone()).catch(() => {});
+    if (res && res.ok && res.type !== 'opaque') {
+      await cache.put(clave, res.clone()).catch(() => {});
+      /* Se abrió con una copia y el servidor ya tiene otra: avisar a la app para que
+         se recargue con la nueva (el detector por HEAD no lo ve, porque su primera
+         lectura ya es la versión nueva y la toma como la propia). */
+      const a = firma(hit), b = firma(res);
+      if (hit && a && b && a !== b) {
+        const cs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        cs.forEach(c => { try { c.postMessage({ tipo: 'VERSION_NUEVA' }); } catch (e) {} });
+      }
+    }
     return res;
   });
-  if (hit) { viaje.catch(() => {}); return hit; }
+  if (hit) {
+    viaje.catch(() => {});
+    /* Que el navegador no mate al worker antes de terminar: en iOS cerrar la app a los
+       pocos segundos cortaba la descarga y la versión nueva nunca quedaba guardada. */
+    if (ev && ev.waitUntil) { try { ev.waitUntil(viaje.catch(() => {})); } catch (e) {} }
+    return hit;
+  }
   return viaje;   /* primera visita: no hay copia, toca esperar a la red */
 }
 
@@ -244,7 +268,7 @@ self.addEventListener('fetch', ev => {
   if (req.mode === 'navigate') {
     ev.respondWith((async () => {
       try {
-        return await cacheLuegoRed(req, CACHE_SHELL, './index.html');
+        return await cacheLuegoRed(req, CACHE_SHELL, './index.html', ev);
       } catch (e) {
         const cache = await caches.open(CACHE_SHELL);
         const hit = (await cache.match('./index.html')) || (await cache.match('./'));
@@ -267,7 +291,7 @@ self.addEventListener('fetch', ev => {
   if (mismoOrigen) {
     /* 2. El HTML pedido por fetch (no navegación): cache primero, igual que arriba. */
     if (/\/(index\.html)?$/.test(url.pathname) || url.pathname.endsWith('.html')) {
-      ev.respondWith(cacheLuegoRed(req, CACHE_SHELL, './index.html').catch(async () => {
+      ev.respondWith(cacheLuegoRed(req, CACHE_SHELL, './index.html', ev).catch(async () => {
         const c = await caches.open(CACHE_SHELL);
         return (await c.match('./index.html')) || Response.error();
       }));
