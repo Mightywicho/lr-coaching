@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-01.1">
+<meta name="lr-build" content="2026-10-01.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -411,6 +411,29 @@ div.pend{background:rgba(255,180,92,.06);border:1px solid rgba(255,180,92,.3);bo
 .daytab .n{font-weight:400;font-size:12px;color:var(--tx3)}
 .daytab .pd{width:7px;height:7px;border-radius:50%;background:var(--orange);flex:0 0 auto}
 .daytab.add{border-style:dashed;color:var(--tx3)}
+/* Días en columnas (computadora): todas las sesiones a la vista, lado a lado. En pantallas
+   angostas no caben, así que ahí vuelven las pestañas y se ve un día a la vez (.off). */
+.daygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+.daycol{margin-bottom:0;display:flex;flex-direction:column}
+.daycol .dayblk-h{padding:12px 14px;gap:8px}
+.daycol .dayblk-h .sp .btn-ic{padding:6px 8px;line-height:0}
+.dayplan{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px 2px}
+.exrow{padding:10px 14px;border-top:1px solid var(--line)}
+.dayplan+.exlist>.exrow:first-child{border-top:0}
+.exrow-t{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.5}
+.exrow-t .exn{color:var(--tx3);font-size:12px;min-width:14px;padding-top:1px;flex:0 0 auto}
+.exrow-name{flex:1;min-width:0}
+.exrow-b{display:flex;align-items:center;gap:4px 12px;flex-wrap:wrap;margin:6px 0 0 22px;font-size:12.5px;color:var(--tx3)}
+.exrow-b b{color:var(--tx);font-weight:600}
+.exrow-b .rowbtns{margin-left:auto;gap:0}
+.exrow-b .rowbtns button{padding:4px 5px}
+.exrow-empty{padding:18px 14px;text-align:center}
+.daycol.add{align-items:center;justify-content:center;min-height:110px;border-style:dashed;background:transparent;color:var(--tx3);font-weight:600;gap:6px;flex-direction:row;cursor:pointer}
+.daycol.add:hover{color:var(--tx);border-color:var(--tx3)}
+@media(min-width:761px){.daytabs{display:none}}
+@media(max-width:760px){.daygrid{display:block}.daygrid>.daycol{margin-bottom:14px}.daygrid>.daycol.off,.daygrid>.daycol.add{display:none}}
+/* En esta pestaña el ancho fijo de 1180px dejaba media pantalla vacía en monitores grandes. */
+@media(min-width:1400px){.content:has(.daygrid){max-width:1720px}}
 
 /* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(5,7,10,.7);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;animation:fade .15s}
@@ -4034,7 +4057,9 @@ function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
   /* Solo los permanentes: un cambio de un día suelto ya se lista en Resumen y aquí sería ruido. */
   const swPerm={};swapsOf(aid).forEach(s=>{if(s.scope==='always')swPerm[s.exId]=s;});
-  /* Un día a la vez (pestañas); «Todos» devuelve la vista en cascada para comparar días. */
+  /* Pestañas solo en pantalla angosta (un día a la vez; «Todos» los apila). En computadora los
+     días van en columnas lado a lado (pedido de Luis, 2026-10-01: ver todas las sesiones de un
+     vistazo y aprovechar el ancho). */
   const selDay=route.params.rday==='all'?'all':(r.days.find(x=>x.id===route.params.rday)||r.days[0]||{}).id;
   let days='',tabs='';
   r.days.forEach((day,di)=>{
@@ -4042,10 +4067,10 @@ function coachTabRutina(aid){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button> <span class="mini-chip" title="'+esc(lib.focus||'Trabajo general del grupo')+'">'+esc(lib.group+(lib.cat?' · '+lib.cat:''))+'</span>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Tiene video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+exSwapChip(swPerm,e)+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</td><td class="num" style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td>'+
-      '<td><div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></td></tr>';
+      rows+='<div class="exrow"><div class="exrow-t"><span class="exn">'+(ei+1)+'</span><div class="exrow-name">'+(e.grp?'<span class="grpchip">'+esc(e.grp)+'</span>':'')+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+exSwapChip(swPerm,e)+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</div></div><div class="exrow-b"><span style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></span>'+(e.reps?'<span>× <b>'+esc(e.reps)+'</b></span>':'')+(e.rir!==''&&e.rir!=null?'<span>RIR <b>'+esc(e.rir)+'</b></span>':'')+(e.rest?'<span>⏱ <b>'+esc(e.rest)+'</b></span>':'')+
+      '<div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></div></div>';
     });
-    if(!rows)rows='<tr><td colspan="7" class="tiny" style="text-align:center;padding:18px">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</td></tr>';
+    if(!rows)rows='<div class="exrow exrow-empty tiny">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</div>';
     /* cobertura del plan de la sesión: programado vs planificado por grupo */
     const progG={};day.exercises.forEach(e=>{const l=e.libId?libById(e.libId):null;if(l)progG[l.group]=(progG[l.group]||0)+(parseInt(e.sets,10)||0);});
     const planG=day.plan||{};
@@ -4060,12 +4085,14 @@ function coachTabRutina(aid){
       if(pl){const cls=pr>pl?'volt':pr===pl?'green':'orange';pchips+='<span class="chip '+cls+'"'+chipAct(g)+' title="Plan de la sesión: '+pl+' series · programadas: '+pr+(pr<pl?' — faltan '+(pl-pr):pr>pl?' — sobran '+(pr-pl):' — cubierto')+'.'+tail+'">'+esc(g)+' '+pr+'/'+pl+plusMark+'</span>';}
       else pchips+='<span class="chip"'+chipAct(g,';opacity:.55')+' title="Programado sin plan de sesión ('+pr+' series).'+tail+'">'+esc(g)+' '+pr+plusMark+'</span>';
     });
-    if(pchips)pchips='<span class="muschips" style="margin:0 6px">'+pchips+'</span>';
+    if(pchips)pchips='<div class="dayplan">'+pchips+'</div>';
     const falta=GROUPS.some(g=>(planG[g]||0)>(progG[g]||0));
     tabs+='<button class="daytab'+(selDay===day.id?' on':'')+'" data-act="rut-dia" data-day="'+day.id+'" title="'+esc(day.name)+(falta?' — faltan series del plan de la sesión':'')+'">D'+(di+1)+' · '+esc(day.name)+'<span class="n">'+day.exercises.length+'</span>'+(falta?'<span class="pd"></span>':'')+'</button>';
-    if(selDay!=='all'&&selDay!==day.id)return;
-    days+='<div class="dayblk"><div class="dayblk-h" style="flex-wrap:wrap"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios</span>'+pchips+'<span class="sp"><button class="btn btn-g btn-sm" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+' Renombrar</button><button class="btn btn-g btn-sm" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button><button class="btn btn-p btn-sm" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Ejercicio</button></span></div>'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:80px">Descanso</th><th style="width:130px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    /* En computadora se ven todas las columnas; .off solo esconde en pantalla angosta. */
+    const off=selDay!=='all'&&selDay!==day.id;
+    const nSer=day.exercises.reduce((t,e)=>t+(parseInt(e.sets,10)||0),0);
+    days+='<div class="dayblk daycol'+(off?' off':'')+'"><div class="dayblk-h"><h4>D'+(di+1)+' · '+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ej. · '+nSer+' series</span><span class="sp"><button class="btn btn-g btn-sm btn-ic" title="Renombrar" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm btn-ic" title="Eliminar día" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button><button class="btn btn-p btn-sm" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Ejercicio</button></span></div>'+pchips+
+    '<div class="exlist">'+rows+'</div></div>';
   });
   const vol=muscleVolume(aid),cov=catCoverage(aid);
   const pr=d.profile;
@@ -4102,7 +4129,7 @@ function coachTabRutina(aid){
   tabs+=(nDias>1?'<button class="daytab'+(selDay==='all'?' on':'')+'" data-act="rut-dia" data-day="all" title="Ver todos los días uno tras otro">Todos</button>':'')+
     '<button class="daytab add" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Día</button>';
   const diasHTML=secPleg('pl-dias','3 · Rutina por día','',nDias?'<span class="badge">'+nDias+' día'+(nDias>1?'s':'')+'</span>':'',
-    '<div class="daytabs">'+tabs+'</div>'+(days||'<div class="empty"><b>Sin días todavía</b>Añade el primer día de entrenamiento con «+ Día».</div>'));
+    '<div class="daytabs">'+tabs+'</div>'+(days?'':'<div class="empty mb16"><b>Sin días todavía</b>Añade el primer día de entrenamiento.</div>')+'<div class="daygrid">'+days+'<button class="dayblk daycol add" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Añadir día</button></div>');
   return secPleg('pl-prog','Programa actual','',r.name?'<span class="badge">'+esc(r.name)+'</span>':'','<div class="frow2"><div><label>Nombre del programa</label><input id="r_name" value="'+esc(r.name)+'"></div><div><label>Indicación de la semana</label><input id="r_week" value="'+esc(r.weekNote)+'"></div></div>'+
   '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-g" data-act="tpl-apply-modal" data-kind="routine" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g" data-act="tpl-save-modal" data-kind="routine" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div>')+volHTML+diasHTML;
 }
