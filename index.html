@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-09-23.1">
+<meta name="lr-build" content="2026-09-30.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2719,6 +2719,38 @@ const KCAL_PER_KG=7700; /* equivalente energético aprox. de 1 kg de peso corpor
 function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff&&n.adherence!=null);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
 function kcalFromMacros(n){return Math.round(n.protein*4+n.carbs*4+n.fat*9);}
 function lastWorkoutForDay(aid,dayId){const ws=athData(aid).logs.workouts.filter(w=>w.dayId===dayId&&w.entries&&Object.keys(w.entries).length);return ws.length?ws[ws.length-1]:null;}
+/* Referencia «Última sesión» de UN ejercicio (placeholders en gris + la línea de abajo).
+   ⚠ Se busca por ejercicio, no por día. Antes se tomaba el último entreno del día y de ahí se
+   leían todos los ejercicios, y eso enseñaba la sesión equivocada en tres casos reales:
+   - el ejercicio se marcó «No lo hice» la última vez → se quedaba sin referencia, aunque la
+     semana anterior sí lo hizo;
+   - la última vez se cambió por otro solo por ese día (swap «today») → salían los números
+     del sustituto como si fueran de este ejercicio;
+   - una serie de en medio se marcó «no la hice» → `entries` viaja compactado, y de ahí en
+     adelante cada casilla mostraba los números de la serie siguiente.
+   Tampoco cuenta la sesión que se está corrigiendo (mismo `wid`) ni nada posterior a su fecha.
+   Con un cambio por ese día HOY, solo vale una sesión hecha con el MISMO sustituto. */
+function lastExRef(aid,dayId,e,draft){
+  const d=athData(aid),ws=(d&&d.logs&&d.logs.workouts)||[];
+  const cut=(draft&&draft.date)||todayISO(),wid=draft&&draft.wid;
+  const swKey=s=>s?(s.toLibId||s.toName||'?'):null;
+  const cur=(e._swap&&e._swap.scope==='today')?swKey(e._swap):null;
+  const sw=swapsOf(aid).filter(s=>s.scope==='today'&&s.dayId===dayId&&s.exId===e.id);
+  for(let i=ws.length-1;i>=0;i--){
+    const w=ws[i];
+    if(!w||w.dayId!==dayId||!w.date||w.date>cut||(wid&&w.id===wid))continue;
+    const ent=w.entries&&w.entries[e.id];if(!Array.isArray(ent)||!ent.length)continue;
+    if(swKey(sw.find(s=>s.date===w.date))!==cur)continue;
+    /* misma recolocación que wdraftSetsFromLog: las series marcadas sin números van en
+       skips.sets con su índice 1-based original y no ocupan lugar en `entries`. */
+    const sk=w.skips&&w.skips[e.id],marks={};
+    Object.keys((sk&&sk.sets)||{}).forEach(k=>{const j=parseInt(k,10);if(j>0)marks[j-1]=1;});
+    const n=ent.length+Object.keys(marks).length,sets=[];let fi=0;
+    for(let j=0;j<n;j++)sets.push(marks[j]?null:(ent[fi++]||null));
+    return{date:w.date,sets};
+  }
+  return null;
+}
 /* ---------- semana de entrenamiento (lunes a domingo) ----------
    La semana es de CALENDARIO a propósito (decisión de Luis, s61). La consecuencia buena
    es que NO se guarda ningún dato nuevo: la semana se reinicia sola cada lunes porque
@@ -5499,11 +5531,10 @@ function wdraftExOf(exId){
    serie que se quedó sin números no viaja en `entries`, así que heredar esa cuenta encogía la
    sesión siguiente sin que nadie lo hubiera decidido.
    La sesión anterior sigue siendo el respaldo para un ejercicio sin series prescritas. */
-function wdraftNSets(e,last){
+function wdraftNSets(e,ref){
   const presc=parseInt(e.sets,10)||0;
   if(presc)return presc;
-  const ls=last&&last.entries[e.id]?last.entries[e.id]:null;
-  return ls?ls.length:3;
+  return ref?ref.sets.length:3;
 }
 /* Filas vacías para un ejercicio. `retechSets` les cuelga las mini-series de la técnica donde
    toquen: van en `sub` y NO son series, nada que cuente `sets.length` se entera de ellas. */
@@ -5514,10 +5545,9 @@ function wdraftRows(e,n){
   return arr;
 }
 function wdraftFresh(aid,day){
-  const last=lastWorkoutForDay(aid,day.id);
   const sets={},tgt={};
   day.exercises.forEach(e=>{
-    const n=wdraftNSets(e,last);
+    const n=wdraftNSets(e,lastExRef(aid,day.id,e,{date:todayISO()}));
     tgt[e.id]=n;
     sets[e.id]=wdraftRows(e,n);
   });
@@ -6226,7 +6256,6 @@ VIEWS['ath-wlog']=function(u){
   const _plNote=wdraftSyncPlan(day);
   if(_plNote)WDRAFT.planNote=_plNote;
   if(WDRAFT.planNote&&!_plNoteT)_plNoteT=setTimeout(planNoteQuitar,10000);
-  const last=lastWorkoutForDay(aid,day.id);
   const unit=weightUnitForAid(aid);
   let blocks='';
   /* Las biseries se pintan envueltas en un solo bloque para que el atleta vea de un golpe que
@@ -6240,7 +6269,7 @@ VIEWS['ath-wlog']=function(u){
     /* El peso y las reps de la serie equivalente de la última sesión van al PLACEHOLDER,
        no al value: se ven en gris como referencia de qué superar, pero la casilla está
        vacía, así que nada se registra si el atleta no lo escribe. */
-    const lsets=last&&last.entries[e.id]?last.entries[e.id]:null;
+    const lref=lastExRef(aid,day.id,e,WDRAFT),lsets=lref?lref.sets:null;
     let rows='';
     sets.forEach((s,si)=>{
       const ref=lsets&&lsets[si]?lsets[si]:null;
@@ -6273,7 +6302,7 @@ VIEWS['ath-wlog']=function(u){
       }
     });
     let lastTxt='';
-    if(last&&last.entries[e.id])lastTxt='<div class="last">Última sesión: '+last.entries[e.id].map(s=>dispW(s.w||0,unit)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:'')).join(' · ')+' ('+fmtDate(last.date)+')</div>';
+    if(lref)lastTxt='<div class="last">Última sesión: '+lref.sets.map(s=>s?dispW(s.w||0,unit)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:''):'—').join(' · ')+' ('+fmtDate(lref.date)+')</div>';
     const lib=e.libId?libById(e.libId):null;
     const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:14.5px;font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue)" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
     const exDone=!!(WDRAFT.done&&WDRAFT.done[e.id]);
