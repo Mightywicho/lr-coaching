@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-01.2">
+<meta name="lr-build" content="2026-10-01.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -430,6 +430,40 @@ div.pend{background:rgba(255,180,92,.06);border:1px solid rgba(255,180,92,.3);bo
 .exrow-empty{padding:18px 14px;text-align:center}
 .daycol.add{align-items:center;justify-content:center;min-height:110px;border-style:dashed;background:transparent;color:var(--tx3);font-weight:600;gap:6px;flex-direction:row;cursor:pointer}
 .daycol.add:hover{color:var(--tx);border-color:var(--tx3)}
+/* Menos ruido (2026-10-01, Luis: «que no se vea tan saturado»): con varias columnas a la vista,
+   lo que se repite en cada ejercicio pesaba más que el ejercicio. El grupo va como texto tenue
+   y no como pastilla, el nombre sin subrayado, la nota en su propia línea, y en lugar de un
+   botón rojo por día queda un «+ Añadir ejercicio» discreto al pie de la columna. Con ratón,
+   los botones de cada fila (mover/editar/borrar, ± series, renombrar/borrar día) aparecen al
+   pasar el cursor; en pantallas táctiles no hay hover, así que ahí siguen siempre visibles. */
+.daycol .dayblk-h{background:transparent;border-bottom:1px solid var(--line)}
+.daycol .dayblk-h .cnt{flex-basis:100%;margin-top:-6px;order:2}
+.daycol .dayblk-h h4{flex:1;min-width:0}
+.dayacts{margin-left:auto}
+.exrow .mini-chip{background:none;border:0;padding:0 0 0 4px;font-weight:500;color:var(--tx3);font-size:11.5px}
+.exrow .exlink{border-bottom:0}
+.exrow .exlink:hover{text-decoration:underline;text-underline-offset:3px}
+.exrow .exnote{display:block;font-style:italic}
+.exrow-b{gap:4px 14px}
+.exrow-b .setpm{background:transparent;border-color:transparent}
+.exrow:hover{background:var(--card2)}
+.exadd{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;border-top:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--tx3);line-height:0}
+.exadd:hover{color:var(--tx);background:var(--card2)}
+/* Ocultos no deben empujar nada: los cuatro de la fila van en un cuadrito 2×2 dentro de un margen
+   derecho fijo (así no tapan el descanso en columnas angostas), y los ± ocupan el lugar de la
+   palabra «series» solo mientras el cursor está encima. */
+@media(hover:hover){
+  .exrow{position:relative;padding-right:64px}
+  .exrow .rowbtns{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:grid;grid-template-columns:auto auto;gap:2px;opacity:0;pointer-events:none;transition:opacity .15s}
+  .exrow .setpm{display:none}
+  .daycol .dayacts{opacity:0;transition:opacity .15s}
+  .exrow:hover .rowbtns,.exrow:focus-within .rowbtns,.daycol:hover .dayacts,.daycol:focus-within .dayacts{opacity:1;pointer-events:auto}
+  .exrow:hover .setpm,.exrow:focus-within .setpm{display:inline-block}
+  .exrow:hover .sl,.exrow:focus-within .sl{display:none}
+  .exrow-b .setpm:hover{border-color:var(--volt)}
+}
+/* En los encabezados plegados manda el resumen; la explicación larga era ruido repetido. */
+.pleg>summary .acc-tag{display:none}
 @media(min-width:761px){.daytabs{display:none}}
 @media(max-width:760px){.daygrid{display:block}.daygrid>.daycol{margin-bottom:14px}.daygrid>.daycol.off,.daygrid>.daycol.add{display:none}}
 /* En esta pestaña el ancho fijo de 1180px dejaba media pantalla vacía en monitores grandes. */
@@ -4067,7 +4101,7 @@ function coachTabRutina(aid){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button> <span class="mini-chip" title="'+esc(lib.focus||'Trabajo general del grupo')+'">'+esc(lib.group+(lib.cat?' · '+lib.cat:''))+'</span>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Tiene video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<div class="exrow"><div class="exrow-t"><span class="exn">'+(ei+1)+'</span><div class="exrow-name">'+(e.grp?'<span class="grpchip">'+esc(e.grp)+'</span>':'')+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+exSwapChip(swPerm,e)+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</div></div><div class="exrow-b"><span style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button></span>'+(e.reps?'<span>× <b>'+esc(e.reps)+'</b></span>':'')+(e.rir!==''&&e.rir!=null?'<span>RIR <b>'+esc(e.rir)+'</b></span>':'')+(e.rest?'<span>⏱ <b>'+esc(e.rest)+'</b></span>':'')+
+      rows+='<div class="exrow"><div class="exrow-t"><span class="exn">'+(ei+1)+'</span><div class="exrow-name">'+(e.grp?'<span class="grpchip">'+esc(e.grp)+'</span>':'')+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:11.5px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+exSwapChip(swPerm,e)+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</div></div><div class="exrow-b"><span style="white-space:nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button><span class="sl"> series</span></span>'+(e.reps?'<span>× <b>'+esc(e.reps)+'</b></span>':'')+(e.rir!==''&&e.rir!=null?'<span>RIR <b>'+esc(e.rir)+'</b></span>':'')+(e.rest?'<span>⏱ <b>'+esc(e.rest)+'</b></span>':'')+
       '<div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></div></div>';
     });
     if(!rows)rows='<div class="exrow exrow-empty tiny">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</div>';
@@ -4091,8 +4125,8 @@ function coachTabRutina(aid){
     /* En computadora se ven todas las columnas; .off solo esconde en pantalla angosta. */
     const off=selDay!=='all'&&selDay!==day.id;
     const nSer=day.exercises.reduce((t,e)=>t+(parseInt(e.sets,10)||0),0);
-    days+='<div class="dayblk daycol'+(off?' off':'')+'"><div class="dayblk-h"><h4>D'+(di+1)+' · '+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ej. · '+nSer+' series</span><span class="sp"><button class="btn btn-g btn-sm btn-ic" title="Renombrar" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm btn-ic" title="Eliminar día" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button><button class="btn btn-p btn-sm" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Ejercicio</button></span></div>'+pchips+
-    '<div class="exlist">'+rows+'</div></div>';
+    days+='<div class="dayblk daycol'+(off?' off':'')+'"><div class="dayblk-h"><h4>D'+(di+1)+' · '+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ej. · '+nSer+' series</span><span class="sp rowbtns dayacts"><button title="Renombrar día" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button title="Eliminar día" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button></span></div>'+pchips+
+    '<div class="exlist">'+rows+'</div><button class="exadd" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Añadir ejercicio</button></div>';
   });
   const vol=muscleVolume(aid),cov=catCoverage(aid);
   const pr=d.profile;
