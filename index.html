@@ -397,6 +397,20 @@ div.pend{background:rgba(255,180,92,.06);border:1px solid rgba(255,180,92,.3);bo
 .blkacc>summary .tiny,.wkacc>summary .tiny{font-family:var(--font-b);font-weight:400}
 .wkacc>.acc-body{padding:0 10px 10px}
 .wkacc>.acc-body>.logitem:last-child{margin-bottom:0}
+/* Secciones plegables de la pestaña Entrenamiento del coach (secPleg). */
+.pleg{margin-top:0;margin-bottom:16px}
+.pleg>summary{flex-wrap:wrap;row-gap:6px}
+.pleg-res{display:inline-flex;flex-wrap:wrap;gap:6px;font-family:var(--font-b);font-weight:400;font-size:12px;color:var(--tx2)}
+.pleg .dayblk:last-child{margin-bottom:0}
+@media(max-width:640px){.pleg>summary .acc-tag{display:none}}
+/* Días de la rutina como pestañas: uno a la vez en vez de todos en cascada. */
+.daytabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:thin}
+.daytab{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border:1px solid var(--line2);border-radius:999px;background:var(--card);font-size:13px;font-weight:600;color:var(--tx2);white-space:nowrap;cursor:pointer}
+.daytab:hover{border-color:var(--tx3)}
+.daytab.on{background:var(--line2);color:var(--tx);border-color:var(--volt)}
+.daytab .n{font-weight:400;font-size:12px;color:var(--tx3)}
+.daytab .pd{width:7px;height:7px;border-radius:50%;background:var(--orange);flex:0 0 auto}
+.daytab.add{border-style:dashed;color:var(--tx3)}
 
 /* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(5,7,10,.7);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;animation:fade .15s}
@@ -3991,6 +4005,28 @@ function coachTabResumen(aid){
 function coachTabEntrenamiento(aid){
   return coachTabVolumen(aid)+coachTabRutina(aid);
 }
+/* Secciones plegables de «Entrenamiento» (2026-10-01, pedido de Luis): la pestaña apilaba
+   contexto, volumen semanal, reparto por sesión, cobertura y todos los días uno tras otro, y
+   para programar había que bajar por todo eso cada vez. Cada sección se pliega y lo plegado se
+   recuerda en este dispositivo (localStorage, solo ids de sección: nada del atleta), así que
+   quien ya tiene el volumen cuadrado entra directo a la rutina. El encabezado plegado lleva un
+   resumen corto para que diga solo si merece abrirse, igual que el Historial. Los id son fijos
+   por sección: renderUnsafe repone por id los <details> abiertos al repintar. */
+const LS_PLEGADO='lrc_plegado_v1';
+let _plegado=null;
+function plegadoSet(){
+  if(!_plegado){try{_plegado=new Set(JSON.parse(localStorage.getItem(LS_PLEGADO)||'[]'));}catch(e){_plegado=new Set();}}
+  return _plegado;
+}
+function secPleg(id,title,tag,resumen,inner){
+  return '<details class="acc pleg" id="'+id+'"'+(plegadoSet().has(id)?'':' open')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+(resumen?'<span class="pleg-res">'+resumen+'</span>':'')+WK_CHEV+'</summary><div class="acc-body">'+inner+'</div></details>';
+}
+/* «toggle» no burbujea: se escucha en captura. */
+document.addEventListener('toggle',ev=>{
+  const el=ev.target;if(!el||!el.classList||!el.classList.contains('pleg')||!el.id)return;
+  const st=plegadoSet();if(el.open)st.delete(el.id);else st.add(el.id);
+  try{localStorage.setItem(LS_PLEGADO,JSON.stringify(Array.from(st)));}catch(e){}
+},true);
 function coachTabHistorial(aid){
   return coachTabRendimiento(aid)+coachTabProgreso(aid)+coachTabRegistros(aid);
 }
@@ -3998,7 +4034,9 @@ function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
   /* Solo los permanentes: un cambio de un día suelto ya se lista en Resumen y aquí sería ruido. */
   const swPerm={};swapsOf(aid).forEach(s=>{if(s.scope==='always')swPerm[s.exId]=s;});
-  let days='';
+  /* Un día a la vez (pestañas); «Todos» devuelve la vista en cascada para comparar días. */
+  const selDay=route.params.rday==='all'?'all':(r.days.find(x=>x.id===route.params.rday)||r.days[0]||{}).id;
+  let days='',tabs='';
   r.days.forEach((day,di)=>{
     let rows='';
     day.exercises.forEach((e,ei)=>{
@@ -4023,6 +4061,9 @@ function coachTabRutina(aid){
       else pchips+='<span class="chip"'+chipAct(g,';opacity:.55')+' title="Programado sin plan de sesión ('+pr+' series).'+tail+'">'+esc(g)+' '+pr+plusMark+'</span>';
     });
     if(pchips)pchips='<span class="muschips" style="margin:0 6px">'+pchips+'</span>';
+    const falta=GROUPS.some(g=>(planG[g]||0)>(progG[g]||0));
+    tabs+='<button class="daytab'+(selDay===day.id?' on':'')+'" data-act="rut-dia" data-day="'+day.id+'" title="'+esc(day.name)+(falta?' — faltan series del plan de la sesión':'')+'">D'+(di+1)+' · '+esc(day.name)+'<span class="n">'+day.exercises.length+'</span>'+(falta?'<span class="pd"></span>':'')+'</button>';
+    if(selDay!=='all'&&selDay!==day.id)return;
     days+='<div class="dayblk"><div class="dayblk-h" style="flex-wrap:wrap"><h4>'+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ejercicios</span>'+pchips+'<span class="sp"><button class="btn btn-g btn-sm" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+' Renombrar</button><button class="btn btn-g btn-sm" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button><button class="btn btn-p btn-sm" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Ejercicio</button></span></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:80px">Descanso</th><th style="width:130px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
@@ -4052,12 +4093,18 @@ function coachTabRutina(aid){
       Object.keys(cv.focus).forEach(f=>{chips+='<span class="chip" style="border-style:dashed" title="Especialización programada">→ '+esc(f)+' · '+cv.focus[f]+' s</span>';});
       covRows+='<div class="covrow"><span class="gn">'+esc(cv.g)+'</span>'+chips+'</div>';
     });
-    volHTML='<div class="grid g2 mb16"><div class="card" style="margin:0"><h3>Volumen semanal por grupo <span class="hint">series directas · «ind.» = secundario · «rec» = recomendado</span></h3>'+rows2+'<p class="tiny mt8">El recomendado depende de la experiencia, fase y prioridades. Edítalas en la sección de Volumen y fase (más arriba en esta pestaña).</p></div>'+
+    const volOk=vol.filter(v=>{const m=volumeRecMatrix(pr.priorities[v.m],pr.experience,pr.phase);return !m||pr.priorities[v.m]===0||(v.d>=m.lo&&v.d<=m.hi);}).length;
+    volHTML='<div class="grid g2"><div class="card" style="margin:0"><h3>Volumen semanal por grupo <span class="hint">series directas · «ind.» = secundario · «rec» = recomendado</span></h3>'+rows2+'<p class="tiny mt8">El recomendado depende de la experiencia, fase y prioridades. Edítalas en la sección de Volumen y fase (más arriba en esta pestaña).</p></div>'+
     '<div class="card" style="margin:0"><h3>Cobertura de categorías <span class="hint">cada una es una pieza del rompecabezas</span></h3>'+(covRows||'<div class="empty"><b>Sin categorías aún</b>Vincula ejercicios de la biblioteca para ver qué patrones cubre el programa.</div>')+'<p class="tiny mt8">Las apagadas son patrones del modelo aún sin trabajar en este programa. Pasa el cursor para ver el patrón y las cargas recomendadas.</p></div></div>';
-  }else volHTML='<div class="card mb16"><h3>Volumen y cobertura por grupo muscular</h3><div class="empty"><b>Sin ejercicios vinculados</b>Vincula los ejercicios de la rutina con tu biblioteca para ver series por grupo y cobertura de categorías.</div></div>';
-  return '<div class="card mb16"><h3>Programa actual</h3><div class="frow2"><div><label>Nombre del programa</label><input id="r_name" value="'+esc(r.name)+'"></div><div><label>Indicación de la semana</label><input id="r_week" value="'+esc(r.weekNote)+'"></div></div>'+
-  '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-g" data-act="tpl-apply-modal" data-kind="routine" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g" data-act="tpl-save-modal" data-kind="routine" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div></div>'+volHTML+days+
-  '<button class="btn btn-g" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Añadir día de entrenamiento</button>';
+    volHTML=secPleg('pl-volprog','Volumen y cobertura del programa','lo que suman los ejercicios de la rutina','<span class="badge">'+volOk+'/'+vol.length+' grupos en rango</span>',volHTML);
+  }else volHTML=secPleg('pl-volprog','Volumen y cobertura del programa','','','<div class="empty"><b>Sin ejercicios vinculados</b>Vincula los ejercicios de la rutina con tu biblioteca para ver series por grupo y cobertura de categorías.</div>');
+  const nDias=r.days.length;
+  tabs+=(nDias>1?'<button class="daytab'+(selDay==='all'?' on':'')+'" data-act="rut-dia" data-day="all" title="Ver todos los días uno tras otro">Todos</button>':'')+
+    '<button class="daytab add" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Día</button>';
+  const diasHTML=secPleg('pl-dias','3 · Rutina por día','',nDias?'<span class="badge">'+nDias+' día'+(nDias>1?'s':'')+'</span>':'',
+    '<div class="daytabs">'+tabs+'</div>'+(days||'<div class="empty"><b>Sin días todavía</b>Añade el primer día de entrenamiento con «+ Día».</div>'));
+  return secPleg('pl-prog','Programa actual','',r.name?'<span class="badge">'+esc(r.name)+'</span>':'','<div class="frow2"><div><label>Nombre del programa</label><input id="r_name" value="'+esc(r.name)+'"></div><div><label>Indicación de la semana</label><input id="r_week" value="'+esc(r.weekNote)+'"></div></div>'+
+  '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-g" data-act="tpl-apply-modal" data-kind="routine" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g" data-act="tpl-save-modal" data-kind="routine" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div>')+volHTML+diasHTML;
 }
 
 function coachTabVolumen(aid){
@@ -4072,20 +4119,22 @@ function coachTabVolumen(aid){
   const emA=(d.routine.emphasis||[]);
   const emphBadge=emA.length?'<span class="chip" style="border-color:var(--blue);color:var(--blue)" title="Músculos enfatizados en este split'+(d.routine.emphRandom?' (elegidos al azar entre grupos grandes)':'')+'">★ Énfasis'+(d.routine.emphRandom?' auto':'')+': '+esc(emA.join(', '))+'</span>':'';
   const regenBtn=d.routine.autoSplitCfg?'<button class="btn btn-g btn-sm" data-act="split-auto-regen" data-aid="'+aid+'" title="Genera otra variante con la misma configuración (varía ejercicios y, si el énfasis es automático, los grupos enfatizados).">'+I.refresh+' Regenerar</button>':'';
-  const ctx='<div class="card mb16"><div class="sect-h" style="margin:0 0 12px"><h3 style="margin:0">Contexto del atleta <span class="hint">determina el volumen, el RIR y las cargas recomendadas</span></h3><span class="sp" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+emphBadge+regenBtn+'<button class="btn btn-p btn-sm" data-act="split-auto-ask" data-aid="'+aid+'" title="Genera el split completo (estructura de días + reparto de volumen + ejercicios) según los días/semana y las prioridades. Editable después.">'+I.refresh+' Generar split automático</button></span></div>'+
+  const ctxRes='<span class="badge">'+esc((EXPERIENCES.find(e=>e[0]===exp)||[0,exp])[1])+' · '+esc(phaseName(phase))+' · Bloque '+block+'</span>';
+  const ctx=secPleg('pl-ctx','Contexto del atleta','determina el volumen, el RIR y las cargas recomendadas',ctxRes,'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-bottom:12px">'+emphBadge+regenBtn+'<button class="btn btn-p btn-sm" data-act="split-auto-ask" data-aid="'+aid+'" title="Genera el split completo (estructura de días + reparto de volumen + ejercicios) según los días/semana y las prioridades. Editable después.">'+I.refresh+' Generar split automático</button></div>'+
     '<div class="ctx-bar"><div class="fld"><label>Experiencia</label><select data-change="ctx-exp" data-aid="'+aid+'">'+eopts+'</select></div>'+
     '<div class="fld"><label>Fase actual</label><select data-change="ctx-phase" data-aid="'+aid+'">'+popts+'</select></div>'+
     '<div class="fld"><label>Bloque del período</label><select data-change="ctx-block" data-aid="'+aid+'">'+bopts+'</select></div></div>'+
     '<div class="notebox mt16">'+esc(phaseDesc(phase))+'</div>'+
     '<div class="grid g3 mt16"><div class="stat"><div class="k">RIR objetivo</div><div class="v">'+rirFor(phase,exp)+'</div><div class="sub">para esta fase y experiencia</div></div>'+
     '<div class="stat"><div class="k">Cargas P / M / L</div><div class="v" style="font-size:19px">'+loadDist(block)+'</div><div class="sub">distribución % del bloque '+block+'</div></div>'+
-    '<div class="stat"><div class="k">Por sesión</div><div class="v" style="font-size:19px">6-10 <small>series/grupo</small></div><div class="sub">pico de calidad; reparte si excede</div></div></div></div>';
+    '<div class="stat"><div class="k">Por sesión</div><div class="v" style="font-size:19px">6-10 <small>series/grupo</small></div><div class="sub">pico de calidad; reparte si excede</div></div></div>');
 
   /* tabla de prioridades + recomendación */
   const order={4:0,1:1,2:2,3:3,0:4};
   const rows=GROUPS.slice().sort((a,b)=>(order[p.priorities[a]]-order[p.priorities[b]])||GROUPS.indexOf(a)-GROUPS.indexOf(b));
   let trs='';
   const staleList=staleVolGroups(p),staleSet=new Set(staleList);
+  let nOk=0,nAjuste=0;
   rows.forEach(g=>{
     const prio=p.priorities[g],act=directOf(g);
     const mxRec=volumeRecMatrix(prio,exp,phase);
@@ -4121,6 +4170,7 @@ function coachTabVolumen(aid){
       else if(act>mxRec.hi)st={cls:'volt',txt:'Alto (tolerable)'};
       else st={cls:'green',txt:'En rango'};
       stCell='<span class="badge '+(st.cls||'')+'">'+st.txt+'</span>';
+      if(st.cls==='orange'||st.cls==='red')nAjuste++;else nOk++;
     }
     trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num">'+metaCell+'</td><td class="num">'+progCell+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
@@ -4138,9 +4188,10 @@ function coachTabVolumen(aid){
     (zeroPlan.length?'<button class="btn btn-g btn-sm" data-act="plan-zero-clean" data-aid="'+aid+'">Quitar su plan del paso 2</button>':'')+'</div>':'';
   const staleCtx=staleList.length?((p.volTargetsCtx||{})[staleList[0]]||''):'';
   const staleBox=staleList.length?'<div class="volstale"><span>⚠ <b>'+staleList.length+' grupo'+(staleList.length>1?'s tienen metas':' tiene una meta')+' del bloque anterior</b> ('+esc(volCtxLabel(staleCtx))+'). El atleta ya está en <b>'+esc(phaseName(phase)+' · Bloque '+block)+'</b>: la banda recomendada cambió, tus metas no. Están marcadas con borde punteado.</span><button class="btn btn-g btn-sm" data-act="voltargets-auto-ask" data-aid="'+aid+'">Rellenar metas con el recomendado de esta fase</button></div>':'';
-  const table='<div class="card"><h3>1 · Volumen semanal por grupo <span class="hint">tu meta del bloque frente a lo que suma la rutina</span><button class="btn btn-g btn-sm" style="margin-left:6px" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></h3>'+
+  const volRes=(nOk?'<span class="badge green">'+nOk+' bien</span>':'')+(nAjuste?'<span class="badge orange">'+nAjuste+' por ajustar</span>':'')+(staleList.length||zBits.length?'<span class="badge orange">⚠ avisos</span>':'');
+  const table=secPleg('pl-vol','1 · Volumen semanal por grupo','tu meta del bloque frente a lo que suma la rutina',volRes,'<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-g btn-sm" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></div>'+
     '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:78px">Meta</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:140px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div>'+staleBox+zeroBox+
-    '<p class="tiny mt8"><b>Meta</b> son las series semanales que tú decides para este bloque — se puede escribir siempre, tenga o no ejercicios el grupo. <b>Programado</b> son las series directas que ya suman los ejercicios vinculados. Con meta escrita, el estado te dice cuánto falta o sobra para cumplirla; si la dejas vacía, se compara contra la banda recomendada. Una meta con el número en naranja queda fuera de esa banda. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p></div>';
+    '<p class="tiny mt8"><b>Meta</b> son las series semanales que tú decides para este bloque — se puede escribir siempre, tenga o no ejercicios el grupo. <b>Programado</b> son las series directas que ya suman los ejercicios vinculados. Con meta escrita, el estado te dice cuánto falta o sobra para cumplirla; si la dejas vacía, se compara contra la banda recomendada. Una meta con el número en naranja queda fuera de esa banda. <a data-act="nav" data-view="ref" data-params="{}" style="cursor:pointer">Ver referencias →</a></p>');
 
   return ctx+table+coachDistSesiones(aid);
 }
@@ -4153,7 +4204,7 @@ function coachDistSesiones(aid){
   let sess='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">';
   days.forEach((day,di)=>{sess+='<span class="badge">D'+(di+1)+' · '+esc(day.name)+' <button style="color:var(--tx3);line-height:0;margin-left:4px" title="Renombrar sesión" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button style="color:var(--tx3);line-height:0" title="Eliminar sesión" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.x+'</button></span>';});
   sess+='<button class="btn btn-g btn-sm" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Añadir sesión</button></div>';
-  if(!days.length)return'<div class="card mt16"><h3>2 · Sesiones y distribución del objetivo</h3>'+sess+'<div class="empty"><b>Define primero tus sesiones</b>Crea los días de entrenamiento y reparte en ellos el objetivo semanal de cada grupo.</div></div>';
+  if(!days.length)return secPleg('pl-dist','2 · Sesiones y distribución del objetivo','','',sess+'<div class="empty"><b>Define primero tus sesiones</b>Crea los días de entrenamiento y reparte en ellos el objetivo semanal de cada grupo.</div>');
   /* programado real por grupo y día (para contrastar plan vs realidad) */
   const progDay={};
   days.forEach((day,di)=>{day.exercises.forEach(e=>{
@@ -4165,7 +4216,7 @@ function coachDistSesiones(aid){
   let head='<tr><th>Grupo</th>';
   days.forEach((day,di)=>{head+='<th style="text-align:center" title="'+esc(day.name)+'">D'+(di+1)+'</th>';});
   head+='<th style="width:64px">Plan Σ</th><th style="width:80px">Objetivo</th><th style="width:56px">Δ</th></tr>';
-  let trs2='';
+  let trs2='',nDescuadre=0;
   dGroups.forEach(g=>{
     let tot=0,cells='';
     days.forEach((day,di)=>{
@@ -4175,7 +4226,7 @@ function coachDistSesiones(aid){
     });
     const tgt=tgts[g],hasTgt=tgt!=null&&tgt!=='';
     let dCell='<span class="tiny">—</span>';
-    if(hasTgt){const dfx=tot-(+tgt);dCell=dfx===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(dfx>0?'up':'down')+'">'+(dfx>0?'+':'')+dfx+'</span>';}
+    if(hasTgt){const dfx=tot-(+tgt);if(dfx)nDescuadre++;dCell=dfx===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(dfx>0?'up':'down')+'">'+(dfx>0?'+':'')+dfx+'</span>';}
     trs2+='<tr><td class="exname">'+esc(g)+'</td>'+cells+'<td class="num" style="text-align:center"><b>'+tot+'</b></td><td class="num" style="text-align:center">'+(hasTgt?tgt:'<span class="tiny">—</span>')+'</td><td style="text-align:center">'+dCell+'</td></tr>';
   });
   /* total planificado por sesión */
@@ -4185,11 +4236,12 @@ function coachDistSesiones(aid){
     totRow+='<td class="sesion-total'+(t>30?' hot':'')+'" style="text-align:center" title="Series planificadas en la sesión">'+t+'</td>';
   });
   totRow+='<td colspan="3"></td></tr>';
-  return '<div class="card mt16"><h3>2 · Sesiones y distribución del objetivo <span class="hint">planifica series por sesión antes de elegir ejercicios</span></h3>'+sess+
+  const distRes='<span class="badge">'+days.length+' sesion'+(days.length>1?'es':'')+'</span>'+(nDescuadre?'<span class="badge orange">'+nDescuadre+' grupo'+(nDescuadre>1?'s':'')+' sin cuadrar</span>':'');
+  return secPleg('pl-dist','2 · Sesiones y distribución del objetivo','planifica series por sesión antes de elegir ejercicios',distRes,sess+
     '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead>'+head+'</thead><tbody>'+trs2+totRow+'</tbody></table></div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center"><button class="btn btn-g" data-act="plan-auto" data-aid="'+aid+'">Repartir objetivos automáticamente</button>'+
-    '<button class="btn btn-p" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"entrenamiento"}\' onclick="setTimeout(()=>window.scrollTo({top:99999,behavior:\'smooth\'}),100)">3 · Construir la rutina ↓</button></div>'+
-    '<p class="tiny mt8">El reparto automático usa la guía del material: 1 sesión por cada 4-10 series del grupo (≈8 por sesión), mínimo 2 estímulos si se busca crecimiento, equilibrando la carga entre días. «prog.» indica lo ya cubierto por ejercicios reales; en la pestaña Rutina cada día muestra qué falta del plan.</p></div>';
+    '<button class="btn btn-p" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"entrenamiento"}\' onclick="setTimeout(()=>{const e=document.getElementById(\'pl-dias\');if(e){e.open=true;e.scrollIntoView({behavior:\'smooth\',block:\'start\'});}},100)">3 · Construir la rutina ↓</button></div>'+
+    '<p class="tiny mt8">El reparto automático usa la guía del material: 1 sesión por cada 4-10 series del grupo (≈8 por sesión), mínimo 2 estímulos si se busca crecimiento, equilibrando la carga entre días. «prog.» indica lo ya cubierto por ejercicios reales; en la pestaña Rutina cada día muestra qué falta del plan.</p>');
 }
 
 /* Vuelca los objetivos escritos a mano (kcal, macros, nº de comidas, indicaciones)
@@ -5019,7 +5071,8 @@ Object.assign(ACTIONS,{
   'pg-pairscope':el=>{route.params.pgPairAll=el.dataset.v;route.params.pgCmpDay=null;route.params.pgA=null;route.params.pgB=null;render();},
   'routine-meta-save':el=>{const r=athData(el.dataset.aid).routine;r.name=val('r_name');r.weekNote=val('r_week');saveState();toast('Programa actualizado');render();},
   'day-add-modal':el=>openModal('Nuevo día','<div class="frow"><label>Nombre del día</label><input id="d_name" placeholder="Día 5 · Brazo"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
-  'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día');return;}athData(el.dataset.aid).routine.days.push({id:uid(),name:nm,exercises:[]});saveState();closeModal();render();},
+  'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día');return;}const nd={id:uid(),name:nm,exercises:[]};athData(el.dataset.aid).routine.days.push(nd);route.params.rday=nd.id;saveState();closeModal();render();},
+  'rut-dia':el=>{route.params.rday=el.dataset.day;render();},
   'day-ren-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);openModal('Renombrar día','<div class="frow"><label>Nombre</label><input id="d_name" value="'+esc(day.name)+'"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-ren-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Guardar</button>');},
   'day-ren-save':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);day.name=val('d_name')||day.name;saveState();closeModal();render();},
   'day-del-ask':el=>confirmModal('Eliminar día','Se borrará el día y sus ejercicios de la rutina.','day-del-do','data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'"'),
