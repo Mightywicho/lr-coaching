@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-01.3">
+<meta name="lr-build" content="2026-10-01.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4327,7 +4327,7 @@ function coachTabNutri(aid){
   n.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.activePlan?' on':'')+'" data-act="plan-select" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});
   const planBar='<div class="card mb16"><div class="sect-h" style="margin-bottom:10px"><h3 style="margin:0">Planes por tipo de día <span class="hint">crea variantes: pesado, normal, day off, recarga…</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="tpl-apply-modal" data-kind="nutrition" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g btn-sm" data-act="tpl-save-modal" data-kind="nutrition" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p btn-sm" data-act="plan-add" data-aid="'+aid+'">'+I.plus+' Nuevo plan</button></span></div><div class="planchips">'+chips+'</div></div>';
   /* cabecera + edición del plan activo */
-  const planHead='<div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0"><span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(ap.name)+'</h3><span class="sp"><button class="btn btn-p btn-sm" data-act="nutri-auto-ask" data-aid="'+aid+'" data-pid="'+ap.id+'" title="Calcula calorías y macros (TDEE + objetivo de la fase) y arma un menú con alimentos de tu base. Editable después.">'+I.refresh+' Plan automático</button><button class="btn btn-g btn-sm" data-act="plan-rename" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.edit+' Renombrar</button>'+(n.plans.length>1?'<button class="btn btn-g btn-sm" data-act="plan-del" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.trash+'</button>':'')+'</span></div>';
+  const planHead='<div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0"><span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(ap.name)+'</h3><span class="sp"><button class="btn btn-p btn-sm" data-act="nutri-auto-ask" data-aid="'+aid+'" data-pid="'+ap.id+'" title="Calcula calorías y macros (TDEE + objetivo de la fase) y arma un menú con alimentos de tu base. Editable después.">'+I.refresh+' Plan automático</button><button class="btn btn-p btn-sm" data-act="nia-ask" data-aid="'+aid+'" title="Describe el menú en tus palabras y la IA lo arma con alimentos de tu base. Revisas antes de aplicar.">'+I.food+' Armar con IA</button><button class="btn btn-g btn-sm" data-act="plan-rename" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.edit+' Renombrar</button>'+(n.plans.length>1?'<button class="btn btn-g btn-sm" data-act="plan-del" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.trash+'</button>':'')+'</span></div>';
   const seg='<div class="seg mb16"><button class="'+(ap.mode==='macros'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="macros">Macros flexibles</button><button class="'+(ap.mode==='menu'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="menu">Menú cerrado</button></div>';
   const targets='<div class="frow2"><div><label>Calorías objetivo (kcal)</label><input id="n_kcal" type="number" value="'+ap.kcal+'"></div><div><label>Comidas al día</label><input id="n_meals" type="number" value="'+(ap.mealsPerDay||4)+'"></div></div>'+
   '<div class="frow3"><div><label>Proteína (g)</label><input id="n_p" type="number" value="'+ap.protein+'"></div><div><label>Carbohidratos (g)</label><input id="n_c" type="number" value="'+ap.carbs+'"></div><div><label>Grasas (g)</label><input id="n_f" type="number" value="'+ap.fat+'"></div></div>'+
@@ -9240,7 +9240,7 @@ function nutriTargets(aid){
    (correr el generador dos veces dejaba la misma frase repetida en la vista del atleta) y conserva
    intacto lo que el coach haya escrito a mano. */
 function autoNote(prev,tag){
-  const base=String(prev||'').replace(/\[(Plan autogenerado|Menú generado|Macros ajustados)[^\]]*\]/g,'').replace(/\s+/g,' ').trim();
+  const base=String(prev||'').replace(/\[(Plan autogenerado|Menú generado|Macros ajustados|Menú armado con IA)[^\]]*\]/g,'').replace(/\s+/g,' ').trim();
   return (base?base+' ':'')+tag;
 }
 /* useOwn=true: NO recalcula nada desde el perfil. Toma como objetivo los kcal/macros que el plan YA tiene
@@ -9385,6 +9385,165 @@ function coachTabSemanas(aid){
   const histCard=hist?'<div class="sect-h"><h2>Bloques anteriores</h2><span class="tiny">resumen + volumen inicial vs final — para decidir el siguiente bloque</span></div>'+hist:'';
   return head+blockCompareCard(aid)+acwrCard(aid)+fatigueCard(aid)+applyCard(aid)+volCard+chgCard+histCard;
 }
+
+/* ===== MENÚ CON IA (Edge Function nutri-ia) =====
+   La IA solo ESCOGE alimentos de la base del coach y propone cantidades. Todo lo numérico se hace aquí:
+   los nombres se validan contra S.foods, los macros salen de foodMacros y niaFit reajusta las cantidades
+   al objetivo del plan. Nada llega al atleta hasta «Aplicar al plan» (y entonces es un menú normal,
+   editable como cualquier otro). */
+let _nia=null; /* {aid,pid,T:{kcal,p,c,f},N,instr,raw,meals,notes,warn,busy} */
+function niaNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();}
+function niaFindFood(name){
+  const F=S.foods||[],k=String(name||'').toLowerCase().trim();
+  let fo=F.find(x=>x.name.toLowerCase()===k);if(fo)return fo;
+  const n=niaNorm(name);fo=F.find(x=>niaNorm(x.name)===n);if(fo)return fo;
+  /* «Pechuga de pollo» → «Pechuga de pollo (cruda)»: solo si hay UNA coincidencia, para no adivinar */
+  const pre=F.filter(x=>niaNorm(x.name).replace(/\s*\(.*\)$/,'')===n.replace(/\s*\(.*\)$/,''));
+  return pre.length===1?pre[0]:null;
+}
+/* Objetivo: los macros escritos en el plan; si no hay, los del perfil (mismo criterio que «Plan automático») */
+function niaTargets(aid){
+  const ap=activePlanOf(aid);
+  const P=Math.round(+ap.protein||0),C=Math.round(+ap.carbs||0),Fg=Math.round(+ap.fat||0);
+  if(P+C+Fg>0)return{p:P,c:C,f:Fg,kcal:Math.round(+ap.kcal||0)||kcalFromMacros({protein:P,carbs:C,fat:Fg}),own:true};
+  const tg=nutriTargets(aid);if(tg.err)return tg;
+  return{p:tg.protein,c:tg.carbs,f:tg.fat,kcal:tg.target,own:false,goalTxt:tg.goalTxt};
+}
+/* Reajusta cantidades al objetivo sin desfigurar el menú: minimiza el error relativo de P/C/G
+   + una penalización por alejarse de lo que propuso la IA (x=1). Cada cantidad queda entre ×0,4 y ×2,5
+   de la original; gradiente proyectado (son ~20 variables, sobra). */
+function niaFit(rows,T){
+  const tv=[T.p||0,T.c||0,T.f||0];
+  const b=rows.map(r=>{const per=r.fo.unit==='u'?1:0.01;return[r.fo.p*per*r.q0,r.fo.c*per*r.q0,r.fo.f*per*r.q0];});
+  const x=rows.map(()=>1),lam=0.01;
+  let L=2*lam;for(let k=0;k<3;k++){if(!tv[k])continue;let s=0;b.forEach(v=>{s+=v[k]*v[k];});L+=2*s/(tv[k]*tv[k]);}
+  const step=1/L;
+  for(let it=0;it<3000;it++){
+    const tot=[0,0,0];b.forEach((v,i)=>{for(let k=0;k<3;k++)tot[k]+=v[k]*x[i];});
+    for(let i=0;i<x.length;i++){
+      let g=2*lam*(x[i]-1);
+      for(let k=0;k<3;k++){if(!tv[k])continue;g-=2*(tv[k]-tot[k])*b[i][k]/(tv[k]*tv[k]);}
+      x[i]=Math.min(2.5,Math.max(0.4,x[i]-step*g));
+    }
+  }
+  return rows.map((r,i)=>{
+    const raw=r.q0*x[i];
+    const q=r.fo.unit==='u'?Math.max(0.5,Math.round(raw*2)/2):Math.max(5,Math.round(raw/5)*5);
+    return Object.assign({},r,{q});
+  });
+}
+/* Respuesta de la IA → comidas con alimentos reales de la base, ya ajustadas */
+function niaBuild(raw,T){
+  const warn=[],rows=[];
+  (raw.meals||[]).forEach((m,mi)=>{(m.items||[]).forEach(it=>{
+    const fo=niaFindFood(it.food),q0=+it.amount||0;
+    if(!fo){warn.push('«'+it.food+'» no está en tu base de alimentos: se quitó.');return;}
+    if(q0<=0)return;
+    rows.push({mi,fo,q0});
+  });});
+  const fitted=rows.length?niaFit(rows,T):[];
+  const meals=(raw.meals||[]).map(m=>({name:String(m.name||'Comida'),time:String(m.time||''),items:[]}));
+  fitted.forEach(r=>{
+    const mac=foodMacros(r.fo.name,r.q),isU=r.fo.unit==='u';
+    meals[r.mi].items.push({food:r.fo.name,qty:isU?(r.q+' '+(r.fo.unitLabel||'unidades')):(r.q+' g'),grams:isU?0:r.q,p:mac.p,c:mac.c,f:mac.f});
+  });
+  return{meals:meals.filter(m=>m.items.length),warn};
+}
+function niaTotals(meals){const t={p:0,c:0,f:0};meals.forEach(m=>m.items.forEach(it=>{t.p+=it.p;t.c+=it.c;t.f+=it.f;}));t.p=Math.round(t.p);t.c=Math.round(t.c);t.f=Math.round(t.f);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+/* lo que se le regresa a la IA al pedir un cambio: el menú YA ajustado, en su mismo formato */
+function niaAsRaw(meals,notes){return{meals:meals.map(m=>({name:m.name,time:m.time,items:m.items.map(it=>({food:it.food,amount:it.grams||piQty(it)}))})),notes:notes||''};}
+function niaPreviewHTML(){
+  const z=_nia,t=niaTotals(z.meals),T=z.T;
+  const cell=(lbl,v,tg,u)=>{const d=v-tg,pct=tg?Math.abs(d)/tg:0;const col=pct<=0.05?'var(--green)':pct<=0.1?'var(--orange)':'var(--red)';
+    return '<span><b>'+v+'</b>'+u+' '+lbl+'<br><span class="tiny" style="color:'+col+'">meta '+tg+(d?(' · '+(d>0?'+':'')+d):'')+'</span></span>';};
+  let h='<div class="rec-detail"><div class="rec-macros">'+cell('kcal',t.kcal,T.kcal,'')+cell('proteína',t.p,T.p,' g')+cell('carbos',t.c,T.c,' g')+cell('grasa',t.f,T.f,' g')+'</div></div>';
+  z.meals.forEach(m=>{
+    const mt=mealItemsTotals(m);
+    h+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</span></div><ul class="rec-ing" style="padding:2px 14px 10px 32px">';
+    m.items.forEach(it=>{h+='<li>'+esc(it.food)+' — <b>'+esc(it.qty)+'</b></li>';});
+    h+='</ul></div>';
+  });
+  if(z.notes)h+='<p class="tiny mt8"><b>Nota de la IA:</b> '+esc(z.notes)+'</p>';
+  z.warn.forEach(w=>{h+='<p class="tiny" style="color:var(--orange)">⚠ '+esc(w)+'</p>';});
+  h+='<div class="mt8"><label class="tiny">¿Algún cambio? Escríbelo y la IA rehace solo eso</label><div style="display:flex;gap:8px;margin-top:4px"><input id="nia_chg" placeholder="Ej. cámbiale el arroz por papa, y la cena más ligera" style="flex:1"><button class="btn btn-g" data-act="nia-change">Pedir cambio</button></div></div>';
+  h+='<p class="tiny mt8" style="color:var(--orange)">Al aplicar se reemplaza el menú del plan «'+esc((nutriOf(z.aid).plans.find(p=>p.id===z.pid)||{}).name||'')+'». No toca otros planes de día.</p>';
+  return h;
+}
+function niaShowPreview(){
+  openModal('Menú propuesto por la IA',niaPreviewHTML(),'<button class="btn btn-g" data-act="nia-discard">Descartar</button><button class="btn btn-p" data-act="nia-apply">'+I.check+' Aplicar al plan</button>',{persistent:true,nofocus:true});
+}
+function niaBusy(msg){openModal('Armando el menú…','<p class="muted">'+esc(msg)+'</p><p class="tiny">Suele tardar entre 20 segundos y un minuto. No cierres esta ventana.</p>','',{persistent:true});}
+async function niaCall(extra){
+  const z=_nia,d=athData(z.aid),diet=nutriOf(z.aid).dietProfile||{};
+  const foods=(S.foods||[]).map(f=>[f.name,f.cat||'',+f.p||0,+f.c||0,+f.f||0,f.unit==='u'?'u':'g',f.unitLabel||'']);
+  const body=Object.assign({targets:z.T,meals:z.N,instructions:z.instr,diet:diet,phase:phaseName(d.profile.phase),foods:foods},extra||{});
+  let data=null,error=null;
+  try{const r=await supa.functions.invoke('nutri-ia',{body:body});data=r.data;error=r.error;}catch(e){error=e;}
+  if(error||!data||!data.ok){
+    let msg=(data&&data.error)||'La IA no pudo armar el menú.';
+    try{if(error&&error.context&&error.context.json){const j=await error.context.json();if(j&&j.error)msg=j.error;}}catch(_){}
+    return{err:msg};
+  }
+  return{raw:data.result||{}};
+}
+function niaTake(res){
+  const z=_nia;
+  const b=niaBuild(res.raw,z.T);
+  if(!b.meals.length){openModal('Sin menú','<p>La IA no devolvió alimentos que estén en tu base. Revisa las indicaciones y vuelve a intentar.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
+  z.meals=b.meals;z.warn=b.warn;z.notes=String(res.raw.notes||'');
+  niaShowPreview();
+}
+Object.assign(ACTIONS,{
+  'nia-ask':el=>{
+    const aid=el.dataset.aid;
+    pnutriReadTargets(aid); /* números recién escritos y sin guardar: igual que «Plan automático» */
+    const ap=activePlanOf(aid),T=niaTargets(aid);
+    if(T.err){toast('Escribe los macros del plan o completa el perfil del atleta (peso y altura) para usar la IA');return;}
+    if(!(S.foods||[]).length){toast('Tu base de alimentos está vacía');return;}
+    const N=ap.mealsPerDay||4,diet=nutriOf(aid).dietProfile||{};
+    const dl=[['allergies','Alergias'],['intolerances','Intolerancias'],['likes','Le gusta'],['dislikes','No le gusta'],['notes','Notas']].filter(x=>String(diet[x[0]]||'').trim());
+    let body='<div class="grid g2 mb16"><div class="stat"><div class="k">'+(T.own?'Objetivo de este plan':'Calculado del perfil')+'</div><div class="v">'+T.kcal+'<small> kcal</small></div><div class="sub">P'+T.p+' · C'+T.c+' · G'+T.f+'</div></div>'+
+      '<div class="stat"><div class="k">Comidas al día</div><div class="v"><input id="nia_n" type="number" min="1" max="8" value="'+N+'" style="width:70px"></div><div class="sub">Plan «'+esc(ap.name)+'»</div></div></div>';
+    if(dl.length){body+='<p class="tiny" style="margin-bottom:8px">También se manda el perfil de alimentación del atleta:</p><ul class="tiny" style="margin:0 0 12px 18px">';dl.forEach(x=>{body+='<li><b>'+x[1]+':</b> '+esc(diet[x[0]])+'</li>';});body+='</ul>';}
+    else body+='<p class="tiny" style="margin-bottom:12px">Este atleta no tiene gustos ni alergias capturados (perfil de alimentación). Si tiene alguno, escríbelo abajo.</p>';
+    body+='<label class="tiny">¿Cómo quieres el menú?</label><textarea id="nia_txt" rows="4" style="width:100%;margin-top:4px" placeholder="Ej. sin lácteos, comida mexicana, presupuesto bajo, más carbos antes de entrenar (entrena a las 7 pm), desayuno rápido">'+esc((_nia&&_nia.aid===aid&&_nia.instr)||'')+'</textarea>';
+    body+='<p class="tiny mt8">La IA solo usa alimentos de tu base. La app calcula los macros y ajusta los gramos al objetivo; tú revisas antes de aplicar.</p>';
+    openModal('Armar menú con IA',body,'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="nia-gen" data-aid="'+aid+'" data-pid="'+ap.id+'">Generar menú</button>');
+  },
+  'nia-gen':async el=>{
+    const aid=el.dataset.aid,T=niaTargets(aid);if(T.err){toast(T.err);return;}
+    const N=Math.max(1,Math.min(8,parseInt(($('#nia_n')||{}).value,10)||4));
+    _nia={aid,pid:el.dataset.pid,T,N,instr:(($('#nia_txt')||{}).value||'').trim(),meals:[],notes:'',warn:[]};
+    niaBusy('La IA está escogiendo alimentos de tu base para '+N+' comidas.');
+    const res=await niaCall();
+    if(!_nia)return;
+    if(res.err){openModal('No se pudo armar el menú','<p>'+esc(res.err)+'</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}
+    niaTake(res);
+  },
+  'nia-change':async ()=>{
+    const z=_nia;if(!z)return;
+    const chg=(($('#nia_chg')||{}).value||'').trim();if(!chg){toast('Escribe qué quieres cambiar');return;}
+    const prev={meals:z.meals,notes:z.notes,warn:z.warn};
+    niaBusy('Aplicando el cambio: «'+chg+'»');
+    const res=await niaCall({current:niaAsRaw(z.meals,z.notes),change:chg});
+    if(!_nia)return;
+    if(res.err){Object.assign(z,prev);niaShowPreview();toast(res.err,'err');return;}
+    niaTake(res);
+  },
+  'nia-discard':()=>{_nia=null;closeModal();},
+  'nia-apply':()=>{
+    const z=_nia;if(!z)return;
+    const plan=nutriOf(z.aid).plans.find(p=>p.id===z.pid);
+    if(!plan){toast('El plan ya no existe');_nia=null;closeModal();return;}
+    if(!z.T.own){plan.protein=z.T.p;plan.carbs=z.T.c;plan.fat=z.T.f;plan.kcal=z.T.kcal;}
+    plan.mode='menu';plan.mealsPerDay=z.meals.length;
+    plan.meals=z.meals.map(m=>({id:uid(),name:m.name,time:m.time,items:m.items.map(it=>Object.assign({},it))}));
+    plan.notes=autoNote(plan.notes,'[Menú armado con IA. Ajusta gramos a tu gusto.]');
+    const t=niaTotals(z.meals);
+    _nia=null;saveState();closeModal();render();
+    toast('Menú aplicado: '+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f);
+  }
+});
 
 Object.assign(ACTIONS,{
   'startdate-save':el=>{
