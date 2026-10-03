@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-02.1">
+<meta name="lr-build" content="2026-10-02.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -648,27 +648,39 @@ td.sesion-total.hot{color:var(--orange)}
 input.meta-in{width:62px;text-align:center;font-variant-numeric:tabular-nums}
 input.meta-in.off{border-color:var(--orange);color:var(--orange)}
 input.meta-in.old{border-style:dashed}
-.pbrush{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.pbrush{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .pbr{padding:6px 11px;font-size:12.5px;font-weight:600;border-radius:999px;border:1px solid var(--line2);background:var(--bg2);color:var(--tx2);cursor:pointer}
 .pbr.on{color:var(--bg);background:var(--tx);border-color:var(--tx)}
 .pbr.p4.on{background:var(--red);border-color:var(--red)}.pbr.p1.on{background:var(--volt);border-color:var(--volt)}
 .pbr.p2.on{background:var(--blue);border-color:var(--blue)}.pbr.p3.on{background:var(--orange);border-color:var(--orange)}
-.pboard{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
-.pcol{background:var(--bg2);border:1px solid var(--line2);border-top:3px solid var(--line2);border-radius:var(--r-s);padding:8px;min-height:90px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,background .15s}
+.ptools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:8px}
+.ptools:empty{display:none}
+.pboard{display:grid;gap:10px;align-items:start}
+.pcol{background:var(--bg2);border:1px solid var(--line2);border-top:3px solid var(--line2);border-radius:var(--r-s);padding:8px;min-width:0;transition:border-color .15s,background .15s}
 .pcol.p4{border-top-color:var(--red)}.pcol.p1{border-top-color:var(--volt)}.pcol.p2{border-top-color:var(--blue)}.pcol.p3{border-top-color:var(--orange)}
 .pcol.over{background:var(--volt-12);border-color:var(--volt)}
-.pcolh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:12.5px;padding:0 2px 2px}
-.pempty{font-size:11.5px;color:var(--tx3);text-align:center;padding:14px 4px}
-.pchip{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:6px 7px;display:grid;grid-template-columns:1fr auto;gap:2px 6px;align-items:center}
+.pcol.sinasig{margin-bottom:10px;border-top-style:dashed}
+.pcol.sinasig.vacia{padding:6px 10px;opacity:.75}
+.pcol.sinasig.vacia .pcolh{padding:0}
+.pcolh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:12.5px;padding:0 2px 6px}
+.pchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px}
+.pempty{font-size:11.5px;color:var(--tx3);text-align:center;padding:8px 2px}
+.pcol.vacia .pchips{display:block}
+.pchip{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:5px 4px;display:grid;grid-template-columns:auto 1fr auto auto;gap:2px 4px;align-items:center}
 .pchip.drag{opacity:.45}
-.pchip .pname{all:unset;cursor:pointer;font-weight:600;font-size:13px;line-height:1.2;padding:3px 0;min-height:24px;display:flex;align-items:center}
+.pchip .pname{all:unset;cursor:pointer;font-weight:600;font-size:13px;line-height:1.2;padding:3px 0;min-height:24px;display:flex;align-items:center;overflow-wrap:anywhere}
 .pchip .pname:hover{color:var(--volt)}
-.pchip .pname:focus-visible{outline:2px solid var(--volt);outline-offset:2px;border-radius:4px}
-.pchip input.meta-in{width:52px;padding:4px;font-size:13px}
-.pchip .pmeta{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--tx3)}
+.pchip .pname:focus-visible,.parr:focus-visible{outline:2px solid var(--volt);outline-offset:2px;border-radius:4px}
+.pchip input.meta-in{width:46px;padding:4px 2px;font-size:13px}
+.parr{all:unset;cursor:pointer;width:20px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:5px;color:var(--tx3);font-size:17px;line-height:1}
+.parr:hover{background:var(--bg2);color:var(--tx)}
+.parr.off{cursor:default}
+.pchip .pmeta{grid-column:2/-1;display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--tx3)}
 .pst.green{color:var(--green)}.pst.orange{color:var(--orange)}.pst.red{color:var(--red)}.pst.volt{color:var(--volt)}
-.pchip.p0 .pname{color:var(--tx3);font-weight:500}
-@media(max-width:900px){.pboard{grid-template-columns:1fr}.pcol{min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.pcolh,.pempty{grid-column:1/-1}}
+.pchip.p0 .pname,.pchip.pu .pname{color:var(--tx3);font-weight:500}
+.pchip.pu .pname{color:var(--tx2)}
+@media(hover:hover){.parr{opacity:.35}.pchip:hover .parr{opacity:1}}
+@media(max-width:900px){.pboard{grid-template-columns:1fr!important}.pcol.vacia:not(.sinasig) .pempty{display:none}.pcol.vacia:not(.sinasig) .pcolh{padding-bottom:0}}
 .volstale{border:1px solid rgba(255,180,92,.45);background:rgba(255,180,92,.10);border-radius:var(--r-s);padding:10px 12px;margin:12px 0 0;font-size:12.5px;color:var(--tx2);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
 .refgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .mtx{width:100%;border-collapse:separate;border-spacing:6px}
@@ -1057,7 +1069,10 @@ const PHASES=[['introduccion','Introducción','Microciclos de exploración: cerc
 const phaseName=k=>{const f=PHASES.find(p=>p[0]===k);return f?f[1]:k;};
 const expName=k=>{const f=EXPERIENCES.find(e=>e[0]===k);return f?f[1]:k;};
 const phaseDesc=k=>{const f=PHASES.find(p=>p[0]===k);return f?f[2]:'';};
-const PRIOS={4:{lbl:'Máxima',short:'★ Máxima',cls:'red',desc:'Especialización (1-2 músculos) — VMR 80-100%, con cautela y justificación'},1:{lbl:'Primaria',short:'1 · Primaria',cls:'volt',desc:'Músculo a desarrollar — mayor volumen, hacia el VMA alto'},2:{lbl:'Secundaria',short:'2 · Secundaria',cls:'blue',desc:'Mantener y progresar desarrollo — volumen medio, VME-VMA'},3:{lbl:'Terciaria',short:'3 · Terciaria',cls:'orange',desc:'Mantenimiento — volumen bajo, VM-VME'},0:{lbl:'No entrenar',short:'— No entrenar',cls:'',desc:'Sin volumen programado para este bloque'}};
+/* -1 = «Sin asignar» (2026-10-02): antes todo atleta nuevo nacía con los 15 grupos en Secundaria y
+   eso parecía una decisión del coach. Igual que 0, no lleva meta ni banda (volumeRecMatrix → null). */
+const prioOff=pv=>pv===0||pv===-1||pv==null;
+const PRIOS={'-1':{lbl:'Sin asignar',short:'Sin asignar',cls:'',desc:'Aún no decides su prioridad: no cuenta volumen hasta que la asignes'},4:{lbl:'Máxima',short:'★ Máxima',cls:'red',desc:'Especialización (1-2 músculos) — VMR 80-100%, con cautela y justificación'},1:{lbl:'Primaria',short:'1 · Primaria',cls:'volt',desc:'Músculo a desarrollar — mayor volumen, hacia el VMA alto'},2:{lbl:'Secundaria',short:'2 · Secundaria',cls:'blue',desc:'Mantener y progresar desarrollo — volumen medio, VME-VMA'},3:{lbl:'Terciaria',short:'3 · Terciaria',cls:'orange',desc:'Mantenimiento — volumen bajo, VM-VME'},0:{lbl:'No entrenar',short:'— No entrenar',cls:'',desc:'Sin volumen programado para este bloque'}};
 
 /* Landmarks semanales (series directas) — referencia para atleta INTERMEDIO. Configurables. */
 const LANDMARKS={
@@ -1149,7 +1164,9 @@ function ensureProgramming(st){
    if(!p.phase)p.phase='acumulacion';
    if(!p.block)p.block=1;
    p.priorities=p.priorities||{};
-   GROUPS.forEach(g=>{if(p.priorities[g]==null)p.priorities[g]=2;});
+   /* Sin asignar (-1) en vez de Secundaria: solo afecta a grupos que no existían en el perfil,
+      o sea, a atletas nuevos; a los que ya tienen prioridades no se les mueve nada. */
+   GROUPS.forEach(g=>{if(p.priorities[g]==null)p.priorities[g]=-1;});
    if(!p.volTargets)p.volTargets={};
    /* metas viejas sin sello: se sellan con el contexto actual para no lanzar un aviso falso */
    if(!p.volTargetsCtx){p.volTargetsCtx={};GROUPS.forEach(g=>{const t=p.volTargets[g];if(t!=null&&t!=='')p.volTargetsCtx[g]=volCtxKey(p);});}
@@ -4212,17 +4229,17 @@ function coachTabVolumen(aid){
     '<div class="stat"><div class="k">Por sesión</div><div class="v" style="font-size:19px">6-10 <small>series/grupo</small></div><div class="sub">pico de calidad; reparte si excede</div></div></div>');
 
   /* tabla de prioridades + recomendación */
-  const order={4:0,1:1,2:2,3:3,0:4};
+  const order={'-1':-1,4:0,1:1,2:2,3:3,0:4};
   const rows=GROUPS.slice().sort((a,b)=>(order[p.priorities[a]]-order[p.priorities[b]])||GROUPS.indexOf(a)-GROUPS.indexOf(b));
   let trs='';
-  const pcols={4:[],1:[],2:[],3:[],0:[]};
+  const pcols={'-1':[],4:[],1:[],2:[],3:[],0:[]};
   const staleList=staleVolGroups(p),staleSet=new Set(staleList);
   let nOk=0,nAjuste=0;
   rows.forEach(g=>{
     const prio=p.priorities[g],act=directOf(g);
     const mxRec=volumeRecMatrix(prio,exp,phase);
     let psel='<select class="prio-sel" data-p="'+prio+'" data-change="prio" data-aid="'+aid+'" data-group="'+esc(g)+'">';
-    [4,1,2,3,0].forEach(pv=>{psel+='<option value="'+pv+'"'+(prio===pv?' selected':'')+'>'+PRIOS[pv].short+'</option>';});
+    PRIO_ORD.forEach(pv=>{psel+='<option value="'+pv+'"'+(prio===pv?' selected':'')+'>'+PRIOS[pv].short+'</option>';});
     psel+='</select>';
     const fq=freqOf(g);
     const meta=(p.volTargets||{})[g];
@@ -4231,7 +4248,7 @@ function coachTabVolumen(aid){
     const LM=landmarks(g,exp);
     const staleG=staleSet.has(g);
     let recCell,bar,stCell,progCell,metaCell,stC='',stT='';
-    if(prio===0||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0?'orange':'')+'">'+( act>0?'Sin prioridad':'—')+'</span>';progCell='<b>'+act+'</b>';metaCell='<span class="tiny">—</span>';}
+    if(prioOff(prio)||!mxRec){recCell='<span class="tiny">—</span>';bar='';stCell='<span class="badge '+(act>0||prio===-1?'orange':'')+'">'+(prio===-1?'Sin asignar':act>0?'Sin prioridad':'—')+'</span>';progCell='<b>'+act+'</b>';metaCell='<span class="tiny">—</span>';}
     else{
       recCell='<b class="num">'+mxRec.lo+'–'+mxRec.hi+'</b> <span class="tiny">series/sem</span>';
       /* La meta es editable SIEMPRE, tenga o no ejercicios el grupo: al empezar un bloque nuevo
@@ -4257,10 +4274,12 @@ function coachTabVolumen(aid){
       if(st.cls==='orange'||st.cls==='red')nAjuste++;else nOk++;
     }
     /* ficha del tablero: misma meta y mismo estado que la fila de la tabla */
-    const chSt=(prio===0||!mxRec)?(act>0?'<span class="pst orange">'+act+' series en la rutina</span>':''):
+    const chSt=(prioOff(prio)||!mxRec)?(act>0?'<span class="pst orange">'+act+' series en la rutina</span>':''):
       '<span class="pst">'+act+' prog.</span><span class="pst '+stC+'">'+stT+'</span>';
-    pcols[prio in pcols?prio:0].push('<div class="pchip p'+prio+'"><button type="button" class="pname" draggable="true" data-act="prio-tap" data-aid="'+aid+'" data-group="'+esc(g)+'" title="Toca para mandarlo a la categoría del pincel · arrastra para moverlo">'+esc(g)+'</button>'+
-      (prio===0||!mxRec?'':metaCell)+(chSt?'<div class="pmeta">'+chSt+'</div>':'')+'</div>');
+    const ci=PRIO_ORD.indexOf(prio),pvL=PRIO_ORD[ci-1],pvR=PRIO_ORD[ci+1];
+    const arr=(pv,txt)=>pv===undefined?'<span class="parr off"></span>':'<button type="button" class="parr" data-act="prio-move" data-aid="'+aid+'" data-group="'+esc(g)+'" data-p="'+pv+'" title="Mover a '+PRIOS[pv].lbl+'">'+txt+'</button>';
+    (pcols[prio]||pcols[-1]).push('<div class="pchip p'+(prio<0?'u':prio)+'">'+arr(pvL,'‹')+'<button type="button" class="pname" draggable="true" data-act="prio-tap" data-aid="'+aid+'" data-group="'+esc(g)+'" title="Toca para mandarlo a la categoría del pincel · arrastra para moverlo">'+esc(g)+'</button>'+
+      (prioOff(prio)||!mxRec?'':metaCell)+arr(pvR,'›')+(chSt?'<div class="pmeta">'+chSt+'</div>':'')+'</div>');
     trs+='<tr><td>'+psel+'</td><td class="exname">'+esc(g)+'</td><td>'+recCell+'</td><td class="num">'+metaCell+'</td><td class="num">'+progCell+'</td><td style="min-width:110px">'+bar+'</td><td>'+stCell+'</td></tr>';
   });
   /* Un grupo en «No entrenar» con series repartidas en el paso 2 es una contradicción que se
@@ -4295,23 +4314,52 @@ function coachTabVolumen(aid){
    de cada ficha. Todo cambio de prioridad pasa por setPrio(), el mismo camino que el <select>
    de la tabla detallada, para que la meta se rellene y se selle igual venga de donde venga. */
 let PRIO_BRUSH=1;
-function setPrio(aid,g,pv){
+/* Orden de las columnas (y de las flechas ‹ › de cada ficha). */
+const PRIO_ORD=[-1,4,1,2,3,0];
+/* Deshacer: pila por sesión (no se guarda). Cada entrada es una lista de grupos con su prioridad,
+   meta y sello previos, para que «Mandar todo a Sin asignar» se deshaga de un golpe. */
+const PRIO_UNDO=[];
+function prioSnap(pd,g){return{g,pv:pd.priorities[g],t:(pd.volTargets||{})[g],c:(pd.volTargetsCtx||{})[g]};}
+function setPrio(aid,g,pv,undoBatch){
   const pd=athData(aid).profile;
+  if(pd.priorities[g]===pv)return false;
+  const snap=prioSnap(pd,g);
+  if(undoBatch)undoBatch.push(snap);else{PRIO_UNDO.push({aid,lbl:g+' → '+PRIOS[pv].lbl,items:[snap]});if(PRIO_UNDO.length>30)PRIO_UNDO.shift();}
   pd.priorities[g]=pv;
   pd.volTargets=pd.volTargets||{};
-  if(pv===0){delete pd.volTargets[g];}
+  if(prioOff(pv)){delete pd.volTargets[g];}
   else{const pr=volumeRecMatrix(pv,pd.experience,pd.phase);if(pr)pd.volTargets[g]=pr.lo;}
   stampVolTarget(pd,g);
+  return true;
+}
+function prioUndo(aid){
+  let i=PRIO_UNDO.length-1;while(i>=0&&PRIO_UNDO[i].aid!==aid)i--;if(i<0)return;
+  const e=PRIO_UNDO.splice(i,1)[0],pd=athData(aid).profile;
+  pd.volTargets=pd.volTargets||{};pd.volTargetsCtx=pd.volTargetsCtx||{};
+  e.items.slice().reverse().forEach(x=>{
+    pd.priorities[x.g]=x.pv;
+    if(x.t==null)delete pd.volTargets[x.g];else pd.volTargets[x.g]=x.t;
+    if(x.c==null)delete pd.volTargetsCtx[x.g];else pd.volTargetsCtx[x.g]=x.c;
+  });
 }
 function prioBoard(aid,pcols,exp,phase){
-  const ord=[4,1,2,3,0];
-  const brush='<div class="pbrush"><span class="tiny">Pincel:</span>'+ord.map(pv=>'<button type="button" class="pbr p'+pv+(PRIO_BRUSH===pv?' on':'')+'" data-act="prio-brush" data-p="'+pv+'">'+PRIOS[pv].short+'</button>').join('')+'</div>';
-  const cols=ord.map(pv=>{
-    const r=pv?volumeRecMatrix(pv,exp,phase):null;
-    return '<div class="pcol p'+pv+'" data-prio-drop="'+pv+'" data-aid="'+aid+'"><div class="pcolh"><b>'+PRIOS[pv].short+'</b><span class="tiny">'+pcols[pv].length+(r?' · rec '+r.lo+'–'+r.hi:'')+'</span></div>'+
-      (pcols[pv].join('')||'<div class="pempty">'+(pv===4?'Especialización: 1-2 músculos como mucho':'Vacío')+'</div>')+'</div>';
-  }).join('');
-  return brush+'<div class="pboard">'+cols+'</div><p class="tiny mt8">Elige una categoría como pincel y toca los músculos para moverlos; en computadora también puedes arrastrarlos. Al cambiar de categoría la meta se rellena con el piso recomendado; luego la ajustas en la ficha.</p>';
+  const brush='<div class="pbrush"><span class="tiny">Pincel:</span>'+PRIO_ORD.map(pv=>'<button type="button" class="pbr p'+(pv<0?'u':pv)+(PRIO_BRUSH===pv?' on':'')+'" data-act="prio-brush" data-p="'+pv+'">'+PRIOS[pv].short+'</button>').join('')+'</div>';
+  let lastU=null;for(let i=PRIO_UNDO.length-1;i>=0;i--)if(PRIO_UNDO[i].aid===aid){lastU=PRIO_UNDO[i];break;}
+  const nU=pcols[-1].length;
+  const tools='<div class="ptools">'+
+    (lastU?'<button type="button" class="btn btn-g btn-sm" data-act="prio-undo" data-aid="'+aid+'" title="Deshace el último movimiento y regresa la meta que tenía">↶ Deshacer <span class="tiny">('+esc(lastU.lbl)+')</span></button>':'')+
+    (nU<GROUPS.length?'<button type="button" class="btn btn-g btn-sm" data-act="prio-reset" data-aid="'+aid+'" title="Regresa los 15 grupos a «Sin asignar» y borra sus metas, para acomodar desde cero. Se puede deshacer.">Mandar todo a Sin asignar</button>':'')+'</div>';
+  const col=pv=>{
+    const r=prioOff(pv)?null:volumeRecMatrix(pv,exp,phase),n=pcols[pv].length;
+    return '<div class="pcol p'+pv+(n?'':' vacia')+'" data-prio-drop="'+pv+'" data-aid="'+aid+'"><div class="pcolh"><b>'+PRIOS[pv].short+'</b><span class="tiny">'+n+(r?' · rec '+r.lo+'–'+r.hi:'')+'</span></div>'+
+      '<div class="pchips">'+(pcols[pv].join('')||'<div class="pempty">'+(pv===4?'1-2 músculos como mucho':'Vacío')+'</div>')+'</div></div>';
+  };
+  /* Ancho según contenido: una columna vacía se encoge y una con muchas fichas se ensancha y las
+     acomoda en dos filas, para que el tablero quede bajo y sin huecos debajo de las cortas. */
+  const fr=PRIO_ORD.slice(1).map(pv=>{const n=pcols[pv].length;return n?'minmax(0,'+Math.max(1,n/3).toFixed(2)+'fr)':'minmax(104px,.55fr)';}).join(' ');
+  const unas=nU?'<div class="pcol pu sinasig" data-prio-drop="-1" data-aid="'+aid+'"><div class="pcolh"><b>Sin asignar</b><span class="tiny">⚠ Faltan '+nU+' por asignar · no cuentan volumen</span></div><div class="pchips">'+pcols[-1].join('')+'</div></div>':
+    '<div class="pcol pu sinasig vacia" data-prio-drop="-1" data-aid="'+aid+'"><div class="pcolh"><b>Sin asignar</b><span class="tiny">✓ Todos los grupos tienen prioridad · arrastra aquí para regresar uno</span></div></div>';
+  return brush+tools+unas+'<div class="pboard" style="grid-template-columns:'+fr+'">'+PRIO_ORD.slice(1).map(col).join('')+'</div><p class="tiny mt8">Elige una categoría como pincel y toca los músculos para moverlos; con ‹ › los pasas a la columna de al lado, y en computadora también puedes arrastrarlos. Al asignar una categoría la meta se rellena con el piso recomendado; luego la ajustas en la ficha. Todo cambio aquí se ve igual en la tabla detallada y en el resto del panel.</p>';
 }
 /* arrastre (solo escritorio; en táctil se usa el pincel) */
 let _prioDrag=null;
@@ -4328,8 +4376,7 @@ document.addEventListener('dragover',e=>{
 document.addEventListener('drop',e=>{
   if(!_prioDrag)return;const c=e.target.closest&&e.target.closest('[data-prio-drop]');const dg=_prioDrag;_prioDrag=null;if(!c)return;
   e.preventDefault();const pv=parseInt(c.dataset.prioDrop,10);
-  if(athData(dg.aid).profile.priorities[dg.g]===pv){render();return;}
-  setPrio(dg.aid,dg.g,pv);saveState();render();
+  if(setPrio(dg.aid,dg.g,pv))saveState();render();
 });
 document.addEventListener('dragend',()=>{_prioDrag=null;document.querySelectorAll('.pcol.over,.pchip.drag').forEach(x=>x.classList.remove('over','drag'));});
 
@@ -5532,7 +5579,7 @@ function exVolCore(aid,exId,nm,sets){
     const left=Math.round(mxR.lo/scale*100),w=Math.max(2,Math.round((mxR.hi-mxR.lo)/scale*100)),ax=Math.min(100,Math.round(proj/scale*100));
     bar='<div class="volbar" style="margin:8px 0" title="Recomendado: '+mxR.lo+'–'+mxR.hi+' series/sem"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
   }
-  const recTxt=(mxR&&prio!==0)?('Recomendado '+mxR.lo+'–'+mxR.hi+' series/sem'+(hasTgt?' · objetivo '+tgt:'')+' · prioridad '+(PRIOS[prio]?PRIOS[prio].lbl:'')):'Este grupo está como «no entrenar» en la fase actual.';
+  const recTxt=(mxR&&prio!==0)?('Recomendado '+mxR.lo+'–'+mxR.hi+' series/sem'+(hasTgt?' · objetivo '+tgt:'')+' · prioridad '+(PRIOS[prio]?PRIOS[prio].lbl:'')):(prio===-1?'Este grupo aún está «sin asignar»: dale prioridad en Volumen y fase para ver su recomendado.':'Este grupo está como «no entrenar» en la fase actual.');
   const sec=(lib.secondary||[]).length?'<p class="tiny" style="margin:6px 0 0;color:var(--tx3)">Indirecto: '+esc(lib.secondary.join(', '))+'</p>':'';
   /* categoría / patrón biomecánico */
   let catTxt='';
@@ -9661,7 +9708,7 @@ Object.assign(ACTIONS,{
     let sop='';SPLIT_STYLES.forEach(s=>{sop+='<option value="'+s[0]+'">'+s[1]+'</option>';});
     const prev=splitTemplate(cur,d.profile.experience,'auto').map(t=>t.name).join(' · ');
     const prio=d.profile.priorities||{};
-    const trained=GROUPS.filter(g=>prio[g]!==0);
+    const trained=GROUPS.filter(g=>!prioOff(prio[g]));
     let chips=trained.map(g=>'<label class="spchip"><input type="checkbox" value="'+esc(g)+'"> '+esc(g)+'</label>').join('');
     if(!chips)chips='<span class="tiny muted">Este atleta no tiene grupos activos (todas las prioridades en 0).</span>';
     openModal('Generar split automático',
@@ -9761,7 +9808,10 @@ Object.assign(ACTIONS,{
   /* Quita del paso 2 el reparto de los grupos en «No entrenar». Solo el plan: los ejercicios se
      quedan donde están, porque quitarlos es una decisión de rutina y se toma en su pestaña. */
   'prio-brush':el=>{PRIO_BRUSH=parseInt(el.dataset.p,10);render();},
-  'prio-tap':el=>{const aid=el.dataset.aid,g=el.dataset.group;if(athData(aid).profile.priorities[g]===PRIO_BRUSH)return;setPrio(aid,g,PRIO_BRUSH);saveState();render();},
+  'prio-tap':el=>{if(setPrio(el.dataset.aid,el.dataset.group,PRIO_BRUSH)){saveState();render();}},
+  'prio-move':el=>{if(setPrio(el.dataset.aid,el.dataset.group,parseInt(el.dataset.p,10))){saveState();render();}},
+  'prio-undo':el=>{prioUndo(el.dataset.aid);saveState();render();},
+  'prio-reset':el=>{const aid=el.dataset.aid,items=[];GROUPS.forEach(g=>setPrio(aid,g,-1,items));if(items.length){PRIO_UNDO.push({aid,lbl:'todo a Sin asignar',items});saveState();render();}},
   'plan-zero-clean':el=>{
     const aid=el.dataset.aid,d=athData(aid);
     let n=0;
@@ -10300,7 +10350,7 @@ function applyCard(aid){
         });
       });
       if(!rows)rows='<tr><td colspan="6" class="tiny">Este grupo aún no tiene ejercicios en la rutina — añádelos en la pestaña Rutina.</td></tr>';
-      const pr=PRIOS[p.priorities[g]];
+      const pr=PRIOS[p.priorities[g]]||PRIOS[-1];
       inner+='<div class="sect-h" style="margin:14px 0 8px"><h2 style="font-size:14px">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+volTxt+'</span></div>'+
         '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Sesión y ejercicios del grupo</th><th style="width:60px">Series</th><th style="width:64px">Est.</th><th style="width:64px">Real</th><th style="width:56px">RPE</th><th style="width:88px">Aplicar</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     });
