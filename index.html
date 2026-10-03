@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-02.2">
+<meta name="lr-build" content="2026-10-03.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -7193,8 +7193,64 @@ Object.assign(ACTIONS,{
     if(!await delFoodRow(el.dataset.fid))return;
     S.foods=S.foods.filter(x=>x.id!==el.dataset.fid);
     closeModal();toast('Alimento eliminado');render();
+  },
+  /* buscar en bases externas (Edge Function alimentos-buscar: Open Food Facts + USDA + FatSecret).
+     Nada entra directo: «Agregar» abre el modal de «Nuevo alimento» ya lleno y el coach revisa y guarda. */
+  'fext-modal':()=>{
+    openModal('Buscar en bases externas','<p class="tiny" style="margin-top:0">Open Food Facts (empacados, primero México), USDA (alimentos naturales) y FatSecret. Revisa siempre los valores antes de guardar.</p>'+
+    '<div style="display:flex;gap:8px"><input id="fext_q" placeholder="Ej. yogur griego, avena, tortilla de maíz…" autocomplete="off" value="'+esc(FEXT.q)+'" style="flex:1"><button class="btn btn-p" data-act="fext-go">Buscar</button></div>'+
+    '<div id="fext_res" style="margin-top:12px">'+fextResHTML()+'</div>',
+    '<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
+    setTimeout(()=>{const i=document.getElementById('fext_q');if(i)i.focus();},50);
+  },
+  'fext-go':async()=>{
+    const q=val('fext_q');if(q.length<2){toast('Escribe al menos 2 letras');return;}
+    if(FEXT.busy)return;
+    FEXT={q:q,items:[],sources:null,err:'',busy:true};
+    const box=document.getElementById('fext_res');if(box)box.innerHTML='<p class="tiny muted">Buscando en las tres bases…</p>';
+    let data=null,error=null;
+    try{const r=await supa.functions.invoke('alimentos-buscar',{body:{q:q}});data=r.data;error=r.error;}catch(e){error=e;}
+    if(error||!data||!data.ok){
+      let msg=(data&&data.error)||'No pude buscar ahora. Vuelve a intentar.';
+      try{if(error&&error.context&&error.context.json){const j=await error.context.json();if(j&&j.error)msg=j.error;}}catch(_){}
+      FEXT.err=msg;
+    }else{FEXT.items=data.items||[];FEXT.sources=data.sources||null;}
+    FEXT.busy=false;
+    const b2=document.getElementById('fext_res');if(b2&&FEXT.q===q)b2.innerHTML=fextResHTML();
+  },
+  'fext-pick':el=>{
+    const x=FEXT.items[+el.dataset.i];if(!x)return;
+    ACTIONS['food-new-modal']();
+    const set=(id,v)=>{const i=document.getElementById(id);if(i)i.value=v;};
+    set('fo_name',x.name);set('fo_cat',FOOD_CATS.indexOf(x.cat)>=0?x.cat:'Otros');
+    set('fo_p',x.p);set('fo_c',x.c);set('fo_f',x.f);
+    const u=document.getElementById('fo_unit');
+    if(u&&x.unit==='u'){u.value='u';u.dispatchEvent(new Event('change',{bubbles:true}));set('fo_unitlabel',x.unitLabel||'porción');}
+    const n=document.getElementById('fo_name');
+    if(n)n.insertAdjacentHTML('afterend','<p class="tiny muted" style="margin:4px 0 0">De '+FEXT_SRC[x.src]+(x.nameOrig&&x.nameOrig!==x.name?' · original: '+esc(x.nameOrig):'')+'. Puedes cambiar el nombre y los valores.</p>');
   }
 });
+let FEXT={q:'',items:[],sources:null,err:'',busy:false};
+const FEXT_SRC={off:'Open Food Facts',usda:'USDA',fs:'FatSecret'};
+function fextResHTML(){
+  if(FEXT.err)return '<div class="empty"><b>No se pudo buscar</b>'+esc(FEXT.err)+'</div>';
+  if(!FEXT.q)return '';
+  const have={};(S.foods||[]).forEach(f=>{if(f&&f.name)have[f.name.toLowerCase()]=1;});
+  let h='';
+  FEXT.items.forEach((x,i)=>{
+    const per=x.unit==='u'?'por '+esc(x.unitLabel||'porción'):'/100 g';
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2)"><div style="flex:1;min-width:0">'+
+      '<div style="font-weight:600">'+esc(x.name)+(x.brand?' <span class="tiny muted">· '+esc(x.brand)+'</span>':'')+'</div>'+
+      '<div class="tiny muted"><span class="chip">'+FEXT_SRC[x.src]+'</span> '+esc(x.cat||'Otros')+' · '+x.kcal+' kcal · P '+x.p+' · C '+x.c+' · G '+x.f+' '+per+
+      (have[String(x.name).toLowerCase()]?' · <b>ya está en tu base</b>':'')+'</div></div>'+
+      '<button class="btn btn-g" data-act="fext-pick" data-i="'+i+'">Agregar</button></div>';
+  });
+  if(!h)h='<div class="empty"><b>Sin resultados</b>Prueba con otras palabras (más generales o con la marca).</div>';
+  /* fuentes que fallaron o aún no tienen clave: se dice, sin esconder los resultados de las demás */
+  const S2=FEXT.sources||{},bad=Object.keys(FEXT_SRC).filter(k=>S2[k]&&!S2[k].ok);
+  if(bad.length)h+='<p class="tiny muted" style="margin-top:10px">'+bad.map(k=>'<b>'+FEXT_SRC[k]+':</b> '+esc(S2[k].msg||'no respondió')).join('<br>')+'</p>';
+  return h;
+}
 
 /* binding de inputs del registro de entreno y selects */
 document.addEventListener('input',e=>{
@@ -7273,6 +7329,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('keydown',e=>{
   const el=e.target;
+  if(el&&el.id==='fext_q'&&e.key==='Enter'){e.preventDefault();ACTIONS['fext-go']();return;}
   if(el&&el.id==='chat_input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();ACTIONS['chat-send']({dataset:{aid:el.dataset.chatAid,from:el.dataset.chatFrom}});}
 });
 /* ---- kbdWatch: teclado abierto en móvil (s74) ----
@@ -8518,7 +8575,7 @@ VIEWS['foods']=function(u){
   });
   if(!rows)rows='<tr><td colspan="6"><div class="empty"><b>Sin resultados</b>Prueba con otro término o añade el alimento.</div></td></tr>';
   return{title:'Base de alimentos',crumb:(S.foods||[]).length+' alimentos · valores por 100 g o por pieza/porción (ver cada fila) · tus atletas los usan al registrar comidas',back:{v:'apoyo'},
-    actions:'<button class="btn btn-p" data-act="food-new-modal">'+I.plus+' Nuevo alimento</button>',
+    actions:'<button class="btn btn-g" data-act="fext-modal">Buscar en bases externas</button><button class="btn btn-p" data-act="food-new-modal">'+I.plus+' Nuevo alimento</button>',
     body:'<div class="filterbar"><input id="food_q" placeholder="Buscar alimento o categoría…" value="'+esc(route.params.q||'')+'" data-live="food-q"></div>'+
     '<div class="card"><div class="tblwrap"><table class="tbl"><thead><tr><th>Alimento</th><th style="width:70px">kcal</th><th style="width:60px">P (g)</th><th style="width:60px">C (g)</th><th style="width:60px">G (g)</th><th style="width:80px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'};
 };
