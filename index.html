@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-04.2">
+<meta name="lr-build" content="2026-10-04.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -721,6 +721,35 @@ input.meta-in.old{border-style:dashed}
   body.kbd-open .content{padding-bottom:24px}
 }
 @media(max-width:560px){.g3,.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}.week{gap:4px}}
+/* ---- Barra de abajo en teléfono: más delgada, se esconde al bajar y se puede colapsar (2026-10-04) ----
+   Medía ~115 px (nombres en dos líneas). Ahora ~60 px con nombres en una línea. body.nav-hide la
+   esconde mientras se hace scroll hacia abajo (navScrollWatch) y body.nav-col la deja colapsada a
+   petición (pestaña .nav-tab, preferencia en localStorage). Al esconderse con translateY(100%) la
+   pestaña, que cuelga encima de la barra, queda asomada en el borde inferior para volver a abrirla. */
+.nav-tab{display:none}
+@media(max-width:920px){
+  .sidebar{padding-top:4px;padding-bottom:calc(4px + env(safe-area-inset-bottom,0px))}
+  .nav-item{padding:6px 2px;gap:2px;font-size:10.5px;min-width:0}
+  .nav-item .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .content{padding-bottom:84px}
+  /* el avatar no sirve de nada aquí y apilaba «Salir» debajo (la barra medía 105 px): «Salir» pasa
+     a ser un botón más de la fila */
+  .side-foot{display:contents}
+  .side-foot .side-user{display:none}
+  /* en iPhone deja asomar la franja de la rayita de inicio, para que la pestaña no quede encima del gesto */
+  body.nav-hide .sidebar,body.nav-col .sidebar{transform:translateY(calc(100% - env(safe-area-inset-bottom,0px)))}
+  .nav-tab{display:flex;align-items:center;justify-content:center;position:absolute;right:12px;top:-26px;width:44px;height:26px;
+    background:var(--bg2);border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0;color:var(--tx2)}
+  .nav-tab svg{transition:transform .18s}
+  body.nav-hide .nav-tab svg,body.nav-col .nav-tab svg{transform:rotate(180deg)}
+  body.kbd-open .nav-tab{display:none}
+}
+@media(min-width:701px){
+  body.nav-hide .shell.coach .sidebar,body.nav-col .shell.coach .sidebar{transform:none}
+  .shell.coach .nav-tab{display:none}
+  .shell.coach .side-foot{display:block}
+  .shell.coach .side-foot .side-user{display:flex}
+}
 /* El atleta tiene 7 pestañas + «Salir» (s63: se sumó «Perfil»). A 375 px la suma pasaba del ancho y
    «Salir» quedaba fuera de pantalla, sin forma de cerrar sesión desde el móvil. Medido en Edge a 375, 360
    y 320 px: con esto caben todos. Si se agrega otra pestaña, volver a medir. */
@@ -3482,6 +3511,21 @@ let _htmlSide=null,_htmlTop=null,_htmlBody=null;
 /* Menú lateral del coach colapsado (solo íconos). Sin preferencia guardada: colapsado si la
    pantalla mide menos de 1100 px (iPad), expandido en computadora. */
 const LS_SIDE='lrc_side_col_v1';
+/* Barra de abajo (teléfono): colapsada a petición y escondida mientras se baja. */
+const LS_NAVCOL='lrc_nav_col_v1';
+try{if(localStorage.getItem(LS_NAVCOL)==='1')document.body.classList.add('nav-col');}catch(e){}
+(function navScrollWatch(){
+  let lastY=window.scrollY||0;
+  const mq=window.matchMedia?window.matchMedia('(max-width:920px)'):null;
+  window.addEventListener('scroll',function(){
+    const y=window.scrollY||0,dy=y-lastY,b=document.body;
+    if(!mq||!mq.matches){lastY=y;return;}
+    const alFinal=window.innerHeight+y>=document.documentElement.scrollHeight-4;
+    if(y<60||alFinal||dy<-8)b.classList.remove('nav-hide');
+    else if(dy>8)b.classList.add('nav-hide');
+    if(Math.abs(dy)>8||y<60)lastY=y;
+  },{passive:true});
+})();
 function sideColapsada(){try{const v=localStorage.getItem(LS_SIDE);if(v!=null)return v==='1';}catch(e){}return window.innerWidth<1100;}
 /* Guardia del atajo de arriba. Hay una docena de sitios que escriben DENTRO del
    contenido sin pasar por render(): el resultado de la calculadora de dieta, el del
@@ -3522,6 +3566,7 @@ function renderUnsafe(){
     navHTML+='<button class="nav-item'+(on?' on':'')+'" title="'+esc(it.label)+'" data-act="nav" data-view="'+it.v+'" data-params=\''+(it.p?JSON.stringify(it.p):'{}')+'\'>'+it.icon+'<span class="lbl">'+esc(it.label)+'</span>'+(it.badge?'<span class="navbadge">'+it.badge+'</span>':'')+'</button>';
   });
   const sideHTML='<div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+
+    '<button type="button" class="nav-tab" data-act="nav-tab" aria-label="Mostrar u ocultar la barra" title="Mostrar / ocultar la barra"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>'+
     (u.role==='coach'?'<button type="button" class="side-tog" data-act="side-tog" title="Colapsar / expandir el menú"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="lbl">Colapsar menú</span></button>':'')+navHTML+
     '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
   const topHTML=(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div>';
@@ -3803,7 +3848,10 @@ const ACTIONS={
     closeModal();toast('Correo del atleta actualizado');
     const t=document.getElementById('ath_email_txt');if(t&&t.dataset.aid===aid)t.textContent=email;
   },
-  'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
+  'nav':el=>{document.body.classList.remove('nav-hide');nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
+  /* pestaña de la barra de abajo: si está escondida por scroll solo la muestra; si no, alterna colapsada */
+  'nav-tab':()=>{const b=document.body;if(b.classList.contains('nav-hide')&&!b.classList.contains('nav-col')){b.classList.remove('nav-hide');return;}
+    const col=!b.classList.contains('nav-col');b.classList.toggle('nav-col',col);b.classList.remove('nav-hide');try{localStorage.setItem(LS_NAVCOL,col?'1':'0');}catch(e){}},
   'side-tog':()=>{const col=!sideColapsada();try{localStorage.setItem(LS_SIDE,col?'1':'0');}catch(e){}const sh=document.querySelector('.shell');if(sh)sh.classList.toggle('side-col',col);},
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);syncChatAdd(aid,m);saveStateCola();render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
