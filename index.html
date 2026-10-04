@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-04.1">
+<meta name="lr-build" content="2026-10-04.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -728,6 +728,39 @@ input.meta-in.old{border-style:dashed}
   .sidebar{padding-left:4px;padding-right:4px;gap:0}
   .nav-item{font-size:10px;padding:8px 1px}
 }
+/* ---- Panel del COACH: el mismo diseño de escritorio en tablet y computadora (2026-10-04) ----
+   Antes, por debajo de 920 px (iPad vertical) el coach caía en el diseño de teléfono: barra de
+   navegación fija abajo y cabecera fija arriba. Ahora, desde 701 px, el coach conserva la barra
+   lateral (colapsable a franja de íconos, botón .side-tog, preferencia en localStorage) y la
+   cabecera se va con el scroll. Por debajo de 701 px sigue el diseño de teléfono. El atleta no
+   cambia: .shell.coach solo se pone con rol coach. */
+.side-tog{display:none}
+@media(min-width:701px){
+  .shell.coach{grid-template-columns:var(--side-w,236px) 1fr}
+  .shell.coach.side-col{--side-w:68px}
+  .shell.coach .topbar{position:static;backdrop-filter:none;background:transparent}
+  .shell.coach .sidebar{position:sticky;top:0;bottom:auto;height:100vh;flex-direction:column;align-items:stretch;padding:22px 12px;border-top:none;border-right:1px solid var(--line);gap:6px;transform:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden}
+  .shell.coach .brand{display:flex}
+  .shell.coach .side-user .who{display:block}
+  .shell.coach .nav-item{flex-direction:row;gap:11px;font-size:14px;padding:10px 12px;flex:none;align-items:center;position:relative}
+  .shell.coach .side-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px}
+  .shell.coach .side-tog{display:flex;align-items:center;gap:11px;width:100%;padding:8px 12px;margin-bottom:6px;border-radius:var(--r-s);color:var(--tx3);font-size:12.5px;font-weight:500}
+  .shell.coach .side-tog:hover{background:var(--card);color:var(--tx)}
+  .shell.coach .side-tog svg{flex:none;transition:transform .15s}
+  .shell.coach.side-col .side-tog svg{transform:rotate(180deg)}
+  .shell.coach.side-col .sidebar{padding:22px 10px}
+  .shell.coach.side-col .brand{justify-content:center;padding:0 0 18px}
+  .shell.coach.side-col .brand-name,.shell.coach.side-col .nav-item .lbl,.shell.coach.side-col .side-tog .lbl,.shell.coach.side-col .side-user .who{display:none}
+  .shell.coach.side-col .nav-item,.shell.coach.side-col .side-tog{justify-content:center;padding:10px 0}
+  .shell.coach.side-col .side-user{justify-content:center;padding:8px 0}
+  .shell.coach.side-col .navbadge{position:absolute;top:2px;right:4px;padding:0 5px;font-size:10px;min-width:16px}
+}
+@media(min-width:701px) and (max-width:920px){
+  .shell.coach .content{padding:20px 20px 60px}
+  .shell.coach .topbar{padding:14px 20px}
+}
+/* monitor grande: el coach aprovecha más ancho (la rutina por días ya tenía su propio ancho) */
+@media(min-width:1500px){.shell.coach .content{max-width:1400px}}
 /* ---- targets táctiles: solo en dispositivos de puntero grueso (no afecta densidad en escritorio) ---- */
 @media(pointer:coarse){
   .btn-sm{padding:9px 14px;font-size:13px}
@@ -3446,6 +3479,10 @@ function render(){
    recuperar contraseña): al volver se reconstruye entero y nadie compara contra un
    recuerdo que ya no está en el documento. */
 let _htmlSide=null,_htmlTop=null,_htmlBody=null;
+/* Menú lateral del coach colapsado (solo íconos). Sin preferencia guardada: colapsado si la
+   pantalla mide menos de 1100 px (iPad), expandido en computadora. */
+const LS_SIDE='lrc_side_col_v1';
+function sideColapsada(){try{const v=localStorage.getItem(LS_SIDE);if(v!=null)return v==='1';}catch(e){}return window.innerWidth<1100;}
 /* Guardia del atajo de arriba. Hay una docena de sitios que escriben DENTRO del
    contenido sin pasar por render(): el resultado de la calculadora de dieta, el del
    1RM, el buscador de ejercicios, las filas de ingredientes de una receta… Si uno de
@@ -3482,9 +3519,10 @@ function renderUnsafe(){
   const page=V(u);
   let navHTML='';navItemsFor(u).forEach(it=>{
     const on=it.match?it.match(route):route.view===it.v;
-    navHTML+='<button class="nav-item'+(on?' on':'')+'" data-act="nav" data-view="'+it.v+'" data-params=\''+(it.p?JSON.stringify(it.p):'{}')+'\'>'+it.icon+'<span class="lbl">'+esc(it.label)+'</span>'+(it.badge?'<span class="navbadge">'+it.badge+'</span>':'')+'</button>';
+    navHTML+='<button class="nav-item'+(on?' on':'')+'" title="'+esc(it.label)+'" data-act="nav" data-view="'+it.v+'" data-params=\''+(it.p?JSON.stringify(it.p):'{}')+'\'>'+it.icon+'<span class="lbl">'+esc(it.label)+'</span>'+(it.badge?'<span class="navbadge">'+it.badge+'</span>':'')+'</button>';
   });
-  const sideHTML='<div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+navHTML+
+  const sideHTML='<div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+
+    (u.role==='coach'?'<button type="button" class="side-tog" data-act="side-tog" title="Colapsar / expandir el menú"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="lbl">Colapsar menú</span></button>':'')+navHTML+
     '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
   const topHTML=(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div>';
   const bodyHTML=page.body;
@@ -3497,6 +3535,8 @@ function renderUnsafe(){
     _htmlSide=_htmlTop=_htmlBody=null;   /* documento nuevo: lo recordado ya no vale */
     vigilarCuerpo(shell);
   }
+  shell.classList.toggle('coach',u.role==='coach');
+  shell.classList.toggle('side-col',u.role==='coach'&&sideColapsada());
   const cambiaSide=(_htmlSide!==sideHTML),cambiaTop=(_htmlTop!==topHTML);
   const cambioCuerpo=(_htmlBody!==bodyHTML||_cuerpoTocado);
   if(cambiaSide&&cambiaTop&&cambioCuerpo){
@@ -3764,6 +3804,7 @@ const ACTIONS={
     const t=document.getElementById('ath_email_txt');if(t&&t.dataset.aid===aid)t.textContent=email;
   },
   'nav':el=>{nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
+  'side-tog':()=>{const col=!sideColapsada();try{localStorage.setItem(LS_SIDE,col?'1':'0');}catch(e){}const sh=document.querySelector('.shell');if(sh)sh.classList.toggle('side-col',col);},
   'chat-send':el=>{const aid=el.dataset.aid,from=el.dataset.from,inp=document.getElementById('chat_input');if(!inp)return;const txt=inp.value.trim();if(!txt)return;const m={id:uid(),from,text:txt,ts:Date.now(),read:false};chatOf(aid).push(m);syncChatAdd(aid,m);saveStateCola();render();const i2=document.getElementById('chat_input');if(i2)i2.focus();},
   'modal-close':()=>closeModal(),
   'modal-overlay':()=>{if($('#modal-root').dataset.persist==='1')return;closeModal();},
