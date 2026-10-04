@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-03.1">
+<meta name="lr-build" content="2026-10-04.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4319,6 +4319,9 @@ const PRIO_ORD=[-1,4,1,2,3,0];
 /* Deshacer: pila por sesión (no se guarda). Cada entrada es una lista de grupos con su prioridad,
    meta y sello previos, para que «Mandar todo a Sin asignar» se deshaga de un golpe. */
 const PRIO_UNDO=[];
+let _prioUltMov=0;
+const prioMovido=()=>{_prioUltMov=Date.now();};
+const prioRebote=()=>Date.now()-_prioUltMov<500;
 function prioSnap(pd,g){return{g,pv:pd.priorities[g],t:(pd.volTargets||{})[g],c:(pd.volTargetsCtx||{})[g]};}
 function setPrio(aid,g,pv,undoBatch){
   const pd=athData(aid).profile;
@@ -4347,7 +4350,9 @@ function prioBoard(aid,pcols,exp,phase){
   let lastU=null;for(let i=PRIO_UNDO.length-1;i>=0;i--)if(PRIO_UNDO[i].aid===aid){lastU=PRIO_UNDO[i];break;}
   const nU=pcols[-1].length;
   const tools='<div class="ptools">'+
-    (lastU?'<button type="button" class="btn btn-g btn-sm" data-act="prio-undo" data-aid="'+aid+'" title="Deshace el último movimiento y regresa la meta que tenía">↶ Deshacer <span class="tiny">('+esc(lastU.lbl)+')</span></button>':'')+
+    /* «Deshacer» siempre presente (apagado si no hay nada): si apareciera con el primer movimiento,
+       el tablero entero brincaría hacia abajo justo bajo el puntero. */
+    (lastU?'<button type="button" class="btn btn-g btn-sm" data-act="prio-undo" data-aid="'+aid+'" title="Deshace el último movimiento y regresa la meta que tenía">↶ Deshacer <span class="tiny">('+esc(lastU.lbl)+')</span></button>':'<button type="button" class="btn btn-g btn-sm" disabled title="Aún no hay movimientos que deshacer">↶ Deshacer</button>')+
     (nU<GROUPS.length?'<button type="button" class="btn btn-g btn-sm" data-act="prio-reset" data-aid="'+aid+'" title="Regresa los 15 grupos a «Sin asignar» y borra sus metas, para acomodar desde cero. Se puede deshacer.">Mandar todo a Sin asignar</button>':'')+'</div>';
   const col=pv=>{
     const r=prioOff(pv)?null:volumeRecMatrix(pv,exp,phase),n=pcols[pv].length;
@@ -9865,8 +9870,11 @@ Object.assign(ACTIONS,{
   /* Quita del paso 2 el reparto de los grupos en «No entrenar». Solo el plan: los ejercicios se
      quedan donde están, porque quitarlos es una decisión de rutina y se toma en su pestaña. */
   'prio-brush':el=>{PRIO_BRUSH=parseInt(el.dataset.p,10);render();},
-  'prio-tap':el=>{if(setPrio(el.dataset.aid,el.dataset.group,PRIO_BRUSH)){saveState();render();}},
-  'prio-move':el=>{if(setPrio(el.dataset.aid,el.dataset.group,parseInt(el.dataset.p,10))){saveState();render();}},
+  /* Tras mover una ficha el tablero se reacomoda; el 2.º clic de un doble clic caía en lo que quedó
+     bajo el puntero (p. ej. la ‹ de la misma ficha, que la mandaba a Máxima). Se ignoran clics
+     de ficha/flecha que llegan <500 ms después de un movimiento. */
+  'prio-tap':el=>{if(prioRebote())return;if(setPrio(el.dataset.aid,el.dataset.group,PRIO_BRUSH)){prioMovido();saveState();render();}},
+  'prio-move':el=>{if(prioRebote())return;if(setPrio(el.dataset.aid,el.dataset.group,parseInt(el.dataset.p,10))){prioMovido();saveState();render();}},
   'prio-undo':el=>{prioUndo(el.dataset.aid);saveState();render();},
   'prio-reset':el=>{const aid=el.dataset.aid,items=[];GROUPS.forEach(g=>setPrio(aid,g,-1,items));if(items.length){PRIO_UNDO.push({aid,lbl:'todo a Sin asignar',items});saveState();render();}},
   'plan-zero-clean':el=>{
