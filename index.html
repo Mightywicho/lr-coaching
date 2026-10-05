@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-04.7">
+<meta name="lr-build" content="2026-10-05.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -284,6 +284,10 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .bigrp-h{padding:9px 15px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--volt);background:var(--volt-08)}
 .bigrp .wlog-ex{margin:9px;border-radius:12px}
 .techhint{font-size:11.5px;color:var(--tx2);margin-top:3px;line-height:1.4}
+/* Indicaciones técnicas del coach en la vista del atleta: antes iban pegadas al final de la
+   línea gris de «Objetivo» y el atleta no las distinguía. Ahora van en su propio recuadro. */
+.exind{margin-top:6px;padding:6px 9px;border-left:3px solid var(--blue);background:rgba(124,208,251,.08);border-radius:6px;font-size:12.5px;line-height:1.4;color:var(--tx);white-space:pre-line}
+.exind b{color:var(--blue);font-weight:600;margin-right:4px}
 .addset{margin:4px 16px 12px;font-size:12.5px;color:var(--volt);font-weight:600;padding:5px 8px;border-radius:7px}
 .addset:hover{background:var(--volt-08)}
 .sethead{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;padding:8px 16px 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600}
@@ -6687,7 +6691,7 @@ VIEWS['ath-wlog']=function(u){
     /* En biserie el descanso va al final del grupo, no entre ejercicios: decirlo aquí evita que
        el atleta descanse donde no toca y convierta la biserie en dos series normales. */
     const restTxt=multi?(gi<gr.items.length-1?'sin descanso, pasa al siguiente':esc(e.rest)+' al terminar el grupo'):esc(e.rest);
-    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+(e.notes?' — '+esc(e.notes):'')+'</div>'+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>':'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
+    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+'</div>'+(e.notes?'<div class="exind"><b>📝 Tu coach:</b>'+esc(e.notes)+'</div>':'')+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>':'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso ('+unit+')</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
@@ -6734,7 +6738,7 @@ VIEWS['ath-rutina']=function(u){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<div class="exind"><b>📝</b>'+esc(e.notes)+'</div>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
     /* Corregir una sesión de días anteriores. Solo se ofrece si de verdad hay alguna dentro
        de la ventana: un botón que siempre está y casi siempre dice «no hay nada» es ruido. */
