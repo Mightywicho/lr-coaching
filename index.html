@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-04.4">
+<meta name="lr-build" content="2026-10-04.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -316,7 +316,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .logitem .lh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .logitem .lh b{font-size:13.5px}
 .logitem .lh .dt{font-size:12px;color:var(--tx3);margin-left:auto;white-space:nowrap}
-.logitem .cm{font-size:13px;color:var(--tx2);margin-top:7px;padding:9px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--line2)}
+.logitem .cm{font-size:13px;color:var(--tx2);margin-top:7px;padding:9px 12px;background:var(--bg2);border-radius:8px;border-left:3px solid var(--line2);white-space:pre-wrap;overflow-wrap:anywhere}
 .logdetail{margin-top:10px;display:none}
 .logitem.open .logdetail{display:block}
 .netsum{border:1px solid var(--line);border-radius:var(--r-s);padding:12px 15px;margin-bottom:10px;background:var(--bg2)}
@@ -6496,7 +6496,7 @@ VIEWS['ath-hoy']=function(u){
   }
 
   /* CONTENIDOS DE LOS ACORDEONES (sin la card exterior) */
-  const nutriInner=dayPick+adhUI+'<hr class="hr"><label style="display:block;margin-bottom:8px">Te queda por comer hoy</label>'+remainingBars(aid,n)+'<div class="frow"><input id="adh_comment" data-keep="adh_comment" placeholder="Comentario para tu coach (opcional)" value="'+esc(todayN?todayN.comment:'')+'"></div><button class="btn btn-p" data-act="adh-save" style="width:100%">'+I.check+' Guardar registro de nutrición</button>';
+  const nutriInner=dayPick+adhUI+'<hr class="hr"><label style="display:block;margin-bottom:8px">Te queda por comer hoy</label>'+remainingBars(aid,n)+'<div class="frow"><textarea id="adh_comment" rows="4" data-keep="adh_comment" placeholder="Comentario para tu coach (opcional)">'+esc(todayN?todayN.comment:'')+'</textarea></div><button class="btn btn-p" data-act="adh-save" style="width:100%">'+I.check+' Guardar registro de nutrición</button>';
 
   /* data-keep: lo tecleado sobrevive a render(). Antes, cambiarse de pantalla sin pulsar
      «Guardar» borraba el número en silencio. Las claves las limpia cada handler al guardar. */
@@ -6686,7 +6686,7 @@ VIEWS['ath-wlog']=function(u){
   const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote" style="border-left-color:var(--blue);margin-bottom:14px"><b style="color:var(--blue)">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
     body:planUI+editUI+unitToggle+legend+blocks+
-    '<div class="card"><h3>Cierre de la sesión</h3><div class="frow3"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div><div><label>Comentario para tu coach</label><input id="wl_comment" placeholder="Sensaciones, molestias, PRs…" data-wl="comment" value="'+esc(WDRAFT.comment||'')+'"></div></div>'+
+    '<div class="card"><h3>Cierre de la sesión</h3><div class="frow2"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div></div><div class="frow"><label>Comentario para tu coach</label><textarea id="wl_comment" rows="4" placeholder="Sensaciones, molestias, PRs…" data-wl="comment">'+esc(WDRAFT.comment||'')+'</textarea></div>'+
     '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
        ve cuántos lleva y puede cerrar la sesión sin recorrer toda la lista hasta abajo. */
