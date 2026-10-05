@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-04.3">
+<meta name="lr-build" content="2026-10-04.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4422,6 +4422,7 @@ function setPrio(aid,g,pv,undoBatch){
   if(prioOff(pv)){delete pd.volTargets[g];}
   else{const pr=volumeRecMatrix(pv,pd.experience,pd.phase);if(pr)pd.volTargets[g]=pr.lo;}
   stampVolTarget(pd,g);
+  replanGroups(aid,[g]);
   return true;
 }
 function prioUndo(aid){
@@ -4433,6 +4434,7 @@ function prioUndo(aid){
     if(x.t==null)delete pd.volTargets[x.g];else pd.volTargets[x.g]=x.t;
     if(x.c==null)delete pd.volTargetsCtx[x.g];else pd.volTargetsCtx[x.g]=x.c;
   });
+  replanGroups(aid,e.items.map(x=>x.g));
 }
 function prioBoard(aid,pcols,exp,phase){
   const brush='<div class="pbrush"><span class="tiny">Pincel:</span>'+PRIO_ORD.map(pv=>'<button type="button" class="pbr p'+(pv<0?'u':pv)+(PRIO_BRUSH===pv?' on':'')+'" data-act="prio-brush" data-p="'+pv+'">'+PRIOS[pv].short+'</button>').join('')+'</div>';
@@ -5349,7 +5351,10 @@ Object.assign(ACTIONS,{
   'pg-pairscope':el=>{route.params.pgPairAll=el.dataset.v;route.params.pgCmpDay=null;route.params.pgA=null;route.params.pgB=null;render();},
   'routine-meta-save':el=>{const r=athData(el.dataset.aid).routine;r.name=val('r_name');r.weekNote=val('r_week');saveState();toast('Programa actualizado');render();},
   'day-add-modal':el=>openModal('Nuevo día','<div class="frow"><label>Nombre del día</label><input id="d_name" placeholder="Día 5 · Brazo"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
-  'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día');return;}const nd={id:uid(),name:nm,exercises:[]};athData(el.dataset.aid).routine.days.push(nd);route.params.rday=nd.id;saveState();closeModal();render();},
+  'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día');return;}const nd={id:uid(),name:nm,exercises:[]};athData(el.dataset.aid).routine.days.push(nd);route.params.rday=nd.id;
+    /* La sesión nueva nacía sin reparto (plan vacío) y las otras seguían cargando todo el volumen. */
+    const nr=autoDistributeDayPlan(el.dataset.aid);
+    saveState();closeModal();if(nr)toast('Reparto del volumen recalculado entre '+athData(el.dataset.aid).routine.days.length+' sesiones');render();},
   'rut-dia':el=>{route.params.rday=el.dataset.day;render();},
   'day-ren-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);openModal('Renombrar día','<div class="frow"><label>Nombre</label><input id="d_name" value="'+esc(day.name)+'"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-ren-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Guardar</button>');},
   'day-ren-save':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);day.name=val('d_name')||day.name;saveState();closeModal();render();},
@@ -5364,7 +5369,9 @@ Object.assign(ACTIONS,{
       const nEx=(day.exercises||[]).length,nS=(day.exercises||[]).reduce((a,e)=>a+(parseInt(e.sets,10)||0),0);
       logChange(aid,'baja','Sesión eliminada · '+nEx+(nEx===1?' ejercicio':' ejercicios')+' · '+nS+(nS===1?' serie':' series'),day.name,'Sesión completa');
     }
-    r.days=r.days.filter(x=>x.id!==el.dataset.day);saveState();closeModal();render();
+    r.days=r.days.filter(x=>x.id!==el.dataset.day);
+    const nr=r.days.length?autoDistributeDayPlan(aid):0;
+    saveState();closeModal();if(nr)toast('Reparto del volumen recalculado entre '+r.days.length+' sesiones');render();
   },
   /* data-group llega desde los chips de plan de la cabecera del día: abre el modal ya filtrado por ese grupo */
   'ex-add-modal':el=>openModal('Añadir ejercicio'+(el.dataset.group?' · '+el.dataset.group:''),exForm({},el.dataset.aid,'',el.dataset.day||'',el.dataset.group||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Añadir</button>'),
@@ -7508,6 +7515,7 @@ document.addEventListener('change',e=>{
     if(v==='')delete p2.volTargets[_vg];
     else p2.volTargets[_vg]=Math.min(60,Math.max(0,parseInt(v,10)||0));
     stampVolTarget(p2,_vg);
+    replanGroups(_va,[_vg]);
     saveState();render();
     /* render() rehace el DOM entero y el foco se pierde: sin esto habria que volver a hacer
        clic en cada grupo para escribir la meta siguiente. */
@@ -9360,14 +9368,15 @@ function autoFillVolTargets(aid){
   stampAllVolTargets(p);
   return n;
 }
-/* Reparte p.volTargets entre las sesiones ya existentes (day.plan). Compartida por el botón "Repartir automático" y el ajuste automático de plantillas IA. */
-function autoDistributeDayPlan(aid){
+/* Reparte p.volTargets entre las sesiones ya existentes (day.plan). Compartida por el botón "Repartir automático" y el ajuste automático de plantillas IA.
+   Con `only` (lista de grupos) reparte solo esos y respeta el resto del plan tal cual está. */
+function autoDistributeDayPlan(aid,only){
   const d=athData(aid),days=d.routine.days,tgts=d.profile.volTargets||{};
   if(!days.length)return 0;
-  const targets=GROUPS.filter(g=>tgts[g]!=null&&tgts[g]!==''&&(+tgts[g])>0);
+  const targets=GROUPS.filter(g=>tgts[g]!=null&&tgts[g]!==''&&(+tgts[g])>0&&(!only||only.indexOf(g)>=0));
   if(!targets.length)return 0;
-  /* carga inicial: planes de grupos sin objetivo se respetan */
-  const load=days.map(day=>{let t=0;Object.keys(day.plan||{}).forEach(g=>{if(!(g in tgts))t+=day.plan[g]||0;});return t;});
+  /* carga inicial: el plan de los grupos que no se reparten ahora se respeta */
+  const load=days.map(day=>{let t=0;Object.keys(day.plan||{}).forEach(g=>{if(targets.indexOf(g)<0)t+=day.plan[g]||0;});return t;});
   days.forEach(day=>{day.plan=day.plan||{};targets.forEach(g=>{delete day.plan[g];});});
   targets.slice().sort((a,b)=>(+tgts[b])-(+tgts[a])).forEach(g=>{
     const T=+tgts[g];
@@ -9382,6 +9391,14 @@ function autoDistributeDayPlan(aid){
     idx.forEach(i=>{const v=base+(rem>0?1:0);if(rem>0)rem--;if(v>0){days[i].plan[g]=v;load[i]+=v;}});
   });
   return targets.length;
+}
+/* Al cambiar la meta de un grupo (paso 1) su reparto del paso 2 se quedaba con los números viejos
+   hasta pulsar «Repartir objetivos automáticamente», y las sesiones seguían pidiendo lo de antes.
+   Ahora se rehace solo el reparto de los grupos tocados. Un grupo que se queda sin meta conserva
+   su plan: para «No entrenar» ya hay aviso y botón propios en el paso 1. */
+function replanGroups(aid,groups){
+  if(!groups||!groups.length||!athData(aid).routine.days.length)return 0;
+  return autoDistributeDayPlan(aid,groups);
 }
 /* Grupo muscular de un ejercicio ya programado (por vínculo a biblioteca; fallback fuzzy para importados sin vínculo). */
 function groupOfEx(ex){
@@ -9933,6 +9950,7 @@ Object.assign(ACTIONS,{
   },
   'voltargets-auto':el=>{
     const n=autoFillVolTargets(el.dataset.aid);
+    if(athData(el.dataset.aid).routine.days.length)autoDistributeDayPlan(el.dataset.aid);
     saveState();closeModal();toast('Metas rellenadas con el recomendado ('+n+' grupos)');render();
   },
   'voltargets-from-routine':el=>{
