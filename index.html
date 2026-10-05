@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-05.1">
+<meta name="lr-build" content="2026-10-05.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -286,8 +286,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .techhint{font-size:11.5px;color:var(--tx2);margin-top:3px;line-height:1.4}
 /* Indicaciones técnicas del coach en la vista del atleta: antes iban pegadas al final de la
    línea gris de «Objetivo» y el atleta no las distinguía. Ahora van en su propio recuadro. */
-.exind{margin-top:6px;padding:6px 9px;border-left:3px solid var(--blue);background:rgba(124,208,251,.08);border-radius:6px;font-size:12.5px;line-height:1.4;color:var(--tx);white-space:pre-line}
+.exind{margin-top:6px;padding:6px 9px;border-left:3px solid var(--blue);background:rgba(124,208,251,.08);border-radius:6px;font-size:12.5px;line-height:1.4;color:var(--tx);white-space:pre-line;overflow-wrap:anywhere}
 .exind b{color:var(--blue);font-weight:600;margin-right:4px}
+/* «Mi rutina» en teléfono: las 4 columnas fijas (series, reps, RIR, descanso) dejaban al
+   ejercicio y su indicación en una tira angosta. Cada fila pasa a tarjeta: nombre e
+   indicación a todo lo ancho y los números en una línea debajo, con su etiqueta. */
+@media(max-width:600px){.rtbl thead{display:none}table.rtbl,.rtbl tbody{display:block;min-width:0}.rtbl tr{display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 14px;border-bottom:1px solid var(--line)}.rtbl tr:last-child{border-bottom:none}.rtbl td{padding:0;border:none;min-width:0}.rtbl td:nth-child(1){flex:0 0 22px}.rtbl td:nth-child(2){flex:1 1 calc(100% - 36px)}.rtbl td:nth-child(3){margin-left:36px}.rtbl td[data-l]{font-size:13px;white-space:nowrap}.rtbl td[data-l]::before{content:attr(data-l) ' ';font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3)}}
 .addset{margin:4px 16px 12px;font-size:12.5px;color:var(--volt);font-weight:600;padding:5px 8px;border-radius:7px}
 .addset:hover{background:var(--volt-08)}
 .sethead{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;padding:8px 16px 0;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600}
@@ -6738,7 +6742,7 @@ VIEWS['ath-rutina']=function(u){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<div class="exind"><b>📝</b>'+esc(e.notes)+'</div>':'')+swapRowUI(e,day.id)+'</td><td class="num">'+esc(e.sets)+'</td><td class="num">'+esc(e.reps)+'</td><td class="num">'+esc(e.rir)+'</td><td class="num">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<div class="exind"><b>📝</b>'+esc(e.notes)+'</div>':'')+swapRowUI(e,day.id)+'</td><td class="num" data-l="Series">'+esc(e.sets)+'</td><td class="num" data-l="Reps">'+esc(e.reps)+'</td><td class="num" data-l="RIR">'+esc(e.rir)+'</td><td class="num" data-l="⏱">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
     /* Corregir una sesión de días anteriores. Solo se ofrece si de verdad hay alguna dentro
        de la ventana: un botón que siempre está y casi siempre dice «no hay nada» es ruido. */
@@ -6748,7 +6752,7 @@ VIEWS['ath-rutina']=function(u){
     const tag=wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+(wd.partial?' · incompleta':'')+'</span>'
       :md?'<span class="daydone" style="background:var(--danger-08);color:var(--red)">✕ no la hiciste</span>':'';
     days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+pastBtn+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    '<div class="tblwrap"><table class="tbl rtbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
   /* Mismo resumen de semana que en «Hoy»: es la vista donde el atleta decide qué toca,
      así que la cifra tiene que estar aquí también y no obligarle a volver al inicio. */
