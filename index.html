@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-04.6">
+<meta name="lr-build" content="2026-10-04.7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2571,6 +2571,7 @@ const _HYDRATORS={
   meal_logs:()=>hydrateMealLogs(),
   steps_logs:()=>hydrateStepsLogs(),
   fatigue_logs:()=>hydrateFatigueLogs(),
+  push_subscriptions:()=>hydratePushSubs(),
   form_logs:()=>hydrateFormLogs(),
   measurement_logs:()=>hydrateMeasureLogs(),
   chat_logs:()=>hydrateChat(),
@@ -7499,7 +7500,7 @@ document.addEventListener('change',e=>{
     const v=el.value;let src=null;
     if(v==='tpl:checkin')src=FM_TPL_CHECKIN;
     else if(v){const pp=v.split('|');src=formsOf(pp[0]).find(x=>x.id===pp[1]);}
-    if(src){const c=fdFromForm(src);FD._src=v;FD.title=c.title;FD.desc=c.desc||'';FD.freq=c.freq;FD.qs=c.qs.map(q=>Object.assign(q,{id:uid()}));fdShow();}
+    if(src){const c=fdFromForm(src);FD._src=v;if(c.remind)FD.remind=c.remind;FD.title=c.title;FD.desc=c.desc||'';FD.freq=c.freq;FD.qs=c.qs.map(q=>Object.assign(q,{id:uid()}));fdShow();}
   }
   else if(el.dataset.change==='fo-unit'){
     const isU=el.value==='u';
@@ -10543,20 +10544,76 @@ function formsPending(aid){
   const t=todayISO();
   return formsOf(aid).filter(f=>{if(!f||f.active===false)return false;const p=fmPeriod(f,t);return p&&!fmAnswer(aid,f.id,p.key);});
 }
+/* Periodos del más reciente hacia atrás (máx. n), desde el primero que le tocó */
+function fmPeriodsBack(f,t,n){
+  const out=[],first=fmFirstDue(f),fq=f.freq||{};let p=fmPeriod(f,t);
+  while(p&&out.length<n){
+    out.push(p);
+    if(fq.k==='weekly'){const d=addDaysISO(p.date,-7*(fq.every===2?2:1));p=d>=first?{key:d,date:d}:null;}
+    else if(fq.k==='monthly'){const[y,m]=p.date.split('-').map(Number);const d=fmMonthDate(y,m-1,fq.dom||1);p=d>=first?{key:d,date:d}:null;}
+    else p=null;
+  }
+  return out;
+}
+/* ---- avisos push (fase 2): la Edge Function form-reminders los manda; aquí solo se suscribe el
+   dispositivo. La clave pública VAPID no es secreta; la privada vive solo en el servidor. ---- */
+const VAPID_PUB='BAx0yPYj4PegYX83cvTl2yK_pi3xnYOneAntj8-D2ZyV6c7JgfkWsklGvz83VCIUCjO2ajGNiYfszXEWKxawgVA';
+let _pushSt=null,_pushKick=false,_pushSaved=false,_pushDev={};
+function b64uToU8(b){const p='='.repeat((4-b.length%4)%4),r=atob((b+p).replace(/-/g,'+').replace(/_/g,'/'));const o=new Uint8Array(r.length);for(let i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o;}
+function pushSupport(){
+  if(!(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)))return'nosupport';
+  /* En iPhone/iPad las notificaciones web solo existen con la app instalada en la pantalla de inicio */
+  if(esIOS()&&!pwaInstalada())return'ios-install';
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return'nosupport';
+  if(Notification.permission==='denied')return'denied';
+  return null;
+}
+async function pushSave(sub){
+  const auid=_athleteUidByAppId[_currentUserId];if(!auid||!_supabaseUser||!sub)return false;
+  let tz='America/Mexico_City';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||tz;}catch(e){}
+  const j=sub.toJSON();
+  const res=await supa.from('push_subscriptions').upsert({endpoint:j.endpoint,athlete_uid:auid,coach_uid:_coachUid,sub:j,tz,ua:String(navigator.userAgent||'').slice(0,200),updated_at:new Date().toISOString()},{onConflict:'endpoint'});
+  if(res.error){console.error('push_subscriptions',res.error);return false;}
+  _pushSaved=true;return true;
+}
+async function pushRefresh(){
+  const s=pushSupport();if(s){_pushSt=s;return;}
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();
+    const sub=reg&&await reg.pushManager.getSubscription();
+    if(sub&&Notification.permission==='granted'){_pushSt='on';if(!_pushSaved)pushSave(sub);} /* refresca zona horaria */
+    else _pushSt='off';
+  }catch(e){_pushSt='off';}
+}
+function athPushBox(aid){
+  if(!formsOf(aid).some(f=>f&&f.active!==false&&f.remind))return'';
+  if(_pushSt===null&&!_pushKick){_pushKick=true;pushRefresh().then(()=>liveRender());}
+  const st=_pushSt;
+  if(st==='on')return'<div class="notebox mb8" style="border-left-color:var(--green)">🔔 <b>Avisos activados en este teléfono.</b> Te llegará una notificación el día que te toque responder. <button class="btn btn-g btn-sm" style="margin-top:8px" data-act="push-test">Mandarme un aviso de prueba</button></div>';
+  if(st==='ios-install')return'<div class="notebox mb8" style="border-left-color:var(--orange)"><b>Para recibir avisos en iPhone</b> primero instala la app en tu pantalla de inicio y ábrela desde ahí. <button class="btn btn-g btn-sm" style="margin-top:8px" data-act="push-enable">Cómo instalarla</button></div>';
+  if(st==='denied')return'<div class="notebox mb8" style="border-left-color:var(--red)"><b>Bloqueaste las notificaciones de esta app.</b> Para recibir los avisos de tu coach, permítelas en los ajustes del navegador o del teléfono.</div>';
+  if(st==='nosupport')return'<div class="notebox mb8">Este navegador no admite avisos. Revisa aquí si tienes cuestionarios pendientes.</div>';
+  if(st==='off')return'<div class="notebox mb8" style="border-left-color:var(--orange)"><b>Activa los avisos</b> para que te llegue una notificación cuando tu coach te pida responder. <button class="btn btn-p btn-sm" style="margin-top:8px" data-act="push-enable">🔔 Activar avisos en este teléfono</button></div>';
+  return'';
+}
+async function hydratePushSubs(){
+  if(!_supabaseUser||_currentUserId!=='coach')return;
+  try{const{data,error}=await supa.from('push_subscriptions').select('athlete_uid');if(error||!data)return;const m={};data.forEach(r=>{m[r.athlete_uid]=(m[r.athlete_uid]||0)+1;});_pushDev=m;}catch(e){}
+}
 function fmAnsTxt(it){if(it.v==null||it.v==='')return'—';return it.t==='scale'?it.v+(it.max?' / '+it.max:''):String(it.v);}
 
 /* ---- atleta: acordeón en «Hoy» y formulario de respuesta ---- */
 function athFormsInner(aid){
   const t=todayISO(),list=formsOf(aid).filter(f=>f&&f.active!==false);
   if(!list.length)return'';
-  return list.map(f=>{
+  return athPushBox(aid)+list.map(f=>{
     const p=fmPeriod(f,t),ans=p?fmAnswer(aid,f.id,p.key):null,nx=fmNext(f,t);
     let st,btn='';
     if(!p){st='<span class="badge volt">Empieza el '+fmtDate(fmFirstDue(f))+'</span>';}
     else if(!ans){st='<span class="badge orange">Pendiente</span>';btn='<button class="btn btn-p btn-sm" data-act="form-open" data-fid="'+esc(f.id)+'">Responder ahora</button>';}
     else{st='<span class="badge green">Respondido · '+fmtDate(ans.date)+'</span>';btn='<button class="btn btn-g btn-sm" data-act="form-open" data-fid="'+esc(f.id)+'">Ver o corregir</button>';}
     return'<div class="logitem"><div class="lh"><b>'+esc(f.title)+'</b>'+st+'</div>'+
-      '<div class="tiny mt8">'+esc(fmFreqTxt(f))+(p&&ans&&nx?' · el próximo te toca el '+fmtDate(nx):'')+'</div>'+
+      '<div class="tiny mt8">'+esc(fmFreqTxt(f))+(f.remind?' · aviso a las '+esc(f.remind):'')+(p&&ans&&nx?' · el próximo te toca el '+fmtDate(nx):'')+'</div>'+
       (btn?'<div style="margin-top:10px">'+btn+'</div>':'')+'</div>';
   }).join('');
 }
@@ -10581,8 +10638,21 @@ function coachTabForms(aid){
   list.forEach(f=>{
     const p=fmPeriod(f,t),ans=p?fmAnswer(aid,f.id,p.key):null,off=f.active===false;
     const st=off?'<span class="badge volt">En pausa</span>':!p?'<span class="badge volt">Empieza el '+fmtDate(fmFirstDue(f))+'</span>':ans?'<span class="badge green">Respondido · '+fmtDate(ans.date)+'</span>':'<span class="badge orange">Sin responder'+(p.key==='unica'?'':' (tocaba el '+fmtDate(p.date)+')')+'</span>';
+    /* Historial de periodos: cada vez que le tocó, si respondió o no. El periodo en curso sin
+       respuesta va en gris (aún puede contestarlo); los anteriores sin respuesta, en el color de
+       alerta y con el texto «no respondió» — no solo por color: --red es ámbar en este tema y,
+       en naranja, el «en curso» se confundía con el «no respondió». */
+    const per=fmPeriodsBack(f,t,12);let hist='',nR=0,nTot=0;
+    per.forEach((pp,ix)=>{
+      const a=fmAnswer(aid,f.id,pp.key),lbl=pp.key==='unica'?'Única':fmtDate(pp.date),cur=ix===0&&!a;
+      if(!cur)nTot++;if(a)nR++;
+      hist+=a?'<span class="badge green" title="Respondido el '+esc(fmtDateFull(a.date))+'">✓ '+lbl+'</span>'
+        :cur?'<span class="badge volt" title="Periodo en curso: aún puede responderlo">⏳ '+lbl+' · en curso</span>'
+        :'<span class="badge red" title="No lo respondió" style="font-weight:700">✗ '+lbl+' · no respondió</span>';
+    });
+    const histUI=per.length?'<div class="tiny mt8" style="font-weight:700">Historial'+(nTot?' · respondió '+nR+' de '+nTot:'')+(per.length===12?' (últimos 12)':'')+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+hist+'</div>':'';
     rows+='<div class="logitem"><div class="lh"><b>'+esc(f.title)+'</b>'+st+'</div>'+
-      '<div class="tiny mt8">'+esc(fmFreqTxt(f))+' · '+f.qs.length+(f.qs.length===1?' pregunta':' preguntas')+(!off&&fmNext(f,t)?' · próximo: '+fmtDate(fmNext(f,t)):'')+'</div>'+
+      '<div class="tiny mt8">'+esc(fmFreqTxt(f))+(f.remind?' · aviso a las '+esc(f.remind):' · sin aviso al teléfono')+' · '+f.qs.length+(f.qs.length===1?' pregunta':' preguntas')+(!off&&fmNext(f,t)?' · próximo: '+fmtDate(fmNext(f,t)):'')+'</div>'+histUI+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
       '<button class="btn btn-g btn-sm" data-act="fm-edit" data-aid="'+aid+'" data-fid="'+esc(f.id)+'">Editar</button>'+
       '<button class="btn btn-g btn-sm" data-act="fm-toggle" data-aid="'+aid+'" data-fid="'+esc(f.id)+'">'+(off?'Reanudar':'Pausar')+'</button>'+
@@ -10596,7 +10666,9 @@ function coachTabForms(aid){
     rh+='<div class="logitem"><div class="lh"><span class="badge blue">'+esc(r.title||'Cuestionario')+'</span><span class="tiny">'+per.slice(3)+'</span><span class="dt">'+fmtDateFull(r.date)+'</span></div>'+
       (r.items||[]).map(it=>'<div class="tiny mt8" style="font-weight:700">'+esc(it.q)+'</div><div class="cm" style="margin-top:4px">'+esc(fmAnsTxt(it))+'</div>').join('')+'</div>';
   });
-  return'<div class="card mb16"><h3>Cuestionarios asignados <span class="hint">le aparecen como pendientes en «Hoy» cuando le toca responder</span></h3>'+
+  const auid=_athleteUidByAppId[aid],nDev=auid?(_pushDev[auid]||0):0;
+  const devUI=list.some(f=>f.remind)?(nDev?'<p class="tiny mb8">📱 Tiene los avisos activados en '+nDev+(nDev===1?' dispositivo':' dispositivos')+'.</p>':'<p class="tiny mb8" style="color:var(--orange)">📵 Aún no ha activado los avisos en su teléfono: se le pide al abrir «Cuestionarios de tu coach» en «Hoy». Mientras tanto solo los ve dentro de la app.</p>'):'';
+  return'<div class="card mb16"><h3>Cuestionarios asignados <span class="hint">le aparecen como pendientes en «Hoy» cuando le toca responder</span></h3>'+devUI+
     '<button class="btn btn-p btn-sm mb16" data-act="fm-new" data-aid="'+aid+'">'+I.plus+' Nuevo cuestionario</button>'+rows+'</div>'+
     '<div class="card mb16"><h3>Respuestas <span class="hint">'+resp.length+'</span></h3>'+(rh||'<p class="tiny">Todavía no hay respuestas.</p>')+'</div>';
 }
@@ -10616,6 +10688,7 @@ function fdRead(){
   if(gv('fd_dow')!=null)FD.freq.dow=parseInt(gv('fd_dow'),10)||1;
   if(gv('fd_every')!=null)FD.freq.every=parseInt(gv('fd_every'),10)||1;
   if(gv('fd_dom')!=null)FD.freq.dom=parseInt(gv('fd_dom'),10)||1;
+  if(gv('fd_remind')!=null)FD.remind=gv('fd_remind');
   FD.qs.forEach((q,i)=>{
     sv({o:q,f:'t'},'fd_qt_'+i);sv({o:q,f:'q'},'fd_qq_'+i);sv({o:q,f:'lo'},'fd_qlo_'+i);sv({o:q,f:'hi'},'fd_qhi_'+i);
     if(gv('fd_qmin_'+i)!=null)q.min=parseInt(gv('fd_qmin_'+i),10);
@@ -10636,6 +10709,8 @@ function fdHTML(){
     '<div><label>'+(fq.k==='once'?'Disponible desde':'Empieza el')+'</label><input id="fd_start" type="date" value="'+esc(f.start)+'"></div></div>';
   if(fq.k==='weekly')fr+='<div class="frow2"><div><label>Día que le toca</label>'+sel('fd_dow',FM_DOW.map((d,i)=>[i+1,d.charAt(0).toUpperCase()+d.slice(1)]),fq.dow)+'</div><div><label>Cada cuánto</label>'+sel('fd_every',[[1,'Cada semana'],[2,'Cada 2 semanas']],fq.every)+'</div></div>';
   if(fq.k==='monthly'){const ds=[];for(let n=1;n<=28;n++)ds.push([n,'Día '+n]);fr+='<div class="frow"><label>Día del mes que le toca</label>'+sel('fd_dom',ds,fq.dom)+'</div>';}
+  fr+='<div class="frow"><label>Hora del aviso al teléfono (opcional)</label><input id="fd_remind" type="time" value="'+esc(f.remind||'')+'">'+
+    '<p class="tiny mt8">El día que le toca, a esa hora en <b>su</b> zona horaria, le llega una notificación si aún no lo respondió y si activó los avisos en su teléfono. Déjalo vacío para no mandar aviso.</p></div>';
   let qh='';
   f.qs.forEach((q,i)=>{
     let extra='';
@@ -10690,8 +10765,28 @@ Object.assign(ACTIONS,{
    if(auid&&_supabaseUser)outboxAdd('form','form_logs',k,'athlete_uid,form_id,period',{athlete_uid:auid,coach_uid:_coachUid,form_id:f.id,period:p.key,date:e.date,data:e,updated_at:new Date().toISOString()},e);
    saveStateCola();closeModal();toast('Respuestas enviadas a tu coach');render();
  },
+ 'push-enable':async()=>{
+   const s=pushSupport();
+   if(s==='ios-install'){pwaModalIOS();return;}
+   if(s){_pushSt=s;render();return;}
+   let perm;try{perm=await Notification.requestPermission();}catch(e){perm='default';}
+   if(perm!=='granted'){_pushSt=perm==='denied'?'denied':'off';render();toast('No se activaron los avisos','err');return;}
+   try{
+     const reg=await navigator.serviceWorker.ready;
+     let sub=await reg.pushManager.getSubscription();
+     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64uToU8(VAPID_PUB)});
+     if(!await pushSave(sub)){toast('No se pudieron guardar los avisos. Revisa tu conexión y reintenta','err');return;}
+     _pushSt='on';render();toast('Avisos activados: te mandamos uno de prueba');
+     try{await supa.functions.invoke('form-reminders',{body:{test:true}});}catch(e){}
+   }catch(e){console.error('push-enable',e);toast('Este teléfono no permitió activar los avisos','err');}
+ },
+ 'push-test':async()=>{
+   try{const r=await supa.functions.invoke('form-reminders',{body:{test:true}});
+     if(r.error||!r.data||!r.data.sent)toast('No se pudo mandar el aviso de prueba','err');else toast('Aviso de prueba enviado');}
+   catch(e){toast('No se pudo mandar el aviso de prueba','err');}
+ },
  'fm-new':el=>{
-   FD={_new:true,_aid:el.dataset.aid,id:uid(),title:'',desc:'',start:todayISO(),active:true,freq:{k:'weekly',dow:7,every:1,dom:1},qs:[fdNewQ('text')]};
+   FD={_new:true,_aid:el.dataset.aid,id:uid(),title:'',desc:'',start:todayISO(),active:true,remind:'09:00',freq:{k:'weekly',dow:7,every:1,dom:1},qs:[fdNewQ('text')]};
    fdShow();
  },
  'fm-edit':el=>{
@@ -10717,7 +10812,7 @@ Object.assign(ACTIONS,{
      qs.push(c);
    }
    if(!qs.length){toast('Escribe al menos una pregunta','err');return;}
-   const clean={id:f.id,title:f.title.trim(),desc:String(f.desc||'').trim(),freq:{k:f.freq.k},start:f.start||todayISO(),active:f.active!==false,qs,created:f.created||todayISO()};
+   const clean={id:f.id,title:f.title.trim(),desc:String(f.desc||'').trim(),freq:{k:f.freq.k},start:f.start||todayISO(),active:f.active!==false,qs,created:f.created||todayISO(),remind:/^\d\d:\d\d$/.test(f.remind||'')?f.remind:''};
    if(f.freq.k==='weekly'){clean.freq.dow=f.freq.dow;clean.freq.every=f.freq.every===2?2:1;}
    if(f.freq.k==='monthly')clean.freq.dom=f.freq.dom;
    const list=formsOf(f._aid),i=list.findIndex(x=>x.id===clean.id);

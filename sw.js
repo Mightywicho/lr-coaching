@@ -321,3 +321,23 @@ self.addEventListener('fetch', ev => {
     ev.respondWith(cachePrimero(req, CACHE_DEPS).catch(() => caches.match(req).then(r => r || Response.error())));
   }
 });
+
+/* ===== Avisos push: recordatorios de los cuestionarios del coach =====
+   Los manda la Edge Function form-reminders (cron cada 15 min). Al tocar el aviso se enfoca la app
+   si ya estaba abierta, o se abre. */
+self.addEventListener('push', ev => {
+  let d = {};
+  try { d = ev.data ? ev.data.json() : {}; } catch (e) { d = { body: ev.data ? ev.data.text() : '' }; }
+  ev.waitUntil(self.registration.showNotification(d.title || 'LR Coaching', {
+    body: d.body || '', icon: './icon-192.png', badge: './icon-192.png',
+    tag: d.tag || 'lrc', data: { url: d.url || './' }
+  }));
+});
+self.addEventListener('notificationclick', ev => {
+  ev.notification.close();
+  const url = new URL((ev.notification.data && ev.notification.data.url) || './', self.registration.scope).href;
+  ev.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ws => {
+    for (const c of ws) if (c.url.indexOf(self.registration.scope) === 0 && 'focus' in c) return c.focus();
+    return self.clients.openWindow(url);
+  }));
+});
