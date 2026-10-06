@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-06.4">
+<meta name="lr-build" content="2026-10-06.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -330,6 +330,31 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .wch-leg i.l.f{background:repeating-linear-gradient(90deg,var(--tx2) 0 5px,transparent 5px 8px)}
 .wch-leg i.b{width:12px;height:9px;border-radius:2px;background:rgba(82,217,138,.22);border:1px dashed rgba(82,217,138,.6)}
 .wch-seg button{padding:4px 11px;font-size:12px}
+.wch-leg i.s{width:12px;height:9px;border-radius:2px;background:rgba(255,180,92,.18);border-top:2px solid var(--orange)}
+.wrec{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.wrec>div{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-s);padding:9px 11px;display:flex;flex-direction:column;gap:1px}
+.wrec span{font-size:11.5px;color:var(--tx3)}.wrec b{font-family:var(--font-d);font-size:17px;color:var(--tx)}.wrec small{font-size:11.5px;color:var(--tx2)}
+.pg .pg-big{font-family:var(--font-d);font-size:19px;font-weight:600;line-height:1.35;color:var(--tx);margin:2px 0 4px}
+.pg .pg-big span{font-size:14px;color:var(--tx2);font-weight:500}
+.pg .pg-sub{font-size:13px;color:var(--tx2);margin:4px 0 0}
+.pg-goal{margin-top:14px}
+.pg-gl{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--tx2)}.pg-gl b{color:var(--tx)}
+.pg-bar{height:10px;border-radius:6px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;margin:6px 0 4px}
+.pg-bar i{display:block;height:100%;border-radius:6px;background:var(--blue)}
+.wk-box{margin-top:6px}
+.wk-diag{font-size:13px;color:var(--tx2);line-height:1.5;margin-bottom:10px}
+.wk-warn{color:var(--orange)}.wk-ok{color:var(--green)}
+.wk-row{display:flex;gap:4px;flex-wrap:wrap}
+.wks{width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-style:normal;flex:none;background:var(--bg2);color:var(--tx3);border:1px solid var(--line)}
+.wks.ok{background:rgba(82,217,138,.16);color:var(--green);border-color:rgba(82,217,138,.35)}
+.wks.slow,.wks.off{background:rgba(255,180,92,.14);color:var(--orange);border-color:rgba(255,180,92,.3)}
+.wks.rev,.wks.fast{background:rgba(245,158,11,.18);color:#ffcf6b;border-color:rgba(245,158,11,.45)}
+.wks.stall{box-shadow:inset 0 -3px 0 var(--orange)}
+.wks.few{opacity:.55}
+.wk-axis{display:flex;justify-content:space-between;font-size:11px;color:var(--tx3);margin-top:4px;max-width:calc(28px*16)}
+.wk-leg{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:11.5px;color:var(--tx3)}
+.wk-leg span{display:inline-flex;align-items:center;gap:6px}.wk-leg .wks{width:18px;height:18px;font-size:11px}
+@media(max-width:600px){.wrec{gap:6px}.wrec b{font-size:15px}.pg .pg-big{font-size:17px}}
 .wch-box{position:relative}
 .wch-box svg{display:block;width:100%;height:auto;touch-action:pan-y}
 .wch[data-r] .wch-box[data-rg]{display:none}
@@ -3419,6 +3444,16 @@ function wchSvg(pts,opts){
   const r=pts.length>60?1.8:2.4;
   let dots='';pts.forEach((p,i)=>{dots+='<circle cx="'+X(t[i]).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="'+r+'" fill="'+color+'" fill-opacity=".42"/>';});
   const fit=f?'<path d="M'+X(t0).toFixed(1)+','+Y(f.start).toFixed(1)+'L'+X(t1).toFixed(1)+','+Y(f.cur).toFixed(1)+'" stroke="#e9edf4" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="6 4" fill="none"/>':'';
+  /* tramos estancados (solo los pasa la vista del coach) */
+  let stl='';(opts.stalls||[]).forEach(z=>{const a=Math.max(t0,Date.parse(z.from)),e=Math.min(t1,Date.parse(z.to)+WCH_DAY);if(e<=a)return;
+    const xa=X(a),xe=X(e);stl+='<rect x="'+xa.toFixed(1)+'" y="'+padT+'" width="'+(xe-xa).toFixed(1)+'" height="'+ih+'" fill="#ffb45c" fill-opacity=".09"/><line x1="'+xa.toFixed(1)+'" x2="'+xe.toFixed(1)+'" y1="'+(padT+1)+'" y2="'+(padT+1)+'" stroke="#ffb45c" stroke-width="2"/>'+
+      (xe-xa>64?'<text x="'+(xa+5).toFixed(1)+'" y="'+(padT+13)+'" font-size="10" font-weight="600" fill="#ffb45c">Estancado · '+z.n+' sem</text>':'');});
+  /* más bajo y más alto del rango visible (en «Todo» = histórico) */
+  let ext='';
+  if(opts.extremes!==false){let a=0,z=0;pts.forEach((p,i)=>{if(p.y<pts[a].y)a=i;if(p.y>pts[z].y)z=i;});
+    if(pts[z].y-pts[a].y>=.3)[[a,'Mín',1],[z,'Máx',-1]].forEach(([i,tx,dir])=>{const x=X(t[i]),y=Y(pts[i].y),lb=tx+' '+fx2(pts[i].y);
+      const ty=Math.max(padT+10,Math.min(padT+ih-3,y+(dir>0?15:-8))),anc=x<padL+40?'start':x>W-padR-40?'end':'middle',tx0=anc==='start'?x+7:anc==='end'?x-7:x;
+      ext+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3.6" fill="none" stroke="#e9edf4" stroke-width="1.4"/><text x="'+tx0.toFixed(1)+'" y="'+ty.toFixed(1)+'" text-anchor="'+anc+'" font-size="10" font-weight="600" fill="#9aa5b6" paint-order="stroke" stroke="#151921" stroke-width="3">'+lb+'</text>';});}
   const li=pts.length-1,lx=X(t[li]),ly=Y(avg[li]);
   const lbl=fx2(avg[li])+' kg',lw=lbl.length*7+12,lbx=Math.min(W-padR-lw,Math.max(padL,lx-lw/2)),lby=ly-28<padT-6?ly+12:ly-28;
   const last='<circle cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="4.5" fill="'+color+'" stroke="#151921" stroke-width="2"/>'+
@@ -3428,9 +3463,9 @@ function wchSvg(pts,opts){
   const top=padT,bot=padT+ih;
   return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" data-p="'+dp+'" data-top="'+top+'" data-bot="'+bot+'" role="img" aria-label="Peso corporal: '+pts.length+' pesajes, media de 7 días actual '+lbl+'">'+
     '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+color+'" stop-opacity=".16"/><stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient></defs>'+
-    grid+band+(area?'<path d="'+area+'" fill="url(#'+gid+')"/>':'')+dots+fit+
+    grid+stl+band+(area?'<path d="'+area+'" fill="url(#'+gid+')"/>':'')+dots+fit+
     (gap?'<path d="'+gap+'" stroke="'+color+'" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="2 4" fill="none"/>':'')+
-    '<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>'+last+xl+
+    '<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>'+ext+last+xl+
     '<g class="wch-cur" style="display:none"><line y1="'+top+'" y2="'+bot+'" stroke="#9aa5b6" stroke-width="1" stroke-dasharray="2 3"/><circle r="5" fill="'+color+'" stroke="#151921" stroke-width="2"/></g></svg>';
 }
 const fx2=v=>(+v).toFixed(1).replace('.',',');
@@ -3439,7 +3474,7 @@ function svgWeight(points,opts){
   const pts=(points||[]).filter(p=>p&&p.x&&p.y!=null&&!isNaN(+p.y)).map(p=>({x:p.x,y:+p.y})).sort((a,b)=>a.x<b.x?-1:a.x>b.x?1:0);
   if(pts.length<2)return'<div class="empty"><b>Aún no hay suficientes datos</b>Se necesitan al menos 2 pesajes para la gráfica.</div>';
   const legend='<div class="wch-leg"><span><i class="d" style="background:'+(opts.color||'#7cd0fb')+'"></i>Pesaje</span><span><i class="l" style="background:'+(opts.color||'#7cd0fb')+'"></i>Media 7 días</span>'+
-    (opts.fit?'<span><i class="l f"></i>Tendencia</span>':'')+(opts.band?'<span><i class="b"></i>Ritmo objetivo</span>':'')+'</div>';
+    (opts.fit?'<span><i class="l f"></i>Tendencia</span>':'')+(opts.band?'<span><i class="b"></i>Ritmo objetivo</span>':'')+((opts.stalls||[]).length?'<span><i class="s"></i>Estancamiento</span>':'')+'</div>';
   const spanD=(Date.parse(pts[pts.length-1].x)-Date.parse(pts[0].x))/WCH_DAY;
   if(opts.ranges===false||spanD<=35)return'<div class="wch">'+legend+'<div class="wch-box">'+wchSvg(pts,opts)+'<div class="wch-tip"></div></div></div>';
   /* se pintan los tres rangos de una vez (son SVG ligeros) y los botones solo cambian cuál se ve */
@@ -4371,13 +4406,13 @@ function coachTabResumen(aid){
     '<div class="stat"><div class="k">Cambio 30 días</div><div class="v '+(d30>0?'up':d30<0?'down':'')+'">'+(d30!=null?(d30>0?'+':'')+d30+'<small> kg</small>':'—')+'</div><div class="sub">tendencia</div></div>'+
     '<div class="stat"><div class="k">Entrenos · esta semana</div><div class="v">'+ww.done+'<small> / '+ww.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>'+
     '<div class="stat"><div class="k">Adherencia · esta semana</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">nutrición · desde el lunes</div></div></div>'+
-    weightTrendCard(aid)+
-    '<div class="grid g2"><div class="card"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(pts)+'</div>'+
+    progressCard(aid,false)+weightTrendCard(aid)+
+    '<div class="grid g2"><div class="card"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(pts,{stalls:weightWeeksStatus(aid).stalls})+'</div>'+
     '<div class="card"><h3>Perfil y notas del coach</h3>'+
     '<div class="frow2"><div><label>Categoría</label><input id="f_cat" value="'+esc(d.profile.category)+'"></div><div><label>Altura (cm)</label><input id="f_h" type="number" value="'+esc(d.profile.heightCm)+'"></div></div>'+
     '<div class="frow4"><div><label>Peso actual (kg)</label><input id="f_w" type="number" step="0.1" value="'+esc(lw?lw.kg:'')+'"></div><div><label>Sexo</label><select id="f_sex"><option value="M"'+(d.profile.sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(d.profile.sex==='F'?' selected':'')+'>Mujer</option></select></div><div><label>Edad (años)</label><input id="f_age" type="number" value="'+esc(d.profile.age||'')+'"></div><div><label>% grasa (opcional)</label><input id="f_bf" type="number" step="0.1" value="'+esc(d.profile.bodyFat||'')+'"></div></div>'+
     '<p class="tiny" style="margin:-6px 0 12px">'+(lw?('Último peso: <b>'+lw.kg+' kg</b> · '+fmtDateFull(lw.date)+(lw.fromProfile?' (capturado por ti)':' (registrado por el atleta)')+'. Si lo cambias se guarda como el pesaje de hoy.'):'Sin peso registrado. Al capturarlo se usa en el Dietocálculo y en la guía de macros.')+'</p>'+
-    '<div class="frow2"><div><label>Objetivo actual</label><input id="f_goal" value="'+esc(d.profile.goal)+'"></div><div><label>Modo de asesoría</label><select id="f_service">'+['ambos','entrenamiento','nutricion'].map(k=>'<option value="'+k+'"'+((d.profile.service||'ambos')===k?' selected':'')+'>'+SERVICES[k].lbl+'</option>').join('')+'</select></div></div>'+
+    '<div class="frow3"><div><label>Objetivo actual</label><input id="f_goal" value="'+esc(d.profile.goal)+'"></div><div><label>Peso meta (kg, opcional)</label><input id="f_gw" type="number" step="0.1" value="'+esc(d.profile.goalWeight||'')+'"></div><div><label>Modo de asesoría</label><select id="f_service">'+['ambos','entrenamiento','nutricion'].map(k=>'<option value="'+k+'"'+((d.profile.service||'ambos')===k?' selected':'')+'>'+SERVICES[k].lbl+'</option>').join('')+'</select></div></div>'+
     '<div class="frow3"><div><label>Inicio del plan</label><input id="f_mstart" type="date" value="'+esc(d.profile.memStart||'')+'"></div><div><label>Fin del plan</label><input id="f_mend" type="date" value="'+esc(d.profile.memEnd||'')+'"></div><div><label>Estado</label><select id="f_mact"><option value="activo"'+(!d.profile.inactive?' selected':'')+'>Activo</option><option value="inactivo"'+(d.profile.inactive?' selected':'')+'>Inactivo</option></select></div></div>'+
     '<p class="tiny" style="margin:-6px 0 14px">'+(function(){const st=athStatus(aid);return'<span class="badge '+st.cls+'">'+st.lbl+'</span>'+(st.hint?' '+esc(st.hint)+' · ':' ');})()+'<button class="exlink" data-act="mem-renew" data-aid="'+aid+'">Renovar +4 semanas</button></p>'+
     accesoAtletaHTML(aid)+
@@ -5532,6 +5567,9 @@ Object.assign(ACTIONS,{
     /* El peso se valida ANTES de tocar nada: si está mal, no se guarda medio perfil. */
     const hasW=!!document.getElementById('f_w'),fw=hasW?num('f_w'):0;
     if(hasW&&document.getElementById('f_w').value.trim()&&(!fw||fw<25||fw>300)){toast('El peso debe estar entre 25 y 300 kg');return;}
+    const gwEl=document.getElementById('f_gw'),gw=gwEl?num('f_gw'):0;
+    if(gwEl&&gwEl.value.trim()&&(!gw||gw<25||gw>300)){toast('El peso meta debe estar entre 25 y 300 kg');return;}
+    if(gwEl)p.goalWeight=gw||null;
     p.category=val('f_cat');p.heightCm=num('f_h');p.sex=val('f_sex')||'M';p.age=num('f_age')||null;p.bodyFat=num('f_bf')||null;p.goal=val('f_goal');p.notes=val('f_notes');p.memStart=val('f_mstart')||p.memStart;p.memEnd=val('f_mend')||null;p.inactive=val('f_mact')==='inactivo';if(document.getElementById('f_service'))p.service=val('f_service')||p.service||'ambos';if(document.getElementById('f_inj')){p.training=p.training||{};p.training.injuries=val('f_inj');p.training.dislikes=val('f_exdis');p.training.likes=val('f_exlike');}
     const u=userById(aid);if(u)u.tag=p.goal;
     /* solo se estampa un pesaje nuevo si el número CAMBIÓ: si no, cada «Guardar perfil» metería el peso
@@ -5691,7 +5729,7 @@ Object.assign(ACTIONS,{
     if(!DIETRES||DIETRES.aid!==el.dataset.aid){toast('Calcula las calorías antes de aplicarlas');return;}
     const p=activePlanOf(el.dataset.aid);
     p.kcal=DIETRES.kcal;p.protein=DIETRES.protein;p.carbs=DIETRES.carbs;p.fat=DIETRES.fat;
-    if(DIETRES.ratePct!=null)athData(el.dataset.aid).profile.targetRatePct=DIETRES.ratePct;
+    if(DIETRES.ratePct!=null)setTargetRate(el.dataset.aid,DIETRES.ratePct);
     saveState();toast('Objetivos aplicados al plan «'+p.name+'»');render();
   },
   /* ---- planes por tipo de día ---- */
@@ -7026,6 +7064,7 @@ VIEWS['ath-prog']=function(u){
     '<div class="stat"><div class="k">Pasos · media semana actual</div><div class="v">'+(curS?Math.round(curS.avg).toLocaleString('es-ES'):'—')+'</div><div class="sub">'+(curS?curS.n+' día'+(curS.n===1?'':'s')+' registrados':'registra tus pasos en «Hoy»')+'</div></div>'+
     '<div class="stat"><div class="k">Entrenos · semana actual</div><div class="v">'+wkw.done+'<small> / '+wkw.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>'+
     '<div class="stat"><div class="k">Adherencia · semana actual</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">desde el lunes</div></div></div>'+
+    progressCard(aid,true)+
     '<div class="card"><h3>Peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(wpts)+wwTable+'</div>'+
     '<div class="card"><h3>Pasos diarios <span class="hint">'+spts.length+' registros</span></h3>'+(spts.length>=2?svgLine(spts,{color:'#ffb45c'}):'<div class="empty"><b>Sin datos de pasos suficientes</b>Registra tus pasos cada día desde «Hoy» para ver la gráfica.</div>')+swTable+'</div>'+
     '<div class="card"><h3>Progresión de cargas</h3><div class="frow"><label>Ejercicio</label><select data-change="prog-ex">'+opts+'</select></div>'+exChart+exTable+'</div>'};
@@ -8167,7 +8206,7 @@ Object.assign(ACTIONS,{
     }
     if(bEl)p.block=parseInt(bEl.value,10)||p.block;
     if(eEl&&eEl.value)p.experience=eEl.value;
-    if(phEl&&phEl.value)p.phase=phEl.value;
+    if(phEl&&phEl.value)setPhase(aid,phEl.value); /* por setPhase, para que el cambio quede fechado */
     let extra='';
     if(kind==='routine'){
       applyTplRoutine(aid,t);
@@ -8243,7 +8282,7 @@ Object.assign(ACTIONS,{
     }
     if(bEl)p.block=parseInt(bEl.value,10)||p.block;
     if(eEl&&eEl.value)p.experience=eEl.value;
-    if(phEl&&phEl.value)p.phase=phEl.value;
+    if(phEl&&phEl.value)setPhase(aid,phEl.value); /* por setPhase, para que el cambio quede fechado */
     let extra='',tabTo=null;
     if(A.routine){
       const t={id:uid(),name:(A.routineName||'Rutina importada').trim(),weekNote:A.routineNote||'',days:A.routine,source:'ai-import',created:todayISO()};
@@ -9344,8 +9383,7 @@ function weightStats(aid,days){
 function targetRateFor(aid){
   const p=athData(aid).profile;
   if(p.targetRatePct!=null&&!isNaN(+p.targetRatePct)){
-    const r=+p.targetRatePct, tol=Math.max(0.12,Math.abs(r)*0.4);
-    return {lo:+(r-tol).toFixed(2),hi:+(r+tol).toFixed(2),dir:r<-0.05?-1:r>0.05?1:0,lbl:'Objetivo del plan ('+(r>0?'+':'')+r+'%/sem)',src:'plan'};
+    return rateTgtFromPct(+p.targetRatePct);
   }
   return Object.assign({src:'fase'},RATE_TARGET[p.phase]||RATE_TARGET.mantenimiento);
 }
@@ -9362,6 +9400,148 @@ function svgWeightTrend(st,tgt,cur){
      cae dentro de la franja verde, va al ritmo que pide el plan */
   const band=tgt?{start:st.fitStart,kgLo:cur*tgt.lo/100,kgHi:cur*tgt.hi/100}:null;
   return svgWeight(st.pts.map(p=>({x:p.date,y:p.kg})),{fit:{start:st.fitStart,cur:st.fitCur},band,ranges:false});
+}
+/* ===== PROGRESO DEL PESO: ritmo objetivo por fecha, semáforo semanal, estancamientos y récords =====
+   Juzgar una semana vieja con la fase de HOY pintaba de «mal» todo un volumen ya terminado en
+   cuanto el atleta pasaba a definición. Por eso cada semana se mide con el objetivo que tenía
+   entonces: el ritmo del plan (rateLog) si lo había y si no, la fase del bloque (routine.phases
+   y las de los bloques archivados). Lo anterior al primer registro usa el más antiguo conocido. */
+function rateTgtFromPct(r){const tol=Math.max(0.12,Math.abs(r)*0.4);return {lo:+(r-tol).toFixed(2),hi:+(r+tol).toFixed(2),dir:r<-0.05?-1:r>0.05?1:0,lbl:'Objetivo del plan ('+(r>0?'+':'')+r+'%/sem)',src:'plan'};}
+/* Única vía para cambiar el ritmo objetivo del plan: lo deja apuntado con fecha (mismo criterio que setPhase). */
+function setTargetRate(aid,pct){
+  const p=athData(aid).profile;if(pct==null||isNaN(+pct))return;pct=+pct;
+  p.targetRatePct=pct;
+  if(!Array.isArray(p.rateLog))p.rateLog=[];
+  const hoy=todayISO(),ult=p.rateLog[p.rateLog.length-1];
+  if(ult&&ult.date===hoy)ult.pct=pct;else if(!ult||ult.pct!==pct)p.rateLog.push({date:hoy,pct});
+  if(p.rateLog.length>1&&p.rateLog[p.rateLog.length-2].pct===p.rateLog[p.rateLog.length-1].pct)p.rateLog.pop();
+}
+function phaseAt(aid,iso){
+  const d=athData(aid),r=d.routine||{},ev=[];
+  (r.history||[]).forEach(h=>{const ph=(h.phases&&h.phases.length)?h.phases:[{phase:h.phase,date:h.startDate}];ph.forEach(x=>{if(x&&x.phase&&x.date)ev.push(x);});});
+  (r.phases||[]).forEach(x=>{if(x&&x.phase&&x.date)ev.push(x);});
+  ev.sort((a,b)=>a.date<b.date?-1:1);
+  let ph=null;ev.forEach(x=>{if(x.date<=iso)ph=x.phase;});
+  return ph||(ev[0]&&ev[0].phase)||d.profile.phase;
+}
+function targetRateAt(aid,iso){
+  const p=athData(aid).profile,log=(p.rateLog||[]).filter(x=>x&&x.date&&x.pct!=null);
+  let pct=null;
+  if(log.length){let e=null;log.forEach(x=>{if(x.date<=iso)e=x;});pct=(e||log[0]).pct;}
+  else if(p.targetRatePct!=null&&!isNaN(+p.targetRatePct))pct=+p.targetRatePct;
+  if(pct!=null)return rateTgtFromPct(+pct);
+  return Object.assign({src:'fase'},RATE_TARGET[phaseAt(aid,iso)]||RATE_TARGET.mantenimiento);
+}
+/* Umbral de estancamiento acordado con el coach: 3+ semanas seguidas avanzando < 0,2 %/sem
+   hacia el objetivo. En mantenimiento no existe «estancarse», así que no cuenta.
+   Se mide con la RECTA de los pesajes de 3 semanas, no media contra media: el ruido de una
+   media semanal (±0,2 %) es del tamaño del umbral, y una semana de suerte rompía una racha
+   que a ojo era un estancamiento clarísimo. */
+const STALL_PCT=0.2,STALL_WEEKS=3;
+function weightWeeksStatus(aid){
+  const s=weightWeekly(aid),weeks=[];
+  s.forEach((w,i)=>{
+    if(i>0&&addDaysISO(s[i-1].week,7)!==w.week){
+      /* semanas sin ningún pesaje entre medias: se muestran como hueco y cortan las rachas */
+      for(let g=addDaysISO(s[i-1].week,7);g<w.week;g=addDaysISO(g,7))weeks.push({week:g,st:'none'});
+    }
+    const prev=i>0&&addDaysISO(s[i-1].week,7)===w.week?s[i-1]:null;
+    if(!prev){weeks.push({week:w.week,avg:w.avg,n:w.n,st:'start'});return;}
+    const pct=+((w.avg-prev.avg)/prev.avg*100).toFixed(2),delta=+(w.avg-prev.avg).toFixed(2);
+    const tgt=targetRateAt(aid,w.week),v=rateVerdict(tgt,pct,delta);
+    const slow=tgt.dir!==0&&tgt.dir*pct<STALL_PCT;
+    let st=v.cls==='green'?'ok':v.cls==='red'?'fast':'slow';
+    if(tgt.dir!==0&&tgt.dir*pct<-0.05)st='rev';
+    if(tgt.dir===0&&st==='slow')st='off';
+    weeks.push({week:w.week,avg:w.avg,n:w.n,pct,delta,tgt,st,slow,txt:v.txt});
+  });
+  const all=(athData(aid).logs.weight||[]).filter(x=>x&&x.date&&x.kg!=null);
+  /* %/sem de la recta de los pesajes entre a y b (incluidos); null si hay pocos o no cubren el tramo */
+  const slopePct=(a,b,minN)=>{const pts=all.filter(x=>x.date>=a&&x.date<=b);if(pts.length<minN)return null;
+    const t0=Date.parse(a),xs=pts.map(x=>(Date.parse(x.date)-t0)/864e5),ys=pts.map(x=>+x.kg);
+    if(Math.max(...xs)-Math.min(...xs)<(daysBetweenISO(a,b)*0.6))return null;
+    const mx=_mean(xs),my=_mean(ys);let n=0,d=0;xs.forEach((x,i)=>{n+=(x-mx)*(ys[i]-my);d+=(x-mx)*(x-mx);});
+    return d?(n/d*7)/my*100:null;};
+  /* ventana de 3 semanas que termina en cada semana: lenta si avanza < 0,2 %/sem hacia el objetivo */
+  const win=weeks.map(w=>{if(w.st==='none'||w.st==='start')return false;const tgt=w.tgt;if(!tgt||tgt.dir===0)return false;
+    const sp=slopePct(addDaysISO(w.week,-14),addDaysISO(w.week,6),6);return sp!=null&&tgt.dir*sp<STALL_PCT;});
+  const stalls=[];
+  for(let i=0;i<weeks.length;i++){if(!win[i])continue;let j=i;while(j+1<weeks.length&&win[j+1])j++;
+    const cov=weeks.slice(Math.max(0,i-(STALL_WEEKS-1)),j+1).filter(w=>w.st!=='none');
+    stalls.push({from:cov[0].week,to:addDaysISO(weeks[j].week,6),n:cov.length,weeks:cov});i=j;}
+  stalls.forEach(x=>x.weeks.forEach(w=>w.inStall=true));
+  const last=stalls[stalls.length-1],lastW=weeks[weeks.length-1];
+  const cur=last&&lastW&&last.to===addDaysISO(lastW.week,6)?last:null;
+  /* aviso previo: las 2 últimas semanas ya van lentas, pero aún no suman 3 */
+  let curRun=0;
+  if(!cur&&lastW&&lastW.tgt&&lastW.tgt.dir!==0){const sp=slopePct(addDaysISO(lastW.week,-7),addDaysISO(lastW.week,6),4);if(sp!=null&&lastW.tgt.dir*sp<STALL_PCT)curRun=STALL_WEEKS-1;}
+  return {weeks,stalls,curRun,cur};
+}
+const WK_ST={ok:['✓','En ritmo'],slow:['≈','Lento'],rev:['↺','En contra del objetivo'],fast:['!','Demasiado rápido'],off:['≈','Fuera de mantenimiento'],none:['·','Sin pesajes'],start:['·','Primera semana']};
+function weekStrip(aid,max){
+  const ws=weightWeeksStatus(aid),wk=ws.weeks.slice(-(max||16));
+  if(wk.length<2)return'';
+  const sign=n=>(n>0?'+':'')+String(n).replace('.',',');
+  const cells=wk.map(w=>{const m=WK_ST[w.st];
+    const tip='Sem. '+fmtDate(w.week)+' · '+(w.pct!=null?sign(w.delta)+' kg ('+sign(w.pct)+' %) · ':'')+m[1]+(w.n!=null&&w.n<3?' · solo '+w.n+' pesaje'+(w.n===1?'':'s'):'');
+    return '<span class="wks '+w.st+(w.inStall?' stall':'')+(w.n!=null&&w.n<3?' few':'')+'" title="'+esc(tip)+'" aria-label="'+esc(tip)+'">'+m[0]+'</span>';}).join('');
+  /* diagnóstico en una frase, lo primero que el coach debe leer */
+  let diag;
+  const ok=wk.filter(w=>w.st==='ok').length,judged=wk.filter(w=>w.st!=='none'&&w.st!=='start').length;
+  if(ws.cur)diag='<b class="wk-warn">Estancado '+ws.cur.n+' semanas</b> desde el '+fmtDate(ws.cur.from)+': avanza menos de 0,2 %/sem hacia el objetivo.';
+  else if(ws.curRun===STALL_WEEKS-1)diag='<b class="wk-warn">Ojo:</b> '+ws.curRun+' semanas lentas seguidas; una más y cuenta como estancamiento.';
+  else diag='<b class="wk-ok">Sin estancamiento ahora.</b>';
+  const prevSt=ws.stalls.filter(x=>x!==ws.cur);
+  const hist=prevSt.length?' Estancamientos anteriores: '+prevSt.length+' (el último del '+fmtDate(prevSt[prevSt.length-1].from)+' al '+fmtDate(prevSt[prevSt.length-1].to)+', '+prevSt[prevSt.length-1].n+' sem).':' Ningún estancamiento anterior.';
+  return '<div class="wk-box"><div class="wk-diag">'+diag+hist+(judged?' En ritmo '+ok+' de las últimas '+judged+' semanas.':'')+'</div>'+
+    '<div class="wk-row">'+cells+'</div><div class="wk-axis"><span>'+fmtDate(wk[0].week)+'</span><span>esta semana</span></div>'+
+    '<div class="wk-leg">'+['ok','slow','rev','fast','none'].map(k=>'<span><i class="wks '+k+'">'+WK_ST[k][0]+'</i>'+WK_ST[k][1]+'</span>').join('')+'<span><i class="wks ok stall">✓</i>Subrayado: estancamiento (tendencia de 3+ sem)</span></div></div>';
+}
+/* Récords y cambio total. «Inicio» y «ahora» usan la media de 7 días, no un pesaje suelto:
+   un día de retención no debe cambiar la frase que lee el atleta. */
+function weightRecords(aid){
+  const w=(athData(aid).logs.weight||[]).filter(x=>x&&x.date&&x.kg!=null).slice().sort((a,b)=>a.date<b.date?-1:1);
+  if(!w.length)return null;
+  let mn=w[0],mx=w[0];w.forEach(x=>{if(x.kg<mn.kg)mn=x;if(x.kg>mx.kg)mx=x;});
+  const mean=a=>a.reduce((s,x)=>s+x.kg,0)/a.length;
+  const f=w[0].date,l=w[w.length-1].date;
+  const start=mean(w.filter(x=>x.date<=addDaysISO(f,6))),now=mean(w.filter(x=>x.date>=addDaysISO(l,-6)));
+  const m30=w.filter(x=>x.date>=addDaysISO(l,-36)&&x.date<=addDaysISO(l,-30));
+  return {first:w[0],min:mn,max:mx,start,now,n:w.length,month:m30.length?now-mean(m30):null};
+}
+function weightRecordsRow(aid){
+  const r=weightRecords(aid);if(!r||r.n<2)return'';
+  const k=v=>v.toFixed(1).replace('.',',');
+  return '<div class="wrec"><div><span>Peso más bajo</span><b>'+k(r.min.kg)+' kg</b><small>'+fmtDate(r.min.date)+'</small></div>'+
+    '<div><span>Peso más alto</span><b>'+k(r.max.kg)+' kg</b><small>'+fmtDate(r.max.date)+'</small></div>'+
+    '<div><span>Primer pesaje</span><b>'+k(r.first.kg)+' kg</b><small>'+fmtDate(r.first.date)+'</small></div></div>';
+}
+/* Tarjeta «Tu progreso»: lo que el atleta entiende sin saber leer una gráfica.
+   Para el atleta va en positivo y sin diagnóstico (el estancamiento es cosa del coach). */
+function progressCard(aid,forAth){
+  const r=weightRecords(aid),p=athData(aid).profile;
+  if(!r||r.n<2)return'';
+  const k=v=>Math.abs(v).toFixed(1).replace('.',',');
+  const tot=r.now-r.start,pct=tot/r.start*100;
+  const desde='Desde el '+fmtDate(r.first.date)+' ';
+  let lines='<p class="pg-big">'+(Math.abs(tot)<0.05?desde+(forAth?'te mantienes':'se mantiene')+' estable.':desde+(forAth?'has ':'ha ')+(tot<0?'bajado ':'subido ')+k(tot)+' kg <span>('+(pct>0?'+':'−')+k(pct)+' %)</span>')+'</p>';
+  if(r.month!=null&&Math.abs(r.month)>=0.05)lines+='<p class="pg-sub">Último mes: '+(r.month<0?'−':'+')+k(r.month)+' kg en la media semanal.</p>';
+  let goal='';
+  const gw=+p.goalWeight;
+  if(gw>0){
+    const span=r.start-gw,done=r.start-r.now,falta=r.now-gw;
+    const prog=Math.abs(span)<0.05?100:Math.max(0,Math.min(100,done/span*100));
+    const st=weightStats(aid,28);let eta='';
+    if(Math.abs(falta)<0.3)eta=forAth?'¡Estás en tu meta!':'En la meta.';
+    else if(st&&Math.abs(st.kgWk)>=0.05&&Math.sign(st.kgWk)===-Math.sign(falta)){
+      const wks=Math.abs(falta/st.kgWk);
+      eta=wks>104?'A este ritmo aún queda lejos.':'A este ritmo, '+(forAth?'llegarías':'llegaría')+' hacia el <b>'+fmtDate(addDaysISO(todayISO(),Math.round(wks*7)))+'</b> ('+Math.round(wks)+' sem).';
+    }else eta=forAth?'Cuando el ritmo vaya hacia la meta te diremos una fecha estimada.':'El ritmo actual no va hacia la meta: sin fecha estimada.';
+    goal='<div class="pg-goal"><div class="pg-gl"><span>Meta: <b>'+k(gw)+' kg</b></span><span>'+(Math.abs(falta)<0.3?'':'faltan <b>'+k(falta)+' kg</b>')+'</span></div>'+
+      '<div class="pg-bar" role="progressbar" aria-valuenow="'+Math.round(prog)+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+prog.toFixed(1)+'%"></i></div>'+
+      '<div class="pg-gl tiny"><span>'+k(r.start)+' kg al empezar</span><span>'+Math.round(prog)+' % del camino</span></div><p class="pg-sub">'+eta+'</p></div>';
+  }
+  return '<div class="card mb16 pg"><h3>'+(forAth?'Tu progreso':'Progreso del peso')+'</h3>'+lines+goal+weightRecordsRow(aid)+'</div>';
 }
 function weightTrendCard(aid){
   const d=athData(aid),p=d.profile,lw=lastWeight(aid);
@@ -9380,6 +9560,7 @@ function weightTrendCard(aid){
     '<div class="stat"><div class="k">Proyección 4 sem</div><div class="v">'+sign(+(st.kgWk*4).toFixed(1))+'<small> kg</small></div><div class="sub">si mantiene el ritmo</div></div>'+
     '<div class="stat"><div class="k">Estado</div><div class="v" style="font-size:15px"><span class="badge '+v.cls+'">'+(v.cls==='green'?'En objetivo':v.cls==='orange'?'Ajustar':'Atención')+'</span></div><div class="sub">'+esc(v.txt)+'</div></div></div>'+
     svgWeightTrend(st,tgt,cur)+
+    '<h4 class="mg-h" style="margin-top:16px">¿Va bien semana a semana? <span class="hint">media semanal vs la anterior, con el objetivo que tenía cada semana</span></h4>'+weekStrip(aid,16)+
     '<p class="tiny mt8">La tasa se calcula por regresión lineal (no por el último pesaje suelto), así filtra el ruido diario de agua/glucógeno. La banda objetivo deriva de '+esc(fuenteTxt)+'. '+(v.cls!=='green'?'<b style="color:var(--'+(v.cls==='red'?'red':'orange')+')">Sugerencia:</b> '+(tgt.dir<0?(v.cls==='red'?'sube ~100-150 kcal para frenar la bajada y proteger la masa magra.':'baja ~100-150 kcal o sube pasos para reactivar la pérdida.'):(v.cls==='red'?'recorta ~100-150 kcal para limitar la grasa ganada.':'añade ~100-150 kcal para asegurar el estímulo de crecimiento.')):'Mantén el plan; el ritmo es adecuado.')+'</p></div>';
 }
 
@@ -9778,7 +9959,7 @@ function autoNutrition(aid,useOwn){
   const tg=nutriTargets(aid);
   if(tg.err)return tg;
   plan.kcal=tg.target;plan.protein=tg.protein;plan.carbs=tg.carbs;plan.fat=tg.fat;plan.mode='menu';
-  d.profile.targetRatePct=tg.dir<0?-tg.pctUsed:tg.dir>0?tg.pctUsed:0;
+  setTargetRate(aid,tg.dir<0?-tg.pctUsed:tg.dir>0?tg.pctUsed:0);
   const N=Math.max(1,plan.mealsPerDay||4);
   plan.meals=buildAutoMeals(N,tg.protein,tg.carbs,tg.fat);
   plan.notes=autoNote(plan.notes,'[Plan autogenerado: '+tg.goalTxt+', '+tg.protGkg+' g/kg proteína. Ajusta gramos a tu gusto.]');
