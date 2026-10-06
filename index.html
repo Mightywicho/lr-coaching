@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-05.2">
+<meta name="lr-build" content="2026-10-06.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -5385,9 +5385,10 @@ Object.assign(ACTIONS,{
   'routine-meta-save':el=>{const r=athData(el.dataset.aid).routine;r.name=val('r_name');r.weekNote=val('r_week');saveState();toast('Programa actualizado');render();},
   'day-add-modal':el=>openModal('Nuevo día','<div class="frow"><label>Nombre del día</label><input id="d_name" placeholder="Día 5 · Brazo"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
   'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día');return;}const nd={id:uid(),name:nm,exercises:[]};athData(el.dataset.aid).routine.days.push(nd);route.params.rday=nd.id;
-    /* La sesión nueva nacía sin reparto (plan vacío) y las otras seguían cargando todo el volumen. */
-    const nr=autoDistributeDayPlan(el.dataset.aid);
-    saveState();closeModal();if(nr)toast('Reparto del volumen recalculado entre '+athData(el.dataset.aid).routine.days.length+' sesiones');render();},
+    /* La sesión nueva nace con el plan vacío y el reparto de las demás NO se toca: rehacerlo todo
+       aquí pisaba lo acomodado a mano (Jenny: Glúteo acabó en «ABS» y Bíceps en «Lower 1»).
+       Para llenarla se usa ± en el paso 2 o «Repartir objetivos automáticamente». */
+    saveState();closeModal();render();},
   'rut-dia':el=>{route.params.rday=el.dataset.day;render();},
   'day-ren-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);openModal('Renombrar día','<div class="frow"><label>Nombre</label><input id="d_name" value="'+esc(day.name)+'"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-ren-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Guardar</button>');},
   'day-ren-save':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);day.name=val('d_name')||day.name;saveState();closeModal();render();},
@@ -5403,8 +5404,11 @@ Object.assign(ACTIONS,{
       logChange(aid,'baja','Sesión eliminada · '+nEx+(nEx===1?' ejercicio':' ejercicios')+' · '+nS+(nS===1?' serie':' series'),day.name,'Sesión completa');
     }
     r.days=r.days.filter(x=>x.id!==el.dataset.day);
-    const nr=r.days.length?autoDistributeDayPlan(aid):0;
-    saveState();closeModal();if(nr)toast('Reparto del volumen recalculado entre '+r.days.length+' sesiones');render();
+    /* Solo los grupos que planeaba la sesión borrada se reajustan, dentro de las sesiones que ya
+       los trabajaban; el resto del reparto queda igual. Un grupo que solo vivía en esa sesión queda
+       sin asignar (el reparto por carga lo mandaba a cualquier día, p. ej. Pectoral a «ABS»). */
+    const nr=day&&r.days.length?replanGroups(aid,Object.keys(day.plan||{}).filter(g=>r.days.some(dy=>((dy.plan||{})[g]||0)>0))):0;
+    saveState();closeModal();if(nr)toast('Series de «'+day.name+'» pasadas a las sesiones que ya trabajan esos grupos');render();
   },
   /* data-group llega desde los chips de plan de la cabecera del día: abre el modal ya filtrado por ese grupo */
   'ex-add-modal':el=>openModal('Añadir ejercicio'+(el.dataset.group?' · '+el.dataset.group:''),exForm({},el.dataset.aid,'',el.dataset.day||'',el.dataset.group||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Añadir</button>'),
@@ -9421,9 +9425,20 @@ function autoDistributeDayPlan(aid,only){
   if(!targets.length)return 0;
   /* carga inicial: el plan de los grupos que no se reparten ahora se respeta */
   const load=days.map(day=>{let t=0;Object.keys(day.plan||{}).forEach(g=>{if(targets.indexOf(g)<0)t+=day.plan[g]||0;});return t;});
+  /* con `only`, un grupo que ya tiene sesiones asignadas se reajusta en ESAS mismas sesiones
+     (proporcional a lo que tenía): el reparto por carga no sabe qué es Upper y qué es Lower */
+  const prev={};
+  if(only)targets.forEach(g=>{const w=days.map(day=>Math.max(0,+((day.plan||{})[g])||0));if(w.some(x=>x>0))prev[g]=w;});
   days.forEach(day=>{day.plan=day.plan||{};targets.forEach(g=>{delete day.plan[g];});});
   targets.slice().sort((a,b)=>(+tgts[b])-(+tgts[a])).forEach(g=>{
     const T=+tgts[g];
+    if(prev[g]){
+      const w=prev[g],W=w.reduce((a,b)=>a+b,0);
+      const v=w.map(x=>Math.floor(T*x/W));let rem=T-v.reduce((a,b)=>a+b,0);
+      w.map((x,i)=>i).filter(i=>w[i]>0).sort((a,b)=>(T*w[b]/W-v[b])-(T*w[a]/W-v[a])||a-b).forEach(i=>{if(rem>0){v[i]++;rem--;}});
+      v.forEach((x,i)=>{if(x>0){days[i].plan[g]=x;load[i]+=x;}});
+      return;
+    }
     /* frecuencia: 1 sesión por cada 4-10 series; ~8/sesión; mínimo 2 estímulos si T≥6 */
     let f=Math.round(T/8)||1;
     f=Math.max(f,Math.ceil(T/10));
@@ -9994,7 +10009,7 @@ Object.assign(ACTIONS,{
   },
   'voltargets-auto':el=>{
     const n=autoFillVolTargets(el.dataset.aid);
-    if(athData(el.dataset.aid).routine.days.length)autoDistributeDayPlan(el.dataset.aid);
+    if(athData(el.dataset.aid).routine.days.length)replanGroups(el.dataset.aid,GROUPS);
     saveState();closeModal();toast('Metas rellenadas con el recomendado ('+n+' grupos)');render();
   },
   'voltargets-from-routine':el=>{
