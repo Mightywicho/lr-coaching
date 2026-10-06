@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-06.2">
+<meta name="lr-build" content="2026-10-06.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2014,47 +2014,64 @@ const skipLbl=k=>SKIP_REASONS[k]||'Sin motivo';
    `subW` = esas mini-series llevan su propio peso. Solo el dropset lo baja; en myo reps y cluster
             el peso es el mismo de la serie, así que pedirlo otra vez sería ruido en el gimnasio. */
 const TECHS={
-  myo:{lbl:'Myo reps',sub:true,subW:false,hint:'Serie de activación y luego mini-series de pocas reps con descansos de unas respiraciones.',
+  myo:{lbl:'Myo reps',sub:true,subW:false,hint:'Serie de activación y luego mini-series de pocas reps con descanso muy corto.',
+    par:[{k:'r',lbl:'Reps por mini-serie',def:'3-5'},{k:'d',lbl:'Descanso entre mini-series',def:'10-20 s'}],
     how:['Serie de activación: haz las reps de la serie llegando al RIR indicado (muy cerca del fallo).',
-      'Deja el peso y toma 3-5 respiraciones profundas (10-20 s). No más.',
-      'Mini-serie: con el MISMO peso, haz 3-5 reps.',
-      'Repite respiraciones + mini-serie hasta completar las mini-series indicadas. Si una mini-serie ya no llega a 3 reps, para ahí.',
+      'Deja el peso y descansa {d} respirando profundo. No más.',
+      'Mini-serie: con el MISMO peso, haz {r} reps.',
+      'Repite descanso + mini-serie hasta completar las mini-series indicadas. Si una ya no llega a las reps, para ahí.',
       'Anota cada mini-serie en su casilla: no cuentan como series, pero sí suman al tonelaje.']},
   cluster:{lbl:'Cluster',sub:true,subW:false,hint:'La serie se parte en tandas con descanso corto entre ellas.',
+    par:[{k:'r',lbl:'Reps por tanda',def:'2-4'},{k:'d',lbl:'Descanso entre tandas',def:'15-30 s'}],
     how:['Usa un peso que te cueste para las reps de la serie (más del que usarías sin pausas).',
-      'Haz una tanda de 2-4 reps, sin llegar al fallo.',
-      'Descansa 15-30 s (puedes dejar el peso en el soporte).',
+      'Haz una tanda de {r} reps, sin llegar al fallo.',
+      'Descansa {d} (puedes dejar el peso en el soporte).',
       'Repite tandas con el mismo peso hasta completar las indicadas, cuidando la técnica en cada rep.',
       'Anota cada tanda en su casilla.']},
   drop:{lbl:'Dropset (descarga)',sub:true,subW:true,hint:'Al llegar al fallo, baja el peso y sigue sin descanso.',
+    par:[{k:'b',lbl:'Bajada de peso',def:'20-30 %'},{k:'d',lbl:'Descanso entre bajadas',def:'solo lo que tardas en cambiar el peso'}],
     how:['Antes de empezar, deja listos los pesos más ligeros (mancuernas, discos o pin de la máquina).',
       'Haz la serie normal hasta el RIR indicado (muy cerca del fallo).',
-      'Sin descansar —solo lo que tardas en cambiar el peso—, bájalo un 20-30 %.',
+      'Descanso: {d}. Baja el peso {b}.',
       'Sigue con el peso nuevo otra vez hasta casi el fallo.',
       'Repite según las bajadas indicadas y anota peso y reps de cada una.']},
   iso:{lbl:'Isométrico / pausa',sub:false,subW:false,hint:'Mantén la pausa indicada en cada repetición.',
+    par:[{k:'p',lbl:'Duración de la pausa',def:'1-3 s'}],
     how:['En cada repetición, detente en el punto que indica tu coach (si no dice, en la parte más difícil o de mayor estiramiento).',
-      'Sostén 1-3 s (o el tiempo indicado) sin rebotar ni relajar el músculo: la tensión no se suelta.',
+      'Sostén {p} sin rebotar ni relajar el músculo: la tensión no se suelta.',
       'Completa la repetición y repite la pausa en todas.',
       'Usa un poco menos de peso que sin pausa. Registra la serie como siempre.']},
   parc:{lbl:'Parciales al fallo',sub:false,subW:false,hint:'Al llegar al fallo, sigue con repeticiones parciales.',
+    par:[{k:'n',lbl:'Parciales',def:'3-6'}],
     how:['Haz la serie hasta que no salga otra repetición completa con buena técnica.',
       'Sin soltar el peso, sigue con medias repeticiones en la parte de estiramiento del movimiento.',
-      'Haz parciales hasta que ya no puedas moverlo (normalmente 3-6).',
+      'Haz {n} parciales (o hasta que ya no puedas moverlo).',
       'Registra solo las repeticiones completas.']}
 };
 const GRPLET=['A','B','C','D'];
 function techOf(e){return (e&&e.tech&&TECHS[e.tech])?TECHS[e.tech]:null;}
-/* Paso a paso de la técnica. Texto FIJO (no editable): lo particular de cada ejercicio va en
-   «Indicaciones técnicas». `open` = desplegado (en el editor del coach). */
-function techHowHTML(t,open){
+/* Paso a paso de la técnica. El texto es fijo; las cifras ({r}, {d}…) las ajusta el coach por
+   ejercicio en `e.techP` (solo se guarda lo que difiere del valor por defecto de `par`).
+   Lo particular de cada ejercicio va en «Indicaciones técnicas». `open` = desplegado (editor). */
+function techPv(t,p,k){const d=(t.par||[]).find(x=>x.k===k);const v=p&&p[k]!=null?String(p[k]).trim():'';return v||(d?d.def:'');}
+function techHowHTML(t,open,p){
   if(!t||!t.how)return '';
-  return '<details class="techhow"'+(open?' open':'')+'><summary>Cómo se hace: '+esc(t.lbl)+'</summary><ol>'+t.how.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol></details>';
+  const fill=x=>esc(x).replace(/\{(\w)\}/g,(m,k)=>'<b>'+esc(techPv(t,p,k))+'</b>');
+  return '<details class="techhow"'+(open?' open':'')+'><summary>Cómo se hace: '+esc(t.lbl)+'</summary><ol>'+t.how.map(x=>'<li>'+fill(x)+'</li>').join('')+'</ol></details>';
 }
-/* Ayuda bajo el selector de técnica del editor; se reescribe al cambiarla (acción ex-tech). */
-function techEdHint(t){
-  return t?esc(t.hint)+(t.sub?' Las mini-series se anotan aparte: <b>no cuentan como series</b>, pero sí suman al tonelaje.':' Solo es una indicación: el atleta registra la serie como siempre.')+techHowHTML(t,true)
+/* Ayuda bajo el selector de técnica del editor; se reescribe al cambiar técnica o cifras. */
+function techEdHint(t,p){
+  return t?esc(t.hint)+(t.sub?' Las mini-series se anotan aparte: <b>no cuentan como series</b>, pero sí suman al tonelaje.':' Solo es una indicación: el atleta registra la serie como siempre.')+techHowHTML(t,true,p)
     :'Myo reps, cluster y dropset le piden al atleta anotar cada mini-serie. Isométrico y parciales son solo indicación.';
+}
+/* Casillas de cifras de la técnica en el editor (vacía = valor por defecto, que sale de placeholder). */
+function techParHTML(t,p){
+  if(!t||!t.par)return '';
+  return '<div class="frow'+(t.par.length>1?'2':'')+'">'+t.par.map(x=>'<div><label>'+esc(x.lbl)+'</label><input id="e_tp_'+x.k+'" data-techp="1" value="'+esc(p&&p[x.k]||'')+'" placeholder="'+esc(x.def)+'"></div>').join('')+'</div>';
+}
+function techParRead(t){
+  const out={};((t&&t.par)||[]).forEach(x=>{const el=document.getElementById('e_tp_'+x.k);const v=el?el.value.trim():'';if(v&&v!==x.def)out[x.k]=v;});
+  return out;
 }
 function techN(e){const n=parseInt(e&&e.techN,10);return n>0?Math.min(n,8):3;}
 /* ¿Esta serie (índice 0-based) lleva mini-series? `techOn:'last'` = solo la última. */
@@ -5461,7 +5478,8 @@ Object.assign(ACTIONS,{
     const _gl=val('e_grpl'),_tk=val('e_tech');
     data.grp=GRPLET.indexOf(_gl)>=0?_gl:'';
     data.tech=TECHS[_tk]?_tk:'';
-    if(data.tech){data.techN=Math.min(Math.max(num('e_techn')||3,1),8);data.techOn=val('e_techon')==='last'?'last':'all';}
+    if(data.tech){data.techN=Math.min(Math.max(num('e_techn')||3,1),8);data.techOn=val('e_techon')==='last'?'last':'all';
+      const _tp=techParRead(TECHS[data.tech]);if(Object.keys(_tp).length)data.techP=_tp;}
     if(el.dataset.ex){
       const e=day.exercises.find(x=>x.id===el.dataset.ex);
       const det=exDiff(e,data);
@@ -5487,6 +5505,7 @@ Object.assign(ACTIONS,{
       Object.assign(e,data);if(!data.libId)delete e.libId;if(!data.revLink)delete e.revLink;
       if(!data.grp)delete e.grp;
       if(!data.tech){delete e.tech;delete e.techN;delete e.techOn;}
+      if(!data.techP)delete e.techP;
       if(swapped){rememberExName(el.dataset.aid,oldEx);e.id=uid();}
       const gNew=e.libId?(libById(e.libId)||{}).group:null;
       const sync=(gOld&&gNew===gOld&&setsNew!==setsOld)?syncPlanToSets(el.dataset.aid,day,gOld,setsNew-setsOld):null;
@@ -5868,7 +5887,8 @@ function exForm(e,aid,exId,dayId,gForce){
     '<div><label>Técnica</label><select id="e_tech" data-change="ex-tech">'+tOpts+'</select></div>'+
     '<div><label>Mini-series</label><input id="e_techn" type="number" min="1" max="8" value="'+esc(e.techN||3)+'"></div></div>'+
     '<div class="frow"><label>La técnica aplica a</label><select id="e_techon"><option value="all"'+(e.techOn==='last'?'':' selected')+'>Todas las series</option><option value="last"'+(e.techOn==='last'?' selected':'')+'>Solo la última serie</option></select>'+
-    '<div class="tiny" style="margin-top:5px" id="e_tech_hint">'+techEdHint(tSel)+'</div></div>';
+    '<div id="e_tech_par" style="margin-top:8px">'+techParHTML(tSel,e.techP)+'</div>'+
+    '<div class="tiny" style="margin-top:5px" id="e_tech_hint">'+techEdHint(tSel,e.techP)+'</div></div>';
   const origen=aid?('<p class="tiny" style="margin:0 0 5px;color:var(--tx3)">'+(ses?'Las series que faltan son las de <b>esta sesión</b> (reparto del paso 2).':'Esta sesión no tiene reparto en el paso 2, así que lo que falta se mide contra la <b>meta semanal</b>.')+'</p>'):'';
   return dl+'<div class="frow"><label>Filtrar por grupo muscular</label>'+origen+'<select id="e_grp" data-change="ex-grp" data-aid="'+esc(aid||'')+'" data-day="'+esc(dayId||'')+'" data-ex="'+esc(exId||'')+'">'+gopts+'</select><p class="tiny" style="margin-top:5px" id="e_grp_hint">'+esc(exGrpHint(g0,aid,dayId,exId))+'</p></div>'+
   '<div class="frow"><label>Ejercicio</label><input id="e_name" list="exlist" data-exvol="1" value="'+esc(e.name||'')+'" placeholder="Escribe o abre la lista para elegir…"><p class="tiny" style="margin-top:5px">Si coincide con uno de la biblioteca, queda vinculado: hereda video y músculos.</p></div>'+
@@ -6737,7 +6757,7 @@ VIEWS['ath-wlog']=function(u){
     /* En biserie el descanso va al final del grupo, no entre ejercicios: decirlo aquí evita que
        el atleta descanse donde no toca y convierta la biserie en dos series normales. */
     const restTxt=multi?(gi<gr.items.length-1?'sin descanso, pasa al siguiente':esc(e.rest)+' al terminar el grupo'):esc(e.rest);
-    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+'</div>'+(e.notes?'<div class="exind"><b>📝 Tu coach:</b>'+esc(e.notes)+'</div>':'')+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>'+techHowHTML(techOf(e)):'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
+    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+'</div>'+(e.notes?'<div class="exind"><b>📝 Tu coach:</b>'+esc(e.notes)+'</div>':'')+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>'+techHowHTML(techOf(e),false,e.techP):'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso ('+unit+')</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
@@ -6784,7 +6804,7 @@ VIEWS['ath-rutina']=function(u){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<div class="exind"><b>📝</b>'+esc(e.notes)+'</div>':'')+techHowHTML(techOf(e))+swapRowUI(e,day.id)+'</td><td class="num" data-l="Series">'+esc(e.sets)+'</td><td class="num" data-l="Reps">'+esc(e.reps)+'</td><td class="num" data-l="RIR">'+esc(e.rir)+'</td><td class="num" data-l="⏱">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">🎥 Revisión</a>':'')+(e.notes?'<div class="exind"><b>📝</b>'+esc(e.notes)+'</div>':'')+techHowHTML(techOf(e),false,e.techP)+swapRowUI(e,day.id)+'</td><td class="num" data-l="Series">'+esc(e.sets)+'</td><td class="num" data-l="Reps">'+esc(e.reps)+'</td><td class="num" data-l="RIR">'+esc(e.rir)+'</td><td class="num" data-l="⏱">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
     /* Corregir una sesión de días anteriores. Solo se ofrece si de verdad hay alguna dentro
        de la ventana: un botón que siempre está y casi siempre dice «no hay nada» es ruido. */
@@ -7436,6 +7456,7 @@ function fextResHTML(){
 document.addEventListener('input',e=>{
   const el=e.target;
   if(el.dataset&&el.dataset.exvol){renderExVol();}
+  if(el.dataset&&el.dataset.techp){const t=TECHS[val('e_tech')],h=document.getElementById('e_tech_hint');if(h)h.innerHTML=techEdHint(t,techParRead(t));}
   if(el.dataset&&el.dataset.bind&&WDRAFT){
     const s=WDRAFT.sets[el.dataset.ex][parseInt(el.dataset.idx,10)];
     if(s){
@@ -7560,7 +7581,9 @@ document.addEventListener('change',e=>{
   }
   else if(el.dataset.change==='ex-tech'){
     /* sin re-render: cerraría el modal */
-    const h=document.getElementById('e_tech_hint');if(h)h.innerHTML=techEdHint(TECHS[el.value]||null);
+    const t=TECHS[el.value]||null,pr=document.getElementById('e_tech_par'),h=document.getElementById('e_tech_hint');
+    if(pr)pr.innerHTML=techParHTML(t,null);
+    if(h)h.innerHTML=techEdHint(t,null);
   }
   else if(el.dataset.change==='ex-grp'){
     /* filtro del selector de ejercicio: reescribe el datalist SIN re-render (un render cerraría el modal) */
