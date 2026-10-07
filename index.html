@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-06.5">
+<meta name="lr-build" content="2026-10-06.6">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3549,7 +3549,7 @@ function navItemsFor(u){
   if(sv.tr)items.push({v:'ath-rutina',icon:I.dumbbell,label:'Mi rutina',match:r=>r.view==='ath-rutina'||r.view==='ath-wlog'});
   if(sv.nu)items.push({v:'ath-nutri',icon:I.food,label:'Nutrición'});
   items.push({v:'ath-chat',icon:ICON_CHAT,label:'Mensajes',badge:chatUnread(u.id,'ath')});
-  if(sv.tr)items.push({v:'ath-prog',icon:I.chart,label:'Progreso'});
+  items.push({v:'ath-prog',icon:I.chart,label:'Progreso'});
   items.push({v:'ath-reporte',icon:I.copy,label:'Mi reporte'});
   items.push({v:'ath-perfil',icon:I.user,label:'Perfil'});
   return items;
@@ -7012,11 +7012,12 @@ VIEWS['ath-nutri']=function(u){
     '<div>'+(plan||'')+'<div class="card'+(plan?' mt16':'')+'"><h3>Tus últimos registros</h3>'+(hist||'<div class="empty"><b>Sin registros aún</b>Registra tu adherencia cada día desde «Hoy».</div>')+'</div></div></div>'+supp};
 };
 
+/* Antes solo existía con entrenamiento y un atleta de solo nutrición no tenía dónde ver su peso
+   en el tiempo — justo su indicador principal. Ahora es para todos; lo de entrenos va con sv.tr. */
 VIEWS['ath-prog']=function(u){
-  if(!svcOf(u.id).tr)return VIEWS['ath-hoy'](u);
-  const aid=u.id,d=athData(aid);
+  const aid=u.id,d=athData(aid),tr=svcOf(aid).tr;
   const wpts=d.logs.weight.map(w=>({x:w.date,y:w.kg}));
-  const allEx=[];d.routine.days.forEach(day=>day.exercises.forEach(e=>allEx.push(e)));
+  const allEx=[];((d.routine&&d.routine.days)||[]).forEach(day=>(day.exercises||[]).forEach(e=>allEx.push(e)));
   const selId=route.params.ex||(allEx[0]?allEx[0].id:null);
   let opts='';allEx.forEach(e=>{opts+='<option value="'+e.id+'"'+(e.id===selId?' selected':'')+'>'+esc(e.name)+'</option>';});
   /* Unidad de CARGAS del atleta (kg o lb). El kg sigue siendo la fuente de verdad: aquí solo
@@ -7055,19 +7056,19 @@ VIEWS['ath-prog']=function(u){
     let rows='';sw.slice().reverse().slice(0,10).forEach(w=>{rows+='<tr><td>Sem. '+fmtDate(w.week)+'</td><td class="num"><b>'+Math.round(w.avg).toLocaleString('es-ES')+'</b></td><td class="num">'+w.n+'</td></tr>';});
     swTable='<div class="tblwrap mt16"><table class="tbl" style="min-width:auto"><thead><tr><th>Semana (desde lunes)</th><th>Media diaria</th><th>Días registrados</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
-  return{title:'Mi progreso',crumb:'Peso, pasos, cargas y adherencia',
+  return{title:'Mi progreso',crumb:tr?'Peso, pasos, cargas y adherencia':'Peso, pasos y adherencia',
     body:'<div class="grid g3 mb16">'+
     '<div class="stat"><div class="k">Cambio de peso 30d</div><div class="v '+(d30>0?'up':d30<0?'down':'')+'">'+(d30!=null?(d30>0?'+':'')+d30+'<small> kg</small>':'—')+'</div></div>'+
     '<div class="stat"><div class="k">Ritmo semanal</div><div class="v '+(rate&&rate.delta>0?'up':rate&&rate.delta<0?'down':'')+'">'+(rate?(rate.delta>0?'+':'')+rate.delta.toFixed(2)+'<small> kg/sem</small>':'—')+'</div><div class="sub">'+(rate?(rate.pct>0?'+':'')+rate.pct.toFixed(2)+'% de tu peso/sem · semanas con ≥3 pesajes':'necesita 2 semanas con ≥3 pesajes')+'</div></div>'+
     '<div class="stat"><div class="k">Peso medio · semana actual</div><div class="v">'+(curW?curW.avg.toFixed(1)+'<small> kg</small>':'—')+'</div><div class="sub">'+(curW?curW.n+' pesaje'+(curW.n===1?'':'s')+' esta semana':'sin pesajes esta semana')+'</div></div></div>'+
-    '<div class="grid g3 mb16">'+
+    '<div class="grid '+(tr?'g3':'g2')+' mb16">'+
     '<div class="stat"><div class="k">Pasos · media semana actual</div><div class="v">'+(curS?Math.round(curS.avg).toLocaleString('es-ES'):'—')+'</div><div class="sub">'+(curS?curS.n+' día'+(curS.n===1?'':'s')+' registrados':'registra tus pasos en «Hoy»')+'</div></div>'+
-    '<div class="stat"><div class="k">Entrenos · semana actual</div><div class="v">'+wkw.done+'<small> / '+wkw.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>'+
+    (tr?'<div class="stat"><div class="k">Entrenos · semana actual</div><div class="v">'+wkw.done+'<small> / '+wkw.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>':'')+
     '<div class="stat"><div class="k">Adherencia · semana actual</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">desde el lunes</div></div></div>'+
     progressCard(aid,true)+
     '<div class="card"><h3>Peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(wpts)+wwTable+'</div>'+
     '<div class="card"><h3>Pasos diarios <span class="hint">'+spts.length+' registros</span></h3>'+(spts.length>=2?svgLine(spts,{color:'#ffb45c'}):'<div class="empty"><b>Sin datos de pasos suficientes</b>Registra tus pasos cada día desde «Hoy» para ver la gráfica.</div>')+swTable+'</div>'+
-    '<div class="card"><h3>Progresión de cargas</h3><div class="frow"><label>Ejercicio</label><select data-change="prog-ex">'+opts+'</select></div>'+exChart+exTable+'</div>'};
+    (tr?'<div class="card"><h3>Progresión de cargas</h3><div class="frow"><label>Ejercicio</label><select data-change="prog-ex">'+opts+'</select></div>'+exChart+exTable+'</div>':'')};
 };
 
 /* ---------- acciones del atleta ---------- */
@@ -9478,7 +9479,8 @@ function weightWeeksStatus(aid){
   return {weeks,stalls,curRun,cur};
 }
 const WK_ST={ok:['✓','En ritmo'],slow:['≈','Lento'],rev:['↺','En contra del objetivo'],fast:['!','Demasiado rápido'],off:['≈','Fuera de mantenimiento'],none:['·','Sin pesajes'],start:['·','Primera semana']};
-function weekStrip(aid,max){
+/* OJO: no llamarla weekStrip — ese nombre es la tira de entrenos de «Hoy» y la pisaba. */
+function weightWeekStrip(aid,max){
   const ws=weightWeeksStatus(aid),wk=ws.weeks.slice(-(max||16));
   if(wk.length<2)return'';
   const sign=n=>(n>0?'+':'')+String(n).replace('.',',');
@@ -9560,7 +9562,7 @@ function weightTrendCard(aid){
     '<div class="stat"><div class="k">Proyección 4 sem</div><div class="v">'+sign(+(st.kgWk*4).toFixed(1))+'<small> kg</small></div><div class="sub">si mantiene el ritmo</div></div>'+
     '<div class="stat"><div class="k">Estado</div><div class="v" style="font-size:15px"><span class="badge '+v.cls+'">'+(v.cls==='green'?'En objetivo':v.cls==='orange'?'Ajustar':'Atención')+'</span></div><div class="sub">'+esc(v.txt)+'</div></div></div>'+
     svgWeightTrend(st,tgt,cur)+
-    '<h4 class="mg-h" style="margin-top:16px">¿Va bien semana a semana? <span class="hint">media semanal vs la anterior, con el objetivo que tenía cada semana</span></h4>'+weekStrip(aid,16)+
+    '<h4 class="mg-h" style="margin-top:16px">¿Va bien semana a semana? <span class="hint">media semanal vs la anterior, con el objetivo que tenía cada semana</span></h4>'+weightWeekStrip(aid,16)+
     '<p class="tiny mt8">La tasa se calcula por regresión lineal (no por el último pesaje suelto), así filtra el ruido diario de agua/glucógeno. La banda objetivo deriva de '+esc(fuenteTxt)+'. '+(v.cls!=='green'?'<b style="color:var(--'+(v.cls==='red'?'red':'orange')+')">Sugerencia:</b> '+(tgt.dir<0?(v.cls==='red'?'sube ~100-150 kcal para frenar la bajada y proteger la masa magra.':'baja ~100-150 kcal o sube pasos para reactivar la pérdida.'):(v.cls==='red'?'recorta ~100-150 kcal para limitar la grasa ganada.':'añade ~100-150 kcal para asegurar el estímulo de crecimiento.')):'Mantén el plan; el ritmo es adecuado.')+'</p></div>';
 }
 
