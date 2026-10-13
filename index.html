@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-13.2">
+<meta name="lr-build" content="2026-10-13.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1638,7 +1638,7 @@ function ensureProfileShells(st){
 /* separa el perfil en lo que el atleta puede ver (shared) y las notas internas del coach (private) */
 function splitProfile(p){
   const shared={},priv={};
-  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training')priv[k]=p[k];else shared[k]=p[k];});
+  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training'||k==='datosOk')priv[k]=p[k];else shared[k]=p[k];});
   return{shared:shared,priv:priv};
 }
 /* la identidad del atleta viaja dentro de shared (bajo _u) para que cada atleta solo lea la suya vía RLS */
@@ -3238,14 +3238,14 @@ function exSeries(aid,exId){
   const out=[];athData(aid).logs.workouts.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(w=>{
     const ss=(w.entries||{})[exId];if(!ss||!ss.length)return;
     const b=bestSetE1RM(ss),t=topSetOf(ss)||{};if(b.e1rm<=0)return;
-    out.push({date:w.date,wid:w.id,dayId:w.dayId,e1rm:b.e1rm,topW:+t.w||0,topR:+t.r||0,topRir:(t.rir!=null&&t.rir!=='')?+t.rir:null,ton:Math.round(exTonnage(ss)),sets:ss.length});
+    out.push({date:w.date,wid:w.id,ex:exId,dayId:w.dayId,e1rm:b.e1rm,topW:+t.w||0,topR:+t.r||0,topRir:(t.rir!=null&&t.rir!=='')?+t.rir:null,ton:Math.round(exTonnage(ss)),sets:ss.length});
   });
   let mE=0,mW=0,mT=0;
   out.forEach(o=>{o.prE1=o.e1rm>mE+0.001;o.prW=o.topW>mW+0.001;o.prTon=o.ton>mT+0.001;if(o.e1rm>mE)mE=o.e1rm;if(o.topW>mW)mW=o.topW;if(o.ton>mT)mT=o.ton;o.pr=o.prE1||o.prW||o.prTon;});
   return out;
 }
 /* estado de progreso de un ejercicio sobre una serie (ya filtrada al rango). 1RM est. ya pondera reps+RIR */
-function exStatus(series){
+function exStatusCore(series){
   if(!series.length)return null;
   const n=series.length,last=series[n-1];
   if(last.prE1)return{k:'pr',cls:'volt',lbl:'🏆 Récord de 1RM estimado',detail:'Nuevo máximo: '+last.e1rm+' kg (mejor serie '+last.topW+'×'+last.topR+(last.topRir!=null?' @RIR '+last.topRir:'')+').'};
@@ -3259,6 +3259,72 @@ function exStatus(series){
   if(de<0)return{k:'regresion',cls:'red',lbl:'Regresión',detail:'1RM est. '+de+' kg vs anterior. Revisa fatiga, técnica o sueño.'};
   if(flat)return{k:'estancado',cls:'orange',lbl:'Estancado',detail:'Sin avance de 1RM (peso, reps ni RIR) en las últimas 3 sesiones. Considera variar carga/reps o intensificar.'};
   return{k:'manten',cls:'',lbl:'Sostenido',detail:'1RM est. estable vs anterior.'};
+}
+/* ===== Datos a revisar (2026-10-13, pedido de un coach del equipo) =====
+   El 1RM estimado suma el RIR a las reps (8 reps @RIR 2 cuentan como 10), y de él salen
+   «🏆 Récord», «Estancado» y «Regresión». Un RIR mal anotado no solo se ve raro: enciende
+   alertas falsas o esconde un estancamiento real. En los datos reales (2 174 series) había 35
+   series con RIR 0 seguidas de otra igual o mejor, en 7 atletas. Aquí se DETECTAN, nunca se
+   corrigen: el coach decide («Ya lo revisé» o pedirle al atleta que lo corrija).
+   Umbral del salto de carga (×2,5 / ÷2,5 y solo desde 5 kg): con ×1,8 salían 49 avisos, casi
+   todos mancuernas chicas en libras (10→20 lb) que son progresiones reales.
+   Aparte, la franja ×2,1–2,35 (y su inversa) caza libras anotadas como kilos (×2,2), que el
+   umbral de 2,5 dejaba pasar; el ×2,0 exacto queda fuera a propósito (10→20 lb es normal).
+   Lo revisado vive en profile.datosOk ({clave:fecha}), en la fila private de athlete_profiles
+   (splitProfile): el atleta no lo ve. La clave lleva el id del registro, así que un dato
+   corregido o borrado simplemente deja de salir. */
+function drRir(s){return(s&&s.rir!==''&&s.rir!=null&&!isNaN(+s.rir))?+s.rir:null;}
+function drKg(x){return Math.round((+x||0)*10)/10;}
+function drSerieTxt(s){const ri=drRir(s);return drKg(s.w)+'×'+(+s.r||0)+(ri!=null?' @RIR '+ri:'');}
+function datosRaros(aid){
+  const d=athData(aid);if(!d)return[];
+  const ok=d.profile.datosOk||{},out=[],prevTop={};
+  d.logs.workouts.slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(w=>{
+    if(isMissed(w))return;
+    Object.keys(w.entries||{}).forEach(exId=>{
+      const ss=(w.entries[exId]||[]);let nm=null;
+      const add=(i,k,txt)=>{const key=w.id+'|'+exId+'|'+i+'|'+k;if(nm==null)nm=exNameOf(d,exId);out.push({key,wid:w.id,date:w.date,exId,i,k,name:nm,txt,ok:!!ok[key]});};
+      ss.forEach((s,i)=>{
+        if(!s||s.sk)return;
+        const kg=+s.w||0,r=+s.r||0,ri=drRir(s),n=ss[i+1];
+        if(ri===0&&kg>0&&r>0&&n&&!n.sk&&(+n.w||0)>=kg&&(+n.r||0)>=r)
+          add(i,'rir0','Serie '+(i+1)+' al fallo ('+drSerieTxt(s)+') y la serie '+(i+2)+' igualó o superó: '+drSerieTxt(n)+'. Si de verdad llegó al fallo, la siguiente debería bajar reps.');
+        if(ri!=null&&ri>5)add(i,'rirAlto','Serie '+(i+1)+' con RIR '+ri+' ('+drSerieTxt(s)+'). Más de 5 reps en reserva: ¿error al teclear?');
+        if(r>30)add(i,'reps','Serie '+(i+1)+' con '+r+' reps ('+drSerieTxt(s)+'). ¿Error al teclear?');
+        if(kg>0&&r===0)add(i,'sinReps','Serie '+(i+1)+' con '+drKg(kg)+' kg pero 0 reps.');
+      });
+      const t=topSetOf(ss.filter(s=>s&&!s.sk)),tw=t?(+t.w||0):0,p=prevTop[exId];
+      const rat=p&&p.w>0?tw/p.w:0;
+      if(p&&tw>0&&p.w>=5&&(rat>=2.5||rat<=0.4))
+        add(-1,'salto','La carga máxima pasó de '+drKg(p.w)+' kg ('+fmtDate(p.date)+') a '+drKg(tw)+' kg. ¿Error al teclear, libras como kilos, o peso por mancuerna contra total?');
+      else if(p&&tw>0&&p.w>=5&&((rat>=2.1&&rat<=2.35)||(rat>=1/2.35&&rat<=1/2.1)))
+        add(-1,'salto','La carga máxima pasó de '+drKg(p.w)+' kg ('+fmtDate(p.date)+') a '+drKg(tw)+' kg: cambia casi justo ×2,2, lo que da pasar de kilos a libras. ¿Lo anotó en libras como si fueran kilos (o al revés)?');
+      if(tw>0)prevTop[exId]={w:tw,date:w.date};
+    });
+  });
+  return out;
+}
+function drPendientes(aid){return datosRaros(aid).filter(x=>!x.ok).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);}
+/* «wid|exId» de cada sesión-ejercicio con algo sin revisar: lo que vuelve dudosa una etiqueta */
+function drDudSet(aid){const st=new Set();drPendientes(aid).forEach(x=>st.add(x.wid+'|'+x.exId));return st;}
+function exStatus(series,dud){
+  const st=exStatusCore(series);
+  if(!st||!dud||!dud.size||!['pr','calidad','progresa','regresion','estancado'].includes(st.k))return st;
+  const tramo=series.slice(st.k==='estancado'?-3:-2);
+  if(!tramo.some(o=>dud.has(o.wid+'|'+o.ex)))return st;
+  return Object.assign({},st,{dudoso:true,lbl:st.lbl+' · ⚠ dudoso',detail:st.detail+' Ojo: una de estas sesiones tiene un dato a revisar (ver «Datos a revisar» en Resumen), y el 1RM estimado depende de él.'});
+}
+function drCard(aid){
+  const all=datosRaros(aid),pend=all.filter(x=>!x.ok).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0),nOk=all.length-pend.length;
+  if(!pend.length)return '';
+  const items=pend.slice(0,8).map(x=>'<div class="logitem"><div class="lh"><span class="badge orange">⚠ '+fmtDate(x.date)+'</span><b>'+esc(x.name)+'</b></div>'+
+    '<div class="cm">'+esc(x.txt)+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn btn-g btn-sm" data-act="dr-ok" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Ya lo revisé</button>'+
+    '<button class="btn btn-g btn-sm" data-act="dr-ask" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Pedirle que lo corrija</button></div></div>').join('');
+  return '<div class="card mb16" style="border-left:3px solid var(--orange)"><h3>⚠ Datos a revisar <span class="hint">'+pend.length+' sin revisar'+(nOk?' · '+nOk+' ya revisado'+(nOk===1?'':'s'):'')+'</span></h3>'+
+    '<p class="tiny mb8">Registros que no cuadran. Mientras no los revises, los récords, «Estancado» y «Regresión» que dependan de ellos salen como <b>dudosos</b>. La app no cambia nada sola.</p>'+items+
+    (pend.length>8?'<p class="tiny mt8">… y '+(pend.length-8)+' más (los más antiguos).</p>':'')+
+    (pend.length>1?'<div style="text-align:right;margin-top:8px"><button class="btn btn-g btn-sm" data-act="dr-ok-all" data-aid="'+aid+'">Marcar todos como revisados</button></div>':'')+'</div>';
 }
 /* check-in de fatiga más cercano a una fecha (±6 días) */
 function fatigueForDate(aid,iso){let best=null,bd=7;fatigueLogs(aid).forEach(e=>{const dd=Math.abs(daysBetweenISO(e.date,iso));if(dd<=6&&dd<bd){bd=dd;best=e;}});return best;}
@@ -4321,6 +4387,7 @@ VIEWS['coach-dash']=function(u){
       '<span class="m">Último entreno<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge '+svcOf(a.id).cls+'" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge blue">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge '+(ap.mode==='macros'?'volt':'orange')+'">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
       (function(){const z=stalls[a.id];if(!z)return'';return z.recomp?'<span class="badge blue" title="Peso estancado pero la cintura bajó '+Math.abs(z.waist.delta)+' cm">Recomposición · '+z.n+' sem</span>':'<span class="badge orange" title="Avanza menos de 0,2 %/sem hacia el objetivo desde el '+fmtDate(z.from)+'">Peso estancado · '+z.n+' sem</span>';})()+
+      (function(){const n=drPendientes(a.id).length;return n?'<span class="badge orange" title="Registros que no cuadran (p. ej. RIR 0 y la serie siguiente igual o mejor). Revísalos en su Resumen.">⚠ '+n+' dato'+(n===1?'':'s')+' a revisar</span>':'';})()+
       (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
       '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+(sm&&sm.k!=='green'?' · <span style="color:var('+SEMA_COLOR[sm.k]+')">⚠ '+esc(sm.hint)+'</span>':'')+'</div></div>';
   });
@@ -4424,9 +4491,11 @@ function coachTabResumen(aid){
     '<div class="stat"><div class="k">Cambio 30 días</div><div class="v '+(d30>0?'up':d30<0?'down':'')+'">'+(d30!=null?(d30>0?'+':'')+d30+'<small> kg</small>':'—')+'</div><div class="sub">tendencia</div></div>'+
     '<div class="stat"><div class="k">Entrenos · esta semana</div><div class="v">'+ww.done+'<small> / '+ww.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>'+
     '<div class="stat"><div class="k">Adherencia · esta semana</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">nutrición · desde el lunes</div></div></div>'+
+    drCard(aid)+(sv.tr?coachSwapsCard(aid):'')+
+    '<div class="sect-h"><h2>Comentarios recientes del atleta</h2></div>'+feed+'<div class="mb16"></div>'+
     progressCard(aid,false)+weightTrendCard(aid)+
-    '<div class="grid g2"><div class="card"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(pts,{stalls:weightWeeksStatus(aid).stalls})+'</div>'+
-    '<div class="card"><h3>Perfil y notas del coach</h3>'+
+    '<div class="card mb16"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(pts,{stalls:weightWeeksStatus(aid).stalls})+'</div>'+
+    secPleg('plc-perfil','Perfil y notas del coach','','categoría, objetivo, plan, acceso y notas internas','<div>'+
     '<div class="frow2"><div><label>Categoría</label><input id="f_cat" value="'+esc(d.profile.category)+'"></div><div><label>Altura (cm)</label><input id="f_h" type="number" value="'+esc(d.profile.heightCm)+'"></div></div>'+
     '<div class="frow4"><div><label>Peso actual (kg)</label><input id="f_w" type="number" step="0.1" value="'+esc(lw?lw.kg:'')+'"></div><div><label>Sexo</label><select id="f_sex"><option value="M"'+(d.profile.sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(d.profile.sex==='F'?' selected':'')+'>Mujer</option></select></div><div><label>Edad (años)</label><input id="f_age" type="number" value="'+esc(d.profile.age||'')+'"></div><div><label>% grasa (opcional)</label><input id="f_bf" type="number" step="0.1" value="'+esc(d.profile.bodyFat||'')+'"></div></div>'+
     '<p class="tiny" style="margin:-6px 0 12px">'+(lw?('Último peso: <b>'+lw.kg+' kg</b> · '+fmtDateFull(lw.date)+(lw.fromProfile?' (capturado por ti)':' (registrado por el atleta)')+'. Si lo cambias se guarda como el pesaje de hoy.'):'Sin peso registrado. Al capturarlo se usa en el Dietocálculo y en la guía de macros.')+'</p>'+
@@ -4435,13 +4504,12 @@ function coachTabResumen(aid){
     '<p class="tiny" style="margin:-6px 0 14px">'+(function(){const st=athStatus(aid);return'<span class="badge '+st.cls+'">'+st.lbl+'</span>'+(st.hint?' '+esc(st.hint)+' · ':' ');})()+'<button class="exlink" data-act="mem-renew" data-aid="'+aid+'">Renovar +4 semanas</button></p>'+
     accesoAtletaHTML(aid)+
     '<div class="frow"><label>Notas internas (solo las ves tú)</label><textarea id="f_notes">'+esc(d.profile.notes)+'</textarea></div>'+
-    '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="btn btn-d btn-sm" data-act="ath-del-ask" data-aid="'+aid+'">'+I.trash+' Eliminar atleta</button><button class="btn btn-p" data-act="profile-save" data-aid="'+aid+'">Guardar perfil</button></div></div></div>'+
-    (sv.tr?('<div class="card mb16"><h3>'+I.dumbbell+' Perfil de entrenamiento <span class="hint">condiciona la selección de ejercicios</span></h3>'+
+    '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="btn btn-d btn-sm" data-act="ath-del-ask" data-aid="'+aid+'">'+I.trash+' Eliminar atleta</button><button class="btn btn-p" data-act="profile-save" data-aid="'+aid+'">Guardar perfil</button></div></div>')+
+    (sv.tr?secPleg('plc-perfil-tr',I.dumbbell+' Perfil de entrenamiento','','lesiones y ejercicios que evitar o le gustan','<div>'+
       '<div class="frow"><label>Lesiones o limitaciones</label><textarea id="f_inj" placeholder="Ej. molestia de hombro en presses verticales, hernia lumbar, rodilla…">'+esc(tr.injuries||'')+'</textarea></div>'+
       '<div class="frow2"><div><label>Ejercicios que NO le gustan / evitar</label><textarea id="f_exdis" placeholder="Ej. sentadilla trasera, zancadas…">'+esc(tr.dislikes||'')+'</textarea></div><div><label>Ejercicios que le gustan mucho</label><textarea id="f_exlike" placeholder="Ej. remo con barra, press banca…">'+esc(tr.likes||'')+'</textarea></div></div>'+
       '<div style="text-align:right"><button class="btn btn-p" data-act="profile-save" data-aid="'+aid+'">Guardar perfil</button></div></div>'):'')+
-    (sv.tr?coachSwapsCard(aid):'')+
-    '<div class="sect-h"><h2>Comentarios recientes del atleta</h2></div>'+feed;
+    '';
 }
 
 function coachTabEntrenamiento(aid){
@@ -4461,16 +4529,17 @@ function plegadoSet(){
   return _plegado;
 }
 function secPleg(id,title,tag,resumen,inner){
-  return '<details class="acc pleg" id="'+id+'"'+(plegadoSet().has(id)?'':' open')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+(resumen?'<span class="pleg-res">'+resumen+'</span>':'')+WK_CHEV+'</summary><div class="acc-body">'+inner+'</div></details>';
+  const abierta=id.indexOf('plc-')===0?plegadoSet().has(id):!plegadoSet().has(id);
+  return '<details class="acc pleg" id="'+id+'"'+(abierta?' open':'')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+(resumen?'<span class="pleg-res">'+resumen+'</span>':'')+WK_CHEV+'</summary><div class="acc-body">'+inner+'</div></details>';
 }
 /* «toggle» no burbujea: se escucha en captura. */
 document.addEventListener('toggle',ev=>{
   const el=ev.target;if(!el||!el.classList||!el.classList.contains('pleg')||!el.id)return;
-  const st=plegadoSet();if(el.open)st.delete(el.id);else st.add(el.id);
+  const st=plegadoSet(),inv=el.id.indexOf('plc-')===0;if(el.open===!inv)st.delete(el.id);else st.add(el.id);
   try{localStorage.setItem(LS_PLEGADO,JSON.stringify(Array.from(st)));}catch(e){}
 },true);
 function coachTabHistorial(aid){
-  return coachTabRendimiento(aid)+coachTabProgreso(aid)+coachTabRegistros(aid);
+  return coachTabProgreso(aid)+coachTabRendimiento(aid)+coachTabRegistros(aid);
 }
 function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
@@ -5154,6 +5223,7 @@ function blkAviso(b){
 }
 function coachTabRegistros(aid){
   const d=athData(aid);
+  const drM={};drPendientes(aid).forEach(x=>{(drM[x.wid+'|'+x.exId]=drM[x.wid+'|'+x.exId]||[]).push(x);});
   const wCards=[];
   d.logs.workouts.slice().reverse().forEach(w=>{
     let detail='';
@@ -5174,7 +5244,8 @@ function coachTabRegistros(aid){
         /* Pasa por exTonnage y no por una suma suelta: es la única forma de que las mini-series
            de las técnicas cuenten aquí igual que en las gráficas. */
         const exTon=exTonnage(ss);tonnage+=exTon;
-        const setsTxt=ss.map((s,i)=>'<span class="setpill"'+(s.sk==='partial'?' style="border-color:var(--orange);color:var(--orange)" title="El atleta la marcó como no terminada"':'')+'>S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+(s.sk==='partial'?' ½':'')+((s.sub&&s.sub.length)?' <small title="Mini-series de la técnica — no cuentan como series">+'+s.sub.map(m=>(m.w?m.w+'×':'')+(m.r||0)).join('+')+'</small>':'')+'</span>').join(' ');
+        const drL=drM[w.id+'|'+exId]||[];
+        const setsTxt=ss.map((s,i)=>{const dr=drL.filter(x=>x.i===i);return '<span class="setpill"'+(dr.length?' style="border-color:var(--orange)" title="'+esc(dr.map(x=>x.txt).join(' '))+'"':s.sk==='partial'?' style="border-color:var(--orange);color:var(--orange)" title="El atleta la marcó como no terminada"':'')+'>'+(dr.length?'⚠ ':'')+'S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+(s.sk==='partial'?' ½':'')+((s.sub&&s.sub.length)?' <small title="Mini-series de la técnica — no cuentan como series">+'+s.sub.map(m=>(m.w?m.w+'×':'')+(m.r||0)).join('+')+'</small>':'')+'</span>';}).join(' ')+drL.filter(x=>x.i<0).map(x=>' <span class="badge orange" title="'+esc(x.txt)+'">⚠ salto de carga</span>').join('');
         const tgt=presc?('<span class="tiny">'+esc(presc.sets)+'×'+esc(presc.reps)+' · RIR '+esc(presc.rir)+(presc.rest?' · '+esc(presc.rest):'')+'</span>'):'<span class="tiny">—</span>';
         const fb=presc?(ss.length<(parseInt(presc.sets,10)||0)?'<span class="badge orange" title="Hizo menos series que las prescritas">'+ss.length+'/'+presc.sets+' series</span>':'<span class="badge green">'+ss.length+' series</span>'):('<span class="badge">'+ss.length+' series</span>');
         rows+='<tr><td class="exname">'+esc(exName)+'<div>'+tgt+'</div></td><td>'+setsTxt+'</td><td style="white-space:nowrap">'+fb+'</td><td class="num">'+(exTon?Math.round(exTon)+' kg':'—')+'</td></tr>';
@@ -5297,7 +5368,7 @@ function coachTabRendimiento(aid){
     trend='<div class="card mb16"><h3>Progresión de 1RM estimado <span class="hint">la mejor serie de cada sesión, convertida a 1RM</span></h3>'+
       '<div class="frow"><label>Ejercicio</label><select data-change="rm-ex">'+topts+'</select></div>'+chart+tbl+'</div>';
   }
-  return calc+trend+sessionCompareCard(aid);
+  return trend+sessionCompareCard(aid)+secPleg('plc-rm-calc',I.chart+' Calculadora de 1RM estimado','','peso × reps (+ RIR) → 1RM',calc.replace(/<h3>[\s\S]*?<\/h3>/,''));
 }
 function sessionCompareCard(aid){
   const d=athData(aid),days=d.routine.days;
@@ -5390,7 +5461,7 @@ function coachTabProgreso(aid){
   if(level==='sesion')content=pgLevelSesion(aid,win);
   else if(level==='ejercicio')content=pgLevelEjercicio(aid,win);
   else content=pgLevelSemana(aid,win,wk);
-  return bar+kpi+content;
+  return bar+kpi+pgAlerts(aid,win)+content;
 }
 function pgLevelSemana(aid,win,wk){
   if(!wk.length)return '<div class="card"><h3>Semana a semana</h3><div class="empty"><b>Sin sesiones en este rango</b>Amplía el rango o registra entrenamientos.</div></div>';
@@ -5430,7 +5501,7 @@ function pgLevelSesion(aid,win){
     lastByDay[w.dayId]=ton;
   });
   const tbl='<div class="card mb16"><h3>Detalle por sesión <span class="hint">Δ = tonelaje vs sesión anterior del mismo día</span></h3><div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Fecha</th><th>Día</th><th>Series</th><th>Tonelaje (kg)</th><th>sRPE</th><th>RPE·dur</th><th>Δ día</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
-  return pgAlerts(aid,win)+chart+tbl+pgPairCompare(aid,win);
+  return chart+tbl+pgPairCompare(aid,win);
 }
 /* comparador de dos sesiones concretas (mismo día, semanas elegidas) */
 function pgPairCompare(aid,win){
@@ -5504,7 +5575,7 @@ function pgLevelEjercicio(aid,win){
   let opts='';histEx.forEach(e=>{opts+='<option value="'+e.id+'"'+(e.id===selId?' selected':'')+'>'+esc(e.name)+'</option>';});
   const ser=exSeries(aid,selId).filter(x=>x.date>=win.from&&x.date<=win.to);
   const e1Pts=ser.map(h=>({x:h.date,y:h.e1rm})),tonPts=ser.map(h=>({x:h.date,y:h.ton}));
-  const stt=exStatus(ser),prCount=ser.filter(h=>h.pr).length;
+  const dudE=drDudSet(aid),stt=exStatus(ser,dudE),prCount=ser.filter(h=>h.pr).length;
   let banner='';
   if(stt){
     let fatNote='';
@@ -5515,7 +5586,7 @@ function pgLevelEjercicio(aid,win){
   if(ser.length){const a=ser[0].e1rm,b=ser[ser.length-1].e1rm,dl=Math.round((b-a)*10)/10,pct=a>0?Math.round((b-a)/a*1000)/10:0;
     stats='<div class="grid g4 mb16">'+pgKpi('1RM est. (fin)',b+'<small> kg</small>','última del rango')+pgKpi('Δ 1RM',(dl>0?'+':'')+dl+'<small> kg</small>',(pct>0?'+':'')+pct+'%',pgDeltaCls(dl))+pgKpi('Sesiones',ser.length,'con este ejercicio')+pgKpi('Récords',prCount,'PR en el rango',prCount?'up':'')+'</div>';}
   let rows='';ser.slice().reverse().slice(0,12).forEach(h=>{
-    const prB=h.pr?' <span class="badge volt" title="'+[h.prE1?'PR 1RM':'',h.prW?'PR peso':'',h.prTon?'PR volumen':''].filter(Boolean).join(' · ')+'">🏆</span>':'';
+    const prB=(h.pr?' <span class="badge volt" title="'+[h.prE1?'PR 1RM':'',h.prW?'PR peso':'',h.prTon?'PR volumen':''].filter(Boolean).join(' · ')+'">🏆</span>':'')+(dudE.has(h.wid+'|'+h.ex)?' <span class="badge orange" title="Sesión con un dato a revisar">⚠</span>':'');
     rows+='<tr><td>'+fmtDateFull(h.date)+'</td><td class="num">'+h.topW+'×'+h.topR+(h.topRir!=null?' <span class="tiny">@'+h.topRir+'</span>':'')+'</td><td class="num">'+h.ton.toLocaleString('es-ES')+'</td><td class="num"><b>'+h.e1rm+' kg</b>'+prB+'</td></tr>';
   });
   return '<div class="card"><h3>Ejercicio por ejercicio <span class="hint">'+esc(win.label)+'</span></h3><div class="frow"><label>Ejercicio</label><select data-change="pg-ex" data-aid="'+aid+'">'+opts+'</select></div>'+banner+stats+
@@ -5525,22 +5596,33 @@ function pgLevelEjercicio(aid,win){
 }
 /* alertas de progreso del rango: récords logrados y ejercicios a vigilar (estancado/regresión) */
 function pgAlerts(aid,win){
-  const d=athData(aid),seen={},prs=[],warn=[];
+  const d=athData(aid),seen={},prs=[],warn=[],dud=drDudSet(aid);
   d.routine.days.forEach(day=>day.exercises.forEach(e=>{
     if(seen[e.id])return;seen[e.id]=1;
     const ser=exSeries(aid,e.id).filter(x=>x.date>=win.from&&x.date<=win.to);
     if(!ser.length)return;
-    ser.forEach(s=>{if(s.pr)prs.push({name:e.name,date:s.date,e1:s.prE1,w:s.prW,t:s.prTon,e1rm:s.e1rm,topW:s.topW,topR:s.topR});});
-    const st=exStatus(ser);if(st&&(st.k==='estancado'||st.k==='regresion'))warn.push({name:e.name,st});
+    ser.forEach(s=>{if(s.pr)prs.push({dud:dud.has(s.wid+'|'+s.ex),name:e.name,date:s.date,e1:s.prE1,w:s.prW,t:s.prTon,e1rm:s.e1rm,topW:s.topW,topR:s.topR});});
+    const st=exStatus(ser,dud);if(st&&(st.k==='estancado'||st.k==='regresion'))warn.push({name:e.name,st});
   }));
   if(!prs.length&&!warn.length)return '';
-  const prH=prs.slice().reverse().slice(0,6).map(p=>'<div class="logitem"><div class="lh"><span class="badge volt">🏆 '+[p.e1?'1RM':'',p.w?'Peso':'',p.t?'Vol':''].filter(Boolean).join('/')+'</span><b>'+esc(p.name)+'</b><span class="muted" style="font-size:12.5px">'+p.topW+'×'+p.topR+' · '+p.e1rm+' kg 1RM</span><span class="dt">'+fmtDate(p.date)+'</span></div></div>').join('');
+  const prH=prs.slice().reverse().slice(0,6).map(p=>'<div class="logitem"><div class="lh"><span class="badge volt">🏆 '+[p.e1?'1RM':'',p.w?'Peso':'',p.t?'Vol':''].filter(Boolean).join('/')+'</span>'+(p.dud?'<span class="badge orange" title="Esta sesión tiene un dato a revisar: el récord puede no ser real">⚠ dudoso</span>':'')+'<b>'+esc(p.name)+'</b><span class="muted" style="font-size:12.5px">'+p.topW+'×'+p.topR+' · '+p.e1rm+' kg 1RM</span><span class="dt">'+fmtDate(p.date)+'</span></div></div>').join('');
   const wH=warn.map(w=>'<div class="logitem"><div class="lh"><span class="badge '+(w.st.cls||'')+'">'+esc(w.st.lbl)+'</span><b>'+esc(w.name)+'</b><span class="muted" style="font-size:12.5px">'+esc(w.st.detail)+'</span></div></div>').join('');
   return '<div class="grid g2 mb16">'+
     '<div class="card" style="margin:0"><h3>🏆 Récords en el rango <span class="hint">PR de 1RM, peso o volumen</span></h3>'+(prH||'<div class="empty"><b>Sin récords nuevos</b>Aún no hay marcas en el rango.</div>')+'</div>'+
     '<div class="card" style="margin:0"><h3>A vigilar <span class="hint">estancamiento o regresión</span></h3>'+(wH||'<div class="empty"><b>Todo en orden</b>Ningún ejercicio estancado ni en regresión.</div>')+'</div></div>';
 }
 
+Object.assign(ACTIONS,{
+  'dr-ok':el=>{const p=athData(el.dataset.aid).profile;p.datosOk=p.datosOk||{};p.datosOk[el.dataset.key]=todayISO();saveState();toast('Marcado como revisado');render();},
+  'dr-ok-all':el=>{const aid=el.dataset.aid,p=athData(aid).profile;p.datosOk=p.datosOk||{};const t=todayISO();drPendientes(aid).forEach(x=>{p.datosOk[x.key]=t;});saveState();toast('Todo marcado como revisado');render();},
+  'dr-ask':el=>{
+    const aid=el.dataset.aid,x=datosRaros(aid).find(y=>y.key===el.dataset.key);if(!x)return;
+    const m={id:uid(),from:'coach',text:'Hola, revisa por favor tu registro de '+x.name+' del '+fmtDateFull(x.date)+': '+x.txt+' Si fue un error al capturar, corrígelo en tu historial.',ts:Date.now(),read:false};
+    chatOf(aid).push(m);syncChatAdd(aid,m);
+    const p=athData(aid).profile;p.datosOk=p.datosOk||{};p.datosOk[x.key]=todayISO();
+    saveStateCola();toast('Mensaje enviado por el chat');render();
+  },
+});
 /* ---------- acciones del coach ---------- */
 Object.assign(ACTIONS,{
   'ath-new-modal':()=>{
@@ -10215,7 +10297,7 @@ function coachTabSemanas(aid){
     '<div class="logdetail">'+sg+'<h4 class="mg-h">Volumen por grupo: inicial → final</h4><div class="tblwrap"><table class="tbl" style="min-width:auto"><thead><tr><th>Grupo</th><th>Inicial</th><th>Final</th><th>Δ</th></tr></thead><tbody>'+rows2+'</tbody></table></div></div></div>';
   });
   const histCard=hist?'<div class="sect-h"><h2>Bloques anteriores</h2><span class="tiny">resumen + volumen inicial vs final — para decidir el siguiente bloque</span></div>'+hist:'';
-  return head+blockCompareCard(aid)+acwrCard(aid)+fatigueCard(aid)+applyCard(aid)+volCard+chgCard+histCard;
+  return fatigueCard(aid)+head+blockCompareCard(aid)+acwrCard(aid)+applyCard(aid)+volCard+chgCard+histCard;
 }
 
 /* ===== MENÚ CON IA (Edge Function nutri-ia) =====
@@ -11178,9 +11260,9 @@ function coachTabForms(aid){
   });
   const auid=_athleteUidByAppId[aid],nDev=auid?(_pushDev[auid]||0):0;
   const devUI=list.some(f=>f.remind)?(nDev?'<p class="tiny mb8">📱 Tiene los avisos activados en '+nDev+(nDev===1?' dispositivo':' dispositivos')+'.</p>':'<p class="tiny mb8" style="color:var(--orange)">📵 Aún no ha activado los avisos en su teléfono: se le pide al abrir «Cuestionarios de tu coach» en «Hoy». Mientras tanto solo los ve dentro de la app.</p>'):'';
-  return'<div class="card mb16"><h3>Cuestionarios asignados <span class="hint">le aparecen como pendientes en «Hoy» cuando le toca responder</span></h3>'+devUI+
-    '<button class="btn btn-p btn-sm mb16" data-act="fm-new" data-aid="'+aid+'">'+I.plus+' Nuevo cuestionario</button>'+rows+'</div>'+
-    '<div class="card mb16"><h3>Respuestas <span class="hint">'+resp.length+'</span></h3>'+(rh||'<p class="tiny">Todavía no hay respuestas.</p>')+'</div>';
+  return'<div class="card mb16"><h3>Respuestas <span class="hint">'+resp.length+'</span></h3>'+(rh||'<p class="tiny">Todavía no hay respuestas.</p>')+'</div>'+
+    secPleg('pl-fm-asig','Cuestionarios asignados','',list.length+' asignado'+(list.length===1?'':'s')+' · le aparecen en «Hoy» cuando le toca','<div>'+devUI+
+    '<button class="btn btn-p btn-sm mb16" data-act="fm-new" data-aid="'+aid+'">'+I.plus+' Nuevo cuestionario</button>'+rows+'</div>');
 }
 
 /* ---- coach: editor (borrador en FD, se repinta el modal al añadir/cambiar preguntas) ---- */
