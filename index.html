@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-13.4">
+<meta name="lr-build" content="2026-10-13.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1638,7 +1638,7 @@ function ensureProfileShells(st){
 /* separa el perfil en lo que el atleta puede ver (shared) y las notas internas del coach (private) */
 function splitProfile(p){
   const shared={},priv={};
-  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training'||k==='datosOk')priv[k]=p[k];else shared[k]=p[k];});
+  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training'||k==='datosOk'||k==='datosPedidos')priv[k]=p[k];else shared[k]=p[k];});
   return{shared:shared,priv:priv};
 }
 /* la identidad del atleta viaja dentro de shared (bajo _u) para que cada atleta solo lea la suya vía RLS */
@@ -3270,7 +3270,8 @@ function exStatusCore(series){
    todos mancuernas chicas en libras (10→20 lb) que son progresiones reales.
    Aparte, la franja ×2,1–2,35 (y su inversa) caza libras anotadas como kilos (×2,2), que el
    umbral de 2,5 dejaba pasar; el ×2,0 exacto queda fuera a propósito (10→20 lb es normal).
-   Lo revisado vive en profile.datosOk ({clave:fecha}), en la fila private de athlete_profiles
+   Lo revisado vive en profile.datosOk ({clave:fecha}) y lo ya pedido al atleta en profile.datosPedidos
+   (pedirlo NO lo da por revisado), ambos en la fila private de athlete_profiles
    (splitProfile): el atleta no lo ve. La clave lleva el id del registro, así que un dato
    corregido o borrado simplemente deja de salir. */
 function drRir(s){return(s&&s.rir!==''&&s.rir!=null&&!isNaN(+s.rir))?+s.rir:null;}
@@ -3317,10 +3318,11 @@ function exStatus(series,dud){
 function drCard(aid){
   const all=datosRaros(aid),pend=all.filter(x=>!x.ok).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0),nOk=all.length-pend.length;
   if(!pend.length)return '';
-  const items=pend.slice(0,8).map(x=>'<div class="logitem"><div class="lh"><span class="badge orange">⚠ '+fmtDate(x.date)+'</span><b>'+esc(x.name)+'</b></div>'+
+  const ped=athData(aid).profile.datosPedidos||{};
+  const items=pend.slice(0,8).map(x=>'<div class="logitem"><div class="lh"><span class="badge orange">⚠ '+fmtDate(x.date)+'</span><b>'+esc(x.name)+'</b>'+(ped[x.key]?'<span class="badge blue" title="Le mandaste el mensaje por el chat; el aviso sigue hasta que lo corrija">Se lo pediste el '+fmtDate(ped[x.key])+'</span>':'')+'</div>'+
     '<div class="cm">'+esc(x.txt)+'</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn btn-g btn-sm" data-act="dr-ok" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Ya lo revisé</button>'+
-    '<button class="btn btn-g btn-sm" data-act="dr-ask" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Pedirle que lo corrija</button></div></div>').join('');
+    '<button class="btn btn-g btn-sm" data-act="dr-ask" data-aid="'+aid+'" data-key="'+esc(x.key)+'">'+(ped[x.key]?'Volver a pedírselo':'Pedirle que lo corrija')+'</button></div></div>').join('');
   return '<div class="card mb16" style="border-left:3px solid var(--orange)"><h3>⚠ Datos a revisar <span class="hint">'+pend.length+' sin revisar'+(nOk?' · '+nOk+' ya revisado'+(nOk===1?'':'s'):'')+'</span></h3>'+
     '<p class="tiny mb8">Registros que no cuadran. Mientras no los revises, los récords, «Estancado» y «Regresión» que dependan de ellos salen como <b>dudosos</b>. La app no cambia nada sola.</p>'+items+
     (pend.length>8?'<p class="tiny mt8">… y '+(pend.length-8)+' más (los más antiguos).</p>':'')+
@@ -5641,8 +5643,11 @@ Object.assign(ACTIONS,{
     const aid=el.dataset.aid,x=datosRaros(aid).find(y=>y.key===el.dataset.key);if(!x)return;
     const m={id:uid(),from:'coach',text:'Hola, revisa por favor tu registro de '+x.name+' del '+fmtDateFull(x.date)+': '+x.txt+' Si fue un error al capturar, corrígelo en tu historial.',ts:Date.now(),read:false};
     chatOf(aid).push(m);syncChatAdd(aid,m);
-    const p=athData(aid).profile;p.datosOk=p.datosOk||{};p.datosOk[x.key]=todayISO();
-    saveStateCola();toast('Mensaje enviado por el chat');render();
+    /* Pedirlo NO lo da por revisado: el aviso (y el «⚠ dudoso») sigue hasta que el atleta
+       corrija el registro —entonces deja de cumplirse la regla y desaparece solo— o hasta que
+       el coach pulse «Ya lo revisé». Solo se apunta la fecha para que se vea que ya se pidió. */
+    const p=athData(aid).profile;p.datosPedidos=p.datosPedidos||{};p.datosPedidos[x.key]=todayISO();
+    saveStateCola();toast('Mensaje enviado. El aviso sigue hasta que lo corrija');render();
   },
 });
 /* ---------- acciones del coach ---------- */
