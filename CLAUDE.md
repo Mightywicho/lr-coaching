@@ -87,6 +87,10 @@ se atasca: se le añade una línea y se sube.
   domingo, `weekStartISO`) para el contador del atleta y los promedios, y la del **bloque**
   (7 días desde `routine.startDate`) para Progreso, «Semana a semana» y el Historial.
   Antes de introducir una tercera, revisa cuál de las dos ya sirve.
+- ⚠ `todayNutriEntry` **crea** la entrada de nutrición de hoy si no existe: úsala solo en acciones
+  del atleta, nunca al pintar. Para leer, `logs.nutrition.find(...)`. «Registrada» = `nutriHasData(n)`, no
+  que exista la entrada. Antes, pintar «Hoy» dejaba una vacía que escondía el pendiente y la
+  migración del arranque la subía con upsert (155 de 158 filas de `nutrition_logs` vacías, 2026-10-13).
 - ⚠ `blockInfoForDate` y `weekOfDate` mienten cuando el dato no es ideal: si
   `routine.startDate` está vacío toman como inicio la fecha que se les consulta, y su
   `Math.max(1,…)` aplasta contra la semana 1 todo lo anterior al inicio declarado. Con un

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-06.7">
+<meta name="lr-build" content="2026-10-13.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2206,7 +2206,8 @@ async function backfillNutritionLogs(){
   Object.keys(_athleteUidByAppId).forEach(appId=>{
     const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.nutrition))return;
     const auid=_athleteUidByAppId[appId];
-    ath.logs.nutrition.forEach(n=>{if(n&&n.date)rows.push({athlete_uid:auid,coach_uid:_coachUid,date:n.date,adherence:(n.adherence!=null?n.adherence:null),comment:n.comment||'',meals_done:n.mealsDone||[],plan_followed:(n.planFollowed==null?null:n.planFollowed)});});
+    /* ⚠ nunca subir una entrada vacía: el upsert pisaba con nada lo registrado desde otro dispositivo */
+    ath.logs.nutrition.forEach(n=>{if(n&&n.date&&nutriHasData(n))rows.push({athlete_uid:auid,coach_uid:_coachUid,date:n.date,adherence:(n.adherence!=null?n.adherence:null),comment:n.comment||'',meals_done:n.mealsDone||[],plan_followed:(n.planFollowed==null?null:n.planFollowed)});});
   });
   if(!rows.length)return;
   try{await supa.from('nutrition_logs').upsert(rows,{onConflict:'athlete_uid,date'});}catch(e){}
@@ -2338,7 +2339,9 @@ function blobHasLegacyLogs(){
     const a=S.athletes[aid];if(!a)return false;
     if(Array.isArray(a.chat)&&a.chat.length)return true;
     const l=a.logs;if(!l)return false;
-    return ['weight','workouts','nutrition','meals','steps','fatigue'].some(k=>Array.isArray(l[k])&&l[k].length);
+    /* nutrición vacía (la creaba pintar «Hoy») no es dato viejo: contarla disparaba la migración en cada arranque */
+    if(Array.isArray(l.nutrition)&&l.nutrition.some(nutriHasData))return true;
+    return ['weight','workouts','meals','steps','fatigue'].some(k=>Array.isArray(l[k])&&l[k].length);
   });
 }
 /* ===== Biblioteca y base de alimentos en tablas (`exercises` / `foods`) =====
@@ -2935,7 +2938,10 @@ function recomputeAdherence(aid){const e=todayNutriEntry(aid),p=athPlanOf(aid);
 function mealMacros(m){if((m.items||[]).length)return mealItemsTotals(m);const p=+m.p||0,c=+m.c||0,f=+m.f||0;return{p:+p.toFixed(1),c:+c.toFixed(1),f:+f.toFixed(1),kcal:Math.round(p*4+c*4+f*9)};}
 /* ===== macros consumidos hoy = comidas del plan marcadas + alimentos libres registrados ===== */
 function planMealShare(p){const n=Math.max(1,p.mealsPerDay||1);return{p:+((p.protein||0)/n).toFixed(1),c:+((p.carbs||0)/n).toFixed(1),f:+((p.fat||0)/n).toFixed(1),n};}
-function doneMealsMacros(aid){const p=athPlanOf(aid),e=todayNutriEntry(aid),done=e.mealsDone||[],t={p:0,c:0,f:0};
+/* ⚠ Solo lectura: antes usaba todayNutriEntry, que CREA la entrada de hoy. Pintar las barras de
+   «Hoy» dejaba una entrada vacía y el pendiente «Registrar nutrición de hoy» desaparecía solo. */
+function nutriHasData(n){return !!n&&(n.adherence!=null||n.planFollowed!=null||!!(n.comment||'').trim()||!!(n.mealsDone&&n.mealsDone.length));}
+function doneMealsMacros(aid){const p=athPlanOf(aid),e=athData(aid).logs.nutrition.find(x=>x.date===todayISO())||{},done=e.mealsDone||[],t={p:0,c:0,f:0};
   if((p.meals||[]).length){p.meals.forEach(m=>{if(done.indexOf(m.id)>=0){const mt=mealMacros(m);t.p+=mt.p;t.c+=mt.c;t.f+=mt.f;}});}
   else{const sh=planMealShare(p),k=done.filter(id=>/^slot/.test(id)).length;t.p=sh.p*k;t.c=sh.c*k;t.f=sh.f*k;}
   t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
@@ -6630,7 +6636,7 @@ function weekStrip(aid){
   for(let i=6;i>=0;i--){
     const iso=daysAgoISO(i);const[y,m,dd]=iso.split('-').map(Number);const dt=new Date(y,m-1,dd);
     /* una sesión reportada como no realizada no puede encender el punto de «entreno registrado» */
-    const hasW=d.logs.workouts.some(w=>w.date===iso&&!isMissed(w)),hasN=d.logs.nutrition.some(n=>n.date===iso);
+    const hasW=d.logs.workouts.some(w=>w.date===iso&&!isMissed(w)),hasN=d.logs.nutrition.some(n=>n.date===iso&&nutriHasData(n));
     h+='<div class="wday'+(i===0?' today':'')+'"><div class="d">'+DIAS[dt.getDay()]+'</div><div class="n">'+dd+'</div><div class="dots">'+(hasW?'<span class="dot" style="background:var(--volt)"></span>':'')+(hasN?'<span class="dot" style="background:var(--orange)"></span>':'')+'</div></div>';
   }
   return h+'</div><div class="legend mb16"><span><i style="background:var(--volt)"></i>Entreno registrado</span><span><i style="background:var(--orange)"></i>Nutrición registrada</span></div>';
@@ -6638,7 +6644,7 @@ function weekStrip(aid){
 
 VIEWS['ath-hoy']=function(u){
   const aid=u.id,d=athData(aid);
-  const todayN=d.logs.nutrition.find(n=>n.date===todayISO());
+  const todayN=d.logs.nutrition.find(n=>n.date===todayISO()&&nutriHasData(n));
   const todayW=d.logs.weight.find(w=>w.date===todayISO());
   const todayS=(d.logs.steps||[]).find(s=>s.date===todayISO());
   const trainedToday=d.logs.workouts.filter(w=>w.date===todayISO());
@@ -10620,7 +10626,7 @@ function reportSheet(aid,rw,readOnly){
   }
   /* ---- ADHERENCIA + WELLBEING ---- */
   const adh=adherenceAvg(aid,days);
-  const nNut=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff).length;
+  const nNut=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff&&nutriHasData(n)).length;
   const nWk=athData(aid).logs.workouts.filter(w=>w.date>=cutoff&&!isMissed(w)).length;
   const wb=wellbeingAvgs(aid,days);
   const wbbar=(label,v)=>{if(v==null)return'';const pct=Math.max(0,Math.min(100,v/5*100));const col=v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066';return '<div style="margin:8px 0"><div class="wbbar-l"><span>'+label+'</span><span style="color:var(--tx)">'+v+'<small style="color:var(--tx3)">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div></div>';};
@@ -11488,8 +11494,12 @@ async function hidratarResto(){
       await backfillWeightLogs();await backfillWorkoutLogs();await backfillNutritionLogs();
       await backfillMealLogs();await backfillStepsLogs();await backfillFatigueLogs();await backfillChat();
     }
-    /* hidratación en paralelo: 15 SELECT independientes, no 15 await encadenados */
-    await Promise.all(Object.keys(_HYDRATORS).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
+    /* hidratación en paralelo: 15 SELECT independientes, no 15 await encadenados.
+       Atleta: planes y perfiles ya bajaron bien antes del primer render; pedirlos otra vez era
+       repetir las dos consultas más pesadas (visto en un teléfono real, 2026-10-13). El coach sí
+       las repite: backfillPlans/backfillProfiles pudieron subir filas entretanto. */
+    const _yaListas=_currentUserId!=='coach'?{athlete_plans:_plansHydrated,athlete_profiles:_profilesHydrated}:{};
+    await Promise.all(Object.keys(_HYDRATORS).filter(t=>!_yaListas[t]).map(t=>{try{return _HYDRATORS[t]();}catch(e){return Promise.resolve();}}));
     /* solo hacen algo si la tabla se leyó bien y vino vacía (coach nuevo o migración pendiente) */
     await backfillLibrary();
     await backfillFoods();
