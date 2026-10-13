@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-13.3">
+<meta name="lr-build" content="2026-10-13.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4539,7 +4539,10 @@ document.addEventListener('toggle',ev=>{
   try{localStorage.setItem(LS_PLEGADO,JSON.stringify(Array.from(st)));}catch(e){}
 },true);
 function coachTabHistorial(aid){
-  return coachTabProgreso(aid)+coachTabRendimiento(aid)+coachTabRegistros(aid);
+  /* Orden (2026-10-13, pedido de un coach del equipo): lo más reciente y lo que pide un ajuste,
+     arriba. Antes abría con la calculadora de 1RM (una herramienta) y la última sesión quedaba
+     enterrada entre gráficas o dentro del acordeón de Registros. */
+  return sessionCompareCard(aid)+coachTabProgreso(aid)+coachTabRendimiento(aid)+coachTabRegistros(aid)+coachTabRendimiento(aid,true);
 }
 function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
@@ -5333,7 +5336,7 @@ function coachTabRegistros(aid){
 }
 
 /* ================= PESTAÑA RENDIMIENTO (1RM · comparación de sesiones) ================= */
-function coachTabRendimiento(aid){
+function coachTabRendimiento(aid,soloCalc){
   const d=athData(aid);
   const histEx=[],seen={};
   d.routine.days.forEach(day=>day.exercises.forEach(e=>{if(!seen[e.id]&&e1rmHistory(aid,e.id).length){seen[e.id]=1;histEx.push(e);}}));
@@ -5368,7 +5371,8 @@ function coachTabRendimiento(aid){
     trend='<div class="card mb16"><h3>Progresión de 1RM estimado <span class="hint">la mejor serie de cada sesión, convertida a 1RM</span></h3>'+
       '<div class="frow"><label>Ejercicio</label><select data-change="rm-ex">'+topts+'</select></div>'+chart+tbl+'</div>';
   }
-  return trend+sessionCompareCard(aid)+secPleg('plc-rm-calc',I.chart+' Calculadora de 1RM estimado','','peso × reps (+ RIR) → 1RM',calc.replace(/<h3>[\s\S]*?<\/h3>/,''));
+  if(!soloCalc)return trend;
+  return secPleg('plc-rm-calc',I.chart+' Calculadora de 1RM estimado','','peso × reps (+ RIR) → 1RM',calc.replace(/<h3>[\s\S]*?<\/h3>/,''));
 }
 function sessionCompareCard(aid){
   const d=athData(aid),days=d.routine.days;
@@ -5378,10 +5382,27 @@ function sessionCompareCard(aid){
   let opts='';days.forEach(day=>{const n=d.logs.workouts.filter(w=>w.dayId===day.id&&w.entries&&Object.keys(w.entries).length).length;opts+='<option value="'+day.id+'"'+(day.id===defDay?' selected':'')+'>'+esc(day.name)+' · '+n+' ses.</option>';});
   const sel='<div class="frow"><label>Sesión a comparar</label><select data-change="cmp-day">'+opts+'</select><p class="tiny" style="margin-top:5px">Compara la sesión más reciente de ese día contra la anterior del mismo día.</p></div>';
   const logs=d.logs.workouts.filter(w=>w.dayId===defDay&&w.entries&&Object.keys(w.entries).length).slice().sort((a,b)=>a.date<b.date?-1:1);
+  const esUltimo=!!(lastW&&defDay===lastW.dayId);
+  /* Cabecera de la sesión más reciente de ese día: lo que el coach necesita para decidir sin
+     abrir Registros (estado, RPE, lo que no hizo, su comentario y los datos a revisar). */
+  let cab='';
+  const curW=logs.length?logs[logs.length-1]:null;
+  if(curW){
+    const sc=skipCounts(curW),nDr=drPendientes(aid).filter(x=>x.wid===curW.id).length;
+    const bad=[curW.status==='partial'?'<span class="badge orange">Sesión incompleta</span>':'',
+      (sc.ex+sc.sets)?'<span class="badge orange">'+(sc.ex?sc.ex+' ej.':'')+(sc.ex&&sc.sets?' · ':'')+(sc.sets?sc.sets+' series':'')+' sin hacer</span>':'',
+      nDr?'<span class="badge orange" title="Ver «Datos a revisar» en Resumen">⚠ '+nDr+' dato'+(nDr===1?'':'s')+' a revisar</span>':''].join('');
+    cab='<div class="logitem" style="margin-bottom:12px"><div class="lh"><span class="badge volt">'+esc(curW.dayName||'')+'</span><b>'+fmtDateFull(curW.date)+'</b>'+bad+
+      '<span class="tiny">RPE '+(curW.rpe||'—')+(curW.dur?' · '+curW.dur+' min':'')+'</span></div>'+(curW.comment?'<div class="cm">'+esc(curW.comment)+'</div>':'')+'</div>';
+  }
+  /* Si después de la última sesión con series hubo faltas, que se vea aquí y no solo en Registros. */
+  const faltas=lastW?d.logs.workouts.filter(w=>isMissed(w)&&w.date>lastW.date).sort((a,b)=>a.date<b.date?1:-1):[];
+  const faltaTxt=faltas.length&&esUltimo?'<div class="notebox mb16" style="border-left-color:var(--red)">Después de esta sesión: '+faltas.slice(0,3).map(w=>'<b>'+fmtDate(w.date)+'</b> no entrenó'+(w.reason?' ('+esc(missLbl(w.reason))+')':'')).join(' · ')+'.</div>':'';
+  const setsTxt=ss=>(ss||[]).map(x=>(x.w||0)+'×'+(x.r||0)+(x.rir!=null&&x.rir!==''?'@'+x.rir:'')).join(' · ');
   let body;
   if(logs.length<2)body='<div class="empty"><b>Necesitas 2 sesiones de este día</b>Hay '+logs.length+' sesión registrada de este día. Cuando haya al menos dos, verás la comparación ejercicio por ejercicio.</div>';
   else{
-    const cur=logs[logs.length-1],prev=logs[logs.length-2];
+    const cur=logs[logs.length-1],prev=logs[logs.length-2],dudC=drDudSet(aid);
     const exIds=[];Object.keys(cur.entries).forEach(k=>exIds.push(k));Object.keys(prev.entries).forEach(k=>{if(exIds.indexOf(k)<0)exIds.push(k);});
     let rows='';
     exIds.forEach(exId=>{
@@ -5391,9 +5412,10 @@ function sessionCompareCard(aid){
       const cton=cs?exTonnage(cs):0,pton=ps?exTonnage(ps):0;
       const de=Math.round((ce-pe)*10)/10;
       const pill=(!ps||!cs)?'<span class="delta-pill flat">'+(cs?'nuevo':'no repetido')+'</span>':(de===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(de>0?'up':'down')+'">'+(de>0?'+':'')+de+' kg</span>');
-      rows+='<tr><td class="exname">'+esc(exNameOf(d,exId))+'</td>'+
+      const drRow=dudC.has(cur.id+'|'+exId)?' <span class="badge orange" title="Esta sesión tiene un dato a revisar en este ejercicio">⚠</span>':'';
+      rows+='<tr><td class="exname">'+esc(exNameOf(d,exId))+drRow+'</td>'+
         '<td class="num">'+(pt?(pt.w||0)+'×'+(pt.r||0):'—')+'<div class="tiny">'+(pe?pe+' kg 1RM · '+Math.round(pton)+' kg vol':'—')+'</div></td>'+
-        '<td class="num">'+(ct?(ct.w||0)+'×'+(ct.r||0):'—')+'<div class="tiny">'+(ce?ce+' kg 1RM · '+Math.round(cton)+' kg vol':'—')+'</div></td>'+
+        '<td class="num">'+(ct?(ct.w||0)+'×'+(ct.r||0):'—')+'<div class="tiny">'+(ce?ce+' kg 1RM · '+Math.round(cton)+' kg vol':'—')+'</div>'+(cs?'<div class="tiny" title="Todas las series de esta sesión (kg×reps@RIR)">'+esc(setsTxt(cs))+'</div>':'')+'</td>'+
         '<td>'+pill+'</td></tr>';
     });
     const ctonS=sessTonnage(cur),ptonS=sessTonnage(prev);
@@ -5407,7 +5429,7 @@ function sessionCompareCard(aid){
     body='<div class="tblwrap"><table class="tbl"><thead><tr><th>Ejercicio</th><th>Anterior · '+fmtDate(prev.date)+'</th><th>Actual · '+fmtDate(cur.date)+'</th><th>Δ 1RM</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+totals+
       '<p class="tiny mt8">«vol» = tonelaje del ejercicio (Σ peso×reps). «Δ 1RM» compara el 1RM estimado de la mejor serie de cada sesión. sRPE = RPE × duración (carga interna de la sesión).</p>';
   }
-  return '<div class="card mb16"><h3>Comparación de sesiones <span class="hint">mismo día: sesión actual vs anterior</span></h3>'+sel+body+'</div>';
+  return '<div class="card mb16" style="border-left:3px solid var(--volt)"><h3>'+(esUltimo?'Último entrenamiento <span class="hint">comparado con la vez anterior del mismo día</span>':'Comparación de sesiones <span class="hint">mismo día: sesión actual vs anterior</span>')+'</h3>'+faltaTxt+cab+body+'<div style="margin-top:14px">'+sel+'</div></div>';
 }
 
 /* ================= PESTAÑA PROGRESO (de lo general a lo específico, con alcance/rango) ================= */
