@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-13.1">
+<meta name="lr-build" content="2026-10-13.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -6090,11 +6090,62 @@ function wdraftSave(){
   clearTimeout(_wdSaveT);
   _wdSaveT=setTimeout(()=>{
     try{if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));}catch(e){}
+    wdraftCloud(false);
   },300);
 }
 function wdraftClear(){
   WDRAFT=null;clearTimeout(_wdSaveT);
   try{localStorage.removeItem(LS_WDRAFT);}catch(e){}
+  wdraftCloud(true); /* WDRAFT ya es null: borra también la copia del servidor */
+}
+/* ===== Copia del borrador en el servidor (salvaguarda 4, 2026-10-13) =====
+   localStorage no basta: iOS lo vacía si la app pasa días sin abrirse, y reinstalar o «borrar
+   datos» también se lo lleva — con una sesión entera anotada dentro. Así que el borrador CON
+   TRABAJO (`touched`) se copia a `workout_drafts` (una fila por atleta, unos KB; RLS: solo el
+   propio atleta) y al guardar o descartar la sesión se borra.
+   - Va por la cola de envíos con la MISMA clave para subir y para borrar: outboxAdd reemplaza
+     la entrada anterior, así que el orden nunca se cruza (guardar sin red → borrar pendiente →
+     empezar otra sesión → queda solo la subida nueva). Sin pastilla (`quiet`).
+   - Ritmo: como mucho una subida cada 15 s mientras escribe, y al salir de la app (wdraftFlush).
+   - El teléfono MANDA: el del servidor solo se usa si aquí no hay borrador con trabajo
+     (wdraftRecuperar). `_wdCloud`: «puede que haya copia arriba»; arranca en true para que el
+     primer borrador vacío limpie una copia vieja (una petición, una vez). */
+let _wdCloudT=null,_wdCloud=true;
+function wdraftCloud(now){
+  if(!now){if(!_wdCloudT)_wdCloudT=setTimeout(()=>wdraftCloud(true),15000);return;}
+  clearTimeout(_wdCloudT);_wdCloudT=null;
+  if(!_supabaseUser||_currentUserId==='coach')return;
+  const auid=_athleteUidByAppId[_currentUserId];if(!auid)return;
+  if(wdraftDirty(WDRAFT)&&WDRAFT.aid===_currentUserId){
+    let data;try{data=JSON.parse(JSON.stringify(WDRAFT));}catch(e){return;}
+    data.ts=Date.now();
+    outboxAdd('wdraft','workout_drafts',auid,'athlete_uid',{athlete_uid:auid,coach_uid:_coachUid,data,updated_at:new Date().toISOString()},null);
+    _wdCloud=true;
+  }else if(_wdCloud){
+    outboxAdd('wdraftDel','workout_drafts',auid,'athlete_uid',{athlete_uid:auid},null);
+    _wdCloud=false;
+  }
+}
+/* Al abrir, ya con el historial cargado: si el teléfono perdió el borrador, se trae el del servidor.
+   No revive nada que ya no deba: se salta si aquí hay borrador con trabajo, si la cola trae un cambio
+   de borrador más nuevo, o si esa sesión ya está guardada (mismo id, o mismo día de rutina y fecha). */
+async function wdraftRecuperar(){
+  const u=userById(_currentUserId);
+  if(!u||u.role!=='athlete'||_offlineMode||!_supabaseUser||wdraftDirty(WDRAFT))return;
+  const auid=_athleteUidByAppId[u.id];if(!auid)return;
+  if(OUTBOX.some(x=>x.tb==='workout_drafts'))return;
+  let r;try{r=await conPlazo(supa.from('workout_drafts').select('data').eq('athlete_uid',auid).maybeSingle(),15000);}catch(e){return;}
+  const w=r&&!r.error&&r.data&&r.data.data;
+  if(!w){if(r&&!r.error)_wdCloud=false;return;}
+  if(!w.dayId||!w.sets||!w.touched||w.aid!==u.id)return;
+  if(wdraftDirty(WDRAFT))return; /* empezó a escribir mientras llegaba: manda lo de aquí */
+  const L=athData(u.id).logs.workouts||[];
+  if(!w.editing&&L.some(x=>x&&((w.wid&&x.id===w.wid)||(x.dayId===w.dayId&&x.date===(w.date||todayISO())))))return;
+  if(!w.skips)w.skips={};
+  delete w.ts;
+  WDRAFT=w;wdraftFlush();
+  toast('Recuperamos tu entreno a medias'+(w.dayName?' de '+w.dayName:''));
+  liveRender();
 }
 function wdraftTouch(){if(WDRAFT){WDRAFT.touched=true;wdraftSave();}}
 /* El debounce de 300 ms se pierde si el navegador congela o descarta la pestaña (móvil).
@@ -6102,6 +6153,7 @@ function wdraftTouch(){if(WDRAFT){WDRAFT.touched=true;wdraftSave();}}
 function wdraftFlush(){
   clearTimeout(_wdSaveT);
   try{if(WDRAFT&&WDRAFT.dayId)localStorage.setItem(LS_WDRAFT,JSON.stringify(WDRAFT));}catch(e){}
+  if(_wdCloudT)wdraftCloud(true); /* había una subida esperando: va ya, antes de que congelen la pestaña */
 }
 window.addEventListener('pagehide',wdraftFlush);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)wdraftFlush();});
@@ -6346,8 +6398,15 @@ const OUTBOX_KINDS={
   meal:{list:'meals',mk:'id'},         mealDel:{list:'meals',mk:'id',del:true},
   measure:{list:'measures',mk:'date'}, fatigue:{list:'fatigue',mk:'week'},
   form:{list:'forms',mk:'k'},
-  chat:{list:'chat',mk:'id',top:true}
+  chat:{list:'chat',mk:'id',top:true},
+  /* Copia del borrador de entreno en el servidor (salvaguarda 4, ver wdraftCloud). `quiet`: no
+     cuenta para la pastilla —se sube sola cada pocos segundos mientras entrena, y un «⟳ 1 cambio
+     por subir» parpadeando en cada serie empeoraría el registro— y un rechazo del servidor la
+     TIRA en vez de atascar la cola: es solo una copia, el borrador bueno sigue en el teléfono, y
+     detrás pueden venir el entreno guardado o el peso, que sí importan. Sin `list`: no vive en S. */
+  wdraft:{quiet:true},                 wdraftDel:{quiet:true,del:true}
 };
+function outboxVisibles(){return OUTBOX.filter(x=>!(OUTBOX_KINDS[x.kind]||{}).quiet).length;}
 /* mem = cómo se ve en S (para outboxOverlay). Para un borrado, row = {athlete_uid} y key = id.
    Mismo `k` que el alta: borrar algo que aún no subió solo cambia la entrada pendiente. */
 function outboxAdd(kind,tb,key,oc,row,mem){
@@ -6356,7 +6415,7 @@ function outboxAdd(kind,tb,key,oc,row,mem){
   OUTBOX=OUTBOX.filter(x=>x.k!==k);
   OUTBOX.push({k,kind,tb,oc,key,row,mem,t:Date.now()});
   outboxPersist();
-  _outboxHad=true;outboxPill();
+  if(!(OUTBOX_KINDS[kind]||{}).quiet){_outboxHad=true;outboxPill();}
   setTimeout(outboxFlush,0);
 }
 function outboxSched(ms){clearTimeout(_outboxT);_outboxT=setTimeout(outboxFlush,ms||20000);}
@@ -6372,6 +6431,11 @@ async function outboxFlush(){
       const K=OUTBOX_KINDS[it.kind]||{};
       try{res=await conPlazo(K.del?supa.from(it.tb).delete().eq(it.oc,it.key):supa.from(it.tb).upsert(it.row,{onConflict:it.oc}),15000);}catch(e){res={error:e};}
       if(res&&res.error){
+        if(K.quiet&&!esFalloDeRed(res.error)){ /* copia del borrador rechazada: se tira, no atasca */
+          console.warn('outbox '+it.tb,res.error);
+          const j=OUTBOX.indexOf(it);if(j>=0)OUTBOX.splice(j,1);
+          outboxPersist();continue;
+        }
         if(!esFalloDeRed(res.error)){
           console.error('outbox '+it.tb,res.error);
           _outboxErr=authFail(res.error)||res.error.message||'error';
@@ -6408,7 +6472,7 @@ let _pillT=null;
 function outboxPill(){
   try{
     let el=document.getElementById('syncPill');
-    const n=OUTBOX.length;
+    const n=outboxVisibles();
     if(!n&&!_outboxHad){if(el)el.remove();return;}
     if(!el){
       el=document.createElement('button');el.id='syncPill';el.type='button';
@@ -11467,7 +11531,7 @@ async function initAfterAuthUnsafe(user){
   outboxLoad(_supabaseUser.id);outboxOverlay();
   route={view:u&&u.role==='athlete'?'ath-hoy':'coach-dash',params:{}};
   render();          /* ← AQUÍ ve su día / su panel. Lo de abajo ya no lo hace esperar. */
-  if(OUTBOX.length){_outboxHad=true;outboxPill();setTimeout(outboxFlush,0);}
+  if(OUTBOX.length){if(outboxVisibles()){_outboxHad=true;outboxPill();}setTimeout(outboxFlush,0);}
   if(!_offlineMode)hidratarResto();   /* sin await: corre por detrás */
   else vigilarReconexion();
   setTimeout(pwaOfrecerInstalacion,2500); /* nunca durante el login ni encima del primer render */
@@ -11511,6 +11575,7 @@ async function hidratarResto(){
   /* liveRender y no render(): si al llegar los datos el atleta ya está escribiendo un peso,
      redibujar encima le borraría el cursor. liveRender lo deja para cuando suelte el campo. */
   liveRender();
+  if(_currentUserId!=='coach')wdraftRecuperar(); /* sin await; necesita el historial ya cargado */
   /* Compara la copia del navegador contra el servidor y avisa si algo nunca subió. Va al
      final a propósito — necesita S ya hidratado para no dar falsos positivos, y el banner
      vive en <body>, así que ningún render posterior lo borra.
