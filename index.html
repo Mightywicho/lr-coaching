@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-15.1">
+<meta name="lr-build" content="2026-10-15.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2974,6 +2974,61 @@ function eqvOpts(aid,it){
 }
 /* la comida tal como toca HOY: el menú del coach con los cambios del día encima (copia, nunca muta el plan) */
 function mealHoy(m,sw){if(!sw||m.recipe||!(m.items||[]).length)return m;let ch=false;const items=m.items.map((it,i)=>{const x=sw[m.id+'|'+i];if(x&&x.from===it.food){ch=true;return{food:x.food,qty:x.qty,grams:x.grams,p:x.p,c:x.c,f:x.f,swapped:true,orig:it};}return it;});return ch?Object.assign({},m,{items}):m;}
+/* ===== Lista del súper (pedido de Luis, 2026-10-15) =====
+   El atleta elige para cuántos días compra (SUPER.n) y la lista suma su menú esos días. Como la app no
+   guarda qué tipo de día usó cada fecha (nutriPick es solo la elección actual), el reparto entreno/descanso
+   sale de lo que SÍ registra: días distintos con entreno en las últimas 4 semanas de calendario completas
+   (menos si empezó hace poco); sin al menos una semana de registros, los días de su rutina. Días de entreno
+   = plan «Día pesado» (o «Día normal»), descanso = «Day off» (o el mismo). La recarga no entra sola: la
+   decide el coach. El atleta puede mover el reparto con ± (SUPER.t). Sin casillas de «comprado» (Luis: no).
+   Los equivalentes del día NO cuentan: la lista es para días que aún no llegan. */
+const SUPER={n:7,t:null};
+function superTrainDays(aid){
+  const d=athData(aid),fin=isoPlus(weekStartISO(todayISO()),-1);let ini=isoPlus(fin,-27);
+  const fechas=new Set();let primera=null;
+  (d.logs.workouts||[]).forEach(w=>{if(!w.date||!w.entries||!Object.keys(w.entries).length)return;if(!primera||w.date<primera)primera=w.date;if(w.date<=fin)fechas.add(w.date);});
+  if(primera&&weekStartISO(primera)>ini)ini=weekStartISO(primera);
+  const sem=Math.round((Date.parse(fin)-Date.parse(ini))/864e5+1)/7;
+  if(primera&&sem>=1){let k=0;fechas.forEach(f=>{if(f>=ini)k++;});return{x:Math.min(7,k/sem),src:'reg'};}
+  return{x:Math.min(7,((routineForAthlete(aid).days)||[]).length),src:'rut'};
+}
+function superPlans(aid){
+  const n=nutriOf(aid),ok=n.plans.filter(p=>p.mode==='menu'&&(p.meals||[]).length);if(!ok.length)return null;
+  const de=t=>ok.find(p=>p.type===t);
+  const tr=de('heavy')||de('normal')||de('custom')||ok[0],rs=de('off')||de('normal')||de('custom')||tr;
+  return{tr,rs};
+}
+function superList(aid){
+  const pl=superPlans(aid);if(!pl)return null;
+  const td=superTrainDays(aid),n=SUPER.n;
+  const t=SUPER.t!=null?Math.max(0,Math.min(n,SUPER.t)):(pl.tr===pl.rs?n:Math.round(n*td.x/7));
+  const acc={},sueltos={};
+  const add=(food,q,isU,lbl,k)=>{if(!food||!(q>0))return;const key=food.toLowerCase()+(isU?'|u':'|g');const a=acc[key]||(acc[key]={food,q:0,isU,lbl});a.q+=q*k;};
+  const sumPlan=(pln,k)=>{if(!k)return;(pln.meals||[]).forEach(m=>{
+    if(m.recipe&&(m.recipe.ingredients||[]).length){m.recipe.ingredients.forEach(x=>{if(typeof x==='string'){sueltos[x]=(sueltos[x]||0)+k;return;}const u=x.unit||'g';if(u==='g')add(x.food,+x.grams||0,false,'',k);else add(x.food,+x.grams||0,true,u,k);});return;}
+    (m.items||[]).forEach(it=>{const fo=eqvFood(it.food),isU=(+it.grams||0)<=0;add(it.food,isU?piQty(it):+it.grams,isU,isU?((fo&&fo.unitLabel)||'unidades'):'',k);});
+  });};
+  sumPlan(pl.tr,t);if(pl.rs!==pl.tr)sumPlan(pl.rs,n-t);
+  const grupos={};Object.values(acc).forEach(a=>{const fo=eqvFood(a.food),c=(fo&&FOOD_CATS.indexOf(fo.cat)>=0)?fo.cat:'Otros';(grupos[c]=grupos[c]||[]).push(a);});
+  Object.values(grupos).forEach(g=>g.sort((a,b)=>a.food.localeCompare(b.food)));
+  return{pl,td,n,t,grupos,sueltos};
+}
+/* cantidad para comprar: gramos redondeados hacia arriba a 10 g (kg desde 1000), piezas enteras hacia arriba */
+function superCant(a){if(a.isU)return Math.ceil(a.q-1e-9)+' '+a.lbl;const g=Math.ceil(a.q/10-1e-9)*10;return g>=1000?(g/1000).toLocaleString('es-MX',{maximumFractionDigits:1})+' kg':g+' g';}
+function superTxt(L){let t='🛒 Lista del súper · '+L.n+' '+(L.n===1?'día':'días')+'\n';FOOD_CATS.forEach(c=>{const g=L.grupos[c];if(!g)return;t+='\n'+c+'\n';g.forEach(a=>{t+='• '+a.food+' — '+superCant(a)+'\n';});});const sl=Object.keys(L.sueltos);if(sl.length){t+='\nDe tus recetas\n';sl.forEach(x=>{t+='• '+x+(L.sueltos[x]>1?' (×'+L.sueltos[x]+')':'')+'\n';});}return t;}
+function superOpen(aid){
+  const L=superList(aid);if(!L){openModal('Lista del súper','<div class="empty"><b>Sin menú</b>Tu plan es de macros flexibles; la lista se arma cuando tu coach te da un menú con alimentos.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
+  const ctl=(lbl,v,act)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><span>'+lbl+'</span><span style="display:flex;align-items:center;gap:8px"><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="-1">−</button><b>'+v+'</b><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="1">+</button></span></div>';
+  let h=ctl('¿Para cuántos días compras?',L.n,'super-n');
+  if(L.pl.tr!==L.pl.rs){
+    h+=ctl('De entreno · '+esc(L.pl.tr.name),L.t,'super-t');
+    h+='<p class="tiny mb8">Descanso · '+esc(L.pl.rs.name)+': <b>'+(L.n-L.t)+'</b>. '+(L.td.src==='reg'?'Según tus últimas semanas entrenas ≈'+L.td.x.toLocaleString('es-MX',{maximumFractionDigits:1})+' días por semana.':'Según los días de tu rutina ('+Math.round(L.td.x)+' por semana).')+' Ajústalo si esta semana será distinta.</p>';
+  }
+  let cuerpo='';FOOD_CATS.forEach(c=>{const g=L.grupos[c];if(!g)return;cuerpo+='<div class="tiny mt8" style="font-weight:700">'+c+'</div><ul style="margin:4px 0 0;padding-left:18px">'+g.map(a=>'<li>'+esc(a.food)+' — <b>'+superCant(a)+'</b></li>').join('')+'</ul>';});
+  const sl=Object.keys(L.sueltos);if(sl.length)cuerpo+='<div class="tiny mt8" style="font-weight:700">De tus recetas</div><ul style="margin:4px 0 0;padding-left:18px">'+sl.map(x=>'<li>'+esc(x)+(L.sueltos[x]>1?' <span class="tiny">(×'+L.sueltos[x]+')</span>':'')+'</li>').join('')+'</ul>';
+  h+='<hr class="hr">'+(cuerpo||'<div class="empty"><b>Lista vacía</b>Tu menú no tiene alimentos con cantidad.</div>')+'<p class="tiny mt8">Cantidades en crudo tal como vienen en tu menú, redondeadas hacia arriba.</p>';
+  openModal('🛒 Lista del súper',h,'<button class="btn btn-g" data-act="modal-close">Cerrar</button><button class="btn btn-p" data-act="super-copy" data-aid="'+aid+'">Copiar</button>');
+}
 function swapsHoy(aid){const e=athData(aid).logs.nutrition.find(x=>x.date===todayISO());return (e&&e.swaps)||{};}
 function doneMealsMacros(aid){const p=athPlanOf(aid),e=athData(aid).logs.nutrition.find(x=>x.date===todayISO())||{},done=e.mealsDone||[],t={p:0,c:0,f:0};
   if((p.meals||[]).length){p.meals.forEach(m=>{if(done.indexOf(m.id)>=0){const mt=mealMacros(mealHoy(m,e.swaps));t.p+=mt.p;t.c+=mt.c;t.f+=mt.f;}});}
@@ -7235,7 +7290,7 @@ VIEWS['ath-nutri']=function(u){
   if(n.mode==='menu'&&(n.meals||[]).length){
     let ms='';const sw=swapsHoy(aid),hayEqv=Object.keys(sw).length>0;
     n.meals.forEach(m=>{if(m.recipe){const mt=mealMacros(m);ms+='<div class="meal"><div class="meal-h"><span>'+I.recipe+' '+esc(m.name)+' <span class="badge">receta</span></span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span></div>'+mealRecipeBox(m)+'</div>';return;}const mh=mealHoy(m,sw),mt=mealItemsTotals(mh);let items='';(mh.items||[]).forEach((it,ii)=>{const kc=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);const bt=it.swapped?'<button class="btn btn-g btn-sm" data-act="eqv-undo" data-mid="'+m.id+'" data-idx="'+ii+'" title="Volver a lo de tu menú">↺</button>':(eqvOpts(aid,it).length?'<button class="btn btn-g btn-sm" data-act="eqv-open" data-mid="'+m.id+'" data-idx="'+ii+'" title="Cambiar por un equivalente (solo hoy)">⇄</button>':'');items+='<li><span>'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+(it.qty?' · '+esc(it.qty):'')+(it.swapped?'<div class="tiny">Hoy en lugar de '+esc(it.orig.food)+(it.orig.qty?' · '+esc(it.orig.qty):'')+'</div>':'')+'</span><span class="q" style="display:flex;gap:6px;align-items:center">'+kc+' kcal'+bt+'</span></li>';});ms+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span></div><ul>'+items+'</ul></div>';});
-    plan='<div class="card"><h3>Tu menú · '+esc(n.name)+'</h3><p class="tiny mb8">¿No tienes algo? Toca ⇄ para cambiarlo por un equivalente. Solo vale hoy: mañana vuelve tu menú'+(hayEqv?' · ↺ deshace el cambio':'')+'.</p>'+ms+'</div>';
+    plan='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">Tu menú · '+esc(n.name)+'</h3><button class="btn btn-g btn-sm" data-act="super-open" data-aid="'+aid+'">🛒 Lista del súper</button></div><p class="tiny mb8 mt8">¿No tienes algo? Toca ⇄ para cambiarlo por un equivalente. Solo vale hoy: mañana vuelve tu menú'+(hayEqv?' · ↺ deshace el cambio':'')+'.</p>'+ms+'</div>';
   }
   /* suplementación */
   let supp='';
@@ -7590,6 +7645,10 @@ Object.assign(ACTIONS,{
     await pushWorkoutLog(u,w);
     toast((_offlineMode||sinRed())?'Registrado · se sube en cuanto haya señal':'Registrado · tu coach ya lo ve');render();
   },
+  'super-open':el=>{SUPER.t=null;superOpen(el.dataset.aid);},
+  'super-n':el=>{SUPER.n=Math.max(1,Math.min(14,SUPER.n+(+el.dataset.d)));SUPER.t=null;superOpen(el.dataset.aid);},
+  'super-t':el=>{const L=superList(el.dataset.aid);if(!L)return;SUPER.t=Math.max(0,Math.min(L.n,L.t+(+el.dataset.d)));superOpen(el.dataset.aid);},
+  'super-copy':async el=>{const L=superList(el.dataset.aid);if(!L)return;try{await navigator.clipboard.writeText(superTxt(L));toast('Lista copiada: pégala en WhatsApp o en tus notas');}catch(e){toast('No se pudo copiar en este teléfono');}},
   'eqv-open':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;
     const ops=eqvOpts(aid,it),kc0=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);
     let rows='';ops.forEach((o,k)=>{rows+='<button class="mcheck" style="width:100%;text-align:left" data-act="eqv-pick" data-mid="'+m.id+'" data-idx="'+i+'" data-k="'+k+'"><span class="mt2"><b>'+esc(o.food)+'</b> · '+esc(o.qty)+(o.avoid?' <span class="badge orange">🚫 evitar</span>':'')+'<div class="tiny">'+o.kcal+' kcal ('+(o.dk>0?'+':'')+o.dk+') · P'+o.p+' C'+o.c+' G'+o.f+'</div></span></button>';});
