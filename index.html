@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-13.5">
+<meta name="lr-build" content="2026-10-15.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2195,7 +2195,7 @@ function swapCandidates(ex,day,reason){
     .slice(0,12);
 }
 /* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
-function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed)};}
+function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed),swaps:e.swaps||{}};}
 /* Las tres van por la cola de envíos (outboxAdd): se guardan al instante y suben solas. */
 function syncNutriRow(aid){if(!_supabaseUser)return;const e=todayNutriEntry(aid);const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid');return;}outboxAdd('nutrition','nutrition_logs',row.date,'athlete_uid,date',row,e);}
 function syncMealAdd(aid,m){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;outboxAdd('meal','meal_logs',m.id,'id',{id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0},m);}
@@ -2215,10 +2215,10 @@ async function backfillNutritionLogs(){
 async function hydrateNutritionLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   try{
-    const{data,error}=await supa.from('nutrition_logs').select('athlete_uid,date,adherence,comment,meals_done,plan_followed').order('date',{ascending:true});
+    const{data,error}=await supa.from('nutrition_logs').select('athlete_uid,date,adherence,comment,meals_done,plan_followed,swaps').order('date',{ascending:true});
     if(error||!data)return;
     const byUid={};
-    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,adherence:(r.adherence!=null?+r.adherence:null),comment:r.comment||'',mealsDone:r.meals_done||[],planFollowed:(r.plan_followed==null?null:r.plan_followed)});});
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,adherence:(r.adherence!=null?+r.adherence:null),comment:r.comment||'',mealsDone:r.meals_done||[],planFollowed:(r.plan_followed==null?null:r.plan_followed),swaps:r.swaps||{}});});
     Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.nutrition=byUid[uid];});outboxOverlay();
   }catch(e){}
 }
@@ -2941,8 +2941,42 @@ function planMealShare(p){const n=Math.max(1,p.mealsPerDay||1);return{p:+((p.pro
 /* ⚠ Solo lectura: antes usaba todayNutriEntry, que CREA la entrada de hoy. Pintar las barras de
    «Hoy» dejaba una entrada vacía y el pendiente «Registrar nutrición de hoy» desaparecía solo. */
 function nutriHasData(n){return !!n&&(n.adherence!=null||n.planFollowed!=null||!!(n.comment||'').trim()||!!(n.mealsDone&&n.mealsDone.length));}
+/* ===== Equivalentes del día (pedido de Luis, 2026-10-15; idea tomada de Avena en el benchmark) =====
+   El atleta cambia un alimento de su menú por otro equivalente y el cambio vale SOLO ese día: vive en
+   la entrada de nutrición del día (`e.swaps`, columna nutrition_logs.swaps), nunca en el plan, que es
+   del coach. Al día siguiente vuelve el menú tal cual. Clave = id de la comida + posición del alimento,
+   y se guarda `from` (el original): si el coach edita el menú a media jornada y en esa posición ya hay
+   otro alimento, el cambio se ignora en vez de sustituir algo que el atleta no eligió.
+   Criterio de Luis: igualar el MACRO PRINCIPAL (el que más kcal aporta al alimento original) y ofrecer
+   solo opciones con kcal parecidas (EQV_TOL). Familias por categoría de la base: Proteínas↔Lácteos sí,
+   pero Carbohidratos↔Frutas no (80 g de arroz salían «equivalentes» a 800 g de sandía). El candidato debe tener el mismo macro principal (la leche, que es más
+   carbo que proteína, no sale como cambio del pollo). Alergias declaradas se excluyen; «evitar» va al final.
+   Un día con solo cambios NO cuenta como «registrada» (nutriHasData): cambiar no es reportar adherencia. */
+const EQV_FAM={'Proteínas':['Proteínas','Lácteos'],'Lácteos':['Lácteos','Proteínas'],'Carbohidratos':['Carbohidratos'],'Frutas':['Frutas'],'Grasas':['Grasas'],'Verduras':['Verduras']};
+const EQV_TOL={pct:0.15,kcal:20};
+function eqvMain(m){const k={p:(+m.p||0)*4,c:(+m.c||0)*4,f:(+m.f||0)*9};return ['c','f'].reduce((a,b)=>k[b]>k[a]?b:a,'p');}
+function eqvFood(name){const n=String(name||'').toLowerCase();return (S.foods||[]).find(x=>String(x.name).toLowerCase()===n)||null;}
+function eqvOpts(aid,it){
+  const fo=eqvFood(it&&it.food);if(!fo)return[];
+  const fam=EQV_FAM[fo.cat];if(!fam)return[];
+  const kc0=(+it.p||0)*4+(+it.c||0)*4+(+it.f||0)*9,mk=eqvMain(it),target=+it[mk]||0;if(kc0<=0||target<=0)return[];
+  const tol=Math.max(kc0*EQV_TOL.pct,EQV_TOL.kcal),out=[];
+  (S.foods||[]).forEach(c=>{
+    if(c.name===fo.name||fam.indexOf(c.cat)<0||!(c[mk]>0)||eqvMain(c)!==mk)return;
+    const cf=foodConflict(aid,c.name);if(cf.type==='allergy')return;
+    const isU=c.unit==='u';let q=isU?target/c[mk]:target/(c[mk]/100);q=isU?Math.round(q*2)/2:Math.round(q/5)*5;
+    if(q<=0||(isU?q>20:q>1000))return;
+    const mac=foodMacros(c.name,q);if(!mac)return;const kc=Math.round(mac.p*4+mac.c*4+mac.f*9);if(Math.abs(kc-kc0)>tol)return;
+    out.push({food:c.name,qty:isU?(q+' '+(c.unitLabel||'unidades')):(q+' g'),grams:isU?0:q,p:mac.p,c:mac.c,f:mac.f,kcal:kc,dk:Math.round(kc-kc0),avoid:cf.type==='avoid'});
+  });
+  out.sort((a,b)=>(a.avoid-b.avoid)||Math.abs(a.dk)-Math.abs(b.dk)||a.food.localeCompare(b.food));
+  return out.slice(0,12);
+}
+/* la comida tal como toca HOY: el menú del coach con los cambios del día encima (copia, nunca muta el plan) */
+function mealHoy(m,sw){if(!sw||m.recipe||!(m.items||[]).length)return m;let ch=false;const items=m.items.map((it,i)=>{const x=sw[m.id+'|'+i];if(x&&x.from===it.food){ch=true;return{food:x.food,qty:x.qty,grams:x.grams,p:x.p,c:x.c,f:x.f,swapped:true,orig:it};}return it;});return ch?Object.assign({},m,{items}):m;}
+function swapsHoy(aid){const e=athData(aid).logs.nutrition.find(x=>x.date===todayISO());return (e&&e.swaps)||{};}
 function doneMealsMacros(aid){const p=athPlanOf(aid),e=athData(aid).logs.nutrition.find(x=>x.date===todayISO())||{},done=e.mealsDone||[],t={p:0,c:0,f:0};
-  if((p.meals||[]).length){p.meals.forEach(m=>{if(done.indexOf(m.id)>=0){const mt=mealMacros(m);t.p+=mt.p;t.c+=mt.c;t.f+=mt.f;}});}
+  if((p.meals||[]).length){p.meals.forEach(m=>{if(done.indexOf(m.id)>=0){const mt=mealMacros(mealHoy(m,e.swaps));t.p+=mt.p;t.c+=mt.c;t.f+=mt.f;}});}
   else{const sh=planMealShare(p),k=done.filter(id=>/^slot/.test(id)).length;t.p=sh.p*k;t.c=sh.c*k;t.f=sh.f*k;}
   t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 function consumedToday(aid){const a=doneMealsMacros(aid),b=intakeForDate(aid,todayISO());const t={p:+(a.p+b.p).toFixed(1),c:+(a.c+b.c).toFixed(1),f:+(a.f+b.f).toFixed(1)};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
@@ -5320,7 +5354,7 @@ function coachTabRegistros(aid){
   });
   if(!wk)wk='<div class="empty"><b>Sin entrenamientos registrados</b></div>';
   const nCards=[];
-  d.logs.nutrition.slice().reverse().forEach(n=>{const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+adhBadge(n.adherence)+'<b>Adherencia</b>'+md+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+'</div>'});});
+  d.logs.nutrition.slice().reverse().forEach(n=>{const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+adhBadge(n.adherence)+'<b>Adherencia</b>'+md+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
   let nut='';
   blockGroupsOf(aid,nCards).forEach((b,bi)=>{
     const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
@@ -6867,7 +6901,7 @@ VIEWS['ath-hoy']=function(u){
   let adhUI='';
   if((n.meals||[]).length){
     let chk='';
-    n.meals.forEach(m=>{const on=todayMealsDone.indexOf(m.id)>=0,mt=mealMacros(m);chk+='<div class="mcheck'+(on?' on':'')+'" data-act="plan-meal-toggle" data-mid="'+m.id+'"><span class="box">'+I.check+'</span><span class="mt2"><b>'+esc(m.name)+'</b><div class="tiny">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</div></span></div>';});
+    n.meals.forEach(m=>{const on=todayMealsDone.indexOf(m.id)>=0,mt=mealMacros(mealHoy(m,todayN&&todayN.swaps));chk+='<div class="mcheck'+(on?' on':'')+'" data-act="plan-meal-toggle" data-mid="'+m.id+'"><span class="box">'+I.check+'</span><span class="mt2"><b>'+esc(m.name)+'</b><div class="tiny">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</div></span></div>';});
     const doneN=n.meals.filter(m=>todayMealsDone.indexOf(m.id)>=0).length;
     adhUI='<hr class="hr"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><label style="margin:0">Marca las comidas del plan que cumpliste</label><button class="btn btn-g btn-sm" data-act="plan-all-done">'+I.check+' Cumplí todo</button></div>'+chk+'<p class="tiny mb8">'+doneN+' / '+n.meals.length+' comidas cumplidas'+(curAdh!=null?' · adherencia '+adhBadge(curAdh):'')+'. Cada una resta sus macros; lo que falte lo completas con tu comida libre abajo.</p>';
   } else {
@@ -7199,9 +7233,9 @@ VIEWS['ath-nutri']=function(u){
   /* menú del plan elegido */
   let plan='';
   if(n.mode==='menu'&&(n.meals||[]).length){
-    let ms='';
-    n.meals.forEach(m=>{if(m.recipe){const mt=mealMacros(m);ms+='<div class="meal"><div class="meal-h"><span>'+I.recipe+' '+esc(m.name)+' <span class="badge">receta</span></span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span></div>'+mealRecipeBox(m)+'</div>';return;}const mt=mealItemsTotals(m);let items='';(m.items||[]).forEach(it=>{items+='<li><span>'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+(it.qty?' · '+esc(it.qty):'')+'</span><span class="q">'+Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9)+' kcal</span></li>';});ms+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span></div><ul>'+items+'</ul></div>';});
-    plan='<div class="card"><h3>Tu menú · '+esc(n.name)+'</h3>'+ms+'</div>';
+    let ms='';const sw=swapsHoy(aid),hayEqv=Object.keys(sw).length>0;
+    n.meals.forEach(m=>{if(m.recipe){const mt=mealMacros(m);ms+='<div class="meal"><div class="meal-h"><span>'+I.recipe+' '+esc(m.name)+' <span class="badge">receta</span></span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span></div>'+mealRecipeBox(m)+'</div>';return;}const mh=mealHoy(m,sw),mt=mealItemsTotals(mh);let items='';(mh.items||[]).forEach((it,ii)=>{const kc=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);const bt=it.swapped?'<button class="btn btn-g btn-sm" data-act="eqv-undo" data-mid="'+m.id+'" data-idx="'+ii+'" title="Volver a lo de tu menú">↺</button>':(eqvOpts(aid,it).length?'<button class="btn btn-g btn-sm" data-act="eqv-open" data-mid="'+m.id+'" data-idx="'+ii+'" title="Cambiar por un equivalente (solo hoy)">⇄</button>':'');items+='<li><span>'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+(it.qty?' · '+esc(it.qty):'')+(it.swapped?'<div class="tiny">Hoy en lugar de '+esc(it.orig.food)+(it.orig.qty?' · '+esc(it.orig.qty):'')+'</div>':'')+'</span><span class="q" style="display:flex;gap:6px;align-items:center">'+kc+' kcal'+bt+'</span></li>';});ms+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span></div><ul>'+items+'</ul></div>';});
+    plan='<div class="card"><h3>Tu menú · '+esc(n.name)+'</h3><p class="tiny mb8">¿No tienes algo? Toca ⇄ para cambiarlo por un equivalente. Solo vale hoy: mañana vuelve tu menú'+(hayEqv?' · ↺ deshace el cambio':'')+'.</p>'+ms+'</div>';
   }
   /* suplementación */
   let supp='';
@@ -7556,6 +7590,14 @@ Object.assign(ACTIONS,{
     await pushWorkoutLog(u,w);
     toast((_offlineMode||sinRed())?'Registrado · se sube en cuanto haya señal':'Registrado · tu coach ya lo ve');render();
   },
+  'eqv-open':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;
+    const ops=eqvOpts(aid,it),kc0=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);
+    let rows='';ops.forEach((o,k)=>{rows+='<button class="mcheck" style="width:100%;text-align:left" data-act="eqv-pick" data-mid="'+m.id+'" data-idx="'+i+'" data-k="'+k+'"><span class="mt2"><b>'+esc(o.food)+'</b> · '+esc(o.qty)+(o.avoid?' <span class="badge orange">🚫 evitar</span>':'')+'<div class="tiny">'+o.kcal+' kcal ('+(o.dk>0?'+':'')+o.dk+') · P'+o.p+' C'+o.c+' G'+o.f+'</div></span></button>';});
+    openModal('Cambiar '+esc(it.food),'<p class="tiny mb8">En tu menú: <b>'+esc(it.food)+(it.qty?' · '+esc(it.qty):'')+'</b> · '+kc0+' kcal · P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+'</p>'+(rows||'<div class="empty"><b>Sin equivalentes</b>No hay alimentos parecidos en la base de tu coach.</div>')+'<p class="tiny mt8">Cantidades calculadas para darte lo mismo de su macro principal con calorías parecidas. Solo vale hoy; tu coach verá el cambio.</p>','<button class="btn btn-g" data-act="modal-close">Cancelar</button>');},
+  'eqv-pick':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;const o=eqvOpts(aid,it)[+el.dataset.k];if(!o)return;
+    const e=todayNutriEntry(aid);e.swaps=Object.assign({},e.swaps||{});e.swaps[m.id+'|'+i]={from:it.food,food:o.food,qty:o.qty,grams:o.grams,p:o.p,c:o.c,f:o.f};
+    syncNutriRow(aid);saveStateCola();closeModal();render();toast('Hoy: '+o.food+' en lugar de '+it.food);},
+  'eqv-undo':el=>{const aid=getSession().userId,e=todayNutriEntry(aid);if(!e.swaps)return;e.swaps=Object.assign({},e.swaps);delete e.swaps[el.dataset.mid+'|'+el.dataset.idx];syncNutriRow(aid);saveStateCola();render();},
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
   'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
