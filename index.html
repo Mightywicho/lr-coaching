@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-15.2">
+<meta name="lr-build" content="2026-10-15.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2914,18 +2914,141 @@ function planMenuTotals(p){const t={p:0,c:0,f:0};(p.meals||[]).forEach(m=>{if((m
 /* comida-receta: bloque de ingredientes + preparación (coach y atleta) */
 /* una línea de ingrediente: texto libre (recetas importadas) u objeto {food,grams,unit} (recetas escalables) */
 function ingLine(x){if(typeof x==='string')return x;const u=(x.unit==='g'||!x.unit)?'g':x.unit;return (x.grams||0)+' '+u+' de '+(x.food||'');}
+/* ===== Lo que toca en UNA comida (pedido de Luis, 2026-10-15; idea del «Para mi distribución» de Avena) =====
+   Antes «Adaptar» escalaba la receta a TODO lo que le faltaba al plan: con el menú vacío, un desayuno
+   salía ×5 (el tope) porque intentaba cubrir el día entero. Ahora el objetivo de la comida es lo que falta
+   repartido entre las comidas que quedan por poner (mealsPerDay − las que ya hay, mínimo 1). Sirve para
+   adaptar, para ordenar el buscador por encaje y para «Ajustar» dentro del editor.
+   exceptId: la comida que se está editando, que no cuenta ni como «ya puesta» ni en lo ya sumado. */
+function mealTargetFor(ap,exceptId){
+  const others=(ap.meals||[]).filter(m=>m.id!==exceptId);
+  const tot={p:0,c:0,f:0};others.forEach(m=>{const t=mealMacros(m);tot.p+=t.p;tot.c+=t.c;tot.f+=t.f;});
+  const slots=Math.max(1,(ap.mealsPerDay||1)-others.length);
+  const r=k=>{const v=(k==='p'?ap.protein:k==='c'?ap.carbs:ap.fat)||0;return Math.max(0,+((v-tot[k])/slots).toFixed(1));};
+  const t={p:r('p'),c:r('c'),f:r('f'),slots};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;
+}
+/* Cómo encaja una comida con P/C/G «got» en el objetivo «tgt». Un macro falta o se pasa si se desvía más
+   de 5 g Y más de un 20 %: con objetivos chicos (5 g de grasa) un 20 % es ruido. score = kcal desviadas,
+   para ordenar. */
+function recFit(got,tgt){
+  const nm={p:'proteína',c:'carbohidratos',f:'grasa'},falta=[],pasa=[];let score=0;
+  ['p','c','f'].forEach(k=>{const d=(+got[k]||0)-(+tgt[k]||0);score+=Math.abs(d)*(k==='f'?9:4);const lim=Math.max(5,(+tgt[k]||0)*0.2);if(d<-lim)falta.push(nm[k]);else if(d>lim)pasa.push(nm[k]);});
+  return{ok:!falta.length&&!pasa.length,falta,pasa,score};
+}
+function recFitChip(fi){
+  if(fi.ok)return ' <span class="badge" style="background:rgba(205,245,99,.15);color:var(--volt)">✓ Encaja</span>';
+  return ' <span class="tiny muted">'+[fi.falta.length?'Falta: '+fi.falta.join(', '):'',fi.pasa.length?'Se pasa: '+fi.pasa.join(', '):''].filter(Boolean).join(' · ')+'</span>';
+}
+
+/* ===== Editar una receta ya asignada al menú (pedido de Luis, 2026-10-15; flujo visto en el editor de Avena) =====
+   Al asignar una receta, la comida del plan guarda una COPIA (meal.recipe) con ingredientes, pasos y macros;
+   hasta ahora esa copia solo se podía borrar. Ahora el coach la edita como en Avena: cantidad por ingrediente
+   con ± (en gramos o piezas, como la base de alimentos: Luis lo eligió frente a equivalentes), ⇄ cambio por
+   otro alimento con la MISMA regla que los equivalentes del atleta (eqvOpts: familia, macro principal
+   igualado, kcal parecidas, sin alergias), quitar, añadir, pasos y nombre. Los macros se recalculan en vivo
+   y se comparan con lo que toca en esa comida (mealTargetFor).
+   Todo vale SOLO para ese plan: el recetario no se toca. «Guardar también en mi recetario» crea una receta
+   NUEVA y nunca pisa la original, que otros atletas pueden tener asignada.
+   Líneas de texto libre (recetas importadas sin ingredientes ligados a la base, o complementos tipo «sal»)
+   se editan como texto y no suman macros. Si la receta no tiene NINGÚN ingrediente ligado, los macros de la
+   comida se ponen a mano, porque no hay de dónde calcularlos.
+   Un ingrediente que no está en la base (lo borraron después) escala sus macros en proporción a lo que traía
+   (x.base), igual que hace scaleRecipeIngredients. */
+let _pmr=null;
+function pmrFromIngs(list){
+  return (list||[]).map(x=>{
+    if(!x||typeof x!=='object')return{txt:String(x||'')};
+    const fo=eqvFood(x.food),isU=!!fo&&fo.unit==='u';
+    const o={food:fo?fo.name:x.food,grams:+x.grams||0,unit:isU?(fo.unitLabel||'unidad'):(fo?'g':(x.unit||'g')),p:+x.p||0,c:+x.c||0,f:+x.f||0};
+    if(!fo)o.base={g:o.grams,p:o.p,c:o.c,f:o.f};
+    return o;
+  });
+}
+function pmrIngMac(x,q){
+  const fo=eqvFood(x.food);if(fo)return foodMacros(fo.name,q)||{p:0,c:0,f:0};
+  const b=x.base||{g:x.grams,p:x.p,c:x.c,f:x.f},k=b.g>0?q/b.g:1;
+  return{p:+((b.p||0)*k).toFixed(1),c:+((b.c||0)*k).toFixed(1),f:+((b.f||0)*k).toFixed(1)};
+}
+/* «Ajustar a lo que toca» del editor. Escalar todo por un solo factor (como «Adaptar» del buscador) obliga a
+   elegir: o no pasarse de ningún macro y quedarse corto en los demás (pollo con arroz: proteína al tope y
+   30 g de carbos abajo), o pasarse. Avena ajusta por grupos; aquí cada ingrediente se escala según SU macro
+   principal (eqvMain): los de proteína por la proteína que falta, los de carbos por los carbos, los de grasa
+   por la grasa. Varias pasadas porque el arroz también trae algo de proteína. Verduras y líneas de texto no
+   se tocan (subir la lechuga ×3 para cuadrar carbos no tiene sentido), y cada factor queda entre ×0.25 y ×4. */
+function recGroupFactors(ings,tg){
+  const it=ings.map(x=>{if(!x||typeof x!=='object'||x.txt!=null)return null;const fo=eqvFood(x.food);if(fo&&fo.cat==='Verduras')return null;const y={p:+x.p||0,c:+x.c||0,f:+x.f||0,r:1};y.k=eqvMain(y);return y;});
+  for(let n=0;n<4;n++)['p','c','f'].forEach(k=>{
+    if(!(tg[k]>0))return;let g=0,o=0;it.forEach(y=>{if(!y)return;const v=y[k]*y.r;if(y.k===k)g+=v;else o+=v;});
+    if(g<=0)return;const r=(tg[k]-o)/g;
+    it.forEach(y=>{if(y&&y.k===k)y.r=Math.max(0.25,Math.min(4,y.r*r));});
+  });
+  return it.map(y=>y?y.r:1);
+}
+function pmrStep(x){const fo=eqvFood(x.food);return fo&&fo.unit==='u'?0.5:5;}
+function pmrHasStruct(){return _pmr.ings.some(x=>x.txt==null);}
+function pmrTot(){
+  if(!pmrHasStruct()){const m=_pmr.manual;const t={p:+m.p||0,c:+m.c||0,f:+m.f||0};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+  const t={p:0,c:0,f:0};_pmr.ings.forEach(x=>{if(x.txt==null){t.p+=x.p;t.c+=x.c;t.f+=x.f;}});
+  t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;
+}
+function pmrTotHTML(){
+  const t=pmrTot(),tg=mealTargetFor(activePlanOf(_pmr.aid),_pmr.mid);
+  const cmp=tg.kcal>0?'<br><span class="tiny">Lo que toca en esta comida: '+tg.kcal+' kcal · P '+tg.p+' · C '+tg.c+' · G '+tg.f+(tg.slots>1?' (lo que falta al plan entre '+tg.slots+' comidas)':'')+'</span> '+recFitChip(recFit(t,tg)):'';
+  return '<div class="notebox" style="border-left-color:var(--volt)"><b>Esta comida:</b> '+t.kcal+' kcal · P '+t.p+' g · C '+t.c+' g · G '+t.f+' g'+cmp+'</div>';
+}
+function pmrRowMac(x){return 'P'+x.p+' C'+x.c+' G'+x.f+' · '+Math.round(x.p*4+x.c*4+x.f*9)+' kcal';}
+function pmrBody(){
+  const d=_pmr,fo=S.foods||[];let rows='';
+  d.ings.forEach((x,i)=>{
+    if(x.txt!=null){rows+='<div class="meal" style="padding:8px 10px"><div style="display:flex;gap:6px;align-items:center"><input value="'+esc(x.txt)+'" data-pmr-t="'+i+'" placeholder="Texto libre (p. ej. sal y pimienta al gusto)" style="flex:1"><button class="btn btn-g btn-sm" title="Quitar" data-act="pmr-del" data-idx="'+i+'">'+I.x+'</button></div></div>';return;}
+    const st=pmrStep(x),u=x.unit==='g'?'g':x.unit;
+    let sw='';
+    if(d.eqv===i){
+      const ops=eqvOpts(d.aid,x);
+      sw='<div style="margin-top:8px">'+(ops.length?ops.map((o,j)=>'<button class="btn btn-g btn-sm" style="margin:0 6px 6px 0" data-act="pmr-eqv-pick" data-idx="'+i+'" data-j="'+j+'">'+esc(o.food)+' · '+esc(o.qty)+(o.dk?' <span class="tiny">('+(o.dk>0?'+':'')+o.dk+' kcal)</span>':'')+(o.avoid?' <span class="tiny">· evitar</span>':'')+'</button>').join(''):'<p class="tiny">No hay equivalentes con kcal parecidas en tu base para este alimento.</p>')+'</div>';
+    }
+    rows+='<div class="meal" style="padding:8px 10px"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="flex:1;min-width:120px">'+esc(x.food)+foodConflictChip(foodConflict(d.aid,x.food))+'</b>'+
+      '<button class="btn btn-g btn-sm" data-act="pmr-q" data-idx="'+i+'" data-d="-1" aria-label="Menos">−</button>'+
+      '<input type="number" min="'+st+'" step="'+st+'" value="'+x.grams+'" data-pmr-q="'+i+'" style="width:76px;text-align:center" aria-label="Cantidad de '+esc(x.food)+'"><span class="tiny">'+esc(u)+'</span>'+
+      '<button class="btn btn-g btn-sm" data-act="pmr-q" data-idx="'+i+'" data-d="1" aria-label="Más">+</button>'+
+      '<button class="btn btn-g btn-sm" title="Cambiar por un equivalente" data-act="pmr-eqv" data-idx="'+i+'">⇄</button>'+
+      '<button class="btn btn-g btn-sm" title="Quitar" data-act="pmr-del" data-idx="'+i+'">'+I.x+'</button></div>'+
+      '<div class="tiny" id="pmr_m_'+i+'">'+pmrRowMac(x)+'</div>'+sw+'</div>';
+  });
+  const man=pmrHasStruct()?'':'<p class="tiny mt8">Esta receta no tiene ingredientes ligados a tu base, así que sus macros se ponen a mano:</p><div class="frow3"><div><label>Prot (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.p||0)+'" data-pmr-m="p"></div><div><label>Carb (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.c||0)+'" data-pmr-m="c"></div><div><label>Gras (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.f||0)+'" data-pmr-m="f"></div></div>';
+  const r=recById(d.rid);
+  return '<p class="tiny mb8">Los cambios valen solo para este plan; tu recetario no se toca.</p>'+
+    '<div class="frow"><label>Nombre</label><input value="'+esc(d.name)+'" data-pmr-f="name"></div>'+
+    '<div id="pmr_tot" class="mb8">'+pmrTotHTML()+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+(pmrHasStruct()?'<button class="btn btn-g btn-sm" data-act="pmr-fit" title="Ajusta cada ingrediente según lo que más aporta (proteína, carbos o grasa) para acercarse a lo que toca en esta comida">'+I.recipe+' Ajustar a lo que toca</button>':'')+(r?'<button class="btn btn-g btn-sm" data-act="pmr-reset" title="Vuelve a la receta tal cual está en tu recetario">Restaurar original</button>':'')+'</div>'+
+    '<h4 class="mg-h">Ingredientes</h4>'+(rows||'<p class="tiny">Sin ingredientes.</p>')+man+
+    '<datalist id="pmr_foods">'+fo.map(f=>'<option value="'+esc(f.name)+'"></option>').join('')+'</datalist>'+
+    '<div class="frow2 mt8"><div><input id="pmr_af" list="pmr_foods" placeholder="Añadir alimento de tu base…" autocomplete="off"></div><div style="display:flex;gap:6px"><input id="pmr_ag" type="number" min="0.5" step="5" placeholder="g o piezas" style="flex:1"><button class="btn btn-g btn-sm" data-act="pmr-add">'+I.plus+' Añadir</button></div></div>'+
+    '<button class="btn btn-g btn-sm mt8" data-act="pmr-add-txt">'+I.plus+' Línea de texto (complemento)</button>'+
+    '<h4 class="mg-h mt16">Preparación <span class="hint">un paso por línea</span></h4><textarea rows="5" data-pmr-f="steps" style="width:100%">'+esc(d.steps)+'</textarea>'+
+    '<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-pmr-f="toRec"'+(d.toRec?' checked':'')+'> Guardar también en mi recetario como receta nueva</label>';
+}
+function pmrRerender(){const b=document.querySelector('#modal-root .modal-b');if(b){const y=b.scrollTop;b.innerHTML=pmrBody();b.scrollTop=y;}}
+function pmrSetQty(i,q){
+  const x=_pmr.ings[i];if(!x||x.txt!=null)return;
+  q=Math.max(0,+q||0);x.grams=q;const m=pmrIngMac(x,q);x.p=m.p;x.c=m.c;x.f=m.f;
+}
 function mealRecipeBox(m){const r=m.recipe||{};let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});let st='';(r.steps||[]).forEach(x=>{st+='<li>'+esc(x)+'</li>';});if(!ing&&!st)return '';const scaleNote=(r.scaleFactor&&r.scaleFactor!==1)?'<p class="tiny" style="margin:0 14px 8px">Receta adaptada ×'+r.scaleFactor+' a lo que le faltaba al plan.</p>':'';return scaleNote+'<div style="padding:2px 14px 12px">'+(ing?'<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+ing+'</ul>':'')+(st?'<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+st+'</ol>':'')+'</div>';}
-function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const more=list.length>60;list=list.slice(0,60);
-  const ap=activePlanOf(aid),rem=planRemainingMacros(ap);
+function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const ap=activePlanOf(aid),tg=mealTargetFor(ap,null),hasT=tg.p>0||tg.c>0||tg.f>0;
+  /* encaje de cada receta tal como entraría (adaptada si es escalable) con lo que toca en esta comida;
+     con objetivo, primero las que mejor encajan. Las que no traen macros van al final, sin etiqueta. */
+  const fits=new Map();
+  if(hasT){list.forEach(r=>{if(!r.macros)return;const m=r.macros,f=recIsScalable(r)?recScaleFactor(r,tg):1;fits.set(r,recFit({p:(+m.p||0)*f,c:(+m.c||0)*f,f:(+m.g||0)*f},tg));});
+    list.sort((a,b)=>(fits.has(a)?fits.get(a).score:Infinity)-(fits.has(b)?fits.get(b).score:Infinity));}
+  const more=list.length>60;list=list.slice(0,60);
   let rows='';list.forEach(r=>{
     const scalable=recIsScalable(r);
     let adaptBtn='';
     if(scalable){
-      const canAdapt=(rem.p>0||rem.c>0||rem.f>0);
-      if(canAdapt){const f=recScaleFactor(r,rem);adaptBtn='<button class="btn btn-p btn-sm" data-act="pmeal-recipe-adapt" data-aid="'+aid+'" data-rec="'+esc(r.id)+'" title="Escala todos los ingredientes ×'+f+' para acercarse a lo que le falta al plan">'+I.recipe+' Adaptar ×'+f+'</button>';}
+      if(hasT){const f=recScaleFactor(r,tg);adaptBtn='<button class="btn btn-p btn-sm" data-act="pmeal-recipe-adapt" data-aid="'+aid+'" data-rec="'+esc(r.id)+'" title="Escala todos los ingredientes ×'+f+' para acercarse a lo que toca en esta comida">'+I.recipe+' Adaptar ×'+f+'</button>';}
       else adaptBtn='<span class="tiny muted">Objetivo ya cubierto</span>';
     }
-    rows+='<div class="meal"><div class="meal-h"><span>'+esc(r.name)+(scalable?' <span class="badge" title="Ingredientes ligados a tu base de alimentos: se puede escalar">Escalable</span>':'')+'</span><span class="tm">'+esc(r.category||'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+(r.macros?' · P'+(r.macros.p||0)+' C'+(r.macros.c||0)+' G'+(r.macros.g||0):'')+'</span><span class="sp">'+adaptBtn+'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-add" data-aid="'+aid+'" data-rec="'+esc(r.id)+'">Tal cual</button></span></div></div>';
+    rows+='<div class="meal"><div class="meal-h"><span>'+esc(r.name)+(scalable?' <span class="badge" title="Ingredientes ligados a tu base de alimentos: se puede escalar">Escalable</span>':'')+(fits.has(r)?recFitChip(fits.get(r)):'')+'</span><span class="tm">'+esc(r.category||'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+(r.macros?' · P'+(r.macros.p||0)+' C'+(r.macros.c||0)+' G'+(r.macros.g||0):'')+'</span><span class="sp">'+adaptBtn+'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-add" data-aid="'+aid+'" data-rec="'+esc(r.id)+'">Tal cual</button></span></div></div>';
   });
   if(!rows)return '<div class="empty"><b>Sin resultados</b>Prueba con otro nombre o ingrediente.</div>';if(more)rows+='<p class="tiny mt8">Mostrando 60 de '+RECIPES.length+'. Escribe para filtrar el resto.</p>';return rows;}
 /* registro diario de nutrición del atleta: comidas del plan seguidas → adherencia automática */
@@ -4985,7 +5108,7 @@ function coachTabNutri(aid){
     let ms='';
     (ap.meals||[]).forEach(m=>{
       if(m.recipe){const mt=mealMacros(m);
-        ms+='<div class="meal"><div class="meal-h"><span>'+I.recipe+' '+esc(m.name)+' <span class="badge">receta</span></span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+mealRecipeBox(m)+'</div>';
+        ms+='<div class="meal"><div class="meal-h"><span>'+I.recipe+' '+esc(m.name)+' <span class="badge">receta</span></span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-edit" data-aid="'+aid+'" data-meal="'+m.id+'" title="Editar ingredientes, cantidades y pasos solo para este plan">'+I.edit+' Editar</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+mealRecipeBox(m)+'</div>';
         return;}
       const mt=mealItemsTotals(m);
       let items='';(m.items||[]).forEach((it,ii)=>{items+='<li><span>'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+(it.qty?' · '+esc(it.qty):'')+'</span><span class="q">P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+' <button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Cambiar cantidad" data-act="pitem-edit" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'">'+I.edit+'</button><button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Quitar" data-act="pitem-del" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'">'+I.x+'</button></span></li>';});
@@ -5005,7 +5128,7 @@ function coachTabNutri(aid){
     const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span style="color:var(--red)">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     let ms='';
-    mm.forEach(m=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'');ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="pmacmeal-edit" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
+    mm.forEach(m=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'');ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="'+(m.recipe?'pmeal-recipe-edit':'pmacmeal-edit')+'" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
     macMealsHTML='<div class="card mb16"><div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmacmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Sin comidas definidas</b>Si no defines comidas, el atleta verá un reparto estimado (objetivo ÷ nº de comidas). Define P/C/G por comida para que al marcar se reste el valor exacto.</div>')+'</div>'+
       '<div><h4 class="mg-h">Suma de comidas vs objetivo</h4>'+bars+'<p class="tiny mt8">Opcional. Lo que el atleta marque como cumplido restará estos macros exactos; el resto lo completa con comida libre.</p></div></div></div>';
@@ -5960,18 +6083,76 @@ Object.assign(ACTIONS,{
   'pnutri-save':el=>{pnutriReadTargets(el.dataset.aid);saveState();toast('Plan guardado');render();},
   'pmeal-add':el=>openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
   'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
-  'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que le falta al plan.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
+  'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
   'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[]}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
   'pmeal-recipe-adapt':el=>{
     const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}
     if(!recIsScalable(r)){toast('Esta receta es de texto libre; no se puede adaptar automáticamente. Recréala con el formulario de ingredientes para poder escalarla.');return;}
-    const p=activePlanOf(aid),rem=planRemainingMacros(p);
+    const p=activePlanOf(aid),rem=mealTargetFor(p,null);
     const factor=recScaleFactor(r,rem),scaled=scaleRecipeIngredients(r,factor);
     p.meals=p.meals||[];
     p.meals.push({id:uid(),name:r.name+' · ×'+factor,time:r.time||'',p:scaled.macros.p,c:scaled.macros.c,f:scaled.macros.f,
       recipe:{rid:r.id,kcal:scaled.macros.kcal,time:r.time||'',ingredients:scaled.ingredients,steps:Array.isArray(r.steps)?r.steps:[],scaleFactor:factor}});
     saveState();closeModal();render();
     toast('«'+r.name+'» adaptada ×'+factor+' · P'+scaled.macros.p+' C'+scaled.macros.c+' G'+scaled.macros.f);
+  },
+  /* editor de la receta asignada: ver el bloque «Editar una receta ya asignada al menú» (pmrBody) */
+  'pmeal-recipe-edit':el=>{
+    const aid=el.dataset.aid,m=(activePlanOf(aid).meals||[]).find(x=>x.id===el.dataset.meal);if(!m||!m.recipe)return;
+    const ings=pmrFromIngs(m.recipe.ingredients);
+    _pmr={aid,mid:m.id,rid:m.recipe.rid||'',name:m.name||'',ings,steps:(m.recipe.steps||[]).join('\n'),manual:{p:+m.p||0,c:+m.c||0,f:+m.f||0},eqv:-1,toRec:false};
+    openModal('Editar receta del plan',pmrBody(),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmr-save">Guardar</button>',{nofocus:true,persistent:true});
+  },
+  'pmr-q':el=>{if(!_pmr)return;const i=+el.dataset.idx,x=_pmr.ings[i];if(!x)return;const st=pmrStep(x);pmrSetQty(i,Math.max(st,Math.round(((+x.grams||0)+st*(+el.dataset.d))/st)*st));pmrRerender();},
+  'pmr-del':el=>{if(!_pmr)return;_pmr.ings.splice(+el.dataset.idx,1);_pmr.eqv=-1;pmrRerender();},
+  'pmr-eqv':el=>{if(!_pmr)return;const i=+el.dataset.idx;_pmr.eqv=_pmr.eqv===i?-1:i;pmrRerender();},
+  'pmr-eqv-pick':el=>{
+    if(!_pmr)return;const i=+el.dataset.idx,x=_pmr.ings[i];if(!x)return;
+    const o=eqvOpts(_pmr.aid,x)[+el.dataset.j];if(!o)return;
+    const fo=eqvFood(o.food),isU=!!fo&&fo.unit==='u';
+    _pmr.ings[i]={food:o.food,grams:isU?(parseFloat(o.qty)||0):o.grams,unit:isU?(fo.unitLabel||'unidad'):'g',p:o.p,c:o.c,f:o.f};
+    _pmr.eqv=-1;pmrRerender();
+  },
+  'pmr-add':()=>{
+    if(!_pmr)return;const fo=eqvFood(val('pmr_af')),q=num('pmr_ag');
+    if(!fo){toast('Elige un alimento de tu base (o usa «Línea de texto»)');return;}
+    if(!(q>0)){toast('Pon la cantidad en '+(fo.unit==='u'?(fo.unitLabel||'unidades'):'gramos'));return;}
+    const isU=fo.unit==='u',m=foodMacros(fo.name,q);
+    _pmr.ings.push({food:fo.name,grams:q,unit:isU?(fo.unitLabel||'unidad'):'g',p:m.p,c:m.c,f:m.f});pmrRerender();
+  },
+  'pmr-add-txt':()=>{if(!_pmr)return;_pmr.ings.push({txt:''});pmrRerender();const t=document.querySelectorAll('[data-pmr-t]');if(t.length)t[t.length-1].focus();},
+  'pmr-fit':()=>{
+    if(!_pmr||!pmrHasStruct())return;
+    const tg=mealTargetFor(activePlanOf(_pmr.aid),_pmr.mid);
+    if(!(tg.p>0||tg.c>0||tg.f>0)){toast('El plan ya está cubierto: no queda nada que repartir en esta comida');return;}
+    const fs=recGroupFactors(_pmr.ings,tg);
+    _pmr.ings.forEach((x,i)=>{if(x.txt!=null||fs[i]===1)return;const st=pmrStep(x);pmrSetQty(i,Math.max(st,Math.round((x.grams*fs[i])/st)*st));});
+    pmrRerender();toast('Cantidades ajustadas a lo que toca en esta comida');
+  },
+  'pmr-reset':()=>{
+    if(!_pmr)return;const r=recById(_pmr.rid);if(!r){toast('Esa receta ya no está en tu recetario');return;}
+    const m=r.macros||{};
+    Object.assign(_pmr,{name:r.name,ings:pmrFromIngs(r.ingredients),steps:(Array.isArray(r.steps)?r.steps:[]).join('\n'),manual:{p:+m.p||0,c:+m.c||0,f:+m.g||0},eqv:-1});
+    pmrRerender();
+  },
+  'pmr-save':async el=>{
+    if(!_pmr)return;const d=_pmr,name=(d.name||'').trim();if(!name){toast('Escribe el nombre de la receta');return;}
+    const p=activePlanOf(d.aid),m=(p.meals||[]).find(x=>x.id===d.mid);if(!m){toast('Esa comida ya no está en el plan');return;}
+    const ings=[];d.ings.forEach(x=>{if(x.txt!=null){const s=x.txt.trim();if(s)ings.push(s);return;}if(x.grams>0)ings.push({food:x.food,grams:x.grams,unit:x.unit,p:x.p,c:x.c,f:x.f});});
+    const steps=d.steps.split('\n').map(s=>s.trim()).filter(Boolean),t=pmrTot();
+    if(d.toRec){
+      const r0=recById(d.rid)||{},id=uid();
+      const data={id,name:name===r0.name?name+' (variante)':name,category:r0.category||'',tags:Array.isArray(r0.tags)?r0.tags:[],time:m.recipe.time||r0.time||'',kcal:t.kcal,ingredients:ings,steps,macros:{p:t.p,c:t.c,g:t.f}};
+      if(el&&el.classList)el.classList.add('is-loading');
+      try{const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});if(res.error){toast('No pude guardarla en tu recetario: '+res.error.message);return;}}
+      catch(e){toast('No pude guardarla en tu recetario');return;}
+      finally{if(el&&el.classList)el.classList.remove('is-loading');}
+      d.rid=id;await hydrateRecipes();
+    }
+    m.name=name;m.p=t.p;m.c=t.c;m.f=t.f;
+    /* scaleFactor fuera: «Receta adaptada ×1.4» ya no describe una receta que el coach tocó a mano */
+    m.recipe=Object.assign({},m.recipe,{rid:d.rid,kcal:t.kcal,ingredients:ings,steps,scaleFactor:null,edited:true});
+    _pmr=null;saveState();closeModal();render();toast('Receta del plan actualizada'+(d.toRec?' y guardada en tu recetario':''));
   },
   'pmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);openModal('Editar comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div><label>Hora</label><input id="m_time" value="'+esc(m.time||'')+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
   'pmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);m.name=val('m_name')||m.name;m.time=val('m_time');saveState();closeModal();render();},
@@ -7964,6 +8145,14 @@ document.addEventListener('input',e=>{
     route.params.q=el.value;render();
     const q4=document.getElementById('rec_q');
     if(q4){q4.focus();const n=q4.value.length;try{q4.setSelectionRange(n,n);}catch(_){}}
+  }
+  if(el.dataset&&_pmr&&(el.dataset.pmrQ!=null||el.dataset.pmrT!=null||el.dataset.pmrM!=null||el.dataset.pmrF!=null)){
+    if(el.dataset.pmrQ!=null){const i=+el.dataset.pmrQ;pmrSetQty(i,parseFloat(String(el.value).replace(',','.'))||0);const r=document.getElementById('pmr_m_'+i);if(r&&_pmr.ings[i])r.textContent=pmrRowMac(_pmr.ings[i]);}
+    else if(el.dataset.pmrT!=null){const x=_pmr.ings[+el.dataset.pmrT];if(x)x.txt=el.value;}
+    else if(el.dataset.pmrM!=null)_pmr.manual[el.dataset.pmrM]=parseFloat(String(el.value).replace(',','.'))||0;
+    else if(el.dataset.pmrF==='toRec')_pmr.toRec=el.checked;
+    else _pmr[el.dataset.pmrF]=el.value;
+    const tb=document.getElementById('pmr_tot');if(tb)tb.innerHTML=pmrTotHTML();
   }
   if(el.dataset&&el.dataset.live==='recpick-q'){
     const box=document.getElementById('recpick_list');
