@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-15.3">
+<meta name="lr-build" content="2026-10-21.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -269,6 +269,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .wlog-ex-h .last{font-size:11.5px;color:var(--tx3);margin-top:1px}
 .setrow{display:grid;grid-template-columns:54px 1fr 1fr 1fr 30px 30px;gap:8px;align-items:center;padding:7px 16px}
 .setrow .sn{font-size:12px;font-weight:600;color:var(--tx3)}
+.setrow input.falta{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange)}
 .setrow input{padding:7px 10px;text-align:center;font-variant-numeric:tabular-nums}
 .setrow .del{color:var(--tx3);line-height:0;padding:6px;border-radius:7px}
 .setrow .del:hover{color:var(--red);background:var(--danger-08)}
@@ -6912,9 +6913,48 @@ async function pushWorkoutLog(u,w,silent){
    corregirse hacia abajo si no hay trabajo real, para que nunca cuente como sesión algo que
    no ocurrió. Las marcas de serie sin números NO entran en `entries`: van a `skips`, y así
    ninguna gráfica de cargas, tonelaje ni 1RM ve una serie de 0×0 que nadie hizo. */
-async function saveWorkoutDraft(status,reason,extraCm){
+/* ---------- series con peso y sin reps ----------
+   La casilla de reps enseña en gris las de la última sesión. Quien cambia el peso y ve ese
+   «12» cree que ya está anotado, deja la casilla vacía y se guardaba como 0 reps (oct-2026:
+   42 series de 8 atletas, todas con peso escrito). Ahora la casilla se marca en naranja y,
+   al guardar, se pregunta. Nunca se rellena sola: las reps de la vez pasada solo entran si
+   el atleta las elige. */
+let _repsPend=null;
+function repsFalta(s){return !!s&&s.sk!=='none'&&s.w!==''&&s.w!=null&&String(s.r==null?'':s.r).trim()==='';}
+function wdraftFaltanReps(aid){
+  if(!WDRAFT)return[];
+  const rt=routineForAthlete(aid),day=rt&&rt.days.find(x=>x.id===WDRAFT.dayId),sk=WDRAFT.skips||{},out=[];
+  Object.keys(WDRAFT.sets||{}).forEach(exId=>{
+    if(sk[exId]&&sk[exId].k==='none')return;
+    const arr=WDRAFT.sets[exId]||[];if(!arr.some(repsFalta))return;
+    const e=day&&day.exercises.find(x=>x.id===exId),ref=e?lastExRef(aid,day.id,e,WDRAFT):null;
+    arr.forEach((s,i)=>{
+      if(!repsFalta(s))return;
+      const p=ref&&ref.sets[i];
+      out.push({ex:exId,i:i,nm:e?e.name:'Ejercicio',w:s.w,prev:(p&&p.r>0)?p.r:null});
+    });
+  });
+  return out;
+}
+function avisoFaltanReps(falt,unit){
+  const conPrev=falt.filter(f=>f.prev).length;
+  const lis=falt.map(f=>'<li><b>'+esc(f.nm)+'</b> · S'+(f.i+1)+' · '+esc(String(dispW(f.w,unit)))+' '+esc(unit)+
+    (f.prev?' <span class="muted">— la vez pasada: '+f.prev+' reps</span>':'')+'</li>').join('');
+  openModal(falt.length===1?'Te faltó anotar las reps de una serie':'Te faltó anotar las reps de '+falt.length+' series',
+    '<p class="muted mb8">Escribiste el peso pero no las repeticiones. El número en gris es solo la referencia de la vez pasada: no se guarda si no lo escribes.</p>'+
+    '<ul style="margin:0 0 10px 18px;line-height:1.6">'+lis+'</ul>'+
+    '<p class="tiny">Si alguna serie no la hiciste, márcala con ○ en vez de dejarla sin reps.</p>',
+    '<button class="btn btn-g" data-act="wlog-reps-fix">Las corrijo</button>'+
+    (conPrev?'<button class="btn btn-p" data-act="wlog-reps-prev">'+(conPrev===falt.length?'Hice las mismas, guardar':'Usar las de la vez pasada')+'</button>':''),
+    {nofocus:true});
+}
+async function saveWorkoutDraft(status,reason,extraCm,repsOk){
   const u=userById(getSession().userId),d=athData(u.id);
   if(!WDRAFT)return;
+  if(!repsOk){
+    const falt=wdraftFaltanReps(u.id);
+    if(falt.length){_repsPend=[status,reason,extraCm];avisoFaltanReps(falt,weightUnitForAid(u.id));return;}
+  }
   const day=d.routine.days.find(x=>x.id===(WDRAFT.dayId));
   /* El día puede haber desaparecido mientras la sesión estaba abierta: el coach lo borró, o
      aplicó una plantilla que lo llama distinto. Antes esto era un `return` mudo — el atleta
@@ -7349,7 +7389,7 @@ VIEWS['ath-wlog']=function(u){
       const skTxt=sk==='none'?'✕':sk==='partial'?'½':'○';
       const skTit=sk==='none'?'No la hice — toca otra vez para «no la terminé»':sk==='partial'?'No la terminé — toca otra vez para quitar la marca':'Marcar: 1 toque = no la hice · 2 = no la terminé';
       const dis=sk==='none'?' disabled':'';
-      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':dispW(s.w,unit))+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="'+esc(phRir)+'" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
+      rows+='<div class="setrow'+(sk?' sk-'+sk:'')+'"><span class="sn">S'+(si+1)+'</span><input type="number" step="0.5" placeholder="'+esc(phW)+'" value="'+(s.w===''?'':dispW(s.w,unit))+'" data-bind="w" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number"'+(repsFalta(s)?' class="falta"':'')+' placeholder="'+esc(phR)+'" value="'+(s.r===''?'':s.r)+'" data-bind="r" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><input type="number" step="0.5" min="0" max="10" placeholder="'+esc(phRir)+'" value="'+(s.rir==null||s.rir===''?'':s.rir)+'" data-bind="rir" data-ex="'+e.id+'" data-idx="'+si+'"'+dis+'><button class="setsk'+(sk?' '+sk:'')+'" data-act="wlog-setsk" data-ex="'+e.id+'" data-idx="'+si+'" title="'+esc(skTit)+'" aria-label="'+esc(skTit)+'">'+skTxt+'</button><button class="del" data-act="wlog-delset" data-ex="'+e.id+'" data-idx="'+si+'">'+I.x+'</button></div>';
       /* Mini-series de la técnica: cuelgan de la serie, con su propia fila. No llevan botón de
          marca ni de borrar — el número de mini-series lo pauta el coach, no el atleta. Si la
          serie está marcada como no hecha no se pintan: no hay nada que anotar. */
@@ -7755,6 +7795,19 @@ Object.assign(ACTIONS,{
   /* Los cierres se leen del borrador, no del DOM: el DOM ya pudo repintarse.
      La fecha es la del borrador — si empezó ayer y guarda hoy, el entreno es de ayer. */
   'wlog-save':async()=>{await saveWorkoutDraft('done',null,'');},
+  'wlog-reps-fix':()=>{
+    closeModal();_repsPend=null;render();
+    setTimeout(()=>{const x=document.querySelector('.setrow input.falta');if(x){x.scrollIntoView({block:'center'});try{x.focus();}catch(e){}}},80);
+  },
+  'wlog-reps-prev':async()=>{
+    if(!WDRAFT)return;
+    const aid=getSession().userId,falt=wdraftFaltanReps(aid);
+    falt.forEach(f=>{if(f.prev)WDRAFT.sets[f.ex][f.i].r=String(f.prev);});
+    wdraftTouch();closeModal();
+    const queda=falt.filter(f=>!f.prev).length,pend=_repsPend;
+    if(queda||!pend){_repsPend=null;render();if(queda)toast(queda===1?'Falta 1 serie sin referencia: anótala':'Faltan '+queda+' series sin referencia: anótalas');return;}
+    _repsPend=null;await saveWorkoutDraft(pend[0],pend[1],pend[2]);
+  },
   /* ---- lo que NO se cumplió: serie, ejercicio y sesión (s62) ---- */
   'wlog-setsk':el=>{
     const arr=WDRAFT&&WDRAFT.sets[el.dataset.ex];if(!arr)return;
@@ -8109,6 +8162,9 @@ document.addEventListener('input',e=>{
         s[el.dataset.bind]=el.value;
       }
       wdraftTouch();
+      /* Sin repintar (perdería el foco): solo se prende o apaga el aviso de la casilla de reps. */
+      const ri=el.closest('.setrow')&&el.closest('.setrow').querySelector('[data-bind="r"]');
+      if(ri)ri.classList.toggle('falta',repsFalta(s));
     }
   }
   /* Mini-series de las técnicas. Mismo trato que la serie: el peso entra en la unidad elegida
