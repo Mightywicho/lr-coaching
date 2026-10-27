@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.2">
+<meta name="lr-build" content="2026-10-27.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3581,8 +3581,15 @@ function drCard(aid){
 const REV_CADAS=[[1,'Cada día'],[2,'Cada 2 días'],[3,'Cada 3 días'],[7,'Cada semana'],[14,'Cada 2 semanas']];
 const REV_NIVELES={urgente:{lbl:'Revisar ya',cls:'red'},toca:{lbl:'Toca revisión',cls:'orange'},novedades:{lbl:'Con novedades',cls:'blue'},aldia:{lbl:'Al día',cls:'green'}};
 function revOf(aid){const r=athData(aid).profile.revision||{};return{cada:+r.cada||7,ult:r.ult||null,vistos:Array.isArray(r.vistos)?r.vistos:[]};}
-/* ¿este registro es posterior a la última revisión? (misma regla para la bandeja y el Historial) */
-function revNuevoFn(aid){const rv=revOf(aid);return(date,key)=>!!date&&(!rv.ult||date>rv.ult||(date===rv.ult&&rv.vistos.indexOf(key)<0));}
+/* ¿este registro es posterior a la última revisión? (misma regla para la bandeja y el Historial)
+   Sin revisión anotada (todos los atletas el día que salió esto) solo cuenta lo de su último
+   periodo de revisión: si no, faltas y datos raros de hace meses los mandaban a todos a
+   «Revisar ya» y la bandeja nacía igual de revuelta que lo que venía a ordenar. */
+function revNuevoFn(aid){
+  const rv=revOf(aid);
+  if(!rv.ult){const desde=addDaysISO(todayISO(),-rv.cada);return date=>!!date&&date>desde;}
+  return(date,key)=>!!date&&(date>rv.ult||(date===rv.ult&&rv.vistos.indexOf(key)<0));
+}
 function revNovedades(aid){
   const d=athData(aid),p=d.profile,rv=revOf(aid),t=todayISO(),nuevo=revNuevoFn(aid),items=[],chips=[];
   d.logs.workouts.forEach(w=>{
