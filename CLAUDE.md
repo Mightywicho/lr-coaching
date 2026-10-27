@@ -116,6 +116,10 @@ se atasca: se le añade una línea y se sube.
   bloque entero sin querer. Se separó visualmente (caja de aviso aparte) y el modal de
   confirmación lleva una advertencia explícita antes de archivar. Si vuelves a tocar ese panel,
   no los juntes de nuevo.
+- **Monitoreo** (vista `coach-mon`, 2026-10-27): la última revisión del coach por atleta vive en
+  `profile.revision` {cada, ult, vistos}, clave **privada** en `splitProfile` (como `notes`/`datosOk`).
+  «Qué es nuevo» lo decide `revNuevoFn(aid)`; úsala en vez de comparar fechas a mano. El Historial
+  es el archivo de registros; todo lo que compara vive en la pestaña Progreso.
 - El panel del coach va **siempre en kg**, aunque el atleta capture en libras.
 - **Un atleta nuevo nace igual sin importar por dónde llegue.** Todo el estado se normaliza con
   `ensureAll(S)` (única cadena de `ensure*`; no la copies) y cualquier sitio que cree o reponga un

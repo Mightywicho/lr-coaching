@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.1">
+<meta name="lr-build" content="2026-10-27.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -375,6 +375,16 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
 .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
 
 /* ---------- logs feed ---------- */
+.revrow{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
+.revrow.urgente{border-left:3px solid var(--red)}.revrow.toca{border-left:3px solid var(--orange)}.revrow.novedades{border-left:3px solid var(--blue)}
+.revrow-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.revrow-h .nm{display:flex;flex-direction:column;min-width:0;flex:1}
+select.revsel{width:auto;flex:none;padding:6px 10px;font-size:12.5px}
+.revchips{display:flex;gap:6px;flex-wrap:wrap}
+.revbtns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.revurg{font-size:12.5px;color:var(--red)}
+.revit{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:13px;border-bottom:1px solid var(--line)}
+.revit .badge{flex:none}
 .logitem{border:1px solid var(--line);border-radius:var(--r-s);padding:13px 16px;margin-bottom:10px;background:var(--card)}
 .logitem .lh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .logitem .lh b{font-size:13.5px}
@@ -1639,7 +1649,7 @@ function ensureProfileShells(st){
 /* separa el perfil en lo que el atleta puede ver (shared) y las notas internas del coach (private) */
 function splitProfile(p){
   const shared={},priv={};
-  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training'||k==='datosOk'||k==='datosPedidos')priv[k]=p[k];else shared[k]=p[k];});
+  Object.keys(p||{}).forEach(k=>{if(k==='notes'||k==='training'||k==='datosOk'||k==='datosPedidos'||k==='revision')priv[k]=p[k];else shared[k]=p[k];});
   return{shared:shared,priv:priv};
 }
 /* la identidad del atleta viaja dentro de shared (bajo _u) para que cada atleta solo lea la suya vía RLS */
@@ -3553,6 +3563,95 @@ function drCard(aid){
     (pend.length>8?'<p class="tiny mt8">… y '+(pend.length-8)+' más (los más antiguos).</p>':'')+
     (pend.length>1?'<div style="text-align:right;margin-top:8px"><button class="btn btn-g btn-sm" data-act="dr-ok-all" data-aid="'+aid+'">Marcar todos como revisados</button></div>':'')+'</div>';
 }
+/* ===== MONITOREO: a quién revisar y qué cambió desde tu última revisión (2026-10-27, pedido de Luis) =====
+   Luis se perdía en el Historial: todo apilado y sin forma de saber qué ya había mirado ni a quién
+   le tocaba. Cada atleta lleva su propia cadencia de revisión (Luis: «depende del atleta») y la
+   fecha de la última en profile.revision {cada:días, ult:'AAAA-MM-DD', vistos:[claves]}, en la fila
+   private de athlete_profiles (splitProfile): el atleta no la ve ni la descarga.
+   «vistos» son las claves de lo registrado EL MISMO día de la revisión. Sin eso, lo que el atleta
+   subiera esa tarde quedaría tapado (su fecha no es > ult) y no saldría nunca como novedad.
+   Niveles, de más a menos:
+   - urgente: algo NUEVO que pide actuar (falta, fatiga alta, dato raro, cambio de ejercicio
+     permanente, o ≥4 días sin registrar sin que lo hayas visto desde entonces);
+   - toca: venció su cadencia;
+   - novedades: hay algo nuevo pero aún no le toca;
+   - aldia.
+   Lo pendiente de antes (datos raros viejos, cambios sin decidir) sale como chip, pero no deja al
+   atleta atorado en «Revisar ya» después de marcarlo revisado: ahí ya no hay nada nuevo que mirar. */
+const REV_CADAS=[[1,'Cada día'],[2,'Cada 2 días'],[3,'Cada 3 días'],[7,'Cada semana'],[14,'Cada 2 semanas']];
+const REV_NIVELES={urgente:{lbl:'Revisar ya',cls:'red'},toca:{lbl:'Toca revisión',cls:'orange'},novedades:{lbl:'Con novedades',cls:'blue'},aldia:{lbl:'Al día',cls:'green'}};
+function revOf(aid){const r=athData(aid).profile.revision||{};return{cada:+r.cada||7,ult:r.ult||null,vistos:Array.isArray(r.vistos)?r.vistos:[]};}
+/* ¿este registro es posterior a la última revisión? (misma regla para la bandeja y el Historial) */
+function revNuevoFn(aid){const rv=revOf(aid);return(date,key)=>!!date&&(!rv.ult||date>rv.ult||(date===rv.ult&&rv.vistos.indexOf(key)<0));}
+function revNovedades(aid){
+  const d=athData(aid),p=d.profile,rv=revOf(aid),t=todayISO(),nuevo=revNuevoFn(aid),items=[],chips=[];
+  d.logs.workouts.forEach(w=>{
+    const key='w:'+w.id;if(!nuevo(w.date,key))return;
+    if(isMissed(w))items.push({key,date:w.date,k:'falta',cls:'red',urg:1,txt:'No entrenó '+(w.dayName||'')+' · '+missLbl(w.reason)});
+    else{const sc=skipCounts(w);items.push({key,date:w.date,k:'entreno',cls:w.status==='partial'?'orange':'volt',
+      txt:(w.dayName||'Entreno')+(w.status==='partial'?' · incompleta':'')+(sc.ex+sc.sets?' · '+(sc.ex?sc.ex+' ej. ':'')+(sc.sets?sc.sets+' series ':'')+'sin hacer':'')+(w.rpe?' · RPE '+w.rpe:'')+(w.comment?' · «'+w.comment+'»':'')});}
+  });
+  const dr=drPendientes(aid);let drNew=0;
+  dr.forEach(x=>{const key='d:'+x.key;if(nuevo(x.date,key)){drNew++;items.push({key,date:x.date,k:'dato',cls:'orange',urg:1,txt:'Dato a revisar · '+x.name});}});
+  (d.logs.forms||[]).forEach(r=>{const key='f:'+(r.k||r.date+'|'+r.title);if(nuevo(r.date,key))items.push({key,date:r.date,k:'form',cls:'blue',txt:'Respondió «'+(r.title||'Cuestionario')+'»'});});
+  const ws=d.logs.weight.slice().sort((a,b)=>a.date<b.date?-1:1),wNew=ws.filter(w=>nuevo(w.date,'p:'+w.date));
+  wNew.forEach(w=>items.push({key:'p:'+w.date,date:w.date,k:'peso',cls:'',txt:'Pesaje · '+w.kg+' kg'}));
+  d.logs.nutrition.forEach(n=>{const key='n:'+n.date;if(!nutriHasData(n)||!nuevo(n.date,key))return;
+    const baja=n.adherence!=null&&n.adherence<=2.5;
+    items.push({key,date:n.date,k:'nutri',cls:baja?'orange':'',txt:'Nutrición'+(n.adherence!=null?' · adherencia '+n.adherence+'/5':'')+(n.comment?' · «'+n.comment+'»':'')});});
+  fatigueLogs(aid).forEach(f=>{const key='q:'+f.date;if(!nuevo(f.date,key))return;const alta=f.total>=13;
+    items.push({key,date:f.date,k:'fatiga',cls:alta?'red':fqDecision(f.total).cls,urg:alta?1:0,txt:'Check-in de fatiga · '+f.total+'/15 · '+fqDecision(f.total).short});});
+  let swNew=0;const swPerm=swapsOf(aid).filter(s=>s.scope==='always');
+  swPerm.forEach(s=>{const date=String(s.ts||'').slice(0,10)||s.date,key='s:'+s.id;if(nuevo(date,key)){swNew++;items.push({key,date,k:'cambio',cls:'orange',urg:1,txt:'Cambió '+s.fromName+' → '+s.toName+' (permanente)'});}});
+  /* ≥4 días sin registrar: urgente solo si no lo has revisado desde que se puso en rojo */
+  const sm=semaforo(aid);let sinReg=false;
+  if(sm&&sm.k==='red'&&!(fatigueLast(aid)&&fatigueLast(aid).total>=13)){
+    const base=lastLogISO(aid)||p.memStart||t,rojo=addDaysISO(base,4);
+    if(!rv.ult||rv.ult<rojo){sinReg=true;items.push({key:'x:'+rojo,date:t,k:'sinreg',cls:'red',urg:1,txt:sm.hint});}
+  }
+  items.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+  /* resumen en fichas: lo nuevo y lo que sigue pendiente de antes */
+  const cnt=k=>items.filter(x=>x.k===k).length;
+  const nE=cnt('entreno'),nF=cnt('falta'),nQ=cnt('form'),nN=cnt('nutri');
+  if(sinReg)chips.push({cls:'red',txt:sm.hint});
+  if(nF)chips.push({cls:'red',txt:'✕ '+plural(nF,'falta','faltas')});
+  if(nE)chips.push({cls:'volt',txt:plural(nE,'entreno','entrenos')});
+  if(dr.length)chips.push({cls:'orange',txt:'⚠ '+plural(dr.length,'dato','datos')+' a revisar'+(drNew&&drNew<dr.length?' ('+drNew+' nuevo'+(drNew===1?'':'s')+')':'')});
+  if(swPerm.length)chips.push({cls:'orange',txt:plural(swPerm.length,'cambio','cambios')+' de ejercicio por decidir'});
+  if(nQ)chips.push({cls:'blue',txt:plural(nQ,'cuestionario','cuestionarios')});
+  if(wNew.length){const prev=ws.filter(w=>w.date<wNew[0].date).pop(),last=wNew[wNew.length-1];const dl=prev?+(last.kg-prev.kg).toFixed(1):null;
+    chips.push({cls:'',txt:plural(wNew.length,'pesaje','pesajes')+(dl!=null?' · '+(dl>0?'+':'')+dl+' kg':'')});}
+  if(nN)chips.push({cls:'',txt:plural(nN,'día','días')+' de nutrición'});
+  const fq=items.find(x=>x.k==='fatiga');if(fq)chips.push({cls:fq.cls,txt:'Check-in de fatiga'});
+  const wst=weightWeeksStatus(aid).cur;if(wst&&!wst.recomp)chips.push({cls:'orange',txt:'Peso estancado · '+wst.n+' sem'});
+  const unread=chatUnread(aid,'coach');if(unread)chips.push({cls:'',txt:'💬 '+plural(unread,'mensaje','mensajes')});
+  const dias=rv.ult?Math.max(0,daysBetweenISO(rv.ult,t)):null;
+  const nivel=items.some(x=>x.urg)?'urgente':(dias==null||dias>=rv.cada)?'toca':(items.length||unread)?'novedades':'aldia';
+  return{rv,items,chips,dias,nivel,sm};
+}
+function revUltTxt(nv){
+  const c=(REV_CADAS.find(o=>o[0]===nv.rv.cada)||[0,'Cada '+nv.rv.cada+' días'])[1].toLowerCase();
+  if(!nv.rv.ult)return 'Nunca revisado · '+c;
+  return(nv.dias===0?'Revisado hoy':'Revisado hace '+plural(nv.dias,'día','días'))+' · '+c;
+}
+function revChipsHTML(nv){return nv.chips.map(c=>'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
+function revCadaSel(aid,nv){return '<select class="revsel" data-change="rev-cada" data-aid="'+aid+'" title="Cada cuánto revisas a este atleta">'+REV_CADAS.map(o=>'<option value="'+o[0]+'"'+(nv.rv.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';}
+function revFilaHTML(a,nv){
+  const urg=nv.items.filter(x=>x.urg).slice(0,3).map(x=>'<div class="revurg">• '+esc(x.txt)+(x.k!=='sinreg'?' <span class="tiny">'+fmtDate(x.date)+'</span>':'')+'</div>').join('');
+  return '<div class="revrow '+nv.nivel+'"><div class="revrow-h">'+semaDot(nv.sm)+ava(a)+'<span class="nm"><b>'+esc(a.name)+'</b><span class="tiny">'+revUltTxt(nv)+'</span></span>'+revCadaSel(a.id,nv)+'</div>'+
+    (nv.chips.length?'<div class="revchips">'+revChipsHTML(nv)+'</div>':'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+urg+
+    '<div class="revbtns"><button class="btn btn-g btn-sm" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"historial"}\'>Abrir</button><button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+a.id+'">'+I.check+' Revisado</button></div></div>';
+}
+/* tarjeta de arriba del Historial: lo mismo que la bandeja, pero de este atleta y con el detalle */
+function revCard(aid){
+  const nv=revNovedades(aid),n=nv.items.length,niv=REV_NIVELES[nv.nivel];
+  const list=nv.items.slice(0,12).map(x=>'<div class="revit"><span class="badge '+x.cls+'">'+(x.k==='sinreg'?'hoy':fmtDate(x.date))+'</span><span>'+esc(x.txt)+'</span></div>').join('');
+  return '<div class="card mb16" style="border-left:3px solid var(--'+(niv.cls==='blue'?'blue':niv.cls)+')"><div class="revrow-h" style="margin-bottom:10px"><h3 style="margin:0;flex:1">Desde tu última revisión <span class="hint">'+revUltTxt(nv)+'</span></h3><span class="badge '+niv.cls+'">'+niv.lbl+'</span></div>'+
+    (nv.chips.length?'<div class="revchips mb8">'+revChipsHTML(nv)+'</div>':'')+
+    (n?list+(n>12?'<p class="tiny mt8">… y '+(n-12)+' más abajo, marcadas «nuevo».</p>':''):'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+
+    '<div class="revbtns" style="margin-top:12px;align-items:center"><span class="tiny">Revisar</span>'+revCadaSel(aid,nv)+'<button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+aid+'">'+I.check+' Marcar revisado</button></div></div>';
+}
+function revBadgeTotal(){let n=0;athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const lv=revNovedades(a.id).nivel;if(lv==='urgente'||lv==='toca')n++;});return n;}
 /* check-in de fatiga más cercano a una fecha (±6 días) */
 function fatigueForDate(aid,iso){let best=null,bd=7;fatigueLogs(aid).forEach(e=>{const dd=Math.abs(daysBetweenISO(e.date,iso));if(dd<=6&&dd<bd){bd=dd;best=e;}});return best;}
 /* bloque y semana-dentro-del-bloque a los que pertenece una fecha (para comparar entre bloques) */
@@ -3849,7 +3948,7 @@ function renderNewPass(){
 }
 function navItemsFor(u){
   if(u.role==='coach'){
-    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'apoyo',icon:I.folder,label:'Material de apoyo',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
+    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'coach-mon',icon:I.check,label:'Monitoreo',badge:revBadgeTotal()},{v:'apoyo',icon:I.folder,label:'Material de apoyo',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
@@ -4614,6 +4713,7 @@ VIEWS['coach-dash']=function(u){
       '<span class="m">Último entreno<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge '+svcOf(a.id).cls+'" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge blue">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge '+(ap.mode==='macros'?'volt':'orange')+'">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
       (function(){const z=stalls[a.id];if(!z)return'';return z.recomp?'<span class="badge blue" title="Peso estancado pero la cintura bajó '+Math.abs(z.waist.delta)+' cm">Recomposición · '+z.n+' sem</span>':'<span class="badge orange" title="Avanza menos de 0,2 %/sem hacia el objetivo desde el '+fmtDate(z.from)+'">Peso estancado · '+z.n+' sem</span>';})()+
+      (function(){if(st.k==='inactivo')return'';const lv=revNovedades(a.id).nivel;return lv==='urgente'||lv==='toca'?'<span class="badge '+REV_NIVELES[lv].cls+'" title="Ver Monitoreo">'+REV_NIVELES[lv].lbl+'</span>':'';})()+
       (function(){const n=drPendientes(a.id).length;return n?'<span class="badge orange" title="Registros que no cuadran (p. ej. RIR 0 y la serie siguiente igual o mejor). Revísalos en su Resumen.">⚠ '+n+' dato'+(n===1?'':'s')+' a revisar</span>':'';})()+
       (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
       '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+(sm&&sm.k!=='green'?' · <span style="color:var('+SEMA_COLOR[sm.k]+')">⚠ '+esc(sm.hint)+'</span>':'')+'</div></div>';
@@ -4630,8 +4730,27 @@ VIEWS['coach-dash']=function(u){
       '<div class="sect-h"><h2>Tus atletas</h2></div>'+seg+'<div class="grid g2">'+cards+'</div>'};
 };
 
+/* Bandeja «Monitoreo» (ver revNovedades). Va aquí y no junto a revNovedades porque VIEWS se
+   declara más abajo que aquella: asignarla antes rompe el arranque. */
+VIEWS['coach-mon']=function(u){
+  const G={urgente:[],toca:[],novedades:[],aldia:[]};
+  athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const nv=revNovedades(a.id);G[nv.nivel].push({a,nv});});
+  /* dentro de cada grupo: primero el que lleva más tiempo sin revisar (nunca revisado = el que más) */
+  const ord=x=>x.nv.dias==null?1e6:x.nv.dias;
+  Object.values(G).forEach(L=>L.sort((x,y)=>ord(y)-ord(x)||x.a.name.localeCompare(y.a.name)));
+  const sect=(k,hint)=>G[k].length?'<div class="sect-h"><h2>'+REV_NIVELES[k].lbl+'</h2><span class="tiny">'+hint+'</span></div>'+G[k].map(x=>revFilaHTML(x.a,x.nv)).join(''):'';
+  const stat=(k,sub)=>'<div class="stat"><div class="k">'+REV_NIVELES[k].lbl+'</div><div class="v'+(k==='urgente'&&G[k].length?' down':'')+'">'+G[k].length+'</div><div class="sub">'+sub+'</div></div>';
+  let body='<div class="grid g4 mb16">'+stat('urgente','algo nuevo que pide actuar')+stat('toca','venció su frecuencia')+stat('novedades','registró, aún no le toca')+stat('aldia','nada nuevo')+'</div>'+
+    sect('urgente','faltas, fatiga alta, datos raros, cambios de ejercicio o días sin registrar')+
+    sect('toca','ya pasó su frecuencia de revisión')+
+    sect('novedades','hay registros nuevos, pero todavía no le toca');
+  if(G.aldia.length)body+='<div class="mt16"></div>'+secPleg('plc-mon-aldia','Al día','',plural(G.aldia.length,'atleta','atletas'),G.aldia.map(x=>revFilaHTML(x.a,x.nv)).join(''));
+  if(!G.urgente.length&&!G.toca.length&&!G.novedades.length&&!G.aldia.length)body+='<div class="empty"><b>Sin atletas activos</b>Cuando tengas atletas activos, aquí verás a quién te toca revisar.</div>';
+  else if(!G.urgente.length&&!G.toca.length)body='<div class="notebox mb16" style="border-left-color:var(--green)">Nadie pendiente de revisión. 👌</div>'+body;
+  return{title:'Monitoreo',crumb:'A quién revisar y qué cambió desde tu última revisión',body};
+};
 /* pestañas visibles según el modo de asesoría del atleta */
-const COACH_TABS_ALL=[['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Semana a semana','tr'],['nutricion','Nutrición','nu'],['cuestionarios','Cuestionarios',1],['historial','Historial',1],['reporte','Reporte',1]];
+const COACH_TABS_ALL=[['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Ajustes semanales','tr'],['nutricion','Nutrición','nu'],['cuestionarios','Cuestionarios',1],['historial','Historial',1],['progreso','Progreso','tr'],['reporte','Reporte',1]];
 const COACH_TAB_IDS=COACH_TABS_ALL.map(t=>t[0]);
 function coachTabList(aid){
   const sv=svcOf(aid);
@@ -4661,6 +4780,7 @@ VIEWS['coach-ath']=function(u){
   else if(tab==='nutricion')body+=coachTabNutri(aid);
   else if(tab==='reporte')body+=coachTabReporte(aid);
   else if(tab==='cuestionarios')body+=coachTabForms(aid);
+  else if(tab==='progreso')body+=coachTabProgreso(aid);
   else body+=coachTabHistorial(aid);
   /* Aviso discreto: este atleta captura y ve sus cargas en libras. El panel del coach SIEMPRE va en kg
      (decisión 20-ago: con varios atletas, cada uno en su unidad, comparar sería inmanejable). */
@@ -4768,8 +4888,12 @@ document.addEventListener('toggle',ev=>{
 function coachTabHistorial(aid){
   /* Orden (2026-10-13, pedido de un coach del equipo): lo más reciente y lo que pide un ajuste,
      arriba. Antes abría con la calculadora de 1RM (una herramienta) y la última sesión quedaba
-     enterrada entre gráficas o dentro del acordeón de Registros. */
-  return sessionCompareCard(aid)+coachTabProgreso(aid)+coachTabRendimiento(aid)+coachTabRegistros(aid)+coachTabRendimiento(aid,true);
+     enterrada entre gráficas o dentro del acordeón de Registros.
+     2026-10-27 (Luis: «me confundo y no sé cómo priorizar»): el Historial queda como ARCHIVO de lo
+     que registró —primero lo nuevo desde tu última revisión, luego los registros por bloque y
+     semana—. Todo lo que compara (última vs anterior, sesiones A/B, ejercicio, semana a semana,
+     1RM) se fue a la pestaña Progreso, una comparación a la vez. */
+  return revCard(aid)+coachTabRegistros(aid);
 }
 function coachTabRutina(aid){
   const d=athData(aid),r=d.routine;
@@ -5383,7 +5507,7 @@ function buildMacroGuide(aid){
    primera sesión registrada. Con la fecha bien puesta el ancla ES el inicio declarado y la
    numeración sale idéntica a la de la pestaña Progreso, que es lo que se quería conservar;
    cuando la fecha falta o llegó tarde, el historial se sigue partiendo en semanas en vez de
-   aplastarse, y el encabezado del bloque lo avisa para que se corrija en «Semana a semana».
+   aplastarse, y el encabezado del bloque lo avisa para que se corrija en «Ajustes semanales».
    No se toca blockInfoForDate: Progreso y la comparación de sesiones siguen con su criterio.
 
    Los elementos entran ya ordenados (más reciente primero) y el agrupado respeta ese orden
@@ -5442,18 +5566,20 @@ function wkAcc(cls,id,title,tag,extra,inner,open){
 function wkRange(g){return g.from===g.to?fmtDate(g.to):fmtDate(g.from)+' – '+fmtDate(g.to);}
 function plural(n,uno,varios){return n+' '+(n===1?uno:varios);}
 /* El aviso de fecha de inicio va en el encabezado del bloque y no en un toast: es un dato del
-   perfil que hay que ir a corregir a «Semana a semana», no algo que se resuelva al vuelo. */
+   perfil que hay que ir a corregir a «Ajustes semanales» (antes «Semana a semana»), no algo que se resuelva al vuelo. */
 function blkTitulo(b){return 'Bloque '+b.block+(b.cur?' · en curso':b.dup?' · archivado':'');}
 function blkAviso(b){
   if(!b.fechaMala)return '';
   const t=b.fechaMala==='falta'
-    ?'Este bloque no tiene fecha de inicio. Las semanas se cuentan desde la primera sesión registrada ('+fmtDate(b.from)+'). Ponla en la pestaña «Semana a semana» para que cuadren con las de Progreso.'
-    :'El bloque arranca el '+fmtDate(b.start)+', pero hay sesiones desde el '+fmtDate(b.from)+'. Las semanas se cuentan desde la primera sesión para no aplastarlas todas en la semana 1. Revisa la fecha en «Semana a semana».';
+    ?'Este bloque no tiene fecha de inicio. Las semanas se cuentan desde la primera sesión registrada ('+fmtDate(b.from)+'). Ponla en la pestaña «Ajustes semanales» para que cuadren con las de Progreso.'
+    :'El bloque arranca el '+fmtDate(b.start)+', pero hay sesiones desde el '+fmtDate(b.from)+'. Las semanas se cuentan desde la primera sesión para no aplastarlas todas en la semana 1. Revisa la fecha en «Ajustes semanales».';
   return '<span class="badge orange" title="'+esc(t)+'">⚠ revisar fecha de inicio</span>';
 }
 function coachTabRegistros(aid){
   const d=athData(aid);
   const drM={};drPendientes(aid).forEach(x=>{(drM[x.wid+'|'+x.exId]=drM[x.wid+'|'+x.exId]||[]).push(x);});
+  /* «nuevo» = posterior a tu última revisión (misma regla que Monitoreo) */
+  const esNuevo=revNuevoFn(aid),nuevoB='<span class="badge blue" title="Registrado después de tu última revisión">nuevo</span>';
   const wCards=[];
   d.logs.workouts.slice().reverse().forEach(w=>{
     let detail='';
@@ -5516,7 +5642,7 @@ function coachTabRegistros(aid){
     const pct=planDay&&planDay.exercises.length?Math.round((keys.length/planDay.exercises.length)*100):null;
     const meta=miss?'<span class="tiny">no se registró trabajo</span>'
       :'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':'<span class="tiny">sin detalle de series</span>');
-    wCards.push({date:w.date,log:w,html:'<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+stBadge+stWhy+edBadge+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>'});
+    wCards.push({date:w.date,log:w,html:'<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+(esNuevo(w.date,'w:'+w.id)?nuevoB:'')+stBadge+stWhy+edBadge+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>'});
   });
   /* El bloque en curso se abre solo, y dentro de él sus dos semanas más recientes: es lo que el
      coach viene a mirar al entrar. Los bloques archivados quedan plegados enteros — se abren
@@ -5549,7 +5675,7 @@ function coachTabRegistros(aid){
      deshacerlo la deja con swaps {}. Sin este filtro salía en el Historial como «sin datos · Adherencia», un día
      que parecía registrado. Se muestra solo si tiene datos (nutriHasData) o cambios vivos, y la de solo cambios
      va rotulada como tal, sin la etiqueta de adherencia (2026-10-27). */
-  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(soloSw?'<b>Cambio de alimento</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
+  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(!soloSw&&esNuevo(n.date,'n:'+n.date)?nuevoB:'')+(soloSw?'<b>Cambio de alimento</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
   let nut='';
   blockGroupsOf(aid,nCards).forEach((b,bi)=>{
     const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
@@ -5687,13 +5813,16 @@ function pgKpi(k,v,sub,cls){return '<div class="stat"><div class="k">'+k+'</div>
 function pgDeltaCls(x){return x>0?'up':x<0?'down':'';}
 function coachTabProgreso(aid){
   const d=athData(aid),r=d.routine,wkNow=weekOf(aid);
-  const level=route.params.pgLevel||'semana',range=route.params.pgRange||'all',win=pgWindow(aid);
-  const lvls=[['semana','Semana a semana'],['sesion','Sesión a sesión'],['ejercicio','Ejercicio por ejercicio']];
+  /* Pestaña propia desde 2026-10-27 (antes iba revuelta dentro del Historial): un selector y se ve
+     UNA comparación a la vez. Abre en «Sesión a sesión» porque lo primero que el coach mira es la
+     última sesión contra la anterior. */
+  const level=route.params.pgLevel||'sesion',range=route.params.pgRange||'all',win=pgWindow(aid);
+  const lvls=[['sesion','Sesión a sesión'],['ejercicio','Ejercicio por ejercicio'],['semana','Semana a semana']];
   const lvlBtns=lvls.map(o=>'<button class="'+(level===o[0]?'on':'')+'" data-act="pg-level" data-aid="'+aid+'" data-v="'+o[0]+'">'+o[1]+'</button>').join('');
   let ropts='';[['all','Todo el historial'],['4','Últimas 4 semanas'],['8','Últimas 8 semanas'],['12','Últimas 12 semanas'],['custom','Semanas concretas…']].forEach(o=>{ropts+='<option value="'+o[0]+'"'+(range===o[0]?' selected':'')+'>'+o[1]+'</option>';});
   let customBox='';
   if(range==='custom')customBox='<div class="fld"><label>Semana desde</label><input type="number" min="1" max="'+wkNow+'" value="'+win.wkA+'" data-change="pg-wka" data-aid="'+aid+'"></div><div class="fld"><label>Semana hasta</label><input type="number" min="1" max="'+wkNow+'" value="'+win.wkB+'" data-change="pg-wkb" data-aid="'+aid+'"></div>';
-  const bar='<div class="card mb16"><div class="sect-h" style="margin:0 0 12px"><h3 style="margin:0">Progreso <span class="hint">de lo general a lo específico</span></h3><span class="badge blue" style="margin-left:auto">'+esc(win.label)+'</span></div>'+
+  const bar='<div class="card mb16"><div class="sect-h" style="margin:0 0 12px"><h3 style="margin:0">Comparar <span class="hint">elige qué comparar y el rango</span></h3><span class="badge blue" style="margin-left:auto">'+esc(win.label)+'</span></div>'+
     '<div class="seg mb16" style="flex-wrap:wrap">'+lvlBtns+'</div>'+
     '<div class="ctx-bar"><div class="fld"><label>Alcance / rango</label><select data-change="pg-range" data-aid="'+aid+'">'+ropts+'</select></div>'+customBox+'<div class="fld" style="align-self:flex-end"><p class="tiny" style="margin:0">Semana actual: <b>S'+wkNow+'</b> · inicio del bloque '+fmtDate(r.startDate)+'</p></div></div></div>';
   const wk=pgWeekly(aid,win);
@@ -5711,8 +5840,10 @@ function coachTabProgreso(aid){
       wKpi+'</div>';
   }
   let content;
-  if(level==='sesion')content=pgLevelSesion(aid,win);
-  else if(level==='ejercicio')content=pgLevelEjercicio(aid,win);
+  /* La tarjeta «Progresión de 1RM estimado» (coachTabRendimiento sin soloCalc) ya no se pinta:
+     mostraba lo mismo que «Ejercicio por ejercicio». Solo queda su calculadora, plegada. */
+  if(level==='sesion')content=sessionCompareCard(aid)+pgLevelSesion(aid,win);
+  else if(level==='ejercicio')content=pgLevelEjercicio(aid,win)+'<div class="mt16"></div>'+coachTabRendimiento(aid,true);
   else content=pgLevelSemana(aid,win,wk);
   return bar+kpi+pgAlerts(aid,win)+content;
 }
@@ -5754,7 +5885,7 @@ function pgLevelSesion(aid,win){
     lastByDay[w.dayId]=ton;
   });
   const tbl='<div class="card mb16"><h3>Detalle por sesión <span class="hint">Δ = tonelaje vs sesión anterior del mismo día</span></h3><div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Fecha</th><th>Día</th><th>Series</th><th>Tonelaje (kg)</th><th>sRPE</th><th>RPE·dur</th><th>Δ día</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
-  return chart+tbl+pgPairCompare(aid,win);
+  return pgPairCompare(aid,win)+chart+tbl;
 }
 /* comparador de dos sesiones concretas (mismo día, semanas elegidas) */
 function pgPairCompare(aid,win){
@@ -5866,6 +5997,10 @@ function pgAlerts(aid,win){
 }
 
 Object.assign(ACTIONS,{
+  /* «Revisado»: la fecha de hoy y las claves de lo de hoy que ya viste (ver revNovedades) */
+  'rev-ok':el=>{const aid=el.dataset.aid,p=athData(aid).profile,rv=revOf(aid),t=todayISO();
+    const hoy=revNovedades(aid).items.filter(x=>x.date===t).map(x=>x.key);
+    p.revision={cada:rv.cada,ult:t,vistos:(rv.ult===t?rv.vistos:[]).concat(hoy)};saveState();toast('Marcado como revisado');render();},
   'dr-ok':el=>{const p=athData(el.dataset.aid).profile;p.datosOk=p.datosOk||{};p.datosOk[el.dataset.key]=todayISO();saveState();toast('Marcado como revisado');render();},
   'dr-ok-all':el=>{const aid=el.dataset.aid,p=athData(aid).profile;p.datosOk=p.datosOk||{};const t=todayISO();drPendientes(aid).forEach(x=>{p.datosOk[x.key]=t;});saveState();toast('Todo marcado como revisado');render();},
   'dr-ask':el=>{
@@ -8322,6 +8457,7 @@ document.addEventListener('change',e=>{
   else if(el.dataset.change==='prog-ex'){route.params.ex=el.value;render();}
   else if(el.dataset.change==='rm-ex'){route.params.rmEx=el.value;render();}
   else if(el.dataset.change==='cmp-day'){route.params.cmpDay=el.value;render();}
+  else if(el.dataset.change==='rev-cada'){const p=athData(el.dataset.aid).profile,rv=revOf(el.dataset.aid);p.revision={cada:+el.value||7,ult:rv.ult,vistos:rv.vistos};saveState();render();}
   else if(el.dataset.change==='pg-range'){route.params.pgRange=el.value;if(el.value==='custom'){const wkNow=weekOf(el.dataset.aid);if(!route.params.pgWkA)route.params.pgWkA=Math.max(1,wkNow-3);if(!route.params.pgWkB)route.params.pgWkB=wkNow;}render();}
   else if(el.dataset.change==='pg-wka'){route.params.pgWkA=parseInt(el.value,10)||1;render();}
   else if(el.dataset.change==='pg-wkb'){route.params.pgWkB=parseInt(el.value,10)||1;render();}
