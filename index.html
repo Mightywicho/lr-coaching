@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-21.1">
+<meta name="lr-build" content="2026-10-27.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2987,9 +2987,19 @@ function recGroupFactors(ings,tg){
 }
 function pmrStep(x){const fo=eqvFood(x.food);return fo&&fo.unit==='u'?0.5:5;}
 function pmrHasStruct(){return _pmr.ings.some(x=>x.txt==null);}
+/* Las líneas de texto no tienen de dónde sacar macros. Antes, en cuanto la receta llevaba UN alimento ligado, el
+   total pasaba a ser solo la suma de los ligados y las líneas de texto dejaban de contar sin avisar: ligar el atún
+   de unas tostadas de atún bajaba la comida de 298 a 111 kcal (probado en UI, 2026-10-27), y si el coach guardaba,
+   al atleta se le contaban de menos las tostadas y el aguacate. Ahora `_pmr.manual` tiene dos sentidos:
+   sin ligados es el total de la receta (como siempre); con ligados Y líneas de texto es lo que aportan esas
+   líneas, se suma a los ligados y se edita a la vista. Al ligar el primer alimento conserva el total que tenía
+   (todo venía de las líneas) y el coach lo baja si convirtió una línea en alimento de la base. Se guarda en la
+   receta como `txtMac` para que al reabrir no se pierda. */
+function pmrHasText(){return _pmr.ings.some(x=>x.txt!=null&&String(x.txt).trim());}
+function pmrTxtMac(){if(!pmrHasStruct()||!pmrHasText())return{p:0,c:0,f:0};const m=_pmr.manual;return{p:+m.p||0,c:+m.c||0,f:+m.f||0};}
 function pmrTot(){
   if(!pmrHasStruct()){const m=_pmr.manual;const t={p:+m.p||0,c:+m.c||0,f:+m.f||0};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
-  const t={p:0,c:0,f:0};_pmr.ings.forEach(x=>{if(x.txt==null){t.p+=x.p;t.c+=x.c;t.f+=x.f;}});
+  const t=pmrTxtMac();_pmr.ings.forEach(x=>{if(x.txt==null){t.p+=x.p;t.c+=x.c;t.f+=x.f;}});
   t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;
 }
 function pmrTotHTML(){
@@ -3016,7 +3026,9 @@ function pmrBody(){
       '<button class="btn btn-g btn-sm" title="Quitar" data-act="pmr-del" data-idx="'+i+'">'+I.x+'</button></div>'+
       '<div class="tiny" id="pmr_m_'+i+'">'+pmrRowMac(x)+'</div>'+sw+'</div>';
   });
-  const man=pmrHasStruct()?'':'<p class="tiny mt8">Esta receta no tiene ingredientes ligados a tu base, así que sus macros se ponen a mano:</p><div class="frow3"><div><label>Prot (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.p||0)+'" data-pmr-m="p"></div><div><label>Carb (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.c||0)+'" data-pmr-m="c"></div><div><label>Gras (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.f||0)+'" data-pmr-m="f"></div></div>';
+  const manIn='<div class="frow3"><div><label>Prot (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.p||0)+'" data-pmr-m="p"></div><div><label>Carb (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.c||0)+'" data-pmr-m="c"></div><div><label>Gras (g)</label><input type="number" min="0" step="0.1" value="'+(d.manual.f||0)+'" data-pmr-m="f"></div></div>';
+  const man=!pmrHasStruct()?'<p class="tiny mt8">Esta receta no tiene ingredientes ligados a tu base, así que sus macros se ponen a mano:</p>'+manIn:
+    pmrHasText()?'<p class="tiny mt8"><b>Macros de las líneas de texto</b> (no están en tu base y se suman a los alimentos de arriba). Si pasaste una línea a alimento de tu base, quita esa línea y resta aquí lo que aportaba:</p>'+manIn:'';
   const r=recById(d.rid);
   return '<p class="tiny mb8">Los cambios valen solo para este plan; tu recetario no se toca.</p>'+
     '<div class="frow"><label>Nombre</label><input value="'+esc(d.name)+'" data-pmr-f="name"></div>'+
@@ -5533,7 +5545,11 @@ function coachTabRegistros(aid){
   });
   if(!wk)wk='<div class="empty"><b>Sin entrenamientos registrados</b></div>';
   const nCards=[];
-  d.logs.nutrition.slice().reverse().forEach(n=>{const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+adhBadge(n.adherence)+'<b>Adherencia</b>'+md+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
+  /* Un cambio de alimento (equivalentes) crea la entrada del día aunque el atleta no haya registrado nada, y
+     deshacerlo la deja con swaps {}. Sin este filtro salía en el Historial como «sin datos · Adherencia», un día
+     que parecía registrado. Se muestra solo si tiene datos (nutriHasData) o cambios vivos, y la de solo cambios
+     va rotulada como tal, sin la etiqueta de adherencia (2026-10-27). */
+  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(soloSw?'<b>Cambio de alimento</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
   let nut='';
   blockGroupsOf(aid,nCards).forEach((b,bi)=>{
     const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
@@ -6085,7 +6101,7 @@ Object.assign(ACTIONS,{
   'pmeal-add':el=>openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
   'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
   'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
-  'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[]}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
+  'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
   'pmeal-recipe-adapt':el=>{
     const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}
     if(!recIsScalable(r)){toast('Esta receta es de texto libre; no se puede adaptar automáticamente. Recréala con el formulario de ingredientes para poder escalarla.');return;}
@@ -6093,15 +6109,15 @@ Object.assign(ACTIONS,{
     const factor=recScaleFactor(r,rem),scaled=scaleRecipeIngredients(r,factor);
     p.meals=p.meals||[];
     p.meals.push({id:uid(),name:r.name+' · ×'+factor,time:r.time||'',p:scaled.macros.p,c:scaled.macros.c,f:scaled.macros.f,
-      recipe:{rid:r.id,kcal:scaled.macros.kcal,time:r.time||'',ingredients:scaled.ingredients,steps:Array.isArray(r.steps)?r.steps:[],scaleFactor:factor}});
+      recipe:{rid:r.id,kcal:scaled.macros.kcal,time:r.time||'',ingredients:scaled.ingredients,steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null,scaleFactor:factor}});
     saveState();closeModal();render();
     toast('«'+r.name+'» adaptada ×'+factor+' · P'+scaled.macros.p+' C'+scaled.macros.c+' G'+scaled.macros.f);
   },
   /* editor de la receta asignada: ver el bloque «Editar una receta ya asignada al menú» (pmrBody) */
   'pmeal-recipe-edit':el=>{
     const aid=el.dataset.aid,m=(activePlanOf(aid).meals||[]).find(x=>x.id===el.dataset.meal);if(!m||!m.recipe)return;
-    const ings=pmrFromIngs(m.recipe.ingredients);
-    _pmr={aid,mid:m.id,rid:m.recipe.rid||'',name:m.name||'',ings,steps:(m.recipe.steps||[]).join('\n'),manual:{p:+m.p||0,c:+m.c||0,f:+m.f||0},eqv:-1,toRec:false};
+    const ings=pmrFromIngs(m.recipe.ingredients),tm=m.recipe.txtMac||{},conLig=ings.some(x=>x.txt==null);
+    _pmr={aid,mid:m.id,rid:m.recipe.rid||'',name:m.name||'',ings,steps:(m.recipe.steps||[]).join('\n'),manual:conLig?{p:+tm.p||0,c:+tm.c||0,f:+tm.f||0}:{p:+m.p||0,c:+m.c||0,f:+m.f||0},eqv:-1,toRec:false};
     openModal('Editar receta del plan',pmrBody(),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmr-save">Guardar</button>',{nofocus:true,persistent:true});
   },
   'pmr-q':el=>{if(!_pmr)return;const i=+el.dataset.idx,x=_pmr.ings[i];if(!x)return;const st=pmrStep(x);pmrSetQty(i,Math.max(st,Math.round(((+x.grams||0)+st*(+el.dataset.d))/st)*st));pmrRerender();},
@@ -6126,24 +6142,24 @@ Object.assign(ACTIONS,{
     if(!_pmr||!pmrHasStruct())return;
     const tg=mealTargetFor(activePlanOf(_pmr.aid),_pmr.mid);
     if(!(tg.p>0||tg.c>0||tg.f>0)){toast('El plan ya está cubierto: no queda nada que repartir en esta comida');return;}
-    const fs=recGroupFactors(_pmr.ings,tg);
+    const tx=pmrTxtMac(),fs=recGroupFactors(_pmr.ings,{p:Math.max(0,tg.p-tx.p),c:Math.max(0,tg.c-tx.c),f:Math.max(0,tg.f-tx.f)});
     _pmr.ings.forEach((x,i)=>{if(x.txt!=null||fs[i]===1)return;const st=pmrStep(x);pmrSetQty(i,Math.max(st,Math.round((x.grams*fs[i])/st)*st));});
     pmrRerender();toast('Cantidades ajustadas a lo que toca en esta comida');
   },
   'pmr-reset':()=>{
     if(!_pmr)return;const r=recById(_pmr.rid);if(!r){toast('Esa receta ya no está en tu recetario');return;}
-    const m=r.macros||{};
-    Object.assign(_pmr,{name:r.name,ings:pmrFromIngs(r.ingredients),steps:(Array.isArray(r.steps)?r.steps:[]).join('\n'),manual:{p:+m.p||0,c:+m.c||0,f:+m.g||0},eqv:-1});
+    const m=r.macros||{},ings=pmrFromIngs(r.ingredients),tm=r.txtMac||{};
+    Object.assign(_pmr,{name:r.name,ings,steps:(Array.isArray(r.steps)?r.steps:[]).join('\n'),manual:ings.some(x=>x.txt==null)?{p:+tm.p||0,c:+tm.c||0,f:+tm.f||0}:{p:+m.p||0,c:+m.c||0,f:+m.g||0},eqv:-1});
     pmrRerender();
   },
   'pmr-save':async el=>{
     if(!_pmr)return;const d=_pmr,name=(d.name||'').trim();if(!name){toast('Escribe el nombre de la receta');return;}
     const p=activePlanOf(d.aid),m=(p.meals||[]).find(x=>x.id===d.mid);if(!m){toast('Esa comida ya no está en el plan');return;}
     const ings=[];d.ings.forEach(x=>{if(x.txt!=null){const s=x.txt.trim();if(s)ings.push(s);return;}if(x.grams>0)ings.push({food:x.food,grams:x.grams,unit:x.unit,p:x.p,c:x.c,f:x.f});});
-    const steps=d.steps.split('\n').map(s=>s.trim()).filter(Boolean),t=pmrTot();
+    const steps=d.steps.split('\n').map(s=>s.trim()).filter(Boolean),t=pmrTot(),tx=pmrTxtMac(),txtMac=(tx.p||tx.c||tx.f)?tx:null;
     if(d.toRec){
       const r0=recById(d.rid)||{},id=uid();
-      const data={id,name:name===r0.name?name+' (variante)':name,category:r0.category||'',tags:Array.isArray(r0.tags)?r0.tags:[],time:m.recipe.time||r0.time||'',kcal:t.kcal,ingredients:ings,steps,macros:{p:t.p,c:t.c,g:t.f}};
+      const data={id,name:name===r0.name?name+' (variante)':name,category:r0.category||'',tags:Array.isArray(r0.tags)?r0.tags:[],time:m.recipe.time||r0.time||'',kcal:t.kcal,ingredients:ings,steps,macros:{p:t.p,c:t.c,g:t.f},txtMac};
       if(el&&el.classList)el.classList.add('is-loading');
       try{const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});if(res.error){toast('No pude guardarla en tu recetario: '+res.error.message);return;}}
       catch(e){toast('No pude guardarla en tu recetario');return;}
@@ -6152,7 +6168,7 @@ Object.assign(ACTIONS,{
     }
     m.name=name;m.p=t.p;m.c=t.c;m.f=t.f;
     /* scaleFactor fuera: «Receta adaptada ×1.4» ya no describe una receta que el coach tocó a mano */
-    m.recipe=Object.assign({},m.recipe,{rid:d.rid,kcal:t.kcal,ingredients:ings,steps,scaleFactor:null,edited:true});
+    m.recipe=Object.assign({},m.recipe,{rid:d.rid,kcal:t.kcal,ingredients:ings,steps,txtMac,scaleFactor:null,edited:true});
     _pmr=null;saveState();closeModal();render();toast('Receta del plan actualizada'+(d.toRec?' y guardada en tu recetario':''));
   },
   'pmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);openModal('Editar comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div><label>Hora</label><input id="m_time" value="'+esc(m.time||'')+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
@@ -7517,7 +7533,8 @@ VIEWS['ath-nutri']=function(u){
   let supp='';
   if((np.supplements||[]).length){let rows='';np.supplements.forEach(s=>{rows+='<div class="logitem" style="display:flex;gap:10px;align-items:center"><div style="flex:1"><b>'+esc(s.name)+'</b>'+(s.notes?'<div class="tiny">'+esc(s.notes)+'</div>':'')+'</div><span class="q">'+esc(s.dose||'')+'</span><span class="badge">'+esc(s.timing||'')+'</span></div>';});supp='<div class="card mt16"><h3>'+I.flame+' Tu suplementación</h3>'+rows+'</div>';}
   let hist='';
-  d.logs.nutrition.slice().reverse().slice(0,7).forEach(x=>{hist+='<div class="logitem"><div class="lh">'+adhBadge(x.adherence)+'<b>Adherencia</b><span class="dt">'+fmtDateFull(x.date)+'</span></div>'+(x.comment?'<div class="cm">'+esc(x.comment)+'</div>':'')+'</div>';});
+  /* solo días registrados: una entrada creada por un cambio de alimento no es un registro (ver Historial del coach) */
+  d.logs.nutrition.filter(nutriHasData).slice().reverse().slice(0,7).forEach(x=>{hist+='<div class="logitem"><div class="lh">'+adhBadge(x.adherence)+'<b>Adherencia</b><span class="dt">'+fmtDateFull(x.date)+'</span></div>'+(x.comment?'<div class="cm">'+esc(x.comment)+'</div>':'')+'</div>';});
   return{title:'Mi nutrición',crumb:'<span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(n.name)+' · '+(n.mode==='macros'?'macros flexibles':'menú cerrado'),
     body:dayPick+'<div class="grid g2"><div class="card"><h3>Objetivos diarios</h3>'+(planSinObjetivos(n)?'<div class="empty"><b>Tu coach está preparando tu plan</b>Todavía no tiene objetivos de calorías y macros. Cuando los defina los verás aquí.</div>':macroBars(n,true))+(n.mealsPerDay&&!planSinObjetivos(n)?'<p class="tiny mt8">Repartido en ~'+n.mealsPerDay+' comidas al día.</p>':'')+(n.notes?'<div class="notebox mt16">'+esc(n.notes)+'</div>':'')+'</div>'+
     '<div>'+(plan||'')+'<div class="card'+(plan?' mt16':'')+'"><h3>Tus últimos registros</h3>'+(hist||'<div class="empty"><b>Sin registros aún</b>Registra tu adherencia cada día desde «Hoy».</div>')+'</div></div></div>'+supp};
@@ -9104,11 +9121,15 @@ async function hydrateRecipes(){
 function recById(id){return RECIPES.find(r=>r.id===id||r.rid===id);}
 function recKcal(r){return r.kcal||(r.macros?Math.round((r.macros.p||0)*4+(r.macros.c||0)*4+(r.macros.g||0)*9):0);}
 function recTagList(){const s={};RECIPES.forEach(r=>(r.tags||[]).forEach(t=>{s[t]=(s[t]||0)+1;}));return Object.keys(s).sort((a,b)=>s[b]-s[a]||a.localeCompare(b));}
-function cleanRecipe(r){return{id:r.id,name:r.name,category:r.category||'',tags:Array.isArray(r.tags)?r.tags:[],time:r.time||'',kcal:r.kcal||recKcal(r)||null,ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],macros:r.macros||null};}
+function cleanRecipe(r){return{id:r.id,name:r.name,category:r.category||'',tags:Array.isArray(r.tags)?r.tags:[],time:r.time||'',kcal:r.kcal||recKcal(r)||null,ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],macros:r.macros||null,txtMac:r.txtMac||null};}
 /* macros compactos P/HC/G para tarjetas */
 function recMacroStr(r){const m=r.macros;if(!m)return '';return 'P '+(m.p||0)+' · HC '+(m.c||0)+' · G '+(m.g||0);}
-/* una receta es «escalable» si TODOS sus ingredientes están ligados a la base de alimentos (objetos), no texto libre */
-function recIsScalable(r){return Array.isArray(r.ingredients)&&r.ingredients.length>0&&r.ingredients.every(x=>x&&typeof x==='object');}
+/* Una receta es «escalable» si sus ingredientes están ligados a la base de alimentos (objetos). Antes se exigía que
+   TODOS lo fueran, y ninguna de las 240 del recetario base lo era (todo texto): «Adaptar» y el editor por gramos no
+   salían nunca. El 2026-10-27 el recetario se ligó a la base y quedaron líneas de texto que no están en ella
+   («Salsa al gusto», «Pico de gallo ½ taza»): basta con que haya al menos un ligado y que lo demás sea texto.
+   Las líneas de texto no se escalan; lo que aportan va en `txtMac` y se suma tal cual. */
+function recIsScalable(r){return Array.isArray(r.ingredients)&&r.ingredients.some(x=>x&&typeof x==='object')&&r.ingredients.every(x=>x&&(typeof x==='object'||typeof x==='string'));}
 /* macros que le faltan al plan activo (objetivo − lo ya sumado por sus comidas), sirve para adaptar una receta */
 function planRemainingMacros(ap){
   const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
@@ -9139,7 +9160,7 @@ function scaleRecipeIngredients(r,factor){
     const mac=fo?foodMacros(fo.name,newQty):{p:+((ing.p||0)*factor).toFixed(1),c:+((ing.c||0)*factor).toFixed(1),f:+((ing.f||0)*factor).toFixed(1)};
     return{food:ing.food,grams:newQty,unit:isU?(fo.unitLabel||'unidad'):'g',p:mac?mac.p:0,c:mac?mac.c:0,f:mac?mac.f:0};
   });
-  const tot={p:0,c:0,f:0};list.forEach(x=>{if(x&&typeof x==='object'){tot.p+=x.p||0;tot.c+=x.c||0;tot.f+=x.f||0;}});
+  const tm=r.txtMac||{},tot={p:+tm.p||0,c:+tm.c||0,f:+tm.f||0};list.forEach(x=>{if(x&&typeof x==='object'){tot.p+=x.p||0;tot.c+=x.c||0;tot.f+=x.f||0;}});
   tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);tot.kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
   return{ingredients:list,macros:tot};
 }
@@ -9163,12 +9184,15 @@ function recImportPreview(list){
 
 /* -------- Crear / editar receta: ingredientes ligados a la base de alimentos, macros automáticos -------- */
 let _recDraft=null;
+/* El formulario solo edita ingredientes ligados; las líneas de texto de una receta mixta (complementos) y lo que
+   aportan (`txtMac`) se conservan tal cual al guardar y se avisan debajo de los ingredientes. */
 function recDraftReset(r){
   if(r&&recIsScalable(r)){
     _recDraft={id:r.id,name:r.name||'',category:r.category||'',time:r.time||'',tagsStr:(r.tags||[]).join(', '),
-      ingredients:r.ingredients.map(x=>({food:x.food||'',grams:x.grams||''})),stepsStr:(r.steps||[]).join('\n')};
+      ingredients:r.ingredients.filter(x=>x&&typeof x==='object').map(x=>({food:x.food||'',grams:x.grams||''})),stepsStr:(r.steps||[]).join('\n'),
+      txt:r.ingredients.filter(x=>typeof x==='string'),txtMac:r.txtMac||null};
   }else{
-    _recDraft={id:null,name:'',category:'',time:'',tagsStr:'',ingredients:[{food:'',grams:''}],stepsStr:''};
+    _recDraft={id:null,name:'',category:'',time:'',tagsStr:'',ingredients:[{food:'',grams:''}],stepsStr:'',txt:[],txtMac:null};
   }
 }
 function recIngRowHTML(ing,i){
@@ -9185,7 +9209,7 @@ function recIngRowsHTML(){
   return h;
 }
 function recDraftTotals(){
-  const t={p:0,c:0,f:0};
+  const tm=_recDraft.txtMac||{},t={p:+tm.p||0,c:+tm.c||0,f:+tm.f||0};
   _recDraft.ingredients.forEach(ing=>{
     if(!ing.food||!(+ing.grams>0))return;
     const mac=foodMacros(ing.food,+ing.grams);
@@ -9196,7 +9220,8 @@ function recDraftTotals(){
 }
 function recTotalsHTML(){
   const t=recDraftTotals();
-  return '<div class="notebox mt8" style="border-left-color:var(--volt)"><b>Total de la receta:</b> '+t.kcal+' kcal · P '+t.p+' g · C '+t.c+' g · G '+t.f+' g</div>';
+  const tx=(_recDraft.txt||[]).length?'<p class="tiny mt8">Complementos que se conservan: '+esc(_recDraft.txt.join(' · '))+(_recDraft.txtMac?' (suman P '+(_recDraft.txtMac.p||0)+' · C '+(_recDraft.txtMac.c||0)+' · G '+(_recDraft.txtMac.f||0)+', ya incluidos en el total)':'')+'</p>':'';
+  return tx+'<div class="notebox mt8" style="border-left-color:var(--volt)"><b>Total de la receta:</b> '+t.kcal+' kcal · P '+t.p+' g · C '+t.c+' g · G '+t.f+' g</div>';
 }
 function recDraftFormHTML(){
   let copts='<option value="">Sin categoría</option>';REC_CATS.forEach(c=>{copts+='<option value="'+c+'"'+(_recDraft.category===c?' selected':'')+'>'+c+'</option>';});
@@ -9292,7 +9317,7 @@ Object.assign(ACTIONS,{
     const steps=_recDraft.stepsStr.split('\n').map(s=>s.trim()).filter(Boolean);
     const validIngs=_recDraft.ingredients.filter(x=>x.food&&+x.grams>0);
     if(!validIngs.length){toast('Agrega al menos un ingrediente con cantidad');return;}
-    const built=[];const tot={p:0,c:0,f:0};
+    const tm=_recDraft.txtMac||{},built=[];const tot={p:+tm.p||0,c:+tm.c||0,f:+tm.f||0};
     for(const ing of validIngs){
       const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===String(ing.food).toLowerCase());
       if(!fo){toast('«'+ing.food+'» no está en tu base de alimentos. Agrégalo primero en «Base de alimentos» o elige uno de la lista.');return;}
@@ -9303,7 +9328,7 @@ Object.assign(ACTIONS,{
     tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);
     const kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
     const id=_recDraft.id||uid();
-    const data={id,name,category:_recDraft.category||'',tags,time:_recDraft.time||'',kcal,ingredients:built,steps,macros:{p:tot.p,c:tot.c,g:tot.f}};
+    const data={id,name,category:_recDraft.category||'',tags,time:_recDraft.time||'',kcal,ingredients:built.concat(_recDraft.txt||[]),steps,macros:{p:tot.p,c:tot.c,g:tot.f},txtMac:_recDraft.txtMac||null};
     if(el&&el.classList)el.classList.add('is-loading');
     try{
       const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});
