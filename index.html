@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.6">
+<meta name="lr-build" content="2026-10-27.7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -5850,7 +5850,8 @@ function pgLevelSemana(aid,win,wk){
    Las columnas salen de blockGroupsOf (la agrupación del Historial), no de pgWeekNum: esa numera
    desde el inicio del bloque EN CURSO, así que las sesiones de bloques cerrados (y las de antes de
    una fecha de inicio puesta tarde) quedaban fuera de la tabla aunque arriba dijera «Todo el
-   historial». Con varios bloques a la vista la columna dice «B1·S3». El Δ va en tinta tenue con flecha y sin color: subir carga o peso no
+   historial». Con varios bloques a la vista la columna dice «B1·S3»; si dos bloques llevan el mismo
+   número (pasa con datos reales, ver blockGroupsOf), «B1 ant.·S6» y «B1 actual·S1». El Δ va en tinta tenue con flecha y sin color: subir carga o peso no
    es bueno ni malo por sí solo. Solo adherencia y fatiga llevan color, porque ya son un estado. */
 function pgSemTabla(aid,win,wk){
   const d=athData(aid),nu=svcOf(aid).nu,t=todayISO();
@@ -5891,7 +5892,7 @@ function pgSemTabla(aid,win,wk){
   });
   if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map((c,i)=>td(i)+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#7cd0fb')+'</td></tr>';
   body+='<tr><td class="exname">Fatiga (check-in)</td>'+C.map((c,i)=>td(i)+(c.fq?'<span class="badge '+fqDecision(c.fq.total).cls+'" title="'+esc(fqDecision(c.fq.total).short)+'">'+c.fq.total+'/15</span>':'—')+'</td>').join('')+'<td></td></tr>';
-  const head='<tr><th></th>'+C.map((c,i)=>'<th class="num'+(nb(c,i)?' wknb':'')+'">'+(varios?'B'+c.c.b.block+'·':'')+'S'+c.w+(c.cur?' <span class="tiny">en curso</span>':'')+'<div class="tiny" style="font-weight:400;text-transform:none">'+fmtDate(c.from)+'</div></th>').join('')+'<th>Tendencia</th></tr>';
+  const head='<tr><th></th>'+C.map((c,i)=>'<th class="num'+(nb(c,i)?' wknb':'')+'">'+(varios?'B'+c.c.b.block+(c.c.b.dup?(c.c.b.cur?' actual':' ant.'):'')+'·':'')+'S'+c.w+(c.cur?' <span class="tiny">en curso</span>':'')+'<div class="tiny" style="font-weight:400;text-transform:none">'+fmtDate(c.from)+'</div></th>').join('')+'<th>Tendencia</th></tr>';
   return '<div class="card mb16"><h3>Semana a semana <span class="hint">'+(varios?'semanas de cada bloque':'semanas del bloque')+(nTot>8?' · las 8 últimas del rango':'')+' · ▲▼ = cambio vs la semana anterior</span></h3>'+
     '<div class="tblwrap"><table class="tbl pgsemtbl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
 }
