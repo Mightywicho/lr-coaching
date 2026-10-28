@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.5">
+<meta name="lr-build" content="2026-10-27.6">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -390,7 +390,7 @@ select.revsel{width:auto;flex:none;padding:6px 10px;font-size:12.5px}
 .spark{display:block}
 .pgextbl{min-width:auto}.pgextbl td,.pgextbl th{vertical-align:middle}.pgextbl .delta-pill,.pgextbl .num b{white-space:nowrap}
 @media(max-width:600px){.pgextbl .pgx-op{display:none}.pgextbl .spark{width:64px}}
-.pgsemtbl td,.pgsemtbl th{white-space:nowrap}.wkd{font-size:11px;color:var(--tx3);font-weight:500}
+.pgsemtbl td,.pgsemtbl th{white-space:nowrap}.pgsemtbl .wknb{border-left:2px solid var(--line2)}.wkd{font-size:11px;color:var(--tx3);font-weight:500}
 .revhist{margin-top:10px}.revhist summary{cursor:pointer}
 .logitem{border:1px solid var(--line);border-radius:var(--r-s);padding:13px 16px;margin-bottom:10px;background:var(--card)}
 .logitem .lh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -5778,6 +5778,8 @@ function pgWeekly(aid,win){
   pgWorkouts(aid,win).forEach(w=>{const wk=pgWeekNum(aid,w.date);const o=m[wk]||(m[wk]={week:wk,ton:0,srpe:0,sets:0,sessions:0});o.ton+=sessTonnage(w);o.srpe+=sessSRPE(w);o.sets+=Object.values(w.entries).reduce((a,s)=>a+s.length,0);o.sessions++;});
   return Object.values(m).sort((a,b)=>a.week-b.week).map(o=>{o.ton=Math.round(o.ton);o.srpe=Math.round(o.srpe);o.dateRep=addDaysISO(start,(o.week-1)*7+3);return o;});
 }
+/* semanas de antes del bloque en curso salen ≤0 en pgWeekNum: «S-5» no dice nada, la fecha sí */
+function pgWkLbl(o){return o.week>=1?'S'+o.week:'sem. del '+fmtDate(addDaysISO(o.dateRep,-3));}
 function pgKpi(k,v,sub,cls){return '<div class="stat"><div class="k">'+k+'</div><div class="v'+(cls?' '+cls:'')+'" style="font-size:21px">'+v+'</div><div class="sub">'+sub+'</div></div>';}
 function pgDeltaCls(x){return x>0?'up':x<0?'down':'';}
 function coachTabProgreso(aid){
@@ -5805,7 +5807,7 @@ function coachTabProgreso(aid){
     kpi='<div class="grid g4 mb16">'+
       pgKpi('Sesiones',sessTot,wk.length+' semana'+(wk.length>1?'s':'')+' con datos')+
       pgKpi('Tonelaje total',Math.round(tonTot).toLocaleString('es-ES')+'<small> kg</small>','Σ peso×reps del rango')+
-      pgKpi('Tonelaje/sem (Δ)',(dTon>0?'+':'')+Math.round(dTon).toLocaleString('es-ES')+'<small> kg</small>','S'+f.week+' → S'+l.week+' · '+(dPct>0?'+':'')+dPct+'%',pgDeltaCls(dTon))+
+      pgKpi('Tonelaje/sem (Δ)',(dTon>0?'+':'')+Math.round(dTon).toLocaleString('es-ES')+'<small> kg</small>',pgWkLbl(f)+' → '+pgWkLbl(l)+' · '+(dPct>0?'+':'')+dPct+'%',pgDeltaCls(dTon))+
       wKpi+'</div>';
   }
   let content;
@@ -5843,34 +5845,54 @@ function pgLevelSemana(aid,win,wk){
   return pgSemTabla(aid,win,wk)+volCard+'<div class="mt16"></div>'+secPleg('plc-pg-semgraf','Ver como gráficas','','tonelaje, carga, series y peso',charts);
 }
 /* Semana a semana en UNA tabla (2026-10-27, pedido de Luis): las cuatro gráficas sueltas obligaban
-   a cruzar con la vista de una a otra. Semanas del BLOQUE en columnas (las 8 últimas del rango),
-   en filas lo que se compara. El Δ va en tinta tenue con flecha y sin color: subir carga o peso no
+   a cruzar con la vista de una a otra. Semanas en columnas (las 8 últimas del rango), en filas lo
+   que se compara.
+   Las columnas salen de blockGroupsOf (la agrupación del Historial), no de pgWeekNum: esa numera
+   desde el inicio del bloque EN CURSO, así que las sesiones de bloques cerrados (y las de antes de
+   una fecha de inicio puesta tarde) quedaban fuera de la tabla aunque arriba dijera «Todo el
+   historial». Con varios bloques a la vista la columna dice «B1·S3». El Δ va en tinta tenue con flecha y sin color: subir carga o peso no
    es bueno ni malo por sí solo. Solo adherencia y fatiga llevan color, porque ya son un estado. */
 function pgSemTabla(aid,win,wk){
-  const d=athData(aid),start=d.routine.startDate||todayISO(),wkNow=weekOf(aid),nu=svcOf(aid).nu;
-  const weeks=[];for(let w=win.wkA;w<=win.wkB;w++)weeks.push(w);
-  const shown=weeks.slice(-8),byW={};wk.forEach(o=>{byW[o.week]=o;});
+  const d=athData(aid),nu=svcOf(aid).nu,t=todayISO();
+  const ws=d.logs.workouts.filter(w=>w.date>=win.from&&w.date<=win.to).slice().sort((x,y)=>x.date<y.date?1:-1);
+  const blks=blockGroupsOf(aid,ws).slice().reverse();
+  let cols=[];
+  blks.forEach(bk=>{
+    /* semanas sin sesiones también cuentan (una semana vacía es un dato); la del bloque en curso llega hasta hoy */
+    const hasta=bk.cur?(t<win.to?t:win.to):bk.to;
+    const nW=Math.floor((Date.parse(hasta)-Date.parse(bk.ancla))/86400000/7)+1;
+    for(let w=1;w<=nW;w++)cols.push({b:bk,w,from:addDaysISO(bk.ancla,(w-1)*7),to:addDaysISO(bk.ancla,w*7-1)});
+  });
+  /* dos bloques pueden solaparse en un día (cierre y arranque): el archivado se corta en el inicio del siguiente */
+  cols=cols.filter(c=>c.to>=win.from&&c.from<=win.to);
+  const nTot=cols.length;cols=cols.slice(-8);
+  const varios=new Set(cols.map(c=>c.b.key)).size>1||blks.length>1;
   const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
-  const C=shown.map(w=>{
-    const from=addDaysISO(start,(w-1)*7),to=addDaysISO(start,w*7-1),o=byW[w]||{};
+  const C=cols.map(c=>{
+    const from=c.from,to=c.to,inR=x=>x.date>=from&&x.date<=to&&blockOfDate(aid,x.date).key===c.b.key;
+    const ses=d.logs.workouts.filter(x=>inR(x)&&x.entries&&Object.keys(x.entries).length);
     const pes=d.logs.weight.filter(x=>x.date>=from&&x.date<=to).map(x=>+x.kg);
     const ad=d.logs.nutrition.filter(n=>n.date>=from&&n.date<=to&&n.adherence!=null).map(n=>+n.adherence);
     const fq=fatigueLogs(aid).filter(f=>f.date>=from&&f.date<=to).pop()||null;
-    return{w,from,ses:o.sessions||0,faltas:d.logs.workouts.filter(x=>isMissed(x)&&x.date>=from&&x.date<=to).length,sets:o.sets||0,ton:o.ton||0,srpe:o.srpe||0,
+    return{c,w:c.w,from,cur:c.b.cur&&t>=from&&t<=to,ses:ses.length,faltas:d.logs.workouts.filter(x=>inR(x)&&isMissed(x)).length,
+      sets:ses.reduce((a,x)=>a+Object.values(x.entries).reduce((b2,ss)=>b2+ss.length,0),0),ton:Math.round(ses.reduce((a,x)=>a+sessTonnage(x),0)),srpe:Math.round(ses.reduce((a,x)=>a+sessSRPE(x),0)),
       peso:pes.length?+avg(pes).toFixed(1):null,adh:ad.length?+avg(ad).toFixed(1):null,fq};
   });
+  if(!C.length)return '';
   const num=v=>v==null?'—':(Math.abs(v)>=1000?Math.round(v).toLocaleString('es-ES'):String(v).replace('.',','));
   const dl=(c,p,k)=>{if(!p||c[k]==null||p[k]==null)return'';const x=Math.round((c[k]-p[k])*10)/10;if(!x)return'<div class="wkd">=</div>';return'<div class="wkd">'+(x>0?'▲ +':'▼ −')+num(Math.abs(x))+'</div>';};
   const R=[['Sesiones','ses'],['Faltas','faltas'],['Series','sets'],['Tonelaje (kg)','ton'],['Carga sRPE (UA)','srpe'],['Peso medio (kg)','peso']];
+  /* la primera semana de cada bloque lleva una raya: el ▲▼ que cruza de un bloque a otro compara programas distintos */
+  const nb=(c,i)=>i>0&&C[i-1].c.b.key!==c.c.b.key,td=i=>'<td class="num'+(nb(C[i],i)?' wknb':'')+'">';
   let body='';
   R.forEach(([lbl,k])=>{
     const vals=C.map(c=>c[k]).filter(v=>v!=null);
-    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>'<td class="num">'+(k==='faltas'&&c[k]?'<b style="color:var(--red)">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#7cd0fb'))+'</td></tr>';
+    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>td(i)+(k==='faltas'&&c[k]?'<b style="color:var(--red)">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#7cd0fb'))+'</td></tr>';
   });
-  if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map(c=>'<td class="num">'+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#7cd0fb')+'</td></tr>';
-  body+='<tr><td class="exname">Fatiga (check-in)</td>'+C.map(c=>'<td class="num">'+(c.fq?'<span class="badge '+fqDecision(c.fq.total).cls+'" title="'+esc(fqDecision(c.fq.total).short)+'">'+c.fq.total+'/15</span>':'—')+'</td>').join('')+'<td></td></tr>';
-  const head='<tr><th></th>'+C.map(c=>'<th class="num">S'+c.w+(c.w===wkNow?' <span class="tiny">en curso</span>':'')+'<div class="tiny" style="font-weight:400;text-transform:none">'+fmtDate(c.from)+'</div></th>').join('')+'<th>Tendencia</th></tr>';
-  return '<div class="card mb16"><h3>Semana a semana <span class="hint">semanas del bloque'+(weeks.length>8?' · las 8 últimas del rango':'')+' · ▲▼ = cambio vs la semana anterior</span></h3>'+
+  if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map((c,i)=>td(i)+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#7cd0fb')+'</td></tr>';
+  body+='<tr><td class="exname">Fatiga (check-in)</td>'+C.map((c,i)=>td(i)+(c.fq?'<span class="badge '+fqDecision(c.fq.total).cls+'" title="'+esc(fqDecision(c.fq.total).short)+'">'+c.fq.total+'/15</span>':'—')+'</td>').join('')+'<td></td></tr>';
+  const head='<tr><th></th>'+C.map((c,i)=>'<th class="num'+(nb(c,i)?' wknb':'')+'">'+(varios?'B'+c.c.b.block+'·':'')+'S'+c.w+(c.cur?' <span class="tiny">en curso</span>':'')+'<div class="tiny" style="font-weight:400;text-transform:none">'+fmtDate(c.from)+'</div></th>').join('')+'<th>Tendencia</th></tr>';
+  return '<div class="card mb16"><h3>Semana a semana <span class="hint">'+(varios?'semanas de cada bloque':'semanas del bloque')+(nTot>8?' · las 8 últimas del rango':'')+' · ▲▼ = cambio vs la semana anterior</span></h3>'+
     '<div class="tblwrap"><table class="tbl pgsemtbl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
 }
 function pgLevelSesion(aid,win){
