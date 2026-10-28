@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.4">
+<meta name="lr-build" content="2026-10-27.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -5978,11 +5978,26 @@ function pgSpark(vals,color){
 /* Todos los ejercicios de un vistazo (2026-10-27, pedido de Luis): antes había que ir uno por
    uno con un menú para encontrar el que iba mal. Primero los que piden atención (regresión,
    estancado), luego el resto en el orden de la rutina; tocar una fila abre su detalle abajo. */
-const PG_EX_LBL={pr:'🏆 Récord',calidad:'Progresa por calidad',progresa:'Progresa',manten:'Sostenido',estancado:'Estancado',regresion:'Regresión',inicio:'1.ª medición'};
+const PG_EX_LBL={bajo:'Bajo su mejor',pr:'🏆 Récord',calidad:'Progresa por calidad',progresa:'Progresa',manten:'Sostenido',estancado:'Estancado',regresion:'Regresión',inicio:'1.ª medición'};
+/* exStatus solo mira lo último (regresión = última peor que la anterior; estancado = 3 últimas):
+   un ejercicio que bajó hace dos semanas y luego se quedó igual salía «Sostenido» y se hundía en
+   la tabla (lo cazó la prueba de 2026-10-27 con un curl de 14 → 12 kg). En Progreso, si la última
+   sesión queda ≥2 % por debajo de su mejor 1RM del rango, pasa a «Bajo su mejor». Solo aquí:
+   exStatus sigue igual para el resto de la app. */
+function pgStEx(ser,dud){
+  const st=exStatus(ser,dud);
+  if(!st||ser.length<2||['regresion','estancado','pr'].includes(st.k))return st;
+  const last=ser[ser.length-1],pico=ser.reduce((m,x)=>x.e1rm>m.e1rm?x:m,ser[0]);
+  if(pico.e1rm>0&&last.e1rm<pico.e1rm*0.98){
+    const dl=Math.round((last.e1rm-pico.e1rm)*10)/10;
+    return Object.assign({},st,{k:'bajo',cls:'orange',lbl:'Bajo su mejor',detail:'1RM est. '+last.e1rm+' kg, '+dl+' kg por debajo de su mejor del rango ('+pico.e1rm+' kg el '+fmtDate(pico.date)+'). No es una bajada de la última sesión, pero no ha recuperado.'});
+  }
+  return st;
+}
 function pgExOrden(aid,win,histEx,dudE){
-  const ORD={regresion:0,estancado:1,pr:2,calidad:3,progresa:3,manten:4,inicio:5};
-  const L=histEx.map((e,i)=>{const ser=exSeries(aid,e.id).filter(x=>x.date>=win.from&&x.date<=win.to);return{e,i,ser,st:exStatus(ser,dudE)};});
-  return L.sort((x,y)=>((ORD[x.st&&x.st.k]??6)-(ORD[y.st&&y.st.k]??6))||x.i-y.i);
+  const ORD={regresion:0,bajo:1,estancado:2,pr:3,calidad:4,progresa:4,manten:5,inicio:6};
+  const L=histEx.map((e,i)=>{const ser=exSeries(aid,e.id).filter(x=>x.date>=win.from&&x.date<=win.to);return{e,i,ser,st:pgStEx(ser,dudE)};});
+  return L.sort((x,y)=>((ORD[x.st&&x.st.k]??7)-(ORD[y.st&&y.st.k]??7))||x.i-y.i);
 }
 function pgExTabla(L,selId){
   const rows=L.map(o=>{
@@ -6007,11 +6022,11 @@ function pgLevelEjercicio(aid,win){
   const selId=route.params.pgEx&&histEx.some(e=>e.id===route.params.pgEx)?route.params.pgEx:orden[0].e.id;
   const ser=exSeries(aid,selId).filter(x=>x.date>=win.from&&x.date<=win.to);
   const e1Pts=ser.map(h=>({x:h.date,y:h.e1rm})),tonPts=ser.map(h=>({x:h.date,y:h.ton}));
-  const stt=exStatus(ser,dudE),prCount=ser.filter(h=>h.pr).length;
+  const stt=pgStEx(ser,dudE),prCount=ser.filter(h=>h.pr).length;
   let banner='';
   if(stt){
     let fatNote='';
-    if((stt.k==='regresion'||stt.k==='estancado')&&ser.length){const fe=fatigueForDate(aid,ser[ser.length-1].date);if(fe&&fe.total>9){fatNote=' Coincide con fatiga elevada (check-in S'+fe.week+': '+fe.total+'/15 · '+fqDecision(fe.total).short+'), que puede explicar el bajón.';}}
+    if((stt.k==='regresion'||stt.k==='estancado'||stt.k==='bajo')&&ser.length){const fe=fatigueForDate(aid,ser[ser.length-1].date);if(fe&&fe.total>9){fatNote=' Coincide con fatiga elevada (check-in S'+fe.week+': '+fe.total+'/15 · '+fqDecision(fe.total).short+'), que puede explicar el bajón.';}}
     banner='<div class="notebox" style="border-left-color:var(--'+(stt.cls||'blue')+');margin-bottom:14px"><b>'+esc(stt.lbl)+'.</b> '+esc(stt.detail)+esc(fatNote)+'</div>';
   }
   let stats='';
@@ -6035,7 +6050,7 @@ function pgAlerts(aid,win){
     const ser=exSeries(aid,e.id).filter(x=>x.date>=win.from&&x.date<=win.to);
     if(!ser.length)return;
     ser.forEach(s=>{if(s.pr)prs.push({dud:dud.has(s.wid+'|'+s.ex),name:e.name,date:s.date,e1:s.prE1,w:s.prW,t:s.prTon,e1rm:s.e1rm,topW:s.topW,topR:s.topR});});
-    const st=exStatus(ser,dud);if(st&&(st.k==='estancado'||st.k==='regresion'))warn.push({name:e.name,st});
+    const st=pgStEx(ser,dud);if(st&&(st.k==='estancado'||st.k==='regresion'||st.k==='bajo'))warn.push({name:e.name,st});
   }));
   if(!prs.length&&!warn.length)return '';
   const prH=prs.slice().reverse().slice(0,6).map(p=>'<div class="logitem"><div class="lh"><span class="badge volt">🏆 '+[p.e1?'1RM':'',p.w?'Peso':'',p.t?'Vol':''].filter(Boolean).join('/')+'</span>'+(p.dud?'<span class="badge orange" title="Esta sesión tiene un dato a revisar: el récord puede no ser real">⚠ dudoso</span>':'')+'<b>'+esc(p.name)+'</b><span class="muted" style="font-size:12.5px">'+p.topW+'×'+p.topR+' · '+p.e1rm+' kg 1RM</span><span class="dt">'+fmtDate(p.date)+'</span></div></div>').join('');
