@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.7">
+<meta name="lr-build" content="2026-10-27.8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -391,6 +391,7 @@ select.revsel{width:auto;flex:none;padding:6px 10px;font-size:12.5px}
 .pgextbl{min-width:auto}.pgextbl td,.pgextbl th{vertical-align:middle}.pgextbl .delta-pill,.pgextbl .num b{white-space:nowrap}
 @media(max-width:600px){.pgextbl .pgx-op{display:none}.pgextbl .spark{width:64px}}
 .pgsemtbl td,.pgsemtbl th{white-space:nowrap}.pgsemtbl .wknb{border-left:2px solid var(--line2)}.wkd{font-size:11px;color:var(--tx3);font-weight:500}
+button.revchip-btn{cursor:pointer;font-family:inherit;line-height:inherit;background:none}.revchip-btn:hover{filter:brightness(1.25)}
 .revhist{margin-top:10px}.revhist summary{cursor:pointer}
 .logitem{border:1px solid var(--line);border-radius:var(--r-s);padding:13px 16px;margin-bottom:10px;background:var(--card)}
 .logitem .lh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -3565,7 +3566,7 @@ function drCard(aid){
     '<div class="cm">'+esc(x.txt)+'</div>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn btn-g btn-sm" data-act="dr-ok" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Ya lo revisé</button>'+
     '<button class="btn btn-g btn-sm" data-act="dr-ask" data-aid="'+aid+'" data-key="'+esc(x.key)+'">'+(ped[x.key]?'Volver a pedírselo':'Pedirle que lo corrija')+'</button></div></div>').join('');
-  return '<div class="card mb16" style="border-left:3px solid var(--orange)"><h3>⚠ Datos a revisar <span class="hint">'+pend.length+' sin revisar'+(nOk?' · '+nOk+' ya revisado'+(nOk===1?'':'s'):'')+'</span></h3>'+
+  return '<div class="card mb16" id="dr-card" style="border-left:3px solid var(--orange);scroll-margin-top:16px"><h3>⚠ Datos a revisar <span class="hint">'+pend.length+' sin revisar'+(nOk?' · '+nOk+' ya revisado'+(nOk===1?'':'s'):'')+'</span></h3>'+
     '<p class="tiny mb8">Registros que no cuadran. Mientras no los revises, los récords, «Estancado» y «Regresión» que dependan de ellos salen como <b>dudosos</b>. La app no cambia nada sola.</p>'+items+
     (pend.length>8?'<p class="tiny mt8">… y '+(pend.length-8)+' más (los más antiguos).</p>':'')+
     (pend.length>1?'<div style="text-align:right;margin-top:8px"><button class="btn btn-g btn-sm" data-act="dr-ok-all" data-aid="'+aid+'">Marcar todos como revisados</button></div>':'')+'</div>';
@@ -3635,7 +3636,7 @@ function revNovedadesCalc(aid){
   if(sinReg)chips.push({cls:'red',txt:sm.hint});
   if(nF)chips.push({cls:'red',txt:'✕ '+plural(nF,'falta','faltas')});
   if(nE)chips.push({cls:'volt',txt:plural(nE,'entreno','entrenos')});
-  if(dr.length)chips.push({cls:'orange',txt:'⚠ '+plural(dr.length,'dato','datos')+' a revisar'+(drNew&&drNew<dr.length?' ('+drNew+' nuevo'+(drNew===1?'':'s')+')':'')});
+  if(dr.length)chips.push({cls:'orange',act:'rev-ir-dr',txt:'⚠ '+plural(dr.length,'dato','datos')+' a revisar'+(drNew&&drNew<dr.length?' ('+drNew+' nuevo'+(drNew===1?'':'s')+')':'')});
   if(swPerm.length)chips.push({cls:'orange',txt:plural(swPerm.length,'cambio','cambios')+' de ejercicio por decidir'});
   if(nQ)chips.push({cls:'blue',txt:plural(nQ,'cuestionario','cuestionarios')});
   if(wNew.length){const prev=ws.filter(w=>w.date<wNew[0].date).pop(),last=wNew[wNew.length-1];const dl=prev?+(last.kg-prev.kg).toFixed(1):null;
@@ -3646,7 +3647,7 @@ function revNovedadesCalc(aid){
   const unread=chatUnread(aid,'coach');if(unread)chips.push({cls:'',txt:'💬 '+plural(unread,'mensaje','mensajes')});
   const dias=rv.ult?Math.max(0,daysBetweenISO(rv.ult,t)):null;
   const nivel=items.some(x=>x.urg)?'urgente':(dias==null||dias>=rv.cada)?'toca':(items.length||unread)?'novedades':'aldia';
-  return{rv,items,chips,dias,nivel,sm};
+  return{aid,rv,items,chips,dias,nivel,sm};
 }
 function revUltTxt(nv){
   const c=(REV_CADAS.find(o=>o[0]===nv.rv.cada)||[0,'Cada '+nv.rv.cada+' días'])[1].toLowerCase();
@@ -3654,7 +3655,9 @@ function revUltTxt(nv){
   return(nv.dias===0?'Revisado hoy':'Revisado hace '+plural(nv.dias,'día','días'))+' · '+c;
 }
 function revNotaHTML(nv){const n=nv.rv.notas[0];return n?'<div class="revnota">📝 <b>'+fmtDate(n.date)+':</b> '+esc(n.txt)+'</div>':'';}
-function revChipsHTML(nv){return nv.chips.map(c=>'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
+/* La ficha de datos raros lleva a la tarjeta «Datos a revisar» del Resumen: «Revisado» NO los da
+   por buenos (cada uno se confirma ahí, y eso es lo que quita el «dudoso» de récords y estados). */
+function revChipsHTML(nv){return nv.chips.map(c=>c.act?'<button type="button" class="badge '+c.cls+' revchip-btn" data-act="'+c.act+'" data-aid="'+nv.aid+'" title="Ir a «Datos a revisar» en su Resumen: ahí se confirma cada uno">'+esc(c.txt)+' →</button>':'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
 function revCadaSel(aid,nv){return '<select class="revsel" data-change="rev-cada" data-aid="'+aid+'" title="Cada cuánto revisas a este atleta">'+REV_CADAS.map(o=>'<option value="'+o[0]+'"'+(nv.rv.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';}
 function revFilaHTML(a,nv){
   /* «sin registrar» ya sale como ficha: aquí no se repite */
@@ -6097,6 +6100,7 @@ Object.assign(ACTIONS,{
     const notas=txt?[{date:t,txt}].concat(rv.notas).slice(0,20):rv.notas;
     p.revision={cada:rv.cada,ult:t,vistos:(rv.ult===t?rv.vistos:[]).concat(hoy),notas};
     if(el.dataset.nota==='rev_nota')closeModal();saveState();toast(txt?'Revisado, con nota':'Marcado como revisado');render();},
+  'rev-ir-dr':el=>{nav('coach-ath',{aid:el.dataset.aid,tab:'resumen'});setTimeout(()=>{const c=document.getElementById('dr-card');if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'start'});},80);},
   'rev-nota-modal':el=>{const aid=el.dataset.aid,a=userById(aid),ult=revOf(aid).notas[0];
     openModal('Revisado · '+esc(a?a.name:''),(ult?'<p class="tiny mb8">Tu nota anterior ('+fmtDate(ult.date)+'): «'+esc(ult.txt)+'»</p>':'')+
       '<label>Nota de esta revisión (opcional)</label><textarea id="rev_nota" placeholder="Qué decidiste o qué queda pendiente. Ej.: subí 2 series de pecho; preguntar por el sueño."></textarea>',
