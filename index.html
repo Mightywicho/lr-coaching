@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.3">
+<meta name="lr-build" content="2026-10-27.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -385,6 +385,13 @@ select.revsel{width:auto;flex:none;padding:6px 10px;font-size:12.5px}
 .revurg{font-size:12.5px;color:var(--red)}
 .revit{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:13px;border-bottom:1px solid var(--line)}
 .revit .badge{flex:none}
+.revnota{font-size:12.5px;color:var(--tx2);background:var(--card2);border-radius:var(--r-s);padding:7px 10px}
+.pgexrow{cursor:pointer}.pgexrow:hover td{background:var(--card2)}.pgexrow.on td{background:var(--volt-08)}.pgexrow.on .exname{box-shadow:inset 3px 0 0 var(--volt)}
+.spark{display:block}
+.pgextbl{min-width:auto}.pgextbl td,.pgextbl th{vertical-align:middle}.pgextbl .delta-pill,.pgextbl .num b{white-space:nowrap}
+@media(max-width:600px){.pgextbl .pgx-op{display:none}.pgextbl .spark{width:64px}}
+.pgsemtbl td,.pgsemtbl th{white-space:nowrap}.wkd{font-size:11px;color:var(--tx3);font-weight:500}
+.revhist{margin-top:10px}.revhist summary{cursor:pointer}
 .logitem{border:1px solid var(--line);border-radius:var(--r-s);padding:13px 16px;margin-bottom:10px;background:var(--card)}
 .logitem .lh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .logitem .lh b{font-size:13.5px}
@@ -3580,7 +3587,12 @@ function drCard(aid){
    atleta atorado en «Revisar ya» después de marcarlo revisado: ahí ya no hay nada nuevo que mirar. */
 const REV_CADAS=[[1,'Cada día'],[2,'Cada 2 días'],[3,'Cada 3 días'],[7,'Cada semana'],[14,'Cada 2 semanas']];
 const REV_NIVELES={urgente:{lbl:'Revisar ya',cls:'red'},toca:{lbl:'Toca revisión',cls:'orange'},novedades:{lbl:'Con novedades',cls:'blue'},aldia:{lbl:'Al día',cls:'green'}};
-function revOf(aid){const r=athData(aid).profile.revision||{};return{cada:+r.cada||7,ult:r.ult||null,vistos:Array.isArray(r.vistos)?r.vistos:[]};}
+function revOf(aid){const r=athData(aid).profile.revision||{};return{cada:+r.cada||7,ult:r.ult||null,vistos:Array.isArray(r.vistos)?r.vistos:[],notas:Array.isArray(r.notas)?r.notas:[]};}
+/* La barra lateral (contador), el Panel y Monitoreo piden lo mismo en cada pintada, y datosRaros
+   recorre todo el historial: se calcula una vez por atleta. La memoria solo existe mientras
+   render() pinta; fuera de ahí (acciones, pruebas) se calcula siempre, así nunca sale vieja. */
+let _revMemo=null;
+function revNovedades(aid){if(!_revMemo)return revNovedadesCalc(aid);return _revMemo[aid]||(_revMemo[aid]=revNovedadesCalc(aid));}
 /* ¿este registro es posterior a la última revisión? (misma regla para la bandeja y el Historial)
    Sin revisión anotada (todos los atletas el día que salió esto) solo cuenta lo de su último
    periodo de revisión: si no, faltas y datos raros de hace meses los mandaban a todos a
@@ -3590,7 +3602,7 @@ function revNuevoFn(aid){
   if(!rv.ult){const desde=addDaysISO(todayISO(),-rv.cada);return date=>!!date&&date>desde;}
   return(date,key)=>!!date&&(date>rv.ult||(date===rv.ult&&rv.vistos.indexOf(key)<0));
 }
-function revNovedades(aid){
+function revNovedadesCalc(aid){
   const d=athData(aid),p=d.profile,rv=revOf(aid),t=todayISO(),nuevo=revNuevoFn(aid),items=[],chips=[];
   d.logs.workouts.forEach(w=>{
     const key='w:'+w.id;if(!nuevo(w.date,key))return;
@@ -3627,9 +3639,9 @@ function revNovedades(aid){
   if(swPerm.length)chips.push({cls:'orange',txt:plural(swPerm.length,'cambio','cambios')+' de ejercicio por decidir'});
   if(nQ)chips.push({cls:'blue',txt:plural(nQ,'cuestionario','cuestionarios')});
   if(wNew.length){const prev=ws.filter(w=>w.date<wNew[0].date).pop(),last=wNew[wNew.length-1];const dl=prev?+(last.kg-prev.kg).toFixed(1):null;
-    chips.push({cls:'',txt:plural(wNew.length,'pesaje','pesajes')+(dl!=null?' · '+(dl>0?'+':'')+dl+' kg':'')});}
+    chips.push({cls:'',txt:plural(wNew.length,'pesaje','pesajes')+(dl!=null?' · '+(dl>0?'+':dl<0?'−':'')+String(Math.abs(dl)).replace('.',',')+' kg':'')});}
   if(nN)chips.push({cls:'',txt:plural(nN,'día','días')+' de nutrición'});
-  const fq=items.find(x=>x.k==='fatiga');if(fq)chips.push({cls:fq.cls,txt:'Check-in de fatiga'});
+  const fqs=items.filter(x=>x.k==='fatiga'),fqAlta=fqs.find(x=>x.urg);if(fqs.length)chips.push({cls:fqAlta?'red':fqs[0].cls,txt:fqAlta?'Fatiga alta en un check-in':plural(fqs.length,'check-in','check-ins')+' de fatiga'});
   const wst=weightWeeksStatus(aid).cur;if(wst&&!wst.recomp)chips.push({cls:'orange',txt:'Peso estancado · '+wst.n+' sem'});
   const unread=chatUnread(aid,'coach');if(unread)chips.push({cls:'',txt:'💬 '+plural(unread,'mensaje','mensajes')});
   const dias=rv.ult?Math.max(0,daysBetweenISO(rv.ult,t)):null;
@@ -3641,13 +3653,15 @@ function revUltTxt(nv){
   if(!nv.rv.ult)return 'Nunca revisado · '+c;
   return(nv.dias===0?'Revisado hoy':'Revisado hace '+plural(nv.dias,'día','días'))+' · '+c;
 }
+function revNotaHTML(nv){const n=nv.rv.notas[0];return n?'<div class="revnota">📝 <b>'+fmtDate(n.date)+':</b> '+esc(n.txt)+'</div>':'';}
 function revChipsHTML(nv){return nv.chips.map(c=>'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
 function revCadaSel(aid,nv){return '<select class="revsel" data-change="rev-cada" data-aid="'+aid+'" title="Cada cuánto revisas a este atleta">'+REV_CADAS.map(o=>'<option value="'+o[0]+'"'+(nv.rv.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';}
 function revFilaHTML(a,nv){
-  const urg=nv.items.filter(x=>x.urg).slice(0,3).map(x=>'<div class="revurg">• '+esc(x.txt)+(x.k!=='sinreg'?' <span class="tiny">'+fmtDate(x.date)+'</span>':'')+'</div>').join('');
+  /* «sin registrar» ya sale como ficha: aquí no se repite */
+  const urg=nv.items.filter(x=>x.urg&&x.k!=='sinreg').slice(0,3).map(x=>'<div class="revurg">• '+esc(x.txt)+' <span class="tiny">'+fmtDate(x.date)+'</span></div>').join('');
   return '<div class="revrow '+nv.nivel+'"><div class="revrow-h">'+semaDot(nv.sm)+ava(a)+'<span class="nm"><b>'+esc(a.name)+'</b><span class="tiny">'+revUltTxt(nv)+'</span></span>'+revCadaSel(a.id,nv)+'</div>'+
-    (nv.chips.length?'<div class="revchips">'+revChipsHTML(nv)+'</div>':'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+urg+
-    '<div class="revbtns"><button class="btn btn-g btn-sm" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"historial"}\'>Abrir</button><button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+a.id+'">'+I.check+' Revisado</button></div></div>';
+    (nv.chips.length?'<div class="revchips">'+revChipsHTML(nv)+'</div>':'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+urg+revNotaHTML(nv)+
+    '<div class="revbtns"><button class="btn btn-g btn-sm" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"historial"}\'>Abrir</button><button class="btn btn-g btn-sm" data-act="rev-nota-modal" data-aid="'+a.id+'" title="Marcar revisado y apuntar qué decidiste">📝 Con nota</button><button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+a.id+'">'+I.check+' Revisado</button></div></div>';
 }
 /* tarjeta de arriba del Historial: lo mismo que la bandeja, pero de este atleta y con el detalle */
 function revCard(aid){
@@ -3655,8 +3669,11 @@ function revCard(aid){
   const list=nv.items.slice(0,12).map(x=>'<div class="revit"><span class="badge '+x.cls+'">'+(x.k==='sinreg'?'hoy':fmtDate(x.date))+'</span><span>'+esc(x.txt)+'</span></div>').join('');
   return '<div class="card mb16" style="border-left:3px solid var(--'+(niv.cls==='blue'?'blue':niv.cls)+')"><div class="revrow-h" style="margin-bottom:10px"><h3 style="margin:0;flex:1">Desde tu última revisión <span class="hint">'+revUltTxt(nv)+'</span></h3><span class="badge '+niv.cls+'">'+niv.lbl+'</span></div>'+
     (nv.chips.length?'<div class="revchips mb8">'+revChipsHTML(nv)+'</div>':'')+
+    revNotaHTML(nv)+
     (n?list+(n>12?'<p class="tiny mt8">… y '+(n-12)+' más abajo, marcadas «nuevo».</p>':''):'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+
-    '<div class="revbtns" style="margin-top:12px;align-items:center"><span class="tiny">Revisar</span>'+revCadaSel(aid,nv)+'<button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+aid+'">'+I.check+' Marcar revisado</button></div></div>';
+    '<div class="frow" style="margin:12px 0 0"><label>Nota de esta revisión (opcional)</label><textarea id="rev_nota_h" rows="2" placeholder="Qué decidiste o qué queda pendiente"></textarea></div>'+
+    '<div class="revbtns" style="margin-top:8px;align-items:center"><span class="tiny">Revisar</span>'+revCadaSel(aid,nv)+'<button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+aid+'" data-nota="rev_nota_h">'+I.check+' Marcar revisado</button></div>'+
+    (nv.rv.notas.length>1?'<details class="revhist"><summary class="tiny">Revisiones anteriores con nota ('+(nv.rv.notas.length-1)+')</summary>'+nv.rv.notas.slice(1).map(x=>'<div class="revit"><span class="badge">'+fmtDate(x.date)+'</span><span>'+esc(x.txt)+'</span></div>').join('')+'</details>':'')+'</div>';
 }
 function revBadgeTotal(){let n=0;athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const lv=revNovedades(a.id).nivel;if(lv==='urgente'||lv==='toca')n++;});return n;}
 /* check-in de fatiga más cercano a una fecha (±6 días) */
@@ -4145,7 +4162,9 @@ function startVersionWatch(){
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkAppVersion();});
 }
 function render(){
+  _revMemo={}; /* revNovedades se calcula una vez por atleta y por pintada (ver revNovedades) */
   try{renderUnsafe();}catch(e){showRenderError(e);}
+  _revMemo=null;
 }
 /* ---- El shell se monta UNA vez; después solo se reemplaza lo que cambió ----
    Antes cada acción reconstruía el documento entero con un solo innerHTML sobre #app:
@@ -5738,63 +5757,6 @@ function coachTabRendimiento(aid,soloCalc){
   if(!soloCalc)return trend;
   return secPleg('plc-rm-calc',I.chart+' Calculadora de 1RM estimado','','peso × reps (+ RIR) → 1RM',calc.replace(/<h3>[\s\S]*?<\/h3>/,''));
 }
-function sessionCompareCard(aid){
-  const d=athData(aid),days=d.routine.days;
-  const lastW=d.logs.workouts.slice().reverse().find(w=>w.entries&&Object.keys(w.entries).length);
-  const withLogs=days.filter(day=>d.logs.workouts.some(w=>w.dayId===day.id&&w.entries&&Object.keys(w.entries).length));
-  const defDay=(route.params.cmpDay&&days.some(dd=>dd.id===route.params.cmpDay))?route.params.cmpDay:(lastW?lastW.dayId:(withLogs[0]?withLogs[0].id:(days[0]?days[0].id:null)));
-  let opts='';days.forEach(day=>{const n=d.logs.workouts.filter(w=>w.dayId===day.id&&w.entries&&Object.keys(w.entries).length).length;opts+='<option value="'+day.id+'"'+(day.id===defDay?' selected':'')+'>'+esc(day.name)+' · '+n+' ses.</option>';});
-  const sel='<div class="frow"><label>Sesión a comparar</label><select data-change="cmp-day">'+opts+'</select><p class="tiny" style="margin-top:5px">Compara la sesión más reciente de ese día contra la anterior del mismo día.</p></div>';
-  const logs=d.logs.workouts.filter(w=>w.dayId===defDay&&w.entries&&Object.keys(w.entries).length).slice().sort((a,b)=>a.date<b.date?-1:1);
-  const esUltimo=!!(lastW&&defDay===lastW.dayId);
-  /* Cabecera de la sesión más reciente de ese día: lo que el coach necesita para decidir sin
-     abrir Registros (estado, RPE, lo que no hizo, su comentario y los datos a revisar). */
-  let cab='';
-  const curW=logs.length?logs[logs.length-1]:null;
-  if(curW){
-    const sc=skipCounts(curW),nDr=drPendientes(aid).filter(x=>x.wid===curW.id).length;
-    const bad=[curW.status==='partial'?'<span class="badge orange">Sesión incompleta</span>':'',
-      (sc.ex+sc.sets)?'<span class="badge orange">'+(sc.ex?sc.ex+' ej.':'')+(sc.ex&&sc.sets?' · ':'')+(sc.sets?sc.sets+' series':'')+' sin hacer</span>':'',
-      nDr?'<span class="badge orange" title="Ver «Datos a revisar» en Resumen">⚠ '+nDr+' dato'+(nDr===1?'':'s')+' a revisar</span>':''].join('');
-    cab='<div class="logitem" style="margin-bottom:12px"><div class="lh"><span class="badge volt">'+esc(curW.dayName||'')+'</span><b>'+fmtDateFull(curW.date)+'</b>'+bad+
-      '<span class="tiny">RPE '+(curW.rpe||'—')+(curW.dur?' · '+curW.dur+' min':'')+'</span></div>'+(curW.comment?'<div class="cm">'+esc(curW.comment)+'</div>':'')+'</div>';
-  }
-  /* Si después de la última sesión con series hubo faltas, que se vea aquí y no solo en Registros. */
-  const faltas=lastW?d.logs.workouts.filter(w=>isMissed(w)&&w.date>lastW.date).sort((a,b)=>a.date<b.date?1:-1):[];
-  const faltaTxt=faltas.length&&esUltimo?'<div class="notebox mb16" style="border-left-color:var(--red)">Después de esta sesión: '+faltas.slice(0,3).map(w=>'<b>'+fmtDate(w.date)+'</b> no entrenó'+(w.reason?' ('+esc(missLbl(w.reason))+')':'')).join(' · ')+'.</div>':'';
-  const setsTxt=ss=>(ss||[]).map(x=>(x.w||0)+'×'+(x.r||0)+(x.rir!=null&&x.rir!==''?'@'+x.rir:'')).join(' · ');
-  let body;
-  if(logs.length<2)body='<div class="empty"><b>Necesitas 2 sesiones de este día</b>Hay '+logs.length+' sesión registrada de este día. Cuando haya al menos dos, verás la comparación ejercicio por ejercicio.</div>';
-  else{
-    const cur=logs[logs.length-1],prev=logs[logs.length-2],dudC=drDudSet(aid);
-    const exIds=[];Object.keys(cur.entries).forEach(k=>exIds.push(k));Object.keys(prev.entries).forEach(k=>{if(exIds.indexOf(k)<0)exIds.push(k);});
-    let rows='';
-    exIds.forEach(exId=>{
-      const cs=cur.entries[exId],ps=prev.entries[exId];
-      const ce=cs?bestSetE1RM(cs).e1rm:0,pe=ps?bestSetE1RM(ps).e1rm:0;
-      const ct=cs?topSetOf(cs):null,pt=ps?topSetOf(ps):null;
-      const cton=cs?exTonnage(cs):0,pton=ps?exTonnage(ps):0;
-      const de=Math.round((ce-pe)*10)/10;
-      const pill=(!ps||!cs)?'<span class="delta-pill flat">'+(cs?'nuevo':'no repetido')+'</span>':(de===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(de>0?'up':'down')+'">'+(de>0?'+':'')+de+' kg</span>');
-      const drRow=dudC.has(cur.id+'|'+exId)?' <span class="badge orange" title="Esta sesión tiene un dato a revisar en este ejercicio">⚠</span>':'';
-      rows+='<tr><td class="exname">'+esc(exNameOf(d,exId))+drRow+'</td>'+
-        '<td class="num">'+(pt?(pt.w||0)+'×'+(pt.r||0):'—')+'<div class="tiny">'+(pe?pe+' kg 1RM · '+Math.round(pton)+' kg vol':'—')+'</div></td>'+
-        '<td class="num">'+(ct?(ct.w||0)+'×'+(ct.r||0):'—')+'<div class="tiny">'+(ce?ce+' kg 1RM · '+Math.round(cton)+' kg vol':'—')+'</div>'+(cs?'<div class="tiny" title="Todas las series de esta sesión (kg×reps@RIR)">'+esc(setsTxt(cs))+'</div>':'')+'</td>'+
-        '<td>'+pill+'</td></tr>';
-    });
-    const ctonS=sessTonnage(cur),ptonS=sessTonnage(prev);
-    const csets=Object.values(cur.entries).reduce((a,s)=>a+s.length,0),psets=Object.values(prev.entries).reduce((a,s)=>a+s.length,0);
-    const cR=sessSRPE(cur),pR=sessSRPE(prev);
-    const dStat=(c,p,unit)=>{const dl=Math.round((c-p)*10)/10;return'<div class="sub '+(dl>0?'up':dl<0?'down':'')+'">'+(dl>0?'+':'')+dl+(unit||'')+' vs anterior</div>';};
-    const totals='<div class="grid g4" style="margin-top:14px"><div class="stat"><div class="k">Tonelaje</div><div class="v" style="font-size:20px">'+Math.round(ctonS).toLocaleString('es-ES')+'<small> kg</small></div>'+dStat(ctonS,ptonS,' kg')+'</div>'+
-      '<div class="stat"><div class="k">Series</div><div class="v" style="font-size:20px">'+csets+'</div>'+dStat(csets,psets,'')+'</div>'+
-      '<div class="stat"><div class="k">Carga sRPE</div><div class="v" style="font-size:20px">'+cR+'<small> UA</small></div>'+dStat(cR,pR,' UA')+'</div>'+
-      '<div class="stat"><div class="k">RPE · duración</div><div class="v" style="font-size:20px">'+(cur.rpe||'—')+(cur.dur?'<small> · '+cur.dur+'′</small>':'')+'</div><div class="sub">sesión actual</div></div></div>';
-    body='<div class="tblwrap"><table class="tbl"><thead><tr><th>Ejercicio</th><th>Anterior · '+fmtDate(prev.date)+'</th><th>Actual · '+fmtDate(cur.date)+'</th><th>Δ 1RM</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+totals+
-      '<p class="tiny mt8">«vol» = tonelaje del ejercicio (Σ peso×reps). «Δ 1RM» compara el 1RM estimado de la mejor serie de cada sesión. sRPE = RPE × duración (carga interna de la sesión).</p>';
-  }
-  return '<div class="card mb16" style="border-left:3px solid var(--volt)"><h3>'+(esUltimo?'Último entrenamiento <span class="hint">comparado con la vez anterior del mismo día</span>':'Comparación de sesiones <span class="hint">mismo día: sesión actual vs anterior</span>')+'</h3>'+faltaTxt+cab+body+'<div style="margin-top:14px">'+sel+'</div></div>';
-}
 
 /* ================= PESTAÑA PROGRESO (de lo general a lo específico, con alcance/rango) ================= */
 function pgWeekNum(aid,iso){const start=athData(aid).routine.startDate||todayISO();return Math.floor((Date.parse(iso)-Date.parse(start))/86400000/7)+1;}
@@ -5847,9 +5809,11 @@ function coachTabProgreso(aid){
       wKpi+'</div>';
   }
   let content;
-  /* La tarjeta «Progresión de 1RM estimado» (coachTabRendimiento sin soloCalc) ya no se pinta:
+  /* «Sesión a sesión» era dos tarjetas con la misma tabla (última vs anterior y A/B): ahora solo
+     A/B, que abre en la última sesión contra la anterior del mismo día (2026-10-27).
+     La tarjeta «Progresión de 1RM estimado» (coachTabRendimiento sin soloCalc) ya no se pinta:
      mostraba lo mismo que «Ejercicio por ejercicio». Solo queda su calculadora, plegada. */
-  if(level==='sesion')content=sessionCompareCard(aid)+pgLevelSesion(aid,win);
+  if(level==='sesion')content=pgLevelSesion(aid,win);
   else if(level==='ejercicio')content=pgLevelEjercicio(aid,win)+'<div class="mt16"></div>'+coachTabRendimiento(aid,true);
   else content=pgLevelSemana(aid,win,wk);
   return bar+kpi+pgAlerts(aid,win)+content;
@@ -5876,7 +5840,38 @@ function pgLevelSemana(aid,win,wk){
     vr+='<tr><td class="exname">'+esc(g)+'</td>'+(gap?'<td class="tiny">…</td>':'')+cells+'<td>'+(dl===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(dl>0?'up':'down')+'">'+(dl>0?'+':'')+dl+'</span>')+'</td></tr>';
   });
   const volCard=groups.length?'<div class="card mt16"><h3>Volumen por grupo a lo largo del rango <span class="hint">series directas/semana · verde = cambió esa semana</span></h3><div class="tblwrap"><table class="tbl" style="min-width:520px"><thead>'+vh+'</thead><tbody>'+vr+'</tbody></table></div></div>':'';
-  return charts+volCard;
+  return pgSemTabla(aid,win,wk)+volCard+'<div class="mt16"></div>'+secPleg('plc-pg-semgraf','Ver como gráficas','','tonelaje, carga, series y peso',charts);
+}
+/* Semana a semana en UNA tabla (2026-10-27, pedido de Luis): las cuatro gráficas sueltas obligaban
+   a cruzar con la vista de una a otra. Semanas del BLOQUE en columnas (las 8 últimas del rango),
+   en filas lo que se compara. El Δ va en tinta tenue con flecha y sin color: subir carga o peso no
+   es bueno ni malo por sí solo. Solo adherencia y fatiga llevan color, porque ya son un estado. */
+function pgSemTabla(aid,win,wk){
+  const d=athData(aid),start=d.routine.startDate||todayISO(),wkNow=weekOf(aid),nu=svcOf(aid).nu;
+  const weeks=[];for(let w=win.wkA;w<=win.wkB;w++)weeks.push(w);
+  const shown=weeks.slice(-8),byW={};wk.forEach(o=>{byW[o.week]=o;});
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const C=shown.map(w=>{
+    const from=addDaysISO(start,(w-1)*7),to=addDaysISO(start,w*7-1),o=byW[w]||{};
+    const pes=d.logs.weight.filter(x=>x.date>=from&&x.date<=to).map(x=>+x.kg);
+    const ad=d.logs.nutrition.filter(n=>n.date>=from&&n.date<=to&&n.adherence!=null).map(n=>+n.adherence);
+    const fq=fatigueLogs(aid).filter(f=>f.date>=from&&f.date<=to).pop()||null;
+    return{w,from,ses:o.sessions||0,faltas:d.logs.workouts.filter(x=>isMissed(x)&&x.date>=from&&x.date<=to).length,sets:o.sets||0,ton:o.ton||0,srpe:o.srpe||0,
+      peso:pes.length?+avg(pes).toFixed(1):null,adh:ad.length?+avg(ad).toFixed(1):null,fq};
+  });
+  const num=v=>v==null?'—':(Math.abs(v)>=1000?Math.round(v).toLocaleString('es-ES'):String(v).replace('.',','));
+  const dl=(c,p,k)=>{if(!p||c[k]==null||p[k]==null)return'';const x=Math.round((c[k]-p[k])*10)/10;if(!x)return'<div class="wkd">=</div>';return'<div class="wkd">'+(x>0?'▲ +':'▼ −')+num(Math.abs(x))+'</div>';};
+  const R=[['Sesiones','ses'],['Faltas','faltas'],['Series','sets'],['Tonelaje (kg)','ton'],['Carga sRPE (UA)','srpe'],['Peso medio (kg)','peso']];
+  let body='';
+  R.forEach(([lbl,k])=>{
+    const vals=C.map(c=>c[k]).filter(v=>v!=null);
+    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>'<td class="num">'+(k==='faltas'&&c[k]?'<b style="color:var(--red)">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#7cd0fb'))+'</td></tr>';
+  });
+  if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map(c=>'<td class="num">'+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#7cd0fb')+'</td></tr>';
+  body+='<tr><td class="exname">Fatiga (check-in)</td>'+C.map(c=>'<td class="num">'+(c.fq?'<span class="badge '+fqDecision(c.fq.total).cls+'" title="'+esc(fqDecision(c.fq.total).short)+'">'+c.fq.total+'/15</span>':'—')+'</td>').join('')+'<td></td></tr>';
+  const head='<tr><th></th>'+C.map(c=>'<th class="num">S'+c.w+(c.w===wkNow?' <span class="tiny">en curso</span>':'')+'<div class="tiny" style="font-weight:400;text-transform:none">'+fmtDate(c.from)+'</div></th>').join('')+'<th>Tendencia</th></tr>';
+  return '<div class="card mb16"><h3>Semana a semana <span class="hint">semanas del bloque'+(weeks.length>8?' · las 8 últimas del rango':'')+' · ▲▼ = cambio vs la semana anterior</span></h3>'+
+    '<div class="tblwrap"><table class="tbl pgsemtbl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
 }
 function pgLevelSesion(aid,win){
   const d=athData(aid),ws=pgWorkouts(aid,win);
@@ -5892,18 +5887,21 @@ function pgLevelSesion(aid,win){
     lastByDay[w.dayId]=ton;
   });
   const tbl='<div class="card mb16"><h3>Detalle por sesión <span class="hint">Δ = tonelaje vs sesión anterior del mismo día</span></h3><div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Fecha</th><th>Día</th><th>Series</th><th>Tonelaje (kg)</th><th>sRPE</th><th>RPE·dur</th><th>Δ día</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
-  return pgPairCompare(aid,win)+chart+tbl;
+  return pgPairCompare(aid,win)+secPleg('plc-pg-ses','Todas las sesiones del rango','',plural(ws.length,'sesión','sesiones'),chart+tbl);
 }
 /* comparador de dos sesiones concretas (mismo día, semanas elegidas) */
 function pgPairCompare(aid,win){
   const d=athData(aid),allHist=route.params.pgPairAll==='1';
   const ws=(allHist?athData(aid).logs.workouts.filter(w=>w.entries&&Object.keys(w.entries).length).slice().sort((a,b)=>a.date<b.date?-1:1):pgWorkouts(aid,win));
   const scopeSeg='<div class="seg" style="margin:0 0 12px"><button class="'+(!allHist?'on':'')+'" data-act="pg-pairscope" data-aid="'+aid+'" data-v="0">En el rango</button><button class="'+(allHist?'on':'')+'" data-act="pg-pairscope" data-aid="'+aid+'" data-v="1">Todo el historial (entre bloques)</button></div>';
-  const wrap=inner=>'<div class="card mb16"><h3>Comparar dos sesiones <span class="hint">misma sesión en distintas semanas o bloques (ej. S1·Día 1 vs S2·Día 1)</span></h3>'+scopeSeg+inner+'</div>';
+  let titulo='Comparar dos sesiones <span class="hint">misma sesión en distintas semanas o bloques</span>';
+  const wrap=inner=>'<div class="card mb16" style="border-left:3px solid var(--volt)"><h3>'+titulo+'</h3>'+scopeSeg+inner+'</div>';
   if(ws.length<2)return wrap('<div class="empty"><b>Necesitas al menos 2 sesiones</b>'+(allHist?'Registra más entrenos.':'Amplía el rango o cambia a «Todo el historial».')+'</div>');
   const dayMap={};ws.forEach(w=>{dayMap[w.dayId]=w.dayName||'Día';});
   const dayIds=Object.keys(dayMap);
   let selDay=(route.params.pgCmpDay&&dayIds.indexOf(route.params.pgCmpDay)>=0)?route.params.pgCmpDay:null;
+  /* por defecto, el día del último entreno: es la comparación que el coach busca al entrar */
+  if(!selDay){for(let i=ws.length-1;i>=0;i--){if(ws.filter(w=>w.dayId===ws[i].dayId).length>=2){selDay=ws[i].dayId;break;}}}
   if(!selDay){let bn=-1;dayIds.forEach(id=>{const n=ws.filter(w=>w.dayId===id).length;if(n>bn){bn=n;selDay=id;}});}
   const sessions=ws.filter(w=>w.dayId===selDay);
   const dayOpts=dayIds.map(id=>'<option value="'+id+'"'+(id===selDay?' selected':'')+'>'+esc(dayMap[id])+' · '+ws.filter(w=>w.dayId===id).length+' ses.</option>').join('');
@@ -5918,6 +5916,17 @@ function pgPairCompare(aid,win){
   const bOpts=sessions.map(s=>'<option value="'+s.id+'"'+(s.id===bId?' selected':'')+'>'+esc(lab(s))+'</option>').join('');
   const sel='<div class="ctx-bar">'+daySel+'<div class="fld"><label>Sesión A (referencia)</label><select data-change="pg-a" data-aid="'+aid+'">'+aOpts+'</select></div><div class="fld"><label>Sesión B (comparar)</label><select data-change="pg-b" data-aid="'+aid+'">'+bOpts+'</select></div></div>';
   const A=sessions.find(s=>s.id===aId),B=sessions.find(s=>s.id===bId);
+  const lastW=ws[ws.length-1];
+  if(B===lastW&&A===sessions[sessions.length-2])titulo='Último entrenamiento <span class="hint">contra la vez anterior del mismo día · cambia A o B para comparar otras</span>';
+  /* Cabecera de B (antes en «Último entrenamiento»): estado, RPE, lo que no hizo, su comentario y
+     datos a revisar, para decidir sin ir al Historial. Y las faltas que vinieron después. */
+  const scB=skipCounts(B),nDr=drPendientes(aid).filter(x=>x.wid===B.id).length;
+  const badB=[B.status==='partial'?'<span class="badge orange">Sesión incompleta</span>':'',
+    (scB.ex+scB.sets)?'<span class="badge orange">'+(scB.ex?scB.ex+' ej.':'')+(scB.ex&&scB.sets?' · ':'')+(scB.sets?scB.sets+' series':'')+' sin hacer</span>':'',
+    nDr?'<span class="badge orange" title="Ver «Datos a revisar» en Resumen">⚠ '+nDr+' dato'+(nDr===1?'':'s')+' a revisar</span>':''].join('');
+  const faltas=d.logs.workouts.filter(w=>isMissed(w)&&w.date>B.date).sort((x,y)=>x.date<y.date?1:-1);
+  const cabB='<div class="logitem" style="margin:12px 0"><div class="lh"><span class="badge volt">B · '+esc(B.dayName||'')+'</span><b>'+fmtDateFull(B.date)+'</b>'+badB+'<span class="tiny">RPE '+(B.rpe||'—')+(B.dur?' · '+B.dur+' min':'')+'</span></div>'+(B.comment?'<div class="cm">'+esc(B.comment)+'</div>':'')+'</div>'+
+    (faltas.length?'<div class="notebox mb16" style="border-left-color:var(--red)">Después de B: '+faltas.slice(0,3).map(w=>'<b>'+fmtDate(w.date)+'</b> no entrenó'+(w.reason?' ('+esc(missLbl(w.reason))+')':'')).join(' · ')+'.</div>':'');
   /* mapa de PR (todo el historial) por fecha y ejercicio, para marcar récords en B */
   const isPR=(exId,iso)=>{const s=exSeries(aid,exId).find(x=>x.date===iso);return s?{any:s.pr,e1:s.prE1,w:s.prW,t:s.prTon}:null;};
   const exIds=[];Object.keys(B.entries).forEach(k=>exIds.push(k));Object.keys(A.entries).forEach(k=>{if(exIds.indexOf(k)<0)exIds.push(k);});
@@ -5956,17 +5965,49 @@ function pgPairCompare(aid,win){
   const fatLine='<div class="notebox mt16" style="border-left-color:var(--blue)">Contexto de fatiga · <b>A '+esc(lab(A))+':</b> <span class="badge '+fCls(fA)+'">'+fTxt(fA)+'</span> · <b>B '+esc(lab(B))+':</b> <span class="badge '+fCls(fB)+'">'+fTxt(fB)+'</span><div class="tiny mt8">Si B rinde menos con fatiga alta, puede ser acumulación de cansancio más que pérdida real de forma; si rinde más con fatiga baja, la progresión es sólida.</div></div>';
   const resumen='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px"><span class="badge volt">▲ '+up+' subieron</span><span class="badge red">▼ '+down+' bajaron</span><span class="badge">= '+eq+' igual</span><span class="tiny" style="align-self:center">'+esc(lab(A))+' → '+esc(lab(B))+'</span></div>';
   const table='<div class="tblwrap"><table class="tbl"><thead><tr><th>Ejercicio</th><th>A · '+esc(lab(A))+'</th><th>B · '+esc(lab(B))+'</th><th>Δ 1RM</th><th>Δ vol</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
-  return wrap(sel+resumen+table+totals+fatLine+'<p class="tiny mt8">«vol» = tonelaje del ejercicio (Σ peso×reps). 🏆 = récord histórico · «calidad» = mismo peso pero mejores reps/RIR. Δ compara B respecto a A.</p>');
+  return wrap(sel+cabB+resumen+table+totals+fatLine+'<p class="tiny mt8">«vol» = tonelaje del ejercicio (Σ peso×reps). 🏆 = récord histórico · «calidad» = mismo peso pero mejores reps/RIR. Δ compara B respecto a A.</p>');
+}
+/* mini-gráfica de una sola serie, sin ejes: la forma de la tendencia y dónde acabó */
+function pgSpark(vals,color){
+  if(vals.length<2)return '<span class="tiny">—</span>';
+  const W=96,H=26,p=3;let mn=Math.min(...vals),mx=Math.max(...vals);if(mx-mn<0.5){mx+=.25;mn-=.25;}
+  const X=i=>p+i/(vals.length-1)*(W-2*p),Y=v=>H-p-(v-mn)/(mx-mn)*(H-2*p);
+  const d=vals.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1)).join('');
+  return '<svg class="spark" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" aria-hidden="true"><path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+X(vals.length-1).toFixed(1)+'" cy="'+Y(vals[vals.length-1]).toFixed(1)+'" r="2.8" fill="'+color+'"/></svg>';
+}
+/* Todos los ejercicios de un vistazo (2026-10-27, pedido de Luis): antes había que ir uno por
+   uno con un menú para encontrar el que iba mal. Primero los que piden atención (regresión,
+   estancado), luego el resto en el orden de la rutina; tocar una fila abre su detalle abajo. */
+const PG_EX_LBL={pr:'🏆 Récord',calidad:'Progresa por calidad',progresa:'Progresa',manten:'Sostenido',estancado:'Estancado',regresion:'Regresión',inicio:'1.ª medición'};
+function pgExOrden(aid,win,histEx,dudE){
+  const ORD={regresion:0,estancado:1,pr:2,calidad:3,progresa:3,manten:4,inicio:5};
+  const L=histEx.map((e,i)=>{const ser=exSeries(aid,e.id).filter(x=>x.date>=win.from&&x.date<=win.to);return{e,i,ser,st:exStatus(ser,dudE)};});
+  return L.sort((x,y)=>((ORD[x.st&&x.st.k]??6)-(ORD[y.st&&y.st.k]??6))||x.i-y.i);
+}
+function pgExTabla(L,selId){
+  const rows=L.map(o=>{
+    const ser=o.ser,f=ser[0],l=ser[ser.length-1],dl=Math.round((l.e1rm-f.e1rm)*10)/10,st=o.st||{};
+    const pill=ser.length<2?'<span class="delta-pill flat">—</span>':dl===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(dl>0?'up':'down')+'">'+(dl>0?'+':'')+dl+' kg</span>';
+    const lbl=(PG_EX_LBL[st.k]||st.lbl||'')+(st.dudoso?' · ⚠':'');
+    return '<tr class="pgexrow'+(o.e.id===selId?' on':'')+'" data-act="pg-ex-pick" data-v="'+o.e.id+'" title="1RM est.: '+ser.map(x=>x.e1rm).join(' → ')+' kg">'+
+      '<td class="exname">'+esc(o.e.name)+'<div style="margin-top:4px"><span class="badge '+(st.cls||'')+'">'+esc(lbl)+'</span></div></td><td>'+pgSpark(ser.map(x=>x.e1rm),'#b69cff')+'</td>'+
+      '<td class="num"><b>'+l.e1rm+'</b> kg</td><td>'+pill+'</td>'+
+      '<td class="num pgx-op">'+l.topW+'×'+l.topR+(l.topRir!=null?' <span class="tiny">@'+l.topRir+'</span>':'')+'</td>'+
+      '<td class="num pgx-op">'+ser.length+'</td></tr>';
+  }).join('');
+  return '<div class="card mb16"><h3>Todos los ejercicios <span class="hint">primero los que piden atención · toca uno para ver su detalle</span></h3>'+
+    '<div class="tblwrap"><table class="tbl pgextbl"><thead><tr><th>Ejercicio · estado</th><th>Tendencia 1RM</th><th class="num">1RM est.</th><th>Δ rango</th><th class="num pgx-op">Última mejor serie</th><th class="num pgx-op">Ses.</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 function pgLevelEjercicio(aid,win){
   const d=athData(aid),seen={},histEx=[];
   d.routine.days.forEach(day=>day.exercises.forEach(e=>{if(seen[e.id])return;const h=exSeries(aid,e.id).filter(x=>x.date>=win.from&&x.date<=win.to);if(h.length){seen[e.id]=1;histEx.push(e);}}));
   if(!histEx.length)return '<div class="card"><h3>Ejercicio por ejercicio</h3><div class="empty"><b>Sin series registradas en este rango</b>Cuando haya entrenos con peso y reps dentro del rango, verás la curva por ejercicio.</div></div>';
-  const selId=route.params.pgEx&&histEx.some(e=>e.id===route.params.pgEx)?route.params.pgEx:histEx[0].id;
-  let opts='';histEx.forEach(e=>{opts+='<option value="'+e.id+'"'+(e.id===selId?' selected':'')+'>'+esc(e.name)+'</option>';});
+  /* sin elección, el detalle abre en la primera fila de la tabla (la que más pide atención) */
+  const dudE=drDudSet(aid),orden=pgExOrden(aid,win,histEx,dudE);
+  const selId=route.params.pgEx&&histEx.some(e=>e.id===route.params.pgEx)?route.params.pgEx:orden[0].e.id;
   const ser=exSeries(aid,selId).filter(x=>x.date>=win.from&&x.date<=win.to);
   const e1Pts=ser.map(h=>({x:h.date,y:h.e1rm})),tonPts=ser.map(h=>({x:h.date,y:h.ton}));
-  const dudE=drDudSet(aid),stt=exStatus(ser,dudE),prCount=ser.filter(h=>h.pr).length;
+  const stt=exStatus(ser,dudE),prCount=ser.filter(h=>h.pr).length;
   let banner='';
   if(stt){
     let fatNote='';
@@ -5980,7 +6021,8 @@ function pgLevelEjercicio(aid,win){
     const prB=(h.pr?' <span class="badge volt" title="'+[h.prE1?'PR 1RM':'',h.prW?'PR peso':'',h.prTon?'PR volumen':''].filter(Boolean).join(' · ')+'">🏆</span>':'')+(dudE.has(h.wid+'|'+h.ex)?' <span class="badge orange" title="Sesión con un dato a revisar">⚠</span>':'');
     rows+='<tr><td>'+fmtDateFull(h.date)+'</td><td class="num">'+h.topW+'×'+h.topR+(h.topRir!=null?' <span class="tiny">@'+h.topRir+'</span>':'')+'</td><td class="num">'+h.ton.toLocaleString('es-ES')+'</td><td class="num"><b>'+h.e1rm+' kg</b>'+prB+'</td></tr>';
   });
-  return '<div class="card"><h3>Ejercicio por ejercicio <span class="hint">'+esc(win.label)+'</span></h3><div class="frow"><label>Ejercicio</label><select data-change="pg-ex" data-aid="'+aid+'">'+opts+'</select></div>'+banner+stats+
+  const selEx=histEx.find(e=>e.id===selId);
+  return pgExTabla(orden,selId)+'<div class="card" id="pg-ex-det"><h3>'+esc(selEx?selEx.name:'')+' <span class="hint">detalle · '+esc(win.label)+'</span></h3>'+banner+stats+
     '<div class="grid g2"><div><h4 class="mg-h">1RM estimado <span class="hint">pondera reps y RIR</span></h4>'+svgLine(e1Pts,{color:'#b69cff',unit:'kg'})+'</div><div><h4 class="mg-h">Tonelaje por sesión</h4>'+svgLine(tonPts,{color:'#cdf563',unit:'kg'})+'</div></div>'+
     '<div class="tblwrap" style="margin-top:14px"><table class="tbl" style="min-width:auto"><thead><tr><th>Fecha</th><th>Mejor serie (peso×reps @RIR)</th><th>Tonelaje</th><th>1RM est.</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '<p class="tiny mt8">El 1RM estimado ya incorpora reps y RIR: un mismo peso con más reps o más lejos del fallo (RIR mayor) sube la curva aunque la carga no cambie. 🏆 marca récords históricos.</p></div>';
@@ -5998,16 +6040,29 @@ function pgAlerts(aid,win){
   if(!prs.length&&!warn.length)return '';
   const prH=prs.slice().reverse().slice(0,6).map(p=>'<div class="logitem"><div class="lh"><span class="badge volt">🏆 '+[p.e1?'1RM':'',p.w?'Peso':'',p.t?'Vol':''].filter(Boolean).join('/')+'</span>'+(p.dud?'<span class="badge orange" title="Esta sesión tiene un dato a revisar: el récord puede no ser real">⚠ dudoso</span>':'')+'<b>'+esc(p.name)+'</b><span class="muted" style="font-size:12.5px">'+p.topW+'×'+p.topR+' · '+p.e1rm+' kg 1RM</span><span class="dt">'+fmtDate(p.date)+'</span></div></div>').join('');
   const wH=warn.map(w=>'<div class="logitem"><div class="lh"><span class="badge '+(w.st.cls||'')+'">'+esc(w.st.lbl)+'</span><b>'+esc(w.name)+'</b><span class="muted" style="font-size:12.5px">'+esc(w.st.detail)+'</span></div></div>').join('');
-  return '<div class="grid g2 mb16">'+
+  /* Franja plegada (2026-10-27): los dos recuadros ocupaban media pantalla antes de la comparación.
+     El encabezado ya dice cuántos récords hay y qué ejercicios vigilar; se abre para el detalle. */
+  const res=(warn.length?'<span class="badge orange">⚠ A vigilar: '+esc(warn.slice(0,2).map(w=>w.name).join(', '))+(warn.length>2?' y '+(warn.length-2)+' más':'')+'</span>':'<span class="badge green">Nada a vigilar</span>')+
+    (prs.length?'<span class="badge volt">🏆 '+plural(prs.length,'récord','récords')+'</span>':'');
+  return '<div class="mb16">'+secPleg('plc-pg-alert','Récords y a vigilar','',res,'<div class="grid g2">'+
     '<div class="card" style="margin:0"><h3>🏆 Récords en el rango <span class="hint">PR de 1RM, peso o volumen</span></h3>'+(prH||'<div class="empty"><b>Sin récords nuevos</b>Aún no hay marcas en el rango.</div>')+'</div>'+
-    '<div class="card" style="margin:0"><h3>A vigilar <span class="hint">estancamiento o regresión</span></h3>'+(wH||'<div class="empty"><b>Todo en orden</b>Ningún ejercicio estancado ni en regresión.</div>')+'</div></div>';
+    '<div class="card" style="margin:0"><h3>A vigilar <span class="hint">estancamiento o regresión</span></h3>'+(wH||'<div class="empty"><b>Todo en orden</b>Ningún ejercicio estancado ni en regresión.</div>')+'</div></div>')+'</div>';
 }
 
 Object.assign(ACTIONS,{
   /* «Revisado»: la fecha de hoy y las claves de lo de hoy que ya viste (ver revNovedades) */
+  /* La nota (opcional) es lo que decidiste o dejaste pendiente: la próxima revisión arranca
+     leyéndola. Se guardan las últimas 20, en la misma fila privada. */
   'rev-ok':el=>{const aid=el.dataset.aid,p=athData(aid).profile,rv=revOf(aid),t=todayISO();
-    const hoy=revNovedades(aid).items.filter(x=>x.date===t).map(x=>x.key);
-    p.revision={cada:rv.cada,ult:t,vistos:(rv.ult===t?rv.vistos:[]).concat(hoy)};saveState();toast('Marcado como revisado');render();},
+    const hoy=revNovedadesCalc(aid).items.filter(x=>x.date===t).map(x=>x.key);
+    const ta=el.dataset.nota?document.getElementById(el.dataset.nota):null,txt=ta?ta.value.trim().slice(0,600):'';
+    const notas=txt?[{date:t,txt}].concat(rv.notas).slice(0,20):rv.notas;
+    p.revision={cada:rv.cada,ult:t,vistos:(rv.ult===t?rv.vistos:[]).concat(hoy),notas};
+    if(el.dataset.nota==='rev_nota')closeModal();saveState();toast(txt?'Revisado, con nota':'Marcado como revisado');render();},
+  'rev-nota-modal':el=>{const aid=el.dataset.aid,a=userById(aid),ult=revOf(aid).notas[0];
+    openModal('Revisado · '+esc(a?a.name:''),(ult?'<p class="tiny mb8">Tu nota anterior ('+fmtDate(ult.date)+'): «'+esc(ult.txt)+'»</p>':'')+
+      '<label>Nota de esta revisión (opcional)</label><textarea id="rev_nota" placeholder="Qué decidiste o qué queda pendiente. Ej.: subí 2 series de pecho; preguntar por el sueño."></textarea>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rev-ok" data-aid="'+aid+'" data-nota="rev_nota">'+I.check+' Guardar revisión</button>');},
   'dr-ok':el=>{const p=athData(el.dataset.aid).profile;p.datosOk=p.datosOk||{};p.datosOk[el.dataset.key]=todayISO();saveState();toast('Marcado como revisado');render();},
   'dr-ok-all':el=>{const aid=el.dataset.aid,p=athData(aid).profile;p.datosOk=p.datosOk||{};const t=todayISO();drPendientes(aid).forEach(x=>{p.datosOk[x.key]=t;});saveState();toast('Todo marcado como revisado');render();},
   'dr-ask':el=>{
@@ -6089,6 +6144,7 @@ Object.assign(ACTIONS,{
   },
   'dash-f':el=>{route.params.f=el.dataset.f;render();},
   'pg-level':el=>{route.params.pgLevel=el.dataset.v;render();},
+  'pg-ex-pick':el=>{route.params.pgEx=el.dataset.v;render();const det=document.getElementById('pg-ex-det');if(det&&det.scrollIntoView)det.scrollIntoView({behavior:'smooth',block:'start'});},
   'pg-pairscope':el=>{route.params.pgPairAll=el.dataset.v;route.params.pgCmpDay=null;route.params.pgA=null;route.params.pgB=null;render();},
   'routine-meta-save':el=>{const r=athData(el.dataset.aid).routine;r.name=val('r_name');r.weekNote=val('r_week');saveState();toast('Programa actualizado');render();},
   'day-add-modal':el=>openModal('Nuevo día','<div class="frow"><label>Nombre del día</label><input id="d_name" placeholder="Día 5 · Brazo"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
@@ -8464,7 +8520,7 @@ document.addEventListener('change',e=>{
   else if(el.dataset.change==='prog-ex'){route.params.ex=el.value;render();}
   else if(el.dataset.change==='rm-ex'){route.params.rmEx=el.value;render();}
   else if(el.dataset.change==='cmp-day'){route.params.cmpDay=el.value;render();}
-  else if(el.dataset.change==='rev-cada'){const p=athData(el.dataset.aid).profile,rv=revOf(el.dataset.aid);p.revision={cada:+el.value||7,ult:rv.ult,vistos:rv.vistos};saveState();render();}
+  else if(el.dataset.change==='rev-cada'){const p=athData(el.dataset.aid).profile,rv=revOf(el.dataset.aid);p.revision={cada:+el.value||7,ult:rv.ult,vistos:rv.vistos,notas:rv.notas};saveState();render();}
   else if(el.dataset.change==='pg-range'){route.params.pgRange=el.value;if(el.value==='custom'){const wkNow=weekOf(el.dataset.aid);if(!route.params.pgWkA)route.params.pgWkA=Math.max(1,wkNow-3);if(!route.params.pgWkB)route.params.pgWkB=wkNow;}render();}
   else if(el.dataset.change==='pg-wka'){route.params.pgWkA=parseInt(el.value,10)||1;render();}
   else if(el.dataset.change==='pg-wkb'){route.params.pgWkB=parseInt(el.value,10)||1;render();}
