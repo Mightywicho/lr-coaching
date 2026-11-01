@@ -3201,7 +3201,7 @@ function remainingBars(aid,n){
   return bars;}
 
 /* ---------- base de alimentos (macros por 100 g, valores de referencia USDA/BEDCA — editable por el coach) ---------- */
-const FOOD_CATS=['Proteínas','Lácteos','Carbohidratos','Frutas','Verduras','Grasas','Suplementos','Otros'];
+const FOOD_CATS=['Proteínas','Lácteos','Carbohidratos','Frutas','Verduras','Grasas','Bebidas','Suplementos','Otros'];
 function seedFoods(){
   const L=[
   ['Pechuga de pollo (cruda)','Proteínas',22.5,0,1.9],['Muslo de pollo sin piel (crudo)','Proteínas',18.5,0,8],['Pechuga de pavo (cruda)','Proteínas',22,0,1.5],
@@ -3211,7 +3211,7 @@ function seedFoods(){
   ['Pescado blanco (tilapia/merluza, crudo)','Proteínas',18,0,2],['Sardinas en lata (escurridas)','Proteínas',25,0,11],['Camarón (crudo)','Proteínas',20,0,1.5],['Pulpo (crudo)','Proteínas',15,2,1],
   ['Huevo entero','Proteínas',13,1,11],['Clara de huevo','Proteínas',11,1,0],['Tofu firme','Proteínas',14,2,8],['Soya texturizada (seca)','Proteínas',50,30,1],
   ['Seitán','Proteínas',25,14,2],['Edamame (cocido)','Proteínas',11,10,5],['Salchicha de pavo','Proteínas',14,3,8],['Surimi','Proteínas',8,13,1],
-  ['Leche entera','Lácteos',3.3,4.8,3.6],['Leche descremada','Lácteos',3.4,5,0.2],['Bebida de almendra (sin azúcar)','Lácteos',0.5,1,1.2],
+  ['Leche entera','Lácteos',3.3,4.8,3.6],['Leche descremada','Lácteos',3.4,5,0.2],['Bebida de almendra (sin azúcar)','Bebidas',0.5,1,1.2],
   ['Yogur griego natural 0%','Lácteos',10,3.6,0.4],['Yogur natural','Lácteos',4,5,3.3],['Queso panela / fresco','Lácteos',17,3,15],['Queso Oaxaca / mozzarella','Lácteos',23,2,21],
   ['Queso manchego','Lácteos',24,2,30],['Queso cottage','Lácteos',11,3.4,4.3],['Requesón / ricotta','Lácteos',11,3,10],['Queso crema','Lácteos',6,4,34],
   ['Arroz blanco (cocido)','Carbohidratos',2.7,28,0.3],['Arroz blanco (crudo)','Carbohidratos',7,80,0.6],['Arroz integral (cocido)','Carbohidratos',2.6,23,0.9],
@@ -3226,7 +3226,7 @@ function seedFoods(){
   ['Plátano','Frutas',1.1,23,0.3],['Manzana','Frutas',0.3,14,0.2],['Naranja','Frutas',0.9,12,0.1],['Fresa','Frutas',0.7,8,0.3],['Mango','Frutas',0.8,15,0.4],
   ['Papaya','Frutas',0.5,11,0.3],['Piña','Frutas',0.5,13,0.1],['Uvas','Frutas',0.7,18,0.2],['Sandía','Frutas',0.6,8,0.2],['Melón','Frutas',0.8,8,0.2],
   ['Arándanos (blueberries)','Frutas',0.7,14,0.3],['Kiwi','Frutas',1.1,15,0.5],['Pera','Frutas',0.4,15,0.1],['Durazno','Frutas',0.9,10,0.3],['Dátiles','Frutas',2,75,0.2],
-  ['Jugo de naranja','Frutas',0.7,10,0.2],
+  ['Jugo de naranja','Bebidas',0.7,10,0.2],
   ['Brócoli','Verduras',2.8,7,0.4],['Espinaca','Verduras',2.9,3.6,0.4],['Calabacita','Verduras',1.2,3.1,0.3],['Zanahoria','Verduras',0.9,10,0.2],
   ['Jitomate / tomate','Verduras',0.9,3.9,0.2],['Cebolla','Verduras',1.1,9,0.1],['Lechuga','Verduras',1.4,2.9,0.2],['Pepino','Verduras',0.7,3.6,0.1],
   ['Pimiento','Verduras',1,6,0.3],['Champiñones','Verduras',3.1,3.3,0.3],['Ejotes','Verduras',1.8,7,0.2],['Nopal','Verduras',1.3,3.3,0.1],
@@ -3235,7 +3235,7 @@ function seedFoods(){
   ['Cacahuates','Grasas',26,16,49],['Almendras','Grasas',21,22,50],['Nueces','Grasas',15,14,65],['Semillas de chía','Grasas',17,42,31],
   ['Aceitunas','Grasas',0.8,6,11],['Coco rallado','Grasas',7,24,65],['Chocolate oscuro 70%','Grasas',8,46,43],['Aguacate','Grasas',2,9,15],
   ['Whey protein (polvo)','Suplementos',75,8,6],['Caseína (polvo)','Suplementos',75,6,2],['Proteína vegetal (polvo)','Suplementos',70,10,5],['Barrita de proteína (promedio)','Suplementos',30,40,12],
-  ['Hummus','Otros',8,14,10],['Salsa de tomate','Otros',1.5,7,0.2],['Refresco (regular)','Otros',0,11,0],['Helado de vainilla','Otros',3.5,24,11],['Pizza (promedio)','Otros',11,33,10]
+  ['Hummus','Otros',8,14,10],['Salsa de tomate','Otros',1.5,7,0.2],['Refresco (regular)','Bebidas',0,11,0],['Helado de vainilla','Otros',3.5,24,11],['Pizza (promedio)','Otros',11,33,10]
   ];
   return L.map(x=>({id:uid(),name:x[0],cat:x[1],p:x[2],c:x[3],f:x[4]}));
 }
