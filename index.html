@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-02.8">
+<meta name="lr-build" content="2026-11-02.9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3083,26 +3083,53 @@ function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid);return (d.nutriPick&
 const SUPP_MOM=['Al despertar','Pre-entreno','Intra-entreno','Post-entreno','Con comida','Antes de dormir','Otro'];
 const SUPP_FREC={diario:'Diario',train:'Días de entreno',rest:'Días de descanso'};
 const SUPP_CATS=['Rendimiento','Salud','Sueño','Hidratación','Con calorías','Otros'];
-/* [clave, nombre, unidad, UL adulto, fuente, UL 14-17 años (null = el de adulto)]. Claves = las del catálogo
-   (food_catalog.micros) salvo vitd: el catálogo la trae en µg y aquí va en UI (1 µg = 40 UI); b6, b12, fol, mn,
-   io y o3 no existen en el catálogo.
-   Revisión con evidencia (pedido de Luis, 2026-11-02; búsqueda en PubMed): donde la EFSA revisó el límite en
-   2023-2024 manda la EFSA porque es la revisión más nueva y casi siempre la más estricta (E 300 mg, no 1000 del
-   IOM; selenio 255 µg, no 400; B6 12 mg, no 100; hierro 40 mg «nivel seguro» 2024; zinc 25; magnesio 250 SOLO de
-   suplementos). Vitamina C no tiene UL en la EFSA: se usa el del IOM. Calcio: 2000 mg desde los 51 años (IOM).
-   Adolescentes 15-17: escalados por la EFSA (A 2600, E 260, fólico 800, hierro 35) y del IOM/SCF los demás. */
-const SUPP_MIC=[['vitd','Vitamina D','UI',4000,'EFSA 2023: 100 µg',null],['vita','Vitamina A (retinol)','µg',3000,'EFSA 2024, retinol preformado (no β-caroteno)',2600],
-  ['vitc','Vitamina C','mg',2000,'IOM 2000',1800],['vite','Vitamina E','mg',300,'EFSA 2024',260],['vitk','Vitamina K','µg',null,'',null],
-  ['b6','Vitamina B6','mg',12,'EFSA 2023 (neuropatía)',10],['b12','Vitamina B12','µg',null,'',null],['fol','Ácido fólico','µg',1000,'EFSA 2023',800],
-  ['ca','Calcio','mg',2500,'EFSA 2012',null],['fe','Hierro','mg',40,'EFSA 2024, nivel seguro',35],['mg','Magnesio','mg',250,'EFSA, solo de suplementos',null],
-  ['zn','Zinc','mg',25,'EFSA (SCF)',22],['se','Selenio','µg',255,'EFSA 2023',null],['mn','Manganeso','mg',8,'EFSA 2023, nivel seguro',null],
-  ['io','Yodo','µg',600,'EFSA (SCF)',500],['k','Potasio','mg',null,'',null],['na','Sodio','mg',null,'',null],['o3','Omega 3 (EPA+DHA)','mg',5000,'EFSA 2012',null]];
-/* Límite para ESTE atleta: por edad (perfil) y, en calcio, 2000 mg desde los 51 años. */
+/* Claves = las del catálogo (food_catalog.micros) salvo vitd: el catálogo la trae en µg y aquí va en UI
+   (1 µg = 40 UI); b6, b12, fol, mn, io y o3 no existen en el catálogo.
+   Revisión con evidencia (pedido de Luis, 2026-11-02; búsqueda en PubMed): la EFSA revisó en 2023-2024 y quedó
+   casi siempre más estricta que el IOM (E 300 mg vs 1000; selenio 255 µg vs 400; B6 12 mg vs 100; hierro 40 mg
+   «nivel seguro» vs 45; zinc 25 vs 40; magnesio de suplementos 250 vs 350). Como en México se trabaja con el IOM,
+   Luis pidió elegir la referencia (ver SUPP_REF). */
+/* SELECTOR DE REFERENCIA (Luis, 2026-11-02): EFSA (Europa, revisiones 2023-2024, más estricta) o IOM (EE. UU.,
+   la que se usa en México). Se elige en Configuración (S.suppRef, por coach; por defecto EFSA) y en cada límite
+   se muestra también el de la otra como dato. Por cada nutriente: [clave, nombre, unidad, {efsa, iom}], con
+   a = adulto, t = adolescente (EFSA 15-17 / IOM 14-18), a51 = 51 años o más; null = esa referencia no fija
+   límite y se usa la otra, diciéndolo. EFSA: hierro y manganeso son «nivel seguro», no UL. */
+const SUPP_REF={efsa:'EFSA (Europa)',iom:'IOM (EE. UU.)'};
+const SUPP_MIC=[
+  ['vitd','Vitamina D','UI',{efsa:{a:4000,t:4000,src:'EFSA 2023 (100 µg)'},iom:{a:4000,t:4000,src:'IOM 2011'}}],
+  ['vita','Vitamina A (retinol)','µg',{efsa:{a:3000,t:2600,src:'EFSA 2024, retinol (no β-caroteno)'},iom:{a:3000,t:2800,src:'IOM 2001, retinol'}}],
+  ['vitc','Vitamina C','mg',{efsa:null,iom:{a:2000,t:1800,src:'IOM 2000'}}],
+  ['vite','Vitamina E','mg',{efsa:{a:300,t:260,src:'EFSA 2024'},iom:{a:1000,t:800,src:'IOM 2000'}}],
+  ['vitk','Vitamina K','µg',{efsa:null,iom:null}],
+  ['b6','Vitamina B6','mg',{efsa:{a:12,t:10,src:'EFSA 2023 (neuropatía)'},iom:{a:100,t:80,src:'IOM 1998'}}],
+  ['b12','Vitamina B12','µg',{efsa:null,iom:null}],
+  ['fol','Ácido fólico','µg',{efsa:{a:1000,t:800,src:'EFSA 2023'},iom:{a:1000,t:800,src:'IOM 1998'}}],
+  ['ca','Calcio','mg',{efsa:{a:2500,t:2500,src:'EFSA 2012'},iom:{a:2500,t:3000,a51:2000,src:'IOM 2011'}}],
+  ['fe','Hierro','mg',{efsa:{a:40,t:35,src:'EFSA 2024, nivel seguro'},iom:{a:45,t:45,src:'IOM 2001'}}],
+  ['mg','Magnesio (suplementos)','mg',{efsa:{a:250,t:250,src:'EFSA, solo suplementos'},iom:{a:350,t:350,src:'IOM 1997, solo suplementos'}}],
+  ['zn','Zinc','mg',{efsa:{a:25,t:22,src:'EFSA (SCF 2003)'},iom:{a:40,t:34,src:'IOM 2001'}}],
+  ['se','Selenio','µg',{efsa:{a:255,t:255,src:'EFSA 2023'},iom:{a:400,t:400,src:'IOM 2000'}}],
+  ['mn','Manganeso','mg',{efsa:{a:8,t:7,src:'EFSA 2023, nivel seguro'},iom:{a:11,t:9,src:'IOM 2001'}}],
+  ['io','Yodo','µg',{efsa:{a:600,t:500,src:'EFSA (SCF 2002)'},iom:{a:1100,t:900,src:'IOM 2001'}}],
+  ['k','Potasio','mg',{efsa:null,iom:null}],['na','Sodio','mg',{efsa:null,iom:null}],
+  ['o3','Omega 3 (EPA+DHA)','mg',{efsa:{a:5000,t:null,src:'EFSA 2012, nivel sin riesgo'},iom:null}]];
+function suppRef(){return (typeof S!=='undefined'&&S&&S.suppRef==='iom')?'iom':'efsa';}
+/* Límite de UNA referencia para la edad del atleta; null si esa referencia no fija uno. */
+function suppULde(ref,d,age){
+  const o=d[3]&&d[3][ref];if(!o)return null;
+  let v=o.a,et='';
+  if(age&&age<18&&o.t!=null){v=o.t;et=', adolescentes';}
+  else if(age>50&&o.a51!=null){v=o.a51;et=', mayores de 50';}
+  return v==null?null:{ul:v,src:o.src+et};
+}
+/* Límite para ESTE atleta con la referencia elegida; si no fija uno, el de la otra (y se dice). `otro` = el de la
+   otra referencia, para mostrarlo como dato. */
 function suppUL(aid,d){
-  const age=+((athData(aid).profile||{}).age)||0;
-  if(d[0]==='ca'&&age>50)return{ul:2000,src:'IOM, mayores de 50 años'};
-  if(age&&age<18&&d[5]!=null)return{ul:d[5],src:d[4]+', adolescentes'};
-  return{ul:d[3],src:d[4]};
+  const age=+((athData(aid).profile||{}).age)||0,r=suppRef(),o=r==='iom'?'efsa':'iom';
+  const a=suppULde(r,d,age),b=suppULde(o,d,age);
+  if(a)return{ul:a.ul,src:a.src,otro:b};
+  if(b)return{ul:b.ul,src:b.src+' (la '+(r==='iom'?'IOM':'EFSA')+' no fija límite)',otro:null};
+  return{ul:null,src:'',otro:null};
 }
 /* Consideraciones clínicas que el coach marca por atleta (n.clinico). Solo encienden avisos: no cambian dosis. */
 const SUPP_CLIN={emb:'Embarazo o lo busca',lac:'Lactancia',erc:'Enfermedad renal',acg:'Anticoagulante o antiagregante',hem:'Hemocromatosis o hierro alto'};
@@ -3226,9 +3253,9 @@ function suppCafMg(aid,s){if(!/cafe[ií]na/i.test(s.name||'')||s.amount==null||S
    1000-2000 UI/día de mantenimiento; más solo para corregir 25(OH)D bajo; no bolos altos. */
 function suppTip(aid,s){
   const o=suppMic(s)||{},n=String(s.name||'');
-  if(o.fe>0||/hierro/i.test(n))return 'Atletas: solo con ferritina baja (menos de 30-40 µg/L). 16-100 mg/día por 6-8 semanas con análisis antes y después; arriba de 40 mg es dosis de tratamiento: marca «dosis terapéutica».';
+  if(o.fe>0||/hierro/i.test(n))return 'Atletas: solo con ferritina baja (menos de 30-40 µg/L). 16-100 mg/día por 6-8 semanas con análisis antes y después; arriba del límite (40 mg EFSA, 45 mg IOM) es dosis de tratamiento: marca «dosis terapéutica».';
   if(o.vitd>2000||(/vitamina d/i.test(n)&&+s.amount>2000))return 'Atletas: 1000-2000 UI/día de mantenimiento; más solo para corregir 25(OH)D bajo y con control. Mejor diario que bolos altos.';
-  if(o.b6>0)return 'La B6 tiene un límite bajo (12 mg, EFSA 2023) por neuropatía: revisa multivitamínicos y ZMA.';
+  if(o.b6>0)return 'B6: la EFSA (2023) bajó su límite a 12 mg por neuropatía (IOM: 100 mg); revisa multivitamínicos y ZMA.';
   return '';
 }
 /* Avisos clínicos según lo que el coach marcó y lo que lleva recetado. */
@@ -3266,11 +3293,11 @@ function suppMicSummary(aid){
   if(!rows.length)return '<div class="supp-mics">'+clinChips+warnHTML+'</div>';
   let anyOver=false,anySup=false;
   const chips=rows.map(d=>{const v=tot[d[0]],L=suppUL(aid,d),ul=L.ul,over=ul&&(lib[d[0]]||0)>ul,sup=!over&&ul&&v>ul;anyOver=anyOver||over;anySup=anySup||sup;
-    return '<span class="supp-mic'+(over?' over':sup?' supv':'')+'" title="'+esc(ul?'Límite superior: '+suppFmt(ul)+' '+d[2]+' ('+L.src+')':'Sin límite superior establecido')+'"><b>'+esc(d[1])+'</b> '+suppFmt(v)+' '+d[2]+(ul?' <span class="tiny">/ UL '+suppFmt(ul)+'</span>':'')+(over?' ⚠':sup?' · supervisado':'')+'</span>';}).join('');
-  return '<div class="supp-mics"><h4 class="mg-h">Micronutrientes de sus suplementos <span class="hint">máximo en un día · solo suplementos, sin comida'+(age?' · límites para '+age+' años':'')+'</span></h4><div class="supp-micw">'+chips+'</div>'+
+    return '<span class="supp-mic'+(over?' over':sup?' supv':'')+'" title="'+esc(ul?'Límite superior: '+suppFmt(ul)+' '+d[2]+' ('+L.src+')'+(L.otro?' · '+(suppRef()==='iom'?'EFSA':'IOM')+': '+suppFmt(L.otro.ul)+' '+d[2]+' ('+L.otro.src+')':''):'Sin límite superior establecido')+'"><b>'+esc(d[1])+'</b> '+suppFmt(v)+' '+d[2]+(ul?' <span class="tiny">/ UL '+suppFmt(ul)+(L.otro&&L.otro.ul!==ul?' · '+(suppRef()==='iom'?'EFSA':'IOM')+' '+suppFmt(L.otro.ul):'')+'</span>':'')+(over?' ⚠':sup?' · supervisado':'')+'</span>';}).join('');
+  return '<div class="supp-mics"><h4 class="mg-h">Micronutrientes de sus suplementos <span class="hint">máximo en un día · solo suplementos, sin comida'+(age?' · límites para '+age+' años':'')+' · '+(suppRef()==='iom'?'IOM':'EFSA')+'</span></h4><div class="supp-micw">'+chips+'</div>'+
     (anyOver?'<p class="tiny" style="color:var(--red);margin:6px 0 0">⚠ Solo con suplementos ya pasa el límite superior tolerable (UL). Revisa dosis o si dos productos repiten el mismo nutriente; si es un tratamiento con análisis, márcalo como «dosis terapéutica».</p>':'')+
     (anySup?'<p class="tiny" style="color:var(--orange);margin:6px 0 0">Por encima del UL solo por dosis terapéuticas marcadas: el UL es para población sana, no para tratamientos con control.</p>':'')+
-    '<p class="tiny" style="margin:6px 0 0">UL de la EFSA (revisiones 2023-2024) y del IOM donde la EFSA no fija uno; ajustados por edad (adolescentes; calcio desde los 51). Hierro y manganeso: «nivel seguro» de la EFSA. Casi todos cuentan también la comida: es un aviso mínimo, no una garantía. No distinguen embarazo: para eso, las consideraciones clínicas de abajo.</p>'+
+    '<p class="tiny" style="margin:6px 0 0">Límites de <b>'+SUPP_REF[suppRef()]+'</b> (cámbiala en Configuración); al lado, el de la otra referencia como dato. Ajustados por edad del perfil. Casi todos cuentan también la comida: es un aviso mínimo, no una garantía. No distinguen embarazo: para eso, las consideraciones clínicas de abajo.</p>'+
     clinChips+warnHTML+'</div>';
 }
 /* Tarjeta del coach: cada suplemento recetado se ajusta ahí mismo (cantidad ±, momento, cuándo, hasta, indicación). */
@@ -3381,6 +3408,16 @@ async function suppBaseFromFood(){
 function suppOf(el){return (nutriOf(el.dataset.aid).supplements||[]).find(s=>s.id===el.dataset.sid)||null;}
 /* «✓ me lo tomé» / tipo de día: acciones del atleta, a la entrada de nutrición de hoy. */
 function suppHoyEdit(fn){const aid=getSession().userId,e=todayNutriEntry(aid);const sp=Object.assign({done:[]},e.supps||{});sp.done=Array.isArray(sp.done)?sp.done.slice():[];fn(sp);e.supps=sp;syncNutriRow(aid);saveStateCola();render();}
+/* Tarjeta de Configuración: referencia de límites (por coach, S.suppRef). */
+function suppRefCard(){
+  const r=suppRef();
+  return '<div class="card mt16"><h3>💊 Límites de micronutrientes <span class="hint">suplementación de tus atletas</span></h3>'+
+    '<p class="tiny" style="margin:0 0 12px">Con qué referencia se marcan los excesos. Al lado de cada límite también verás el de la otra.</p>'+
+    '<div class="supp-seg" role="group" aria-label="Referencia de límites">'+Object.keys(SUPP_REF).map(k=>'<button class="'+(r===k?'on':'')+'" aria-pressed="'+(r===k)+'" data-act="supp-ref" data-v="'+k+'">'+SUPP_REF[k]+'</button>').join('')+'</div>'+
+    '<p class="tiny mt8">'+(r==='iom'?'IOM (EE. UU.): la de uso común en México. Magnesio de suplementos 350 mg, zinc 40 mg, selenio 400 µg, vitamina E 1000 mg, B6 100 mg, hierro 45 mg.':
+      'EFSA (Europa): revisiones 2023-2024, más estricta. Magnesio de suplementos 250 mg, zinc 25 mg, selenio 255 µg, vitamina E 300 mg, B6 12 mg, hierro 40 mg (nivel seguro).')+
+    ' Vitamina D, vitamina A y ácido fólico son iguales en las dos.</p></div>';
+}
 function mealItemsTotals(m){const t={p:0,c:0,f:0};(m.items||[]).forEach(it=>{t.p+=it.p||0;t.c+=it.c||0;t.f+=it.f||0;});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 function planMenuTotals(p){const t={p:0,c:0,f:0};(p.meals||[]).forEach(m=>{if((m.items||[]).length){m.items.forEach(it=>{t.p+=it.p||0;t.c+=it.c||0;t.f+=it.f||0;});}else{t.p+=+m.p||0;t.c+=+m.c||0;t.f+=+m.f||0;}});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 /* comida-receta: bloque de ingredientes + preparación (coach y atleta) */
@@ -5282,7 +5319,7 @@ VIEWS['ajustes']=function(u){
       '<button class="btn btn-p" data-act="invite-coach-form">Invitar a un coach</button>'+
       '<button class="btn btn-g" data-act="coach-invites-list">Ver códigos generados</button>'+
     '</div></div>';
-  return{title:'Configuración',crumb:'Personaliza la app',body:brandCard+calCard+teamCard};
+  return{title:'Configuración',crumb:'Personaliza la app',body:brandCard+calCard+teamCard+suppRefCard()};
 };
 VIEWS['coach-chat']=function(u){
   const aid=route.params.aid,a=userById(aid);
@@ -7184,6 +7221,7 @@ Object.assign(ACTIONS,{
   'supp-del-no':()=>{_suppDel=null;render();},
   'supp-del-ok':el=>{const n=nutriOf(el.dataset.aid),s=suppOf(el);if(s)suppSyncMeal(el.dataset.aid,s,true);n.supplements=n.supplements.filter(x=>x.id!==el.dataset.sid);_suppDel=null;saveState();toast('Suplemento quitado');render();},
   'supp-clin':el=>{const n=nutriOf(el.dataset.aid);n.clinico=Object.assign({},n.clinico||{});n.clinico[el.dataset.k]=!n.clinico[el.dataset.k];if(!n.clinico[el.dataset.k])delete n.clinico[el.dataset.k];saveState();render();},
+  'supp-ref':el=>{S.suppRef=el.dataset.v==='iom'?'iom':'efsa';saveState();render();toast('Límites con '+SUPP_REF[S.suppRef]);},
   'supp-take':el=>suppHoyEdit(sp=>{const i=sp.done.indexOf(el.dataset.sid);if(i>=0)sp.done.splice(i,1);else sp.done.push(el.dataset.sid);}),
   'supp-dia':el=>suppHoyEdit(sp=>{sp.dia=el.dataset.v==='rest'?'rest':'train';}),
   /* ---- el atleta elige su tipo de día ---- */
