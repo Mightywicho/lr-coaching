@@ -712,6 +712,22 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .musrow .mv small{color:var(--tx3);font-weight:500}
 .chip.cat{background:rgba(124,208,251,.1);border-color:rgba(124,208,251,.35);color:var(--blue)}
 .chip.dim{opacity:.3}
+/* selector de alimentos: filtro del catálogo, favoritos/recientes y tarjeta del alimento elegido */
+.fpx{margin:-6px 0 12px}
+.fpx-k{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.fpx-k button,.fpx-c{min-height:32px;padding:4px 11px;font-size:12.5px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--tx2);cursor:pointer;font-family:inherit}
+.fpx-k button.on{background:var(--card2);color:var(--tx);border-color:var(--tx2);font-weight:600}
+.fpx-l{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.fpx-c{white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis;flex:none;color:var(--tx)}
+.fpx-k button:focus-visible,.fpx-c:focus-visible,.fpm-fav:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.fpm:empty{display:none}
+.fpm{margin:-4px 0 14px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg2)}
+.fpm-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fpm-fav{margin-left:auto;min-width:40px;min-height:40px;border:0;background:none;font-size:22px;line-height:1;color:var(--tx2);cursor:pointer}
+.fpm-fav.on{color:var(--orange)}
+.fpm-u{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.fpm-u label{margin:0}
+.fpm-u select{flex:1;min-width:170px}
 .covrow{display:flex;align-items:center;gap:7px;padding:6px 0;flex-wrap:wrap;border-bottom:1px dashed var(--line)}
 .covrow:last-child{border-bottom:none}
 .covrow .gn{width:128px;font-size:12.5px;font-weight:600;color:var(--tx2);flex:none}
@@ -3064,7 +3080,7 @@ function pmrBody(){
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+(pmrHasStruct()?'<button class="btn btn-g btn-sm" data-act="pmr-fit" title="Ajusta cada ingrediente según lo que más aporta (proteína, carbos o grasa) para acercarse a lo que toca en esta comida">'+I.recipe+' Ajustar a lo que toca</button>':'')+(r?'<button class="btn btn-g btn-sm" data-act="pmr-reset" title="Vuelve a la receta tal cual está en tu recetario">Restaurar original</button>':'')+'</div>'+
     '<h4 class="mg-h">Ingredientes</h4>'+(rows||'<p class="tiny">Sin ingredientes.</p>')+man+
     '<datalist id="pmr_foods">'+fo.map(f=>'<option value="'+esc(f.name)+'"></option>').join('')+'</datalist>'+
-    '<div class="frow2 mt8"><div><input id="pmr_af" list="pmr_foods" placeholder="Busca en tu base o en el catálogo…" autocomplete="off"></div><div style="display:flex;gap:6px"><input id="pmr_ag" type="number" min="0.5" step="5" placeholder="g o piezas" style="flex:1"><button class="btn btn-g btn-sm" data-act="pmr-add">'+I.plus+' Añadir</button></div></div>'+
+    '<div class="frow2 mt8"><div><input id="pmr_af" list="pmr_foods" placeholder="Busca en tu base o en el catálogo…" autocomplete="off" data-live="food-hint" data-hint-target="pmr_ag" aria-label="Alimento"></div><div style="display:flex;gap:6px"><input id="pmr_ag" type="number" min="0.5" step="5" placeholder="g o piezas" style="flex:1" aria-label="Cantidad"><button class="btn btn-g btn-sm" data-act="pmr-add">'+I.plus+' Añadir</button></div></div>'+fpxHTML('pmr_af')+fpmHTML('pmr_ag')+
     '<button class="btn btn-g btn-sm mt8" data-act="pmr-add-txt">'+I.plus+' Línea de texto (complemento)</button>'+
     '<h4 class="mg-h mt16">Preparación <span class="hint">un paso por línea</span></h4><textarea rows="5" data-pmr-f="steps" style="width:100%">'+esc(d.steps)+'</textarea>'+
     '<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-pmr-f="toRec"'+(d.toRec?' checked':'')+'> Guardar también en mi recetario como receta nueva</label>';
@@ -3119,7 +3135,7 @@ function nutriHasData(n){return !!n&&(n.adherence!=null||n.planFollowed!=null||!
 const EQV_FAM={'Proteínas':['Proteínas','Lácteos'],'Lácteos':['Lácteos','Proteínas'],'Carbohidratos':['Carbohidratos'],'Frutas':['Frutas'],'Grasas':['Grasas'],'Verduras':['Verduras']};
 const EQV_TOL={pct:0.15,kcal:20};
 function eqvMain(m){const k={p:(+m.p||0)*4,c:(+m.c||0)*4,f:(+m.f||0)*9};return ['c','f'].reduce((a,b)=>k[b]>k[a]?b:a,'p');}
-function eqvFood(name){return _foodFind(name)||catAdoptar(name);}
+function eqvFood(name){return _foodFind(name)||catAdoptar(name)||fpAdopt(name);}
 function _foodFind(name){const n=String(name||'').trim().toLowerCase();return (S.foods||[]).find(x=>String(x.name).toLowerCase()===n)||null;}
 /* ===== Catálogo LR (food_catalog, ~15 mil alimentos) dentro de TODOS los buscadores de alimentos =====
    Al escribir en cualquier <input list> de alimentos (plan, receta del menú, recetario, registro del atleta)
@@ -3131,16 +3147,17 @@ const FOOD_LISTS={pifoods:1,pmr_foods:1,recfoodlist:1,foodlist:1};
 let _catCache={},_catTimer=null,_catSeq=0;
 function catAFood(r){
   return{id:'cat_'+String(r.id).replace(/[^a-z0-9]/gi,'_'),name:r.brand?r.name+' · '+r.brand:r.name,cat:FOOD_CATS.indexOf(r.cat)>=0?r.cat:'Otros',
-    p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:'g',unitLabel:'',med:Array.isArray(r.measures)?r.measures.slice(0,4):[],catId:r.id,kcal:Math.round(+r.kcal||0),ais:r.ais_grupo||''};
+    p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:'g',unitLabel:'',med:Array.isArray(r.measures)?r.measures.slice(0,4):[],catId:r.id,kcal:Math.round(+r.kcal||0),ais:r.ais_grupo||'',kind:r.kind||''};
 }
 function catMedTxt(med){return (med||[]).slice(0,2).map(m=>/\(\s*[\d.,]+\s*(g|ml)\s*\)/i.test(m.n)?m.n:m.n+' = '+(+m.g)+' g').join(' · ');}
 function catBuscar(el){
   const q=el.value.trim(),dl=document.getElementById(el.getAttribute('list'));
   clearTimeout(_catTimer);
   if(!dl||q.length<3||_foodFind(q)||_catCache[q.toLowerCase()])return;
+  const kind=_catKind||null;
   _catTimer=setTimeout(async()=>{
     const seq=++_catSeq;let rows=[];
-    try{const r=await supa.rpc('buscar_alimentos',{q:q,n:20,solo_kind:null});rows=(r&&r.data)||[];}catch(e){return;}
+    try{const r=await supa.rpc('buscar_alimentos',{q:q,n:20,solo_kind:kind});rows=(r&&r.data)||[];}catch(e){return;}
     if(seq!==_catSeq||!document.body.contains(dl))return;
     dl.querySelectorAll('option[data-cat]').forEach(o=>o.remove());
     const vistos={};
@@ -3150,7 +3167,7 @@ function catBuscar(el){
       if(vistos[k]){fo.name+=' ('+fo.kcal+' kcal)';k=fo.name.toLowerCase();}
       if(vistos[k])return;vistos[k]=1;_catCache[k]=fo;
       const o=document.createElement('option');o.value=fo.name;o.setAttribute('data-cat','1');
-      o.label='Catálogo · '+fo.kcal+' kcal · P '+fo.p+' C '+fo.c+' G '+fo.f+' /100 g'+(fo.med.length?' · '+catMedTxt(fo.med):'')+(fo.ais?' · AIS '+fo.ais:'');
+      o.label=(CAT_KIND_TXT[fo.kind]||'Catálogo')+' · '+fo.kcal+' kcal · P '+fo.p+' C '+fo.c+' G '+fo.f+' /100 g'+(fo.med.length?' · '+catMedTxt(fo.med):'')+(fo.ais?' · AIS '+fo.ais:'');
       dl.appendChild(o);
     });
   },250);
@@ -3163,6 +3180,81 @@ function catAdoptar(name){
   S.foods=S.foods||[];S.foods.push(fo);
   if(_currentUserId==='coach'&&_foodsHydrated)saveFoodRow(fo).then(ok=>{if(ok)toast('«'+fo.name+'» quedó en tu base de alimentos');});
   return fo;
+}
+/* ===== Selector de alimentos: medida casera, favoritos, recientes y filtro del catálogo (2026-11-01) =====
+   Referencia de uso: Avena (al elegir un alimento se ve su grupo y «1 pieza ≈ 106 g»), pero aquí la cantidad
+   va en gramos o en medidas caseras, no en equivalentes (Luis, 2026-10-15). Debajo del buscador (.fpx):
+   filtro Todo/Genérico/Marca/Suplemento (solo cambia lo que trae el catálogo), favoritos ★ y recientes.
+   Al elegir un alimento (.fpm, id = <cantidad>_med): grupo, kcal/100 g, ★ y «Medida» (gramos o pieza/taza…);
+   la casilla de cantidad pasa a contar esa medida y medGrams() la convierte a gramos al guardar.
+   Favoritos y recientes viven en `food_picks` (uno por usuario y alimento, con copia del alimento: así uno
+   del catálogo funciona aunque no esté en S.foods, p. ej. el atleta al día siguiente). */
+const CAT_KINDS=[['','Todo'],['gen','Genérico'],['marca','Marca'],['supl','Suplemento']];
+const CAT_KIND_TXT={gen:'Genérico',marca:'Marca',supl:'Suplemento'};
+let _catKind='',_fp=null,_fpLoading=null;
+function fpKey(name){return String(name||'').trim().toLowerCase();}
+function fpLoad(){
+  if(_fp||_fpLoading||!_supabaseUser)return;
+  _fpLoading=(async()=>{
+    try{const r=await supa.from('food_picks').select('food_key,food,fav,used_at').order('used_at',{ascending:false,nullsFirst:false}).limit(80);_fp=(r&&!r.error&&r.data)||[];}catch(e){_fp=[];}
+    _fpLoading=null;document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
+  })();
+}
+function fpRow(name){const k=fpKey(name);return (_fp||[]).find(x=>x.food_key===k)||null;}
+function fpFoodObj(fo){const o={};['id','name','cat','p','c','f','unit','unitLabel','med','catId'].forEach(k=>{if(fo[k]!==undefined)o[k]=fo[k];});return o;}
+function fpSave(fo,patch){
+  if(!fo||!_supabaseUser)return;_fp=_fp||[];
+  let row=fpRow(fo.name);if(!row){row={food_key:fpKey(fo.name),fav:false,used_at:null};_fp.unshift(row);}
+  Object.assign(row,patch,{food:fpFoodObj(fo)});
+  if(patch.used_at){_fp.splice(_fp.indexOf(row),1);_fp.unshift(row);}
+  supa.from('food_picks').upsert({user_uid:_supabaseUser.id,food_key:row.food_key,food:row.food,fav:row.fav,used_at:row.used_at},{onConflict:'user_uid,food_key'}).then(r=>{if(r&&r.error)console.warn('food_picks',r.error.message);},()=>{});
+}
+function fpUsed(fo){if(fo)fpSave(fo,{used_at:new Date().toISOString()});}
+/* el alimento guardado en favoritos/recientes entra como uno del catálogo (misma ruta: catAdoptar) */
+function fpAdopt(name){const r=fpRow(name);if(!r||!r.food||!r.food.name)return null;_catCache[fpKey(r.food.name)]=Object.assign({},r.food);return catAdoptar(r.food.name);}
+function fpxHTML(inputId){fpLoad();return '<div class="fpx" data-for="'+inputId+'">'+fpxInner(inputId)+'</div>';}
+function fpxInner(id){
+  const seg='<div class="fpx-k" role="group" aria-label="Qué buscar en el catálogo">'+CAT_KINDS.map(k=>'<button type="button" class="'+(k[0]===_catKind?'on':'')+'" aria-pressed="'+(k[0]===_catKind)+'" data-act="fpx-kind" data-k="'+k[0]+'" data-for="'+id+'">'+k[1]+'</button>').join('')+'</div>';
+  const all=(_fp||[]).filter(x=>x.food&&x.food.name),favs=all.filter(x=>x.fav),rec=all.filter(x=>!x.fav&&x.used_at).slice(0,Math.max(4,10-favs.length));
+  const chip=(x,st)=>'<button type="button" class="fpx-c" data-act="fpx-pick" data-for="'+id+'" data-name="'+esc(x.food.name)+'" title="'+(st?'Favorito':'Reciente')+'">'+(st?'★ ':'')+esc(x.food.name)+'</button>';
+  return seg+(favs.length||rec.length?'<div class="fpx-l" aria-label="Favoritos y recientes">'+favs.map(x=>chip(x,1)).join('')+rec.map(x=>chip(x,0)).join('')+'</div>':'');
+}
+function fpmHTML(target){return '<div class="fpm" id="'+target+'_med" aria-live="polite"></div>';}
+function fmtG(g){g=+g||0;return String(g>=10?Math.round(g):Math.round(g*10)/10);}
+function esPlural(w){if(/[sx]$/i.test(w))return w;if(/ón$/i.test(w))return w.slice(0,-2)+'ones';if(/z$/i.test(w))return w.slice(0,-1)+'ces';if(/[aeiouáéíóúpktbgc]$/i.test(w))return w+'s';return w+'es';}
+/* «1 taza» × 2 → «2 tazas»; «1 pieza mediana» × 1.5 → «1.5 piezas medianas»; «10 rebanadas» × 2 → «20 rebanadas» */
+function medFmt(nm,n){
+  nm=String(nm||'').replace(/\s*\(\s*[\d.,\/]+\s*(g|ml)\s*\)\s*$/i,'').trim();
+  const m=/^([\d.,\/]+)\s+(.*)$/.exec(nm);
+  if(!m)return n===1?nm:fmtG(n)+' × '+nm;
+  let L=m[1].indexOf('/')>0?(+m[1].split('/')[0])/(+m[1].split('/')[1]):parseFloat(m[1].replace(',','.'));if(!(L>0))L=1;
+  const tot=Math.round(L*n*100)/100;let u=m[2];
+  if(L===1&&tot>1){const w=u.split(' ');w[0]=esPlural(w[0]);if(w[1]&&/^(grande|mediana|mediano|pequeña|pequeño|chica|chico|entera|entero)$/i.test(w[1]))w[1]=esPlural(w[1]);u=w.join(' ');}
+  return String(tot)+' '+u;
+}
+function fpmFill(target,fo){
+  const box=document.getElementById(target+'_med');if(!box)return;
+  if(!fo){box.innerHTML='';return;}
+  const r1=x=>Math.round((+x||0)*10)/10,isU=fo.unit==='u',kc=Math.round((+fo.p||0)*4+(+fo.c||0)*4+(+fo.f||0)*9);
+  const med=isU?[]:(fo.med||[]).filter(m=>+m.g>0).slice().sort((a,b)=>a.g-b.g);
+  const fav=!!(fpRow(fo.name)||{}).fav;
+  box.innerHTML='<div class="fpm-h"><span class="chip">'+esc(fo.cat||'Otros')+'</span><span class="tiny">'+kc+' kcal · P '+r1(fo.p)+' C '+r1(fo.c)+' G '+r1(fo.f)+(isU?' por '+esc(fo.unitLabel||'unidad'):' por 100 g')+'</span>'+
+    '<button type="button" class="fpm-fav'+(fav?' on':'')+'" data-act="fpx-fav" data-name="'+esc(fo.name)+'" data-for="'+target+'" aria-pressed="'+fav+'" aria-label="'+(fav?'Quitar de favoritos':'Añadir a favoritos')+'" title="'+(fav?'Quitar de favoritos':'Añadir a favoritos')+'">'+(fav?'★':'☆')+'</button></div>'+
+    (med.length?'<div class="fpm-u"><label for="'+target+'_u">Medida</label><select id="'+target+'_u" data-med-for="'+target+'"><option value="">gramos</option>'+
+      med.slice(0,6).map((m,i)=>'<option value="'+i+'" data-g="'+(+m.g)+'" data-n="'+esc(m.n)+'">'+esc(medFmt(m.n,1))+' ≈ '+fmtG(m.g)+' g</option>').join('')+
+      '</select><span class="tiny" id="'+target+'_eq"></span></div>':'');
+}
+function medSel(target){const s=document.getElementById(target+'_u');if(!s||!s.value)return null;const o=s.options[s.selectedIndex];return{g:+o.dataset.g,n:o.dataset.n};}
+function medGrams(target){const q=num(target),m=medSel(target);return m?Math.round(q*m.g*10)/10:q;}
+function medQtyLabel(target){const q=num(target),m=medSel(target);if(!m||!(q>0))return '';return medFmt(m.n,q)+' ('+fmtG(q*m.g)+' g)';}
+function medEq(target){const t=document.getElementById(target+'_eq'),m=medSel(target);if(!t)return;const q=num(target);t.textContent=m&&q>0?'= '+fmtG(q*m.g)+' g':'';}
+/* cambiar de medida: 1 de la medida elegida (o los gramos equivalentes al volver a «gramos») */
+function medChange(sel){
+  const target=sel.dataset.medFor,inp=document.getElementById(target);if(!inp)return;
+  const m=medSel(target),prev=+(sel.dataset.prevG||0);
+  if(m){inp.value='1';inp.step='0.25';inp.min='0.25';inp.placeholder='cantidad';sel.dataset.prevG=m.g;}
+  else{inp.value=prev>0?fmtG(prev*(num(target)||1)):'';inp.step='5';inp.min='0.5';inp.placeholder='gramos';sel.dataset.prevG='';}
+  medEq(target);
 }
 function eqvOpts(aid,it){
   const fo=eqvFood(it&&it.food);if(!fo)return[];
@@ -4600,6 +4692,25 @@ document.addEventListener('click',e=>{
   }
 });
 ACTIONS['wch-range']=el=>{const w=el.closest('.wch');if(!w)return;w.dataset.r=el.dataset.r;w.querySelectorAll('.wch-seg button').forEach(b=>b.classList.toggle('on',b===el));};
+ACTIONS['fpx-kind']=el=>{
+  _catKind=el.dataset.k||'';document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
+  const inp=document.getElementById(el.dataset.for);if(!inp)return;
+  const dl=document.getElementById(inp.getAttribute('list'));if(dl)dl.querySelectorAll('option[data-cat]').forEach(o=>o.remove());
+  if(inp.value.trim().length>=3&&!_foodFind(inp.value)){catBuscar(inp);try{inp.focus();}catch(e){}}
+};
+ACTIONS['fpx-pick']=el=>{
+  const inp=document.getElementById(el.dataset.for),fo=eqvFood(el.dataset.name);if(!inp)return;
+  if(!fo){toast('Ese alimento ya no está disponible','err');return;}
+  inp.value=fo.name;inp.dispatchEvent(new Event('input',{bubbles:true}));
+  const t=document.getElementById(inp.dataset.hintTarget);if(t)try{t.focus();}catch(e){}
+};
+ACTIONS['fpx-fav']=el=>{
+  const fo=eqvFood(el.dataset.name);if(!fo)return;
+  const on=!(fpRow(fo.name)||{}).fav;fpSave(fo,{fav:on});
+  el.classList.toggle('on',on);el.textContent=on?'★':'☆';el.setAttribute('aria-pressed',on);el.title=on?'Quitar de favoritos':'Añadir a favoritos';el.setAttribute('aria-label',el.title);
+  document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
+  toast(on?'Añadido a favoritos':'Quitado de favoritos');
+};
 ACTIONS['acc-open']=el=>{const dt=document.getElementById(el.dataset.acc);if(!dt)return;dt.open=true;dt.scrollIntoView({behavior:'smooth',block:'start'});const i=dt.querySelector('input');if(i)setTimeout(()=>{try{i.focus();}catch(e){}},350);};
 const VIEWS={};
 
@@ -6425,11 +6536,11 @@ Object.assign(ACTIONS,{
     _pmr.eqv=-1;pmrRerender();
   },
   'pmr-add':()=>{
-    if(!_pmr)return;const fo=eqvFood(val('pmr_af')),q=num('pmr_ag');
+    if(!_pmr)return;const fo=eqvFood(val('pmr_af')),q=medGrams('pmr_ag');
     if(!fo){toast('Elige un alimento de la lista (tu base o el catálogo), o usa «Línea de texto»');return;}
     if(!(q>0)){toast('Pon la cantidad en '+(fo.unit==='u'?(fo.unitLabel||'unidades'):'gramos'));return;}
     const isU=fo.unit==='u',m=foodMacros(fo.name,q);
-    _pmr.ings.push({food:fo.name,grams:q,unit:isU?(fo.unitLabel||'unidad'):'g',p:m.p,c:m.c,f:m.f});pmrRerender();
+    _pmr.ings.push({food:fo.name,grams:q,unit:isU?(fo.unitLabel||'unidad'):'g',p:m.p,c:m.c,f:m.f});fpUsed(fo);pmrRerender();
   },
   'pmr-add-txt':()=>{if(!_pmr)return;_pmr.ings.push({txt:''});pmrRerender();const t=document.querySelectorAll('[data-pmr-t]');if(t.length)t[t.length-1].focus();},
   'pmr-fit':()=>{
@@ -6473,9 +6584,9 @@ Object.assign(ACTIONS,{
   'pmacmeal-autosplit-do':el=>{const p=activePlanOf(el.dataset.aid),N=Math.max(1,p.mealsPerDay||4),P=p.protein||0,C=p.carbs||0,F=p.fat||0;p.meals=[];for(let i=0;i<N;i++)p.meals.push({id:uid(),name:'Comida '+(i+1),p:+(P/N).toFixed(1),c:+(C/N).toFixed(1),f:+(F/N).toFixed(1),items:[]});saveState();closeModal();render();},
   'pmacmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;openModal('Editar comida','<div class="frow"><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div class="frow3"><div><label>Prot (g)</label><input id="mm_p" type="number" min="0" step="1" value="'+(m.p||0)+'"></div><div><label>Carb (g)</label><input id="mm_c" type="number" min="0" step="1" value="'+(m.c||0)+'"></div><div><label>Gras (g)</label><input id="mm_f" type="number" min="0" step="1" value="'+(m.f||0)+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmacmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
   'pmacmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;m.name=val('m_name')||m.name;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
-  'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base ('+(S.foods||[]).length+') o el catálogo de 15 mil alimentos</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="pi_g"></div><div><input id="pi_g" type="number" min="0.5" step="5" placeholder="gramos"></div></div><p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
-  'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=p.meals.find(x=>x.id===el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=num('pi_g');let it=null;
-    if(fname&&qty>0){const fo=eqvFood(fname);const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(qty+' g');it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};}
+  'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base ('+(S.foods||[]).length+') o el catálogo de 15 mil alimentos</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="pi_g" aria-label="Alimento"></div><div><input id="pi_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"></div></div>'+fpxHTML('pi_food')+fpmHTML('pi_g')+'<p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
+  'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=p.meals.find(x=>x.id===el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=medGrams('pi_g');let it=null;
+    if(fname&&qty>0){const fo=eqvFood(fname);const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('pi_g')||(qty+' g'));it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};fpUsed(fo);}
     else{const nm=val('pi_name'),pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(!nm){toast('Elige un alimento o pon un nombre manual');return;}if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)');return;}it={food:nm,qty:val('pi_qty'),grams:0,p:pp,c:cc,f:ff};}
     m.items.push(it);saveState();closeModal();render();},
   /* Cambiar la cantidad de un alimento YA añadido. Antes solo se podía borrar y volver a
@@ -7587,7 +7698,7 @@ VIEWS['ath-hoy']=function(u){
     if(!list)list='<div class="empty"><b>Sin comida libre registrada hoy</b>Lo que comas fuera del plan, añádelo aquí y se restará de lo que te queda arriba.</div>';
     return '<p class="tiny mb16">Marca arriba las comidas del plan que cumpliste y completa el resto aquí: las casillas suman '+dm.kcal+' kcal y tu comida libre '+fm.kcal+' kcal. Todo se descuenta de «Te queda por comer hoy».</p>'+
     '<label>Busca en la base de tu coach o en el catálogo de 15 mil alimentos</label>'+
-    '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+
+    '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g" aria-label="Alimento"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+fpxHTML('mf_food')+fpmHTML('mf_g')+
     '<datalist id="foodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
     '<label>O entrada manual con macros</label>'+
     '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px"><input id="m_name" placeholder="Qué comiste (ej. guiso casero)"></div>'+
@@ -8349,14 +8460,14 @@ Object.assign(ACTIONS,{
   },
   'meal-add-food':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
-    const q=val('mf_food').toLowerCase(),qty=num('mf_g');
+    const q=val('mf_food').toLowerCase(),qty=medGrams('mf_g');
     const food=eqvFood(q);
     if(!food){toast('Elige un alimento de la lista');return;}
     const isUnit=food.unit==='u';
     if(!qty||qty<=0||qty>(isUnit?50:3000)){toast(isUnit?'Indica la cantidad':'Indica los gramos');return;}
     const mac=foodMacros(food.name,qty);
-    const label=isUnit?(qty+' '+(food.unitLabel||'unidades')):(qty+' g');
-    if(!d.logs.meals)d.logs.meals=[];
+    const label=isUnit?(qty+' '+(food.unitLabel||'unidades')):(medQtyLabel('mf_g')||(qty+' g'));
+    if(!d.logs.meals)d.logs.meals=[];fpUsed(food);
     const _m={id:uid(),date:todayISO(),name:food.name+' · '+label,p:mac.p,c:mac.c,f:mac.f};
     d.logs.meals.push(_m);syncMealAdd(u.id,_m);
     saveStateCola();toast('Añadido: '+mealKcal(mac)+' kcal');render();
@@ -8553,6 +8664,10 @@ document.addEventListener('input',e=>{
       if(fo&&fo.unit==='u'){t.placeholder='cantidad ('+(fo.unitLabel||'unidades')+')';t.step='0.5';t.title='';}
       else{const mt=fo&&fo.med&&fo.med.length?catMedTxt(fo.med.slice(0,1)):'';t.placeholder=mt?'g ('+mt+')':'gramos';t.title=fo?catMedTxt(fo.med):'';t.step='5';}
     }
+    const mb=document.getElementById(el.dataset.hintTarget+'_med');
+    if(mb&&(mb.dataset.food||'')!==(fo?fo.name:'')){mb.dataset.food=fo?fo.name:'';fpmFill(el.dataset.hintTarget,fo);if(t&&fo&&fo.unit!=='u'){t.step='5';t.min='0.5';}}
+  }
+  if(el.id&&el.type==='number'&&document.getElementById(el.id+'_u')){medEq(el.id);
   }
 });
 document.addEventListener('keydown',e=>{
@@ -8586,6 +8701,7 @@ function kbdSet(on){document.body.classList.toggle('kbd-open',!!on);}
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset&&el.dataset.exvol){renderExVol();}
+  if(el.dataset&&el.dataset.medFor){medChange(el);return;}
   if(!el.dataset||!el.dataset.change)return;
   if(el.dataset.change==='sp-preview'){
     const aid=el.dataset.aid,exp=athData(aid).profile.experience;
