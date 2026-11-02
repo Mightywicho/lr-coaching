@@ -11092,8 +11092,8 @@ function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)retu
    - Cada lista se ordena por «calidad» (cuánto de sus kcal viene del macro que cubre), con +0.2 a los de
      todos los días (pollo, res, claras, atún, arroz, avena, papa, tortilla, aguacate…) y lo que le gusta primero; se queda uno por familia (primera palabra: un solo atún, una sola carne molida) y cada comida
      toma uno distinto.
-   - Orden: verdura (comidas alternas) → proteína → carbohidrato (con fruta en comidas alternas) → grasa con lo
-     que falte. Al final se reescala carbo y grasa del día para cerrar el objetivo.
+   - Orden: verdura (comidas alternas) → fruta (alternas) → carbohidrato → proteína → grasa con lo que falte.
+     Al final se reescalan carbo, grasa y proteína del día para cerrar el objetivo.
    - Reparto entre comidas según la «forma del día» del plan (mealShareW). */
 const AUTO_NO=/az[uú]car|miel|mermelada|panditas|gatorade|\bgel\b|cereal|concha|galleta|mordisko|crout|harina|totopo|refresco|gerber|pur[eé]|granola|helado|pizza|splenda|stevia|canela|vainilla|salsa|gelatina|jam[oó]n|salchicha|surimi|\bpam\b|spray|mayonesa|vinagreta|crema de leche|mantequilla|chocolate|coco rallado|jugo|d[aá]tiles|leche con chocolate|barrita/i;
 function autoNorm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
@@ -11126,16 +11126,17 @@ function buildAutoMeals(N,P,C,Fg,aid,shape){
     const items=[];let uP=0,uC=0,uF=0;
     const addF=(fo,g,rol)=>{g=r5(fo,g);if(!fo||g<=0)return;const m=foodMacros(fo.name,g);if(!m)return;items.push({food:fo.name,qty:g+' g',grams:g,p:m.p,c:m.c,f:m.f,_r:rol});uP+=m.p;uC+=m.c;uF+=m.f;};
     if(i%2===0){const vf=pick(pools.veg,i>>1);if(vf)addF(vf,100,'v');}
-    const pf=pick(pools.prot,i);if(pf&&mp-uP>2)addF(pf,Math.min(gramsFor(pf,'p',mp-uP),400),'p');
     const fr=i%2===1?pick(pools.fruit,i>>1):null;
     if(fr&&mc-uC>25)addF(fr,Math.min(gramsFor(fr,'c',Math.min(25,(mc-uC)*.35)),300),'c');
     const cf=pick(pools.carb,i);if(cf&&mc-uC>3)addF(cf,Math.min(gramsFor(cf,'c',mc-uC),450),'c');
+    /* la proteína va después del carbo: arroz, papa o pasta también traen proteína y antes se pasaba ~40 g */
+    const pf=pick(pools.prot,i);if(pf&&mp-uP>2)addF(pf,Math.min(gramsFor(pf,'p',mp-uP),400),'p');
     const ff=pick(pools.fat,i);if(ff&&mf-uF>3)addF(ff,Math.min(gramsFor(ff,'f',mf-uF),60),'f');
     meals.push({id:uid(),name:'Comida '+(i+1),time:'',items});
   }
   /* Cierre del día: carbo y grasa se reescalan juntos sobre los alimentos que los aportan. */
   const tot=()=>meals.reduce((t,m)=>{m.items.forEach(it=>{t.p+=it.p;t.c+=it.c;t.f+=it.f;});return t;},{p:0,c:0,f:0});
-  [['c',C],['f',Fg]].forEach(([key,obj])=>{
+  [['c',C],['f',Fg],['p',P]].forEach(([key,obj])=>{
     const t=tot(),own=meals.reduce((a,m)=>a+m.items.filter(it=>it._r===key).reduce((b,it)=>b+it[key],0),0);
     if(!(own>0)||Math.abs(t[key]-obj)<=Math.max(3,obj*.03))return;
     const f=Math.max(.4,Math.min(2,(own+(obj-t[key]))/own));
