@@ -631,6 +631,8 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .lib-card:hover{border-color:var(--volt)}
 .rec-img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--bg2)}
 .lib-card .rec-img{margin:-6px -6px 0;width:calc(100% + 12px);max-width:none}
+.rec-noimg{display:flex;align-items:center;justify-content:center;color:var(--tx2);opacity:.5}
+.rec-noimg svg{width:34px;height:34px}
 .rec-hero{margin:0 0 10px}
 .rec-hero .rec-img{aspect-ratio:16/9;max-height:260px}
 .rec-cred{font-size:11px;color:var(--tx2);margin:4px 0 0;line-height:1.35}
@@ -9433,9 +9435,9 @@ async function hydrateRecipes(){
 let REC_FOTOS=null;
 (function(){fetch('recetas-fotos.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(j=>{REC_FOTOS=j||{};document.querySelectorAll('.rec-ph').forEach(e=>{e.outerHTML=recFotoHTML(e.dataset.rf,e.dataset.mode);});});})();
 function recFotoHTML(id,mode){
-  if(!id)return '';
-  if(!REC_FOTOS)return '<span class="rec-ph" data-rf="'+esc(id)+'" data-mode="'+(mode||'')+'"></span>';
-  const f=REC_FOTOS[id];if(!f)return '';
+  if(!id)return mode==='card'?'<div class="rec-img rec-noimg" aria-hidden="true">'+I.recipe+'</div>':'';
+  if(!REC_FOTOS)return '<span class="rec-ph'+(mode==='card'?' rec-img':'')+'" data-rf="'+esc(id)+'" data-mode="'+(mode||'')+'"></span>';
+  const f=REC_FOTOS[id];if(!f)return mode==='card'?'<div class="rec-img rec-noimg" aria-hidden="true">'+I.recipe+'</div>':'';
   const img='<img class="rec-img" src="'+esc(f.img)+'" alt="" loading="lazy" decoding="async">';
   if(mode==='card')return img;
   const cred='<p class="rec-cred">Foto: <a href="'+esc(f.fuente)+'" target="_blank" rel="noopener">'+esc(f.autor)+'</a> · '+(f.licurl?'<a href="'+esc(f.licurl)+'" target="_blank" rel="noopener">'+esc(f.lic)+'</a>':esc(f.lic))+' · Wikimedia Commons</p>';
