@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-01.3">
+<meta name="lr-build" content="2026-11-02.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -629,6 +629,12 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
 .lib-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:10px}
 .lib-card:hover{border-color:var(--volt)}
+.rec-img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--bg2)}
+.lib-card .rec-img{margin:-6px -6px 0;width:calc(100% + 12px);max-width:none}
+.rec-hero{margin:0 0 10px}
+.rec-hero .rec-img{aspect-ratio:16/9;max-height:260px}
+.rec-cred{font-size:11px;color:var(--tx2);margin:4px 0 0;line-height:1.35}
+.rec-cred a{color:inherit;text-decoration:underline}
 .lib-card .nm{font-family:var(--font-d);font-weight:600;font-size:14.5px;display:flex;align-items:center;gap:8px}
 .lib-card .nm .vid{color:var(--blue);line-height:0;flex:none}
 .lib-card .eq{font-size:11.5px;color:var(--tx3)}
@@ -3066,7 +3072,7 @@ function pmrSetQty(i,q){
   const x=_pmr.ings[i];if(!x||x.txt!=null)return;
   q=Math.max(0,+q||0);x.grams=q;const m=pmrIngMac(x,q);x.p=m.p;x.c=m.c;x.f=m.f;
 }
-function mealRecipeBox(m){const r=m.recipe||{};let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});let st='';(r.steps||[]).forEach(x=>{st+='<li>'+esc(x)+'</li>';});if(!ing&&!st)return '';const scaleNote=(r.scaleFactor&&r.scaleFactor!==1)?'<p class="tiny" style="margin:0 14px 8px">Receta adaptada ×'+r.scaleFactor+' a lo que le faltaba al plan.</p>':'';return scaleNote+'<div style="padding:2px 14px 12px">'+(ing?'<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+ing+'</ul>':'')+(st?'<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+st+'</ol>':'')+'</div>';}
+function mealRecipeBox(m){const r=m.recipe||{};let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});let st='';(r.steps||[]).forEach(x=>{st+='<li>'+esc(x)+'</li>';});if(!ing&&!st)return '';const scaleNote=(r.scaleFactor&&r.scaleFactor!==1)?'<p class="tiny" style="margin:0 14px 8px">Receta adaptada ×'+r.scaleFactor+' a lo que le faltaba al plan.</p>':'';return scaleNote+'<div style="padding:2px 14px 12px">'+recFotoHTML(r.rid)+(ing?'<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+ing+'</ul>':'')+(st?'<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+st+'</ol>':'')+'</div>';}
 function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const ap=activePlanOf(aid),tg=mealTargetFor(ap,null),hasT=tg.p>0||tg.c>0||tg.f>0;
   /* encaje de cada receta tal como entraría (adaptada si es escalable) con lo que toca en esta comida;
      con objetivo, primero las que mejor encajan. Las que no traen macros van al final, sin etiqueta. */
@@ -9417,6 +9423,24 @@ async function hydrateRecipes(){
     _recipesHydrated=true;
   }catch(e){_recipesHydrated=false;}
 }
+/* ===== Fotos de las recetas base (2026-11-02) =====
+   recetas-fotos.json: {R001:{img,autor,lic,licurl,fuente}}. Fotos reales de Wikimedia Commons con licencia libre
+   que permite uso comercial (CC0, dominio público, CC BY, CC BY-SA; nunca NC/ND), elegidas con un modelo local y
+   revisadas a mano; 800 px en recetas-img/. CC BY/BY-SA exigen dar crédito: autor + licencia + liga, siempre visibles
+   donde sale la foto completa. Van por id de la receta base (r.id / recipe.rid), así no tocan los datos del coach;
+   una receta propia o editada como nueva no tiene foto. Se cargan aparte para no frenar el arranque: mientras no
+   llegan, se deja un hueco (span.rec-ph) que se llena al cargar, sin volver a pintar la pantalla. */
+let REC_FOTOS=null;
+(function(){fetch('recetas-fotos.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(j=>{REC_FOTOS=j||{};document.querySelectorAll('.rec-ph').forEach(e=>{e.outerHTML=recFotoHTML(e.dataset.rf,e.dataset.mode);});});})();
+function recFotoHTML(id,mode){
+  if(!id)return '';
+  if(!REC_FOTOS)return '<span class="rec-ph" data-rf="'+esc(id)+'" data-mode="'+(mode||'')+'"></span>';
+  const f=REC_FOTOS[id];if(!f)return '';
+  const img='<img class="rec-img" src="'+esc(f.img)+'" alt="" loading="lazy" decoding="async">';
+  if(mode==='card')return img;
+  const cred='<p class="rec-cred">Foto: <a href="'+esc(f.fuente)+'" target="_blank" rel="noopener">'+esc(f.autor)+'</a> · '+(f.licurl?'<a href="'+esc(f.licurl)+'" target="_blank" rel="noopener">'+esc(f.lic)+'</a>':esc(f.lic))+' · Wikimedia Commons</p>';
+  return '<div class="rec-hero">'+img+cred+'</div>';
+}
 function recById(id){return RECIPES.find(r=>r.id===id||r.rid===id);}
 function recKcal(r){return r.kcal||(r.macros?Math.round((r.macros.p||0)*4+(r.macros.c||0)*4+(r.macros.g||0)*9):0);}
 function recTagList(){const s={};RECIPES.forEach(r=>(r.tags||[]).forEach(t=>{s[t]=(s[t]||0)+1;}));return Object.keys(s).sort((a,b)=>s[b]-s[a]||a.localeCompare(b));}
@@ -9577,7 +9601,7 @@ Object.assign(ACTIONS,{
     let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});
     let steps='';(r.steps||[]).forEach(x=>{steps+='<li>'+esc(x)+'</li>';});
     let tags='';(r.tags||[]).forEach(t=>{tags+='<span class="badge">'+esc(t)+'</span> ';});
-    const body='<div class="rec-detail">'+
+    const body='<div class="rec-detail">'+recFotoHTML(r.rid||r.id)+
       '<div class="rec-meta">'+esc(r.category||'')+(r.time?' · '+esc(r.time):'')+(recKcal(r)?' · '+recKcal(r)+' kcal':'')+(scalable?' · <span class="badge" title="Ingredientes ligados a tu base de alimentos">Escalable</span>':'')+'</div>'+
       (r.macros?'<div class="rec-macros"><span><b>'+(m.p||0)+'</b> g proteína</span><span><b>'+(m.c||0)+'</b> g carbohidratos</span><span><b>'+(m.g||0)+'</b> g grasas</span></div>':'')+
       (tags?'<div class="rec-tags">'+tags+'</div>':'')+
@@ -9658,7 +9682,7 @@ VIEWS['recetario']=function(u){
   let kopts='<option value="">Cualquier kcal</option><option value="lo"'+(fk==='lo'?' selected':'')+'>Menos de 400 kcal</option><option value="mid"'+(fk==='mid'?' selected':'')+'>400–600 kcal</option><option value="hi"'+(fk==='hi'?' selected':'')+'>Más de 600 kcal</option>';
   let cards='';
   list.forEach(r=>{
-    cards+='<div class="lib-card" data-act="rec-open" data-rec="'+esc(r.id)+'">'+
+    cards+='<div class="lib-card" data-act="rec-open" data-rec="'+esc(r.id)+'">'+recFotoHTML(r.rid||r.id,'card')+
       '<div class="nm">'+esc(r.name)+(recIsScalable(r)?' <span class="badge" style="font-size:10px" title="Ingredientes ligados a tu base de alimentos: se puede escalar">Escalable</span>':'')+'</div>'+
       '<div class="rec-chips"><span class="chip">'+esc(r.category||'')+'</span>'+(recKcal(r)?'<span class="chip">'+recKcal(r)+' kcal</span>':'')+'</div>'+
       '<div class="eq">'+esc(recMacroStr(r)||(r.time||''))+'</div></div>';
