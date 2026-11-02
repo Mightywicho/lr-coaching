@@ -698,7 +698,18 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .swapopt .so-n{flex:1;min-width:0}
 .swapopt .so-n b{display:block;font-size:13.5px}
 .swapopt .so-n .tiny{color:var(--tx2)}
-.swapopt .so-b{display:flex;gap:6px;flex-shrink:0}
+.swapopt .so-b{display:flex;gap:6px;flex-shrink:0;margin-top:7px}
+/* Miniatura del video en el cambio de ejercicio (2026-11-02): el atleta ve qué es antes de elegir. */
+.swapopt{align-items:flex-start}
+.so-th{position:relative;flex:none;width:104px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;border:1px solid var(--line2);background:var(--bg2);padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.so-th img{width:100%;height:100%;object-fit:cover;display:block}
+.so-noimg{font-size:11px;color:var(--tx3);text-align:center;padding:4px}
+.so-play{position:absolute;right:5px;bottom:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center}
+.so-th:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.so-prev:empty{display:none}
+.so-prev{margin:-2px 0 10px}
+.swapcur{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;color:var(--tx2)}
+.swapcur .so-th{width:88px;cursor:default}
 @media(max-width:520px){.swapopt{flex-direction:column;align-items:stretch}.swapopt .so-b{justify-content:stretch}.swapopt .so-b .btn{flex:1}}
 .swaprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 10px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);margin-bottom:7px}
 .swaprow .sr-t{flex:1;min-width:180px;font-size:13.5px}
@@ -8297,9 +8308,11 @@ Object.assign(ACTIONS,{
     let t1='',t2='';
     cands.forEach(c=>{
       const l=c.lib,ci=catInfo(l.group,l.cat);
-      const row='<div class="swapopt"><div class="so-n"><b>'+esc(l.name)+'</b><span class="tiny">'+esc(l.equipment)+(ci?' · '+esc(ci.p):'')+'</span></div>'+
+      const row='<div class="swapopt"><button type="button" class="so-th" data-act="swap-prev" data-lib="'+l.id+'" aria-expanded="false" aria-label="'+(l.video?'Ver el video de ':'Sin video: ')+esc(l.name)+'">'+exThumb(l)+(l.video?'<span class="so-play" aria-hidden="true">▶</span>':'')+'</button>'+
+        '<div class="so-n"><b>'+esc(l.name)+'</b><span class="tiny">'+esc(l.equipment)+(ci?' · '+esc(ci.p):'')+'</span>'+
         '<div class="so-b"><button class="btn btn-g btn-sm" data-act="swap-do" data-ex="'+ex.id+'" data-day="'+day.id+'" data-lib="'+l.id+'" data-reason="'+reason+'" data-scope="today">Solo hoy</button>'+
-        '<button class="btn btn-p btn-sm" data-act="swap-do" data-ex="'+ex.id+'" data-day="'+day.id+'" data-lib="'+l.id+'" data-reason="'+reason+'" data-scope="always">Siempre</button></div></div>';
+        '<button class="btn btn-p btn-sm" data-act="swap-do" data-ex="'+ex.id+'" data-day="'+day.id+'" data-lib="'+l.id+'" data-reason="'+reason+'" data-scope="always">Siempre</button></div></div></div>'+
+        '<div class="so-prev" id="swprev_'+l.id+'"></div>';
       if(c.tier===1)t1+=row;else t2+=row;
     });
     /* si el ejercicio original no tiene categoría de patrón, no podemos afirmar equivalencia: se dice tal cual */
@@ -8307,9 +8320,13 @@ Object.assign(ACTIONS,{
     const h1=t1?'<p class="swaphd ok">'+(reason==='molesta'?'Cambian el patrón — suelen respetar la molestia':'Equivalentes — mismo trabajo, mismo patrón')+'</p>'+t1:'';
     const h2=t2?'<p class="swaphd warn">'+(known?(reason==='molesta'?'Mismo patrón — podrían molestarte igual':'Alternativas — mismo músculo, patrón distinto'):'Opciones para el mismo músculo')+'</p>'+t2:'';
     openModal('Cambiar «'+esc(ex.name)+'»',
-      '<p class="muted mb8">'+esc(SWAP_REASONS[reason])+(lib?' · trabajas <b>'+esc(lib.group)+'</b>':'')+'. «Siempre» le avisa a tu coach para que lo revise.</p>'+h1+h2,
+      (lib?'<div class="swapcur"><span class="so-th">'+exThumb(lib)+'</span><span>Ahora: <b>'+esc(ex.name)+'</b></span></div>':'')+
+      '<p class="muted mb8">'+esc(SWAP_REASONS[reason])+(lib?' · trabajas <b>'+esc(lib.group)+'</b>':'')+'. «Siempre» le avisa a tu coach para que lo revise. Toca la imagen para ver el video.</p>'+h1+h2,
       '<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
   },
+  /* Abre/cierra el video del sustituto dentro del mismo modal (sin repintar: cerraría el modal). */
+  'swap-prev':el=>{const l=libById(el.dataset.lib),box=document.getElementById('swprev_'+el.dataset.lib);if(!l||!box)return;
+    const on=!box.innerHTML;box.innerHTML=on?(l.video?videoEmbed(l.video):'<p class="tiny">Este ejercicio todavía no tiene video.</p>'):'';el.setAttribute('aria-expanded',String(on));},
   'swap-do':async el=>{
     const aid=getSession().userId,d=athData(aid);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
@@ -8951,6 +8968,10 @@ document.addEventListener('change',e=>{
 });
 
 /* ================= BIBLIOTECA DE EJERCICIOS ================= */
+/* Miniatura de un ejercicio de la biblioteca: la de YouTube sale directa de i.ytimg.com (sin API ni clave);
+   TikTok/Instagram/enlace no dan miniatura sin pedirla a su servidor, así que se muestra un recuadro. */
+function exThumb(l){const v=l&&l.video,id=v&&v.type==='youtube'?ytId(v.url):null;
+  return id?'<img src="https://i.ytimg.com/vi/'+id+'/mqdefault.jpg" alt="" loading="lazy" decoding="async">':'<span class="so-noimg">'+(v?videoSrcLabel(v):'Sin video')+'</span>';}
 function ytId(url){const m=String(url||'').match(/(?:youtube\.com\/(?:watch\?\S*?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/);return m?m[1]:null;}
 function tkId(url){const m=String(url||'').match(/tiktok\.com\/(?:@[\w.\-]+\/)?video\/(\d{6,})/);return m?m[1]:null;}
 function igCode(url){const m=String(url||'').match(/instagram\.com\/(?:p|reel|reels|tv)\/([\w-]{5,})/);return m?m[1]:null;}
