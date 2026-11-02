@@ -11130,7 +11130,7 @@ function buildAutoMeals(N,P,C,Fg,aid,shape){
     /* Por pieza (huevo, tortilla, pan, manzana): medias piezas y tope de UMAX; si no alcanza, otro alimento completa. */
     const addF=(fo,g,rol)=>{if(!fo)return false;const isU=fo.unit==='u';g=isU?Math.min(UMAX,Math.round(g*2)/2):r5(fo,g);if(g<=0)return false;const m=foodMacros(fo.name,g);if(!m)return false;
       items.push({food:fo.name,qty:autoQty(fo,g),grams:isU?0:g,_u:isU?g:0,p:m.p,c:m.c,f:m.f,_r:rol});uP+=m.p;uC+=m.c;uF+=m.f;return true;};
-    const fill=(arr,j,key,falta,max)=>{const a=pick(arr,j);if(!a||falta()<=3)return;addF(a,Math.min(gramsFor(a,key,falta()),a.unit==='u'?UMAX:max),key);
+    const fill=(arr,j,key,falta,max)=>{const a=pick(arr,j);if(!a||falta()<=6)return;/* menos de ~6 g no amerita otro alimento (salían «15 g de atún») */addF(a,Math.min(gramsFor(a,key,falta()),a.unit==='u'?UMAX:max),key);
       if(a.unit==='u'&&falta()>8){const b=arr.find(x=>x.unit!=='u'&&x!==a);if(b)addF(b,Math.min(gramsFor(b,key,falta()),max),key);}};
     if(i%2===0){const vf=pick(pools.veg,i>>1);if(vf)addF(vf,100,'v');}
     const fr=i%2===1?pick(pools.fruit,i>>1):null;
