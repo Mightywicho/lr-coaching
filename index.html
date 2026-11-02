@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-01.2">
+<meta name="lr-build" content="2026-11-01.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3125,7 +3125,7 @@ function catAFood(r){
   return{id:'cat_'+String(r.id).replace(/[^a-z0-9]/gi,'_'),name:r.brand?r.name+' · '+r.brand:r.name,cat:FOOD_CATS.indexOf(r.cat)>=0?r.cat:'Otros',
     p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:'g',unitLabel:'',med:Array.isArray(r.measures)?r.measures.slice(0,4):[],catId:r.id,kcal:Math.round(+r.kcal||0),ais:r.ais_grupo||''};
 }
-function catMedTxt(med){return (med||[]).slice(0,2).map(m=>m.n+' = '+(+m.g)+' g').join(' · ');}
+function catMedTxt(med){return (med||[]).slice(0,2).map(m=>/\(\s*[\d.,]+\s*(g|ml)\s*\)/i.test(m.n)?m.n:m.n+' = '+(+m.g)+' g').join(' · ');}
 function catBuscar(el){
   const q=el.value.trim(),dl=document.getElementById(el.getAttribute('list'));
   clearTimeout(_catTimer);
