@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-10-27.8">
+<meta name="lr-build" content="2026-11-01.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -8344,10 +8344,11 @@ Object.assign(ACTIONS,{
     S.foods=S.foods.filter(x=>x.id!==el.dataset.fid);
     closeModal();toast('Alimento eliminado');render();
   },
-  /* buscar en bases externas (Edge Function alimentos-buscar: Open Food Facts + USDA + FatSecret).
+  /* buscar en el catálogo LR (tabla food_catalog, RPC buscar_alimentos: ~15 mil alimentos ya traducidos y clasificados)
+     y en bases externas (Edge Function alimentos-buscar: Open Food Facts + USDA + FatSecret). El catálogo va primero.
      Nada entra directo: «Agregar» abre el modal de «Nuevo alimento» ya lleno y el coach revisa y guarda. */
   'fext-modal':()=>{
-    openModal('Buscar en bases externas','<p class="tiny" style="margin-top:0">Open Food Facts (empacados, primero México), USDA (alimentos naturales) y FatSecret. Revisa siempre los valores antes de guardar.</p>'+
+    openModal('Buscar en bases externas','<p class="tiny" style="margin-top:0">Primero el catálogo LR (unos 15 mil alimentos en español con subgrupo y clasificación AIS), luego Open Food Facts, USDA y FatSecret en vivo. Revisa siempre los valores antes de guardar.</p>'+
     '<div style="display:flex;gap:8px"><input id="fext_q" placeholder="Ej. yogur griego, avena, tortilla de maíz…" autocomplete="off" value="'+esc(FEXT.q)+'" style="flex:1"><button class="btn btn-p" data-act="fext-go">Buscar</button></div>'+
     '<div id="fext_res" style="margin-top:12px">'+fextResHTML()+'</div>',
     '<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
@@ -8358,13 +8359,16 @@ Object.assign(ACTIONS,{
     if(FEXT.busy)return;
     FEXT={q:q,items:[],sources:null,err:'',busy:true};
     const box=document.getElementById('fext_res');if(box)box.innerHTML='<p class="tiny muted">Buscando en las tres bases…</p>';
-    let data=null,error=null;
+    let data=null,error=null,cat=[];
+    const pCat=supa.rpc('buscar_alimentos',{q:q,n:25,solo_kind:null}).then(r=>{cat=(r&&r.data||[]).map(fextDeCatalogo);}).catch(()=>{});
     try{const r=await supa.functions.invoke('alimentos-buscar',{body:{q:q}});data=r.data;error=r.error;}catch(e){error=e;}
+    await pCat;
+    if((error||!data||!data.ok)&&cat.length){data={ok:true,items:[],sources:null};error=null;}  /* el catálogo basta si las externas fallan */
     if(error||!data||!data.ok){
       let msg=(data&&data.error)||'No pude buscar ahora. Vuelve a intentar.';
       try{if(error&&error.context&&error.context.json){const j=await error.context.json();if(j&&j.error)msg=j.error;}}catch(_){}
       FEXT.err=msg;
-    }else{FEXT.items=data.items||[];FEXT.sources=data.sources||null;}
+    }else{FEXT.items=cat.concat(data.items||[]);FEXT.sources=data.sources||null;}
     FEXT.busy=false;
     const b2=document.getElementById('fext_res');if(b2&&FEXT.q===q)b2.innerHTML=fextResHTML();
   },
@@ -8372,7 +8376,7 @@ Object.assign(ACTIONS,{
     const x=FEXT.items[+el.dataset.i];if(!x)return;
     ACTIONS['food-new-modal']();
     const set=(id,v)=>{const i=document.getElementById(id);if(i)i.value=v;};
-    set('fo_name',x.name);set('fo_cat',FOOD_CATS.indexOf(x.cat)>=0?x.cat:'Otros');
+    set('fo_name',x.src==='lr'&&x.brand?x.name+' '+x.brand:x.name);set('fo_cat',FOOD_CATS.indexOf(x.cat)>=0?x.cat:'Otros');
     set('fo_p',x.p);set('fo_c',x.c);set('fo_f',x.f);
     const u=document.getElementById('fo_unit');
     if(u&&x.unit==='u'){u.value='u';u.dispatchEvent(new Event('change',{bubbles:true}));set('fo_unitlabel',x.unitLabel||'porción');}
@@ -8381,7 +8385,12 @@ Object.assign(ACTIONS,{
   }
 });
 let FEXT={q:'',items:[],sources:null,err:'',busy:false};
-const FEXT_SRC={off:'Open Food Facts',usda:'USDA',fs:'FatSecret'};
+const FEXT_SRC={lr:'Catálogo LR',off:'Open Food Facts',usda:'USDA',fs:'FatSecret'};
+/* fila de food_catalog → formato del buscador externo (por 100 g; las medidas caseras van de referencia) */
+function fextDeCatalogo(r){
+  return {src:'lr',name:r.name,brand:r.brand||'',cat:r.cat,kcal:Math.round(+r.kcal||0),p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:'g',
+    aisG:r.ais_grupo||'',aisT:r.ais_tipo||'',med:(Array.isArray(r.measures)?r.measures:[]).slice(0,3).map(m=>m.n+' = '+m.g+' g').join(' · ')};
+}
 function fextResHTML(){
   if(FEXT.err)return '<div class="empty"><b>No se pudo buscar</b>'+esc(FEXT.err)+'</div>';
   if(!FEXT.q)return '';
@@ -8392,7 +8401,9 @@ function fextResHTML(){
     h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2)"><div style="flex:1;min-width:0">'+
       '<div style="font-weight:600">'+esc(x.name)+(x.brand?' <span class="tiny muted">· '+esc(x.brand)+'</span>':'')+'</div>'+
       '<div class="tiny muted"><span class="chip">'+FEXT_SRC[x.src]+'</span> '+esc(x.cat||'Otros')+' · '+x.kcal+' kcal · P '+x.p+' · C '+x.c+' · G '+x.f+' '+per+
-      (have[String(x.name).toLowerCase()]?' · <b>ya está en tu base</b>':'')+'</div></div>'+
+      (have[String(x.name).toLowerCase()]?' · <b>ya está en tu base</b>':'')+'</div>'+
+      (x.med?'<div class="tiny muted">'+esc(x.med)+'</div>':'')+
+      (x.aisG?'<div class="tiny muted"><span class="chip">AIS '+esc(x.aisG)+'</span> '+esc(x.aisT)+' · clasificación AIS del tipo, no certifica la marca</div>':'')+'</div>'+
       '<button class="btn btn-g" data-act="fext-pick" data-i="'+i+'">Agregar</button></div>';
   });
   if(!h)h='<div class="empty"><b>Sin resultados</b>Prueba con otras palabras (más generales o con la marca).</div>';
