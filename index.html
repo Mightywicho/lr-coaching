@@ -722,12 +722,15 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .fpx-k button:focus-visible,.fpx-c:focus-visible,.fpm-fav:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .fpm:empty{display:none}
 .fpm{margin:-4px 0 14px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg2)}
-.fpm-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.fpm-fav{margin-left:auto;min-width:40px;min-height:40px;border:0;background:none;font-size:22px;line-height:1;color:var(--tx2);cursor:pointer}
+.fpm-h{display:flex;align-items:center;gap:8px}
+.fpm-h .chip{flex:none}
+.fpm-h .tiny{flex:1;min-width:0}
+.fpm-fav{margin-left:auto;flex:none;min-width:40px;min-height:40px;border:0;background:none;font-size:22px;line-height:1;color:var(--tx2);cursor:pointer}
 .fpm-fav.on{color:var(--orange)}
 .fpm-u{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .fpm-u label{margin:0}
-.fpm-u select{flex:1;min-width:170px}
+.fpm-u select{flex:1;min-width:0}
+.fpm-u .tiny{flex-basis:100%;font-weight:600;color:var(--tx)}
 .covrow{display:flex;align-items:center;gap:7px;padding:6px 0;flex-wrap:wrap;border-bottom:1px dashed var(--line)}
 .covrow:last-child{border-bottom:none}
 .covrow .gn{width:128px;font-size:12.5px;font-weight:600;color:var(--tx2);flex:none}
@@ -3229,7 +3232,14 @@ function medFmt(nm,n){
   if(!m)return n===1?nm:fmtG(n)+' × '+nm;
   let L=m[1].indexOf('/')>0?(+m[1].split('/')[0])/(+m[1].split('/')[1]):parseFloat(m[1].replace(',','.'));if(!(L>0))L=1;
   const tot=Math.round(L*n*100)/100;let u=m[2];
-  if(L===1&&tot>1){const w=u.split(' ');w[0]=esPlural(w[0]);if(w[1]&&/^(grande|mediana|mediano|pequeña|pequeño|chica|chico|entera|entero)$/i.test(w[1]))w[1]=esPlural(w[1]);u=w.join(' ');}
+  if(L===1&&tot>1){const w=u.split(' ');w[0]=esPlural(w[0]);
+    /* Solo el adjetivo que va con la medida: «pieza pelada» → «piezas peladas», «rebanada fina» → «rebanadas finas».
+       «taza picado» se queda (picado es el alimento, no la taza) y «taza penne»/«taza lasaña» no se tocan (son el alimento). */
+    for(let i=1;i<3&&w[i];i++){const a=w[i].toLowerCase(),g=w[0].slice(-2,-1).toLowerCase();
+      const inv=/^(grande|individual|normal)$/.test(a);
+      const adj=/^([a-záéíóúñ]+(ad|id)[ao]|fin[ao]|grues[ao]|enter[ao]|suelt[ao]|intern[ao]|extern[ao]|median[ao]|pequeñ[ao]|chic[ao]|cúbic[ao]|llen[ao]|ras[ao]|soper[ao]|cafeter[ao])$/.test(a);
+      if(!(inv||(adj&&a.slice(-1)===g)))break;w[i]=esPlural(w[i]);}
+    u=w.join(' ');}
   return String(tot)+' '+u;
 }
 function fpmFill(target,fo){
