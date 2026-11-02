@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-02.7">
+<meta name="lr-build" content="2026-11-02.8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1063,6 +1063,13 @@ input.meta-in.old{border-style:dashed}
 .supp-mic{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--tx2)}
 .supp-mic b{color:var(--tx);font-weight:600}
 .supp-mic.over{border-color:var(--red);color:var(--red);background:var(--danger-10)}
+.supp-mic.supv{border-color:var(--orange);color:var(--orange)}
+.supp-tip{margin:0;color:var(--tx2)}
+.supp-clin{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.supp-clin button{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--tx2);background:none;cursor:pointer}
+.supp-clin button.on{border-color:var(--orange);color:var(--tx);background:rgba(255,180,92,.12)}
+.supp-warns{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.supp-warns p{margin:0;font-size:12.5px;color:var(--orange);border-left:2px solid var(--orange);padding-left:8px}
 .supp-sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .supp-food{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:10px}
 .supp-mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px}
@@ -3076,11 +3083,29 @@ function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid);return (d.nutriPick&
 const SUPP_MOM=['Al despertar','Pre-entreno','Intra-entreno','Post-entreno','Con comida','Antes de dormir','Otro'];
 const SUPP_FREC={diario:'Diario',train:'Días de entreno',rest:'Días de descanso'};
 const SUPP_CATS=['Rendimiento','Salud','Sueño','Hidratación','Con calorías','Otros'];
-/* [clave, nombre, unidad, UL adulto o null]. Claves = las del catálogo (food_catalog.micros) salvo vitd: el
-   catálogo la trae en µg y aquí va en UI (1 µg = 40 UI); b12, fol y o3 no existen en el catálogo. */
-const SUPP_MIC=[['vitd','Vitamina D','UI',4000],['vita','Vitamina A','µg',3000],['vitc','Vitamina C','mg',2000],['vite','Vitamina E','mg',1000],['vitk','Vitamina K','µg',null],
-  ['b12','Vitamina B12','µg',null],['fol','Ácido fólico','µg',1000],['ca','Calcio','mg',2500],['fe','Hierro','mg',45],['mg','Magnesio','mg',350],['zn','Zinc','mg',40],
-  ['se','Selenio','µg',400],['k','Potasio','mg',null],['na','Sodio','mg',null],['o3','Omega 3 (EPA+DHA)','mg',5000]];
+/* [clave, nombre, unidad, UL adulto, fuente, UL 14-17 años (null = el de adulto)]. Claves = las del catálogo
+   (food_catalog.micros) salvo vitd: el catálogo la trae en µg y aquí va en UI (1 µg = 40 UI); b6, b12, fol, mn,
+   io y o3 no existen en el catálogo.
+   Revisión con evidencia (pedido de Luis, 2026-11-02; búsqueda en PubMed): donde la EFSA revisó el límite en
+   2023-2024 manda la EFSA porque es la revisión más nueva y casi siempre la más estricta (E 300 mg, no 1000 del
+   IOM; selenio 255 µg, no 400; B6 12 mg, no 100; hierro 40 mg «nivel seguro» 2024; zinc 25; magnesio 250 SOLO de
+   suplementos). Vitamina C no tiene UL en la EFSA: se usa el del IOM. Calcio: 2000 mg desde los 51 años (IOM).
+   Adolescentes 15-17: escalados por la EFSA (A 2600, E 260, fólico 800, hierro 35) y del IOM/SCF los demás. */
+const SUPP_MIC=[['vitd','Vitamina D','UI',4000,'EFSA 2023: 100 µg',null],['vita','Vitamina A (retinol)','µg',3000,'EFSA 2024, retinol preformado (no β-caroteno)',2600],
+  ['vitc','Vitamina C','mg',2000,'IOM 2000',1800],['vite','Vitamina E','mg',300,'EFSA 2024',260],['vitk','Vitamina K','µg',null,'',null],
+  ['b6','Vitamina B6','mg',12,'EFSA 2023 (neuropatía)',10],['b12','Vitamina B12','µg',null,'',null],['fol','Ácido fólico','µg',1000,'EFSA 2023',800],
+  ['ca','Calcio','mg',2500,'EFSA 2012',null],['fe','Hierro','mg',40,'EFSA 2024, nivel seguro',35],['mg','Magnesio','mg',250,'EFSA, solo de suplementos',null],
+  ['zn','Zinc','mg',25,'EFSA (SCF)',22],['se','Selenio','µg',255,'EFSA 2023',null],['mn','Manganeso','mg',8,'EFSA 2023, nivel seguro',null],
+  ['io','Yodo','µg',600,'EFSA (SCF)',500],['k','Potasio','mg',null,'',null],['na','Sodio','mg',null,'',null],['o3','Omega 3 (EPA+DHA)','mg',5000,'EFSA 2012',null]];
+/* Límite para ESTE atleta: por edad (perfil) y, en calcio, 2000 mg desde los 51 años. */
+function suppUL(aid,d){
+  const age=+((athData(aid).profile||{}).age)||0;
+  if(d[0]==='ca'&&age>50)return{ul:2000,src:'IOM, mayores de 50 años'};
+  if(age&&age<18&&d[5]!=null)return{ul:d[5],src:d[4]+', adolescentes'};
+  return{ul:d[3],src:d[4]};
+}
+/* Consideraciones clínicas que el coach marca por atleta (n.clinico). Solo encienden avisos: no cambian dosis. */
+const SUPP_CLIN={emb:'Embarazo o lo busca',lac:'Lactancia',erc:'Enfermedad renal',acg:'Anticoagulante o antiagregante',hem:'Hemocromatosis o hierro alto'};
 const SUPP_SEED=[
  {id:'sb_cre',name:'Creatina monohidrato',cat:'Rendimiento',amount:5,unit:'g',step:1,timing:'Con comida',freq:'diario',notes:'Diario, también en descanso'},
  {id:'sb_caf',name:'Cafeína',cat:'Rendimiento',amount:3,unit:'mg',perKg:true,step:0.5,timing:'Pre-entreno',freq:'train',notes:'45-60 min antes. Evitar 6 h antes de dormir'},
@@ -3090,7 +3115,7 @@ const SUPP_SEED=[
  {id:'sb_ele',name:'Electrolitos',cat:'Hidratación',amount:1,unit:'sobre',step:1,timing:'Intra-entreno',freq:'train',notes:'En 500-750 ml de agua'},
  {id:'sb_vd3',name:'Vitamina D3',cat:'Salud',amount:2000,unit:'UI',step:500,timing:'Con comida',freq:'diario',notes:'Con la comida que tenga grasa',micros:{vitd:2000}},
  {id:'sb_o3',name:'Omega 3 (EPA+DHA)',cat:'Salud',amount:2,unit:'cápsulas',step:1,timing:'Con comida',freq:'diario',notes:''},
- {id:'sb_mg',name:'Magnesio (bisglicinato)',cat:'Salud',amount:300,unit:'mg',step:50,timing:'Antes de dormir',freq:'diario',notes:'',micros:{mg:300}},
+ {id:'sb_mg',name:'Magnesio (bisglicinato)',cat:'Salud',amount:200,unit:'mg',step:50,timing:'Antes de dormir',freq:'diario',notes:'',micros:{mg:200}},
  {id:'sb_mlt',name:'Multivitamínico',cat:'Salud',amount:1,unit:'tableta',step:1,timing:'Con comida',freq:'diario',notes:''},
  {id:'sb_fe',name:'Hierro',cat:'Salud',amount:1,unit:'tableta',step:1,timing:'Al despertar',freq:'diario',notes:'Con vitamina C, lejos del café y los lácteos'},
  {id:'sb_mel',name:'Melatonina',cat:'Sueño',amount:1,unit:'mg',step:0.5,timing:'Antes de dormir',freq:'diario',notes:'30-60 min antes de dormir'},
@@ -3102,9 +3127,12 @@ const SUPP_SEED=[
    v2: a la base ya sembrada (build .5) le faltaban macros de whey/gel y micros de D3/magnesio; se añaden
    UNA vez y solo donde el coach no haya puesto nada. */
 function ensureSuppBase(st){
-  if(!Array.isArray(st.suppBase)){st.suppBase=JSON.parse(JSON.stringify(SUPP_SEED));st.suppBaseV=2;return;}
-  if((st.suppBaseV||1)<2){st.suppBase.forEach(b=>{const sd=SUPP_SEED.find(x=>x.id===b.id);if(!sd||+b.amount!==sd.amount)return;
-    if(sd.mac&&!b.mac)b.mac=Object.assign({},sd.mac);if(sd.micros&&!b.micros)b.micros=Object.assign({},sd.micros);});st.suppBaseV=2;}
+  if(!Array.isArray(st.suppBase)){st.suppBase=JSON.parse(JSON.stringify(SUPP_SEED));st.suppBaseV=3;return;}
+  if((st.suppBaseV||1)<2){st.suppBase.forEach(b=>{const sd=SUPP_SEED.find(x=>x.id===b.id);if(!sd||(+b.amount!==sd.amount&&b.id!=='sb_mg'))return;
+    if(sd.mac&&!b.mac)b.mac=Object.assign({},sd.mac);if(sd.micros&&!b.micros&&b.id!=='sb_mg')b.micros=Object.assign({},sd.micros);});st.suppBaseV=2;}
+  /* v3: el magnesio de fábrica venía en 300 mg, arriba del UL de la EFSA para magnesio de suplementos (250 mg).
+     Solo se baja si sigue tal cual lo sembramos (300 mg); si Luis ya lo cambió, se respeta. */
+  if((st.suppBaseV||1)<3){const m=st.suppBase.find(b=>b.id==='sb_mg');if(m&&+m.amount===300){m.amount=200;m.micros={mg:200};}st.suppBaseV=3;}
 }
 const suppFmt=x=>{x=+x||0;const v=Math.abs(x)>=100?Math.round(x):Math.round(x*100)/100;return v.toLocaleString('es-MX');};
 /* Para casillas: sin separador de miles (2000, no «2,000», que parseFloat leería como 2). */
@@ -3189,16 +3217,61 @@ function suppAthCard(aid){
     (ck.length?'<div class="supp-bar"><i style="width:'+pct+'%"></i></div>':'')+list+
     (ck.length?'<p class="tiny mt8">Toca el círculo cuando te lo tomes. Tu coach ve tu constancia.</p>':'')};
 }
-/* Micros de la suplementación: el máximo en un día (entreno o descanso) contra el UL. */
+/* Cafeína del día en mg (para el aviso de embarazo/lactancia: EFSA, máximo 200 mg/día). */
+function suppCafMg(aid,s){if(!/cafe[ií]na/i.test(s.name||'')||s.amount==null||String(s.unit).toLowerCase()!=='mg')return 0;return s.perKg?(+s.amount)*(suppPeso(aid)||0):+s.amount;}
+/* Nota para el coach según lo que aporta (no la ve el atleta). Evidencia en atletas:
+   hierro — revisiones sistemáticas en atletas (Pengelly 2024, J Sport Health Sci; Šmid 2024, Sports Med): solo
+   sube la ferritina si arranca baja (≤12-30 µg/L) y los esquemas eficaces van de 16 a 100 mg/día por 6-8 semanas;
+   100 mg es dosis de TRATAMIENTO, arriba del nivel seguro, y va con análisis. Vitamina D — revisiones en atletas:
+   1000-2000 UI/día de mantenimiento; más solo para corregir 25(OH)D bajo; no bolos altos. */
+function suppTip(aid,s){
+  const o=suppMic(s)||{},n=String(s.name||'');
+  if(o.fe>0||/hierro/i.test(n))return 'Atletas: solo con ferritina baja (menos de 30-40 µg/L). 16-100 mg/día por 6-8 semanas con análisis antes y después; arriba de 40 mg es dosis de tratamiento: marca «dosis terapéutica».';
+  if(o.vitd>2000||(/vitamina d/i.test(n)&&+s.amount>2000))return 'Atletas: 1000-2000 UI/día de mantenimiento; más solo para corregir 25(OH)D bajo y con control. Mejor diario que bolos altos.';
+  if(o.b6>0)return 'La B6 tiene un límite bajo (12 mg, EFSA 2023) por neuropatía: revisa multivitamínicos y ZMA.';
+  return '';
+}
+/* Avisos clínicos según lo que el coach marcó y lo que lleva recetado. */
+function suppClinWarn(aid){
+  const n=nutriOf(aid),c=n.clinico||{},t=todayISO(),sup=(n.supplements||[]).filter(s=>suppVigente(s,t)),out=[];
+  const has=k=>sup.some(s=>{const o=suppMic(s);return o&&o[k]>0;})||sup.some(s=>({fe:/hierro/i,vitk:/vitamina k/i,vite:/vitamina e/i,o3:/omega/i,mg:/magnesio/i,k:/potasio/i,vita:/vitamina a|retinol/i,vitc:/vitamina c/i,fol:/f[oó]lico|folato/i}[k]||/^$/).test(s.name||''));
+  const caf=Math.max.apply(null,[0].concat(['train','rest'].map(dia=>sup.filter(s=>suppEnDia(s,dia)).reduce((a,s)=>a+suppCafMg(aid,s),0))));
+  if(c.emb){
+    if(has('vita'))out.push('Embarazo: la vitamina A preformada (retinol) es teratógena; no pasar de 3000 µg/día y preferir β-caroteno (EFSA 2024).');
+    if(!has('fol'))out.push('Embarazo o si lo busca: ácido fólico 400 µg/día es la recomendación en todos los países revisados (Saros 2023). No tiene ninguno recetado.');
+  }
+  if((c.emb||c.lac)&&caf>200)out.push('Embarazo/lactancia: la cafeína de sus suplementos ('+Math.round(caf)+' mg) pasa los 200 mg/día que la EFSA considera seguros, sin contar café ni bebidas.');
+  if(c.lac&&has('vita'))out.push('Lactancia: vitamina A preformada, máximo 3000 µg/día (EFSA 2024).');
+  if(c.erc&&(has('mg')||has('k')||has('vita')))out.push('Enfermedad renal: magnesio, potasio y vitamina A se pueden acumular; solo con indicación y laboratorios del nefrólogo (Juszczak 2023; Vermeulen 2023).');
+  if(c.acg){
+    if(has('vitk'))out.push('Anticoagulante: la vitamina K cambia el efecto de la warfarina; dosis constante y que su médico lo sepa.');
+    if(has('vite'))out.push('Anticoagulante: la EFSA aclara que su límite de vitamina E NO aplica a quien toma anticoagulantes o antiagregantes; evitar dosis altas.');
+    if(has('o3'))out.push('Anticoagulante + omega 3: hay casos de INR elevado al subir la dosis; que su médico lo sepa y no cambiar la dosis sin aviso.');
+  }
+  if(c.hem){if(has('fe'))out.push('Hemocromatosis o hierro alto: NO dar hierro.');if(has('vitc'))out.push('Hemocromatosis: la vitamina C aumenta la absorción de hierro; evitar dosis altas con comidas.');}
+  return out;
+}
+/* Micros de la suplementación: el máximo en un día (entreno o descanso) contra el UL de ESTE atleta. Los
+   suplementos marcados «dosis terapéutica» (s.supv) cuentan en el total, pero si sin ellos no se pasa, el aviso
+   es ámbar (supervisado) y no rojo: el UL es para población sana, no para tratamiento con control médico. */
 function suppMicSummary(aid){
-  const t=todayISO(),sup=(nutriOf(aid).supplements||[]).filter(s=>suppVigente(s,t)),tot={};
-  ['train','rest'].forEach(dia=>{const d={};sup.forEach(s=>{if(!suppEnDia(s,dia))return;const o=suppMic(s);if(o)Object.keys(o).forEach(k=>{d[k]=(d[k]||0)+o[k];});});Object.keys(d).forEach(k=>{tot[k]=Math.max(tot[k]||0,d[k]);});});
-  const rows=SUPP_MIC.filter(d=>tot[d[0]]>0);if(!rows.length)return'';
-  const chips=rows.map(d=>{const v=tot[d[0]],ul=d[3],over=ul&&v>ul;
-    return '<span class="supp-mic'+(over?' over':'')+'"'+(over?' title="Pasa el límite superior tolerable ('+suppFmt(ul)+' '+d[2]+')"':'')+'><b>'+esc(d[1])+'</b> '+suppFmt(v)+' '+d[2]+(ul?' <span class="tiny">/ UL '+suppFmt(ul)+'</span>':'')+(over?' ⚠':'')+'</span>';}).join('');
-  const anyOver=rows.some(d=>d[3]&&tot[d[0]]>d[3]);
-  return '<div class="supp-mics"><h4 class="mg-h">Micronutrientes de sus suplementos <span class="hint">máximo en un día · solo suplementos, sin comida</span></h4><div class="supp-micw">'+chips+'</div>'+
-    (anyOver?'<p class="tiny" style="color:var(--red);margin:6px 0 0">⚠ Solo con suplementos ya pasa el límite superior tolerable (UL). Revisa dosis o si dos productos repiten el mismo nutriente.</p>':'<p class="tiny" style="margin:6px 0 0">UL = límite superior tolerable para adultos. Varios cuentan la comida también: si los suplementos se acercan, la comida puede completar el resto.</p>')+'</div>';
+  const n=nutriOf(aid),t=todayISO(),sup=(n.supplements||[]).filter(s=>suppVigente(s,t)),tot={},lib={},c=n.clinico||{};
+  ['train','rest'].forEach(dia=>{const d={},l={};sup.forEach(s=>{if(!suppEnDia(s,dia))return;const o=suppMic(s);if(o)Object.keys(o).forEach(k=>{d[k]=(d[k]||0)+o[k];if(!s.supv)l[k]=(l[k]||0)+o[k];});});
+    Object.keys(d).forEach(k=>{tot[k]=Math.max(tot[k]||0,d[k]);});Object.keys(l).forEach(k=>{lib[k]=Math.max(lib[k]||0,l[k]);});});
+  const age=+((athData(aid).profile||{}).age)||0;
+  const rows=SUPP_MIC.filter(d=>tot[d[0]]>0);
+  const clinChips='<div class="supp-clin"><span class="supp-l" style="margin:0">Consideraciones clínicas</span>'+Object.keys(SUPP_CLIN).map(k=>'<button class="'+(c[k]?'on':'')+'" aria-pressed="'+!!c[k]+'" data-act="supp-clin" data-aid="'+aid+'" data-k="'+k+'">'+SUPP_CLIN[k]+'</button>').join('')+'</div>';
+  const warns=suppClinWarn(aid);
+  const warnHTML=warns.length?'<div class="supp-warns">'+warns.map(w=>'<p>⚠ '+esc(w)+'</p>').join('')+'</div>':'';
+  if(!rows.length)return '<div class="supp-mics">'+clinChips+warnHTML+'</div>';
+  let anyOver=false,anySup=false;
+  const chips=rows.map(d=>{const v=tot[d[0]],L=suppUL(aid,d),ul=L.ul,over=ul&&(lib[d[0]]||0)>ul,sup=!over&&ul&&v>ul;anyOver=anyOver||over;anySup=anySup||sup;
+    return '<span class="supp-mic'+(over?' over':sup?' supv':'')+'" title="'+esc(ul?'Límite superior: '+suppFmt(ul)+' '+d[2]+' ('+L.src+')':'Sin límite superior establecido')+'"><b>'+esc(d[1])+'</b> '+suppFmt(v)+' '+d[2]+(ul?' <span class="tiny">/ UL '+suppFmt(ul)+'</span>':'')+(over?' ⚠':sup?' · supervisado':'')+'</span>';}).join('');
+  return '<div class="supp-mics"><h4 class="mg-h">Micronutrientes de sus suplementos <span class="hint">máximo en un día · solo suplementos, sin comida'+(age?' · límites para '+age+' años':'')+'</span></h4><div class="supp-micw">'+chips+'</div>'+
+    (anyOver?'<p class="tiny" style="color:var(--red);margin:6px 0 0">⚠ Solo con suplementos ya pasa el límite superior tolerable (UL). Revisa dosis o si dos productos repiten el mismo nutriente; si es un tratamiento con análisis, márcalo como «dosis terapéutica».</p>':'')+
+    (anySup?'<p class="tiny" style="color:var(--orange);margin:6px 0 0">Por encima del UL solo por dosis terapéuticas marcadas: el UL es para población sana, no para tratamientos con control.</p>':'')+
+    '<p class="tiny" style="margin:6px 0 0">UL de la EFSA (revisiones 2023-2024) y del IOM donde la EFSA no fija uno; ajustados por edad (adolescentes; calcio desde los 51). Hierro y manganeso: «nivel seguro» de la EFSA. Casi todos cuentan también la comida: es un aviso mínimo, no una garantía. No distinguen embarazo: para eso, las consideraciones clínicas de abajo.</p>'+
+    clinChips+warnHTML+'</div>';
 }
 /* Tarjeta del coach: cada suplemento recetado se ajusta ahí mismo (cantidad ±, momento, cuándo, hasta, indicación). */
 let _suppDel=null,_suppQ='',_suppCat='';
@@ -3228,6 +3301,8 @@ function suppCoachCard(aid){
       (mac||mic?'<div class="supp-aporta">'+(mac?'<span class="badge orange">'+esc(suppMacTxt(mac))+'</span>':'')+(mic?'<span class="tiny">'+esc(suppMicTxt(mic))+'</span>':'')+'</div>':'')+
       (perdido?'<div class="supp-conf" style="background:none">Ya no está en el menú (se rehízo la comida). <button class="btn btn-g btn-sm" data-act="supp-resync" '+A+'>Volver a ponerlo</button></div>':'')+
       (s.kcal&&!mac?'<p class="tiny" style="color:var(--orange);margin:0">Tiene calorías pero no tiene macros capturados: ponle sus macros en tu base para que cuenten.</p>':'')+
+      ((t2=>t2?'<p class="tiny supp-tip">💡 '+esc(t2)+'</p>':'')(suppTip(aid,s)))+
+      (mic||suppTip(aid,s)?'<label class="supp-chk" style="margin:0"><input type="checkbox" data-change="supp-supv" '+A+(s.supv?' checked':'')+'> Dosis terapéutica (con análisis o indicación médica): no la marca en rojo si pasa el límite</label>':'')+
       '<div class="supp-ctl">'+cant+'<div><span class="supp-l">Momento</span><select data-change="supp-f" data-k="timing" '+A+' aria-label="Momento">'+momOpts+'</select></div>'+donde+'</div>'+
       '<div class="supp-ctl"><div><span class="supp-l">Cuándo</span><span class="supp-seg">'+Object.keys(SUPP_FREC).map(k=>'<button class="'+(fr===k?'on':'')+'" aria-pressed="'+(fr===k)+'" data-act="supp-frec" data-v="'+k+'" '+A+'>'+SUPP_FREC[k]+'</button>').join('')+'</span></div>'+
         '<div><span class="supp-l">Hasta</span><input type="date" value="'+esc(s.until||'')+'" data-change="supp-f" data-k="until" '+A+' aria-label="Hasta qué fecha (vacío = sin fin)"></div></div>'+
@@ -7108,6 +7183,7 @@ Object.assign(ACTIONS,{
   'supp-del':el=>{_suppDel=el.dataset.sid;render();},
   'supp-del-no':()=>{_suppDel=null;render();},
   'supp-del-ok':el=>{const n=nutriOf(el.dataset.aid),s=suppOf(el);if(s)suppSyncMeal(el.dataset.aid,s,true);n.supplements=n.supplements.filter(x=>x.id!==el.dataset.sid);_suppDel=null;saveState();toast('Suplemento quitado');render();},
+  'supp-clin':el=>{const n=nutriOf(el.dataset.aid);n.clinico=Object.assign({},n.clinico||{});n.clinico[el.dataset.k]=!n.clinico[el.dataset.k];if(!n.clinico[el.dataset.k])delete n.clinico[el.dataset.k];saveState();render();},
   'supp-take':el=>suppHoyEdit(sp=>{const i=sp.done.indexOf(el.dataset.sid);if(i>=0)sp.done.splice(i,1);else sp.done.push(el.dataset.sid);}),
   'supp-dia':el=>suppHoyEdit(sp=>{sp.dia=el.dataset.v==='rest'?'rest':'train';}),
   /* ---- el atleta elige su tipo de día ---- */
@@ -9212,6 +9288,7 @@ document.addEventListener('change',e=>{
   }
   else if(el.dataset.change==='fd-refresh'){fdRead();fdShow();}
   else if(el.dataset.change==='mi-qty'){miQtySet(el);}
+  else if(el.dataset.change==='supp-supv'){const sp=suppOf(el);if(!sp)return;sp.supv=!!el.checked;if(!sp.supv)delete sp.supv;saveState();render();}
   else if(el.dataset.change==='supp-where'){const sp=suppOf(el);if(!sp)return;sp.where=el.value||'';suppSyncMeal(el.dataset.aid,sp);saveState();render();toast(sp.where?'Quedó dentro de la comida: cuenta en el menú':'Quedó como toma aparte');}
   else if(el.dataset.change==='supp-f'){const sp=suppOf(el);if(!sp)return;const k=el.dataset.k;
     if(k==='amount'){const v=parseFloat(String(el.value).replace(',','.'));if(v>0)sp.amount=+v.toFixed(3);if(sp.where)suppSyncMeal(el.dataset.aid,sp);saveState();render();return;}
@@ -9415,7 +9492,7 @@ function applyTplRoutine(aid,t){
   logChange(aid,'alta','Plantilla aplicada: '+t.name+' ('+days.length+' días, '+ex+' ejercicios)','Programa','','Plantilla: '+t.name);
 }
 function applyTplNutri(aid,t){
-  const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile;
+  const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile,cl=d.nutrition&&d.nutrition.clinico;
   const plans=dcopy(t.plans||[]);let actId=null;
   const _pm={},_mm={}; /* ids viejos → nuevos: los suplementos «dentro de un platillo» apuntan a plan|comida */
   plans.forEach(p=>{const old=p.id;p.id=uid();_pm[old]=p.id;(p.meals||[]).forEach(m=>{const om=m.id;m.id=uid();_mm[om]=m.id;});if(old===t.activePlan)actId=p.id;});
@@ -9424,6 +9501,7 @@ function applyTplNutri(aid,t){
   plans.forEach(p=>(p.meals||[]).forEach(m=>(m.items||[]).forEach(it=>{if(it.supp){if(_sm[it.supp])it.supp=_sm[it.supp];else delete it.supp;}})));
   d.nutrition={activePlan:actId||plans[0].id,plans:plans,supplements:sups};
   if(dp)d.nutrition.dietProfile=dp;/* el perfil de alimentación es del atleta, no se toca */
+  if(cl)d.nutrition.clinico=cl;/* las consideraciones clínicas (suplementación) también son del atleta */
 }
 function tplList(kind){return kind==='routine'?S.templates.routines:S.templates.nutris;}
 function tplById(kind,id){return tplList(kind).find(x=>x.id===id);}
