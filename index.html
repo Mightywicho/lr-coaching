@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-02.6">
+<meta name="lr-build" content="2026-11-02.7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1055,6 +1055,17 @@ input.meta-in.old{border-style:dashed}
 .supp-t.done .supp-ck::after{content:"";width:11px;height:6px;border-left:2px solid #0b0d11;border-bottom:2px solid #0b0d11;transform:rotate(-45deg) translate(1px,-1px)}
 .supp-t.done .supp-n{color:var(--tx3);text-decoration:line-through}
 .supp-n{font-weight:600}
+.supp-t.inmeal{background:transparent;border-style:dashed}
+.supp-ic{width:32px;text-align:center;flex:none;font-size:18px}
+.supp-aporta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.supp-mics{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.supp-micw{display:flex;flex-wrap:wrap;gap:6px}
+.supp-mic{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--tx2)}
+.supp-mic b{color:var(--tx);font-weight:600}
+.supp-mic.over{border-color:var(--red);color:var(--red);background:var(--danger-10)}
+.supp-sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.supp-food{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:10px}
+.supp-mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px}
 </style>
 </head>
 <body>
@@ -3012,7 +3023,7 @@ function foodMacros(name,qty){const fo=eqvFood(name);if(!fo)return null;const k=
    ("2 piezas"), así que ahí hay que leerla del texto. Sin esto, editar un alimento por
    pieza arrancaría siempre en 0 y el coach tendría que recapturarla a ciegas. */
 function piQty(it){const g=+(it&&it.grams)||0;if(g>0)return g;const mm=/(\d+(?:[.,]\d+)?)/.exec((it&&it.qty)||'');return mm?(parseFloat(mm[1].replace(',','.'))||0):0;}
-function normMeal(m){m.items=(m.items||[]).map(it=>{let p=+it.p||0,c=+it.c||0,f=+it.f||0,grams=+it.grams||0;if(!p&&!c&&!f){const gm=/([\d.]+)\s*g/i.exec(it.qty||'');if(gm){const g=parseFloat(gm[1]);const mac=foodMacros(it.food,g);if(mac){p=mac.p;c=mac.c;f=mac.f;grams=g;}}}return{food:it.food,qty:it.qty||'',grams,p,c,f};});return m;}
+function normMeal(m){m.items=(m.items||[]).map(it=>{let p=+it.p||0,c=+it.c||0,f=+it.f||0,grams=+it.grams||0;if(!p&&!c&&!f){const gm=/([\d.]+)\s*g/i.exec(it.qty||'');if(gm){const g=parseFloat(gm[1]);const mac=foodMacros(it.food,g);if(mac){p=mac.p;c=mac.c;f=mac.f;grams=g;}}}const o={food:it.food,qty:it.qty||'',grams,p,c,f};if(it.supp)o.supp=it.supp;return o;});return m;}
 function migrateNutrition(n){
   if(!n)return{plans:[],activePlan:null,supplements:[]};
   if(!n.plans){
@@ -3044,10 +3055,32 @@ function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid);return (d.nutriPick&
    eligió hoy un plan de nutrición «Day off».
    Lo que marca el atleta («✓ me lo tomé») vive en la entrada de nutrición del día (`e.supps` = {done:[ids],
    dia}, columna nutrition_logs.supps). Igual que los cambios de alimento, NO cuenta como «registrada»
-   (nutriHasData): tomarse la creatina no es reportar la dieta. */
+   (nutriHasData): tomarse la creatina no es reportar la dieta.
+
+   MACROS Y MICROS (segunda vuelta, 2026-11-02, duda de Luis: «hay suplementos que aportan macros y pueden
+   ir como parte de un platillo o como suplementación aislada»; y faltaban los micros).
+   - La base guarda, para SU dosis por defecto, `mac` {p,c,f} y `micros` {clave:valor}. Al recetar se copian
+     en `s.ref` = {amount, mac, micros}; lo del atleta se escala por s.amount/ref.amount. Con dosis por kg no
+     se escalan (la base no sabe el peso): esos son cafeína/bicarbonato, sin macros ni micros que importen.
+   - `s.where`: '' = AISLADO (toma aparte: sus macros se suman al día del atleta cuando marca ✓, y el coach
+     los ve como línea extra bajo las barras del plan) o 'idPlan|idComida' = DENTRO DE UN PLATILLO: se mete
+     como ingrediente de esa comida (`it.supp` = id del suplemento) y cuenta como cualquier alimento; en la
+     lista del atleta sale «va en tu …» SIN círculo, para que no se cuente dos veces. Solo planes en modo
+     menú (en modo macros no hay ingredientes donde ponerlo). El ingrediente lo maneja SOLO suppSyncMeal: en
+     el menú del coach sale sin editar ni borrar («se ajusta en Suplementación»), porque editarlo a mano le
+     quitaba la marca y el siguiente ajuste lo duplicaba. normMeal conserva `supp`.
+   - Micros: solo los de la SUPLEMENTACIÓN (alcance A elegido por Luis). El coach ve el máximo en un día
+     (entreno o descanso, el que más sume) contra el límite superior tolerable (UL, IOM, adultos). Varios UL
+     (D, A, Ca, Fe, Zn…) son de la ingesta TOTAL: si los suplementos solos ya lo pasan, seguro se pasa; el de
+     magnesio sí es solo de suplementos. Micros de todo el día (alcance B) quedó para después. */
 const SUPP_MOM=['Al despertar','Pre-entreno','Intra-entreno','Post-entreno','Con comida','Antes de dormir','Otro'];
 const SUPP_FREC={diario:'Diario',train:'Días de entreno',rest:'Días de descanso'};
 const SUPP_CATS=['Rendimiento','Salud','Sueño','Hidratación','Con calorías','Otros'];
+/* [clave, nombre, unidad, UL adulto o null]. Claves = las del catálogo (food_catalog.micros) salvo vitd: el
+   catálogo la trae en µg y aquí va en UI (1 µg = 40 UI); b12, fol y o3 no existen en el catálogo. */
+const SUPP_MIC=[['vitd','Vitamina D','UI',4000],['vita','Vitamina A','µg',3000],['vitc','Vitamina C','mg',2000],['vite','Vitamina E','mg',1000],['vitk','Vitamina K','µg',null],
+  ['b12','Vitamina B12','µg',null],['fol','Ácido fólico','µg',1000],['ca','Calcio','mg',2500],['fe','Hierro','mg',45],['mg','Magnesio','mg',350],['zn','Zinc','mg',40],
+  ['se','Selenio','µg',400],['k','Potasio','mg',null],['na','Sodio','mg',null],['o3','Omega 3 (EPA+DHA)','mg',5000]];
 const SUPP_SEED=[
  {id:'sb_cre',name:'Creatina monohidrato',cat:'Rendimiento',amount:5,unit:'g',step:1,timing:'Con comida',freq:'diario',notes:'Diario, también en descanso'},
  {id:'sb_caf',name:'Cafeína',cat:'Rendimiento',amount:3,unit:'mg',perKg:true,step:0.5,timing:'Pre-entreno',freq:'train',notes:'45-60 min antes. Evitar 6 h antes de dormir'},
@@ -3055,18 +3088,24 @@ const SUPP_SEED=[
  {id:'sb_cit',name:'Citrulina malato',cat:'Rendimiento',amount:6,unit:'g',step:1,timing:'Pre-entreno',freq:'train',notes:''},
  {id:'sb_bic',name:'Bicarbonato de sodio',cat:'Rendimiento',amount:0.3,unit:'g',perKg:true,step:0.05,timing:'Pre-entreno',freq:'train',notes:'Probar primero en entreno, no en competencia'},
  {id:'sb_ele',name:'Electrolitos',cat:'Hidratación',amount:1,unit:'sobre',step:1,timing:'Intra-entreno',freq:'train',notes:'En 500-750 ml de agua'},
- {id:'sb_vd3',name:'Vitamina D3',cat:'Salud',amount:2000,unit:'UI',step:500,timing:'Con comida',freq:'diario',notes:'Con la comida que tenga grasa'},
+ {id:'sb_vd3',name:'Vitamina D3',cat:'Salud',amount:2000,unit:'UI',step:500,timing:'Con comida',freq:'diario',notes:'Con la comida que tenga grasa',micros:{vitd:2000}},
  {id:'sb_o3',name:'Omega 3 (EPA+DHA)',cat:'Salud',amount:2,unit:'cápsulas',step:1,timing:'Con comida',freq:'diario',notes:''},
- {id:'sb_mg',name:'Magnesio (bisglicinato)',cat:'Salud',amount:300,unit:'mg',step:50,timing:'Antes de dormir',freq:'diario',notes:''},
+ {id:'sb_mg',name:'Magnesio (bisglicinato)',cat:'Salud',amount:300,unit:'mg',step:50,timing:'Antes de dormir',freq:'diario',notes:'',micros:{mg:300}},
  {id:'sb_mlt',name:'Multivitamínico',cat:'Salud',amount:1,unit:'tableta',step:1,timing:'Con comida',freq:'diario',notes:''},
  {id:'sb_fe',name:'Hierro',cat:'Salud',amount:1,unit:'tableta',step:1,timing:'Al despertar',freq:'diario',notes:'Con vitamina C, lejos del café y los lácteos'},
  {id:'sb_mel',name:'Melatonina',cat:'Sueño',amount:1,unit:'mg',step:0.5,timing:'Antes de dormir',freq:'diario',notes:'30-60 min antes de dormir'},
  {id:'sb_ash',name:'Ashwagandha',cat:'Sueño',amount:600,unit:'mg',step:100,timing:'Antes de dormir',freq:'diario',notes:''},
- {id:'sb_wh',name:'Proteína whey',cat:'Con calorías',amount:30,unit:'g',step:5,timing:'Post-entreno',freq:'diario',notes:'',kcal:true},
- {id:'sb_gel',name:'Gel de carbohidratos',cat:'Con calorías',amount:1,unit:'gel',step:1,timing:'Intra-entreno',freq:'train',notes:'Sesiones de más de 90 min',kcal:true}
+ {id:'sb_wh',name:'Proteína whey',cat:'Con calorías',amount:30,unit:'g',step:5,timing:'Post-entreno',freq:'diario',notes:'',kcal:true,mac:{p:24,c:3,f:1.5}},
+ {id:'sb_gel',name:'Gel de carbohidratos',cat:'Con calorías',amount:1,unit:'gel',step:1,timing:'Intra-entreno',freq:'train',notes:'Sesiones de más de 90 min',kcal:true,mac:{p:0,c:25,f:0}}
 ];
-/* Siembra solo si la base NO existe: si Luis borra todo, se queda vacía (no vuelve la de fábrica). */
-function ensureSuppBase(st){if(!Array.isArray(st.suppBase))st.suppBase=JSON.parse(JSON.stringify(SUPP_SEED));}
+/* Siembra solo si la base NO existe: si Luis borra todo, se queda vacía (no vuelve la de fábrica).
+   v2: a la base ya sembrada (build .5) le faltaban macros de whey/gel y micros de D3/magnesio; se añaden
+   UNA vez y solo donde el coach no haya puesto nada. */
+function ensureSuppBase(st){
+  if(!Array.isArray(st.suppBase)){st.suppBase=JSON.parse(JSON.stringify(SUPP_SEED));st.suppBaseV=2;return;}
+  if((st.suppBaseV||1)<2){st.suppBase.forEach(b=>{const sd=SUPP_SEED.find(x=>x.id===b.id);if(!sd||+b.amount!==sd.amount)return;
+    if(sd.mac&&!b.mac)b.mac=Object.assign({},sd.mac);if(sd.micros&&!b.micros)b.micros=Object.assign({},sd.micros);});st.suppBaseV=2;}
+}
 const suppFmt=x=>{x=+x||0;const v=Math.abs(x)>=100?Math.round(x):Math.round(x*100)/100;return v.toLocaleString('es-MX');};
 /* Para casillas: sin separador de miles (2000, no «2,000», que parseFloat leería como 2). */
 const suppNum=x=>String(Math.round((+x||0)*1000)/1000);
@@ -3077,13 +3116,55 @@ function suppDoseTxt(s,aid){
   if(s.perKg){const kg=suppPeso(aid);return kg?suppFmt(s.amount*kg)+' '+s.unit:suppFmt(s.amount)+' '+s.unit+'/kg';}
   return suppFmt(s.amount)+' '+(s.unit||'');
 }
-function suppFromBase(b){return{id:uid(),baseId:b.id,name:b.name,cat:b.cat||'Otros',amount:+b.amount||0,unit:b.unit||'',perKg:!!b.perKg,step:+b.step||suppStepFor(b.amount),timing:b.timing||'Con comida',freq:b.freq||'diario',until:'',notes:b.notes||'',kcal:!!b.kcal};}
+function suppHasMac(m){return !!m&&((+m.p||0)+(+m.c||0)+(+m.f||0))>0;}
+function suppHasMic(m){return !!m&&Object.keys(m).some(k=>+m[k]>0);}
+function suppFromBase(b){
+  const r={id:uid(),baseId:b.id,name:b.name,cat:b.cat||'Otros',amount:+b.amount||0,unit:b.unit||'',perKg:!!b.perKg,step:+b.step||suppStepFor(b.amount),timing:b.timing||'Con comida',freq:b.freq||'diario',until:'',notes:b.notes||'',kcal:suppHasMac(b.mac),where:''};
+  if(b.food)r.food=b.food;
+  if(!b.perKg&&(suppHasMac(b.mac)||suppHasMic(b.micros)))r.ref={amount:+b.amount||1,mac:suppHasMac(b.mac)?Object.assign({},b.mac):null,micros:suppHasMic(b.micros)?Object.assign({},b.micros):null};
+  return r;
+}
+/* Macros y micros de lo recetado (escalados a la cantidad actual). null si no tiene. */
+function suppK(s){return (s&&s.ref&&!s.perKg&&s.amount!=null&&+s.ref.amount>0)?(+s.amount)/(+s.ref.amount):0;}
+function suppMac(s){const k=suppK(s);if(!k||!suppHasMac(s.ref.mac))return null;const m=s.ref.mac,t={p:+((+m.p||0)*k).toFixed(1),c:+((+m.c||0)*k).toFixed(1),f:+((+m.f||0)*k).toFixed(1)};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+function suppMic(s){const k=suppK(s);if(!k||!suppHasMic(s.ref.micros))return null;const o={};Object.keys(s.ref.micros).forEach(x=>{const v=+s.ref.micros[x]||0;if(v>0)o[x]=v*k;});return o;}
+const suppMacTxt=m=>m.kcal+' kcal · P'+suppFmt(m.p)+' C'+suppFmt(m.c)+' G'+suppFmt(m.f);
+function suppMicTxt(o){return SUPP_MIC.filter(d=>o[d[0]]>0).map(d=>d[1]+' '+suppFmt(o[d[0]])+' '+d[2]).join(' · ');}
+/* Dentro de un platillo: dónde está y el ingrediente que le toca. */
+function suppMealOf(aid,s){
+  if(!s||!s.where)return null;const pp=String(s.where).split('|');
+  const p=(nutriOf(aid).plans||[]).find(x=>x.id===pp[0]);const m=p&&(p.meals||[]).find(x=>x.id===pp[1]);
+  return m?{plan:p,meal:m}:null;
+}
+function suppMealTargets(aid){const out=[];(nutriOf(aid).plans||[]).forEach(p=>{if(p.mode!=='menu')return;(p.meals||[]).forEach(m=>{if(!m.recipe)out.push({v:p.id+'|'+m.id,l:p.name+' · '+m.name});});});return out;}
+/* Único sitio que pone o quita el ingrediente de un suplemento en el menú. */
+function suppSyncMeal(aid,s,quitar){
+  (nutriOf(aid).plans||[]).forEach(p=>(p.meals||[]).forEach(m=>{if((m.items||[]).some(it=>it.supp===s.id))m.items=m.items.filter(it=>it.supp!==s.id);}));
+  if(quitar||!s.where)return;
+  const pm=suppMealOf(aid,s),mac=suppMac(s);if(!pm||!mac){s.where='';return;}
+  const g=/^(g|ml)$/i.test(s.unit||'')?+s.amount:0;
+  pm.meal.items=pm.meal.items||[];
+  pm.meal.items.push({food:s.food||s.name,qty:suppFmt(s.amount)+' '+(s.unit||''),grams:g,p:mac.p,c:mac.c,f:mac.f,supp:s.id});
+}
 function suppVigente(s,date){return !s.until||date<=s.until;}
+function suppEnDia(s,dia){return !s.freq||s.freq==='diario'||s.freq===dia;}
 /* Solo lectura (nunca todayNutriEntry al pintar: crearía la entrada de hoy). */
 function suppHoyEntry(aid){return (athData(aid).logs.nutrition||[]).find(x=>x&&x.date===todayISO())||null;}
 function suppDiaHoy(aid){const e=suppHoyEntry(aid);if(e&&e.supps&&e.supps.dia)return e.supps.dia;return athPlanOf(aid).type==='off'?'rest':'train';}
-function suppsHoy(aid){const t=todayISO(),dia=suppDiaHoy(aid);return (nutriOf(aid).supplements||[]).filter(s=>suppVigente(s,t)&&(!s.freq||s.freq==='diario'||s.freq===dia));}
+function suppsHoy(aid){const t=todayISO(),dia=suppDiaHoy(aid);return (nutriOf(aid).supplements||[]).filter(s=>suppVigente(s,t)&&suppEnDia(s,dia));}
 function suppDoneHoy(aid){const e=suppHoyEntry(aid);return (e&&e.supps&&Array.isArray(e.supps.done))?e.supps.done:[];}
+/* Macros de los AISLADOS que el atleta marcó hoy: se suman a lo consumido (consumedToday). */
+function suppTakenMac(aid){const done=suppDoneHoy(aid),t={p:0,c:0,f:0};
+  suppsHoy(aid).forEach(s=>{if(s.where||done.indexOf(s.id)<0)return;const m=suppMac(s);if(m){t.p+=m.p;t.c+=m.c;t.f+=m.f;}});
+  t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+/* Línea bajo las barras del plan del coach: lo que suman los aislados ese tipo de día. */
+function suppAislLine(aid,plan,tot){
+  const dia=plan&&plan.type==='off'?'rest':'train',t=todayISO(),a={p:0,c:0,f:0};let n=0;
+  (nutriOf(aid).supplements||[]).forEach(s=>{if(s.where||!suppVigente(s,t)||!suppEnDia(s,dia))return;const m=suppMac(s);if(m){a.p+=m.p;a.c+=m.c;a.f+=m.f;n++;}});
+  if(!n)return'';a.kcal=Math.round(a.p*4+a.c*4+a.f*9);
+  const con=tot?' Con ellos el día queda en <b>'+(tot.kcal+a.kcal)+' kcal</b> · P'+suppFmt(tot.p+a.p)+' C'+suppFmt(tot.c+a.c)+' G'+suppFmt(tot.f+a.f)+'.':'';
+  return '<p class="tiny mt8">💊 Suplementos aislados ('+(dia==='rest'?'día de descanso':'día de entreno')+'): <b>+'+suppMacTxt({kcal:a.kcal,p:a.p,c:a.c,f:a.f})+'</b>. No están en las barras.'+con+'</p>';
+}
 /* Momentos en orden del día; los que vengan del formato viejo (Mañana, Noche…) se añaden al final. */
 function suppMomOrder(list){const ms=SUPP_MOM.slice();list.forEach(s=>{const m=s.timing||'Otro';if(ms.indexOf(m)<0)ms.push(m);});return ms;}
 /* Lo de hoy para el atleta, agrupado por momento, con «✓ me lo tomé». null si no tiene suplementos. */
@@ -3091,54 +3172,79 @@ function suppAthCard(aid){
   const all=nutriOf(aid).supplements||[];if(!all.length)return null;
   const t=todayISO(),vig=all.filter(s=>suppVigente(s,t));
   const hoy=suppsHoy(aid),done=suppDoneHoy(aid),dia=suppDiaHoy(aid);
+  const ck=hoy.filter(s=>!suppMealOf(aid,s));
   const porDia=vig.some(s=>s.freq==='train'||s.freq==='rest');
   const sw=porDia?'<div class="supp-dia" role="group" aria-label="Qué día es hoy">'+['train','rest'].map(k=>'<button class="btn btn-sm '+(dia===k?'btn-p':'btn-g')+'" aria-pressed="'+(dia===k)+'" data-act="supp-dia" data-v="'+k+'">'+(k==='train'?'Hoy entreno':'Hoy descanso')+'</button>').join('')+'</div>':'';
   let list='';
   if(!hoy.length)list='<div class="empty" style="padding:16px">Hoy no te toca ningún suplemento.</div>';
   else suppMomOrder(hoy).forEach(m=>{const its=hoy.filter(s=>(s.timing||'Otro')===m);if(!its.length)return;
-    list+='<div class="supp-g"><h4 class="mg-h">'+esc(m)+'</h4>'+its.map(s=>{const ok=done.indexOf(s.id)>=0,dt=suppDoseTxt(s,aid);
-      return '<div class="supp-t'+(ok?' done':'')+'"><button class="supp-ck" data-act="supp-take" data-sid="'+s.id+'" aria-pressed="'+ok+'" aria-label="'+(ok?'Desmarcar ':'Me lo tomé: ')+esc(s.name)+'"></button>'+
-        '<div style="flex:1;min-width:0"><div class="supp-n">'+esc(s.name)+(dt?' · '+esc(dt):'')+'</div>'+(s.notes?'<div class="tiny">'+esc(s.notes)+'</div>':'')+(s.until?'<div class="tiny">Hasta el '+esc(fmtDateFull(s.until))+'</div>':'')+'</div></div>';}).join('')+'</div>';});
-  const n=hoy.filter(s=>done.indexOf(s.id)>=0).length,pct=hoy.length?Math.round(n/hoy.length*100):0;
-  return{n:n,tot:hoy.length,html:'<div class="supp-top"><span class="tiny">'+(hoy.length?n+' de '+hoy.length+' tomados hoy':'')+'</span>'+sw+'</div>'+
-    (hoy.length?'<div class="supp-bar"><i style="width:'+pct+'%"></i></div>':'')+list+
-    (hoy.length?'<p class="tiny mt8">Toca el círculo cuando te lo tomes. Tu coach ve tu constancia.</p>':'')};
+    list+='<div class="supp-g"><h4 class="mg-h">'+esc(m)+'</h4>'+its.map(s=>{const pm=suppMealOf(aid,s),ok=done.indexOf(s.id)>=0,dt=suppDoseTxt(s,aid),mac=suppMac(s);
+      const info='<div style="flex:1;min-width:0"><div class="supp-n">'+esc(s.name)+(dt?' · '+esc(dt):'')+'</div>'+
+        (pm?'<div class="tiny">Va en tu <b>'+esc(pm.meal.name)+'</b>'+(nutriOf(aid).plans.length>1?' ('+esc(pm.plan.name)+')':'')+': ya cuenta en tu menú.</div>':(mac?'<div class="tiny">'+esc(suppMacTxt(mac))+(ok?' · ya se restó de lo que te queda':'')+'</div>':''))+
+        (s.notes?'<div class="tiny">'+esc(s.notes)+'</div>':'')+(s.until?'<div class="tiny">Hasta el '+esc(fmtDateFull(s.until))+'</div>':'')+'</div>';
+      if(pm)return '<div class="supp-t inmeal"><span class="supp-ic" aria-hidden="true">🍽</span>'+info+'</div>';
+      return '<div class="supp-t'+(ok?' done':'')+'"><button class="supp-ck" data-act="supp-take" data-sid="'+s.id+'" aria-pressed="'+ok+'" aria-label="'+(ok?'Desmarcar ':'Me lo tomé: ')+esc(s.name)+'"></button>'+info+'</div>';}).join('')+'</div>';});
+  const n=ck.filter(s=>done.indexOf(s.id)>=0).length,pct=ck.length?Math.round(n/ck.length*100):0;
+  return{n:n,tot:ck.length,meal:hoy.length-ck.length,html:'<div class="supp-top"><span class="tiny">'+(ck.length?n+' de '+ck.length+' tomados hoy':'')+'</span>'+sw+'</div>'+
+    (ck.length?'<div class="supp-bar"><i style="width:'+pct+'%"></i></div>':'')+list+
+    (ck.length?'<p class="tiny mt8">Toca el círculo cuando te lo tomes. Tu coach ve tu constancia.</p>':'')};
+}
+/* Micros de la suplementación: el máximo en un día (entreno o descanso) contra el UL. */
+function suppMicSummary(aid){
+  const t=todayISO(),sup=(nutriOf(aid).supplements||[]).filter(s=>suppVigente(s,t)),tot={};
+  ['train','rest'].forEach(dia=>{const d={};sup.forEach(s=>{if(!suppEnDia(s,dia))return;const o=suppMic(s);if(o)Object.keys(o).forEach(k=>{d[k]=(d[k]||0)+o[k];});});Object.keys(d).forEach(k=>{tot[k]=Math.max(tot[k]||0,d[k]);});});
+  const rows=SUPP_MIC.filter(d=>tot[d[0]]>0);if(!rows.length)return'';
+  const chips=rows.map(d=>{const v=tot[d[0]],ul=d[3],over=ul&&v>ul;
+    return '<span class="supp-mic'+(over?' over':'')+'"'+(over?' title="Pasa el límite superior tolerable ('+suppFmt(ul)+' '+d[2]+')"':'')+'><b>'+esc(d[1])+'</b> '+suppFmt(v)+' '+d[2]+(ul?' <span class="tiny">/ UL '+suppFmt(ul)+'</span>':'')+(over?' ⚠':'')+'</span>';}).join('');
+  const anyOver=rows.some(d=>d[3]&&tot[d[0]]>d[3]);
+  return '<div class="supp-mics"><h4 class="mg-h">Micronutrientes de sus suplementos <span class="hint">máximo en un día · solo suplementos, sin comida</span></h4><div class="supp-micw">'+chips+'</div>'+
+    (anyOver?'<p class="tiny" style="color:var(--red);margin:6px 0 0">⚠ Solo con suplementos ya pasa el límite superior tolerable (UL). Revisa dosis o si dos productos repiten el mismo nutriente.</p>':'<p class="tiny" style="margin:6px 0 0">UL = límite superior tolerable para adultos. Varios cuentan la comida también: si los suplementos se acercan, la comida puede completar el resto.</p>')+'</div>';
 }
 /* Tarjeta del coach: cada suplemento recetado se ajusta ahí mismo (cantidad ±, momento, cuándo, hasta, indicación). */
 let _suppDel=null,_suppQ='',_suppCat='';
 function suppCoachCard(aid){
-  const n=nutriOf(aid),kg=suppPeso(aid),t=todayISO(),desde=addDaysISO(t,-6);
+  const n=nutriOf(aid),kg=suppPeso(aid),t=todayISO(),desde=addDaysISO(t,-6),tg=suppMealTargets(aid);
   const last7=(athData(aid).logs.nutrition||[]).filter(x=>x&&x.date>=desde&&x.date<=t&&x.supps&&Array.isArray(x.supps.done));
   let rows='';
   (n.supplements||[]).forEach(s=>{
-    const A='data-aid="'+aid+'" data-sid="'+s.id+'"',fr=s.freq||'diario';
+    const A='data-aid="'+aid+'" data-sid="'+s.id+'"',fr=s.freq||'diario',mac=suppMac(s),mic=suppMic(s),pm=suppMealOf(aid,s);
     const tom=last7.filter(x=>x.supps.done.indexOf(s.id)>=0).length,fin=s.until&&s.until<t;
     const momOpts=suppMomOrder([s]).map(m=>'<option'+(m===(s.timing||'Otro')?' selected':'')+'>'+esc(m)+'</option>').join('');
     const cant=s.amount==null
       ?'<div><span class="supp-l">Dosis</span><input type="text" value="'+esc(s.dose||'')+'" data-change="supp-f" data-k="dose" '+A+' style="width:150px" aria-label="Dosis"></div>'
       :'<div><span class="supp-l">Cantidad</span><span class="supp-step"><button data-act="supp-step" data-d="-1" '+A+' aria-label="Menos">−</button><input inputmode="decimal" value="'+suppNum(s.amount)+'" data-change="supp-f" data-k="amount" '+A+' aria-label="Cantidad de '+esc(s.name)+'"><button data-act="supp-step" data-d="1" '+A+' aria-label="Más">+</button></span><span class="tiny" style="margin-left:8px">'+esc((s.unit||'')+(s.perKg?'/kg':''))+'</span></div>'+
        (s.perKg?'<div><span class="supp-l">'+(kg?'Para '+suppFmt(kg)+' kg':'Sin peso registrado')+'</span><span class="badge green">'+(kg?'= '+esc(suppDoseTxt(s,aid)):'se calcula con su peso')+'</span></div>':'');
+    /* Dónde va: solo si aporta macros. Si su comida desapareció (plan automático, plantilla), se avisa. */
+    let donde='';
+    if(mac){
+      const opts='<option value="">Aislado (toma aparte)</option>'+tg.map(o=>'<option value="'+esc(o.v)+'"'+(o.v===s.where?' selected':'')+'>En '+esc(o.l)+'</option>').join('');
+      donde='<div><span class="supp-l">Dónde va</span><select data-change="supp-where" '+A+' aria-label="Dónde va '+esc(s.name)+'">'+opts+'</select></div>';
+    }
+    const perdido=s.where&&(!pm||!(pm.meal.items||[]).some(it=>it.supp===s.id));
     rows+='<div class="supp-row'+(fin?' fin':'')+'">'+
-      '<div class="supp-rh"><b>'+esc(s.name)+'</b>'+(s.cat?'<span class="badge">'+esc(s.cat)+'</span>':'')+(s.kcal?'<span class="badge orange">con calorías</span>':'')+(fin?'<span class="badge red">terminó el '+esc(fmtDateFull(s.until))+'</span>':'')+
-        '<span class="tiny supp-con">'+(tom?'✓ '+tom+' de 7 días':'sin marcar en 7 días')+'</span><button class="btn btn-g btn-sm" data-act="supp-del" '+A+' title="Quitar" aria-label="Quitar '+esc(s.name)+'">'+I.trash+'</button></div>'+
-      (_suppDel===s.id?'<div class="supp-conf">¿Quitar <b>'+esc(s.name)+'</b> de su suplementación? <button class="btn btn-p btn-sm" data-act="supp-del-ok" '+A+'>Sí, quitar</button><button class="btn btn-g btn-sm" data-act="supp-del-no">Cancelar</button></div>':'')+
-      (s.kcal?'<p class="tiny" style="color:var(--orange);margin:0">Tiene calorías: para que cuente en los macros, ponlo también en su menú. Aquí queda como recordatorio.</p>':'')+
-      '<div class="supp-ctl">'+cant+'<div><span class="supp-l">Momento</span><select data-change="supp-f" data-k="timing" '+A+' aria-label="Momento">'+momOpts+'</select></div></div>'+
+      '<div class="supp-rh"><b>'+esc(s.name)+'</b>'+(s.cat?'<span class="badge">'+esc(s.cat)+'</span>':'')+(fin?'<span class="badge red">terminó el '+esc(fmtDateFull(s.until))+'</span>':'')+
+        '<span class="tiny supp-con">'+(pm?'en el menú':(tom?'✓ '+tom+' de 7 días':'sin marcar en 7 días'))+'</span><button class="btn btn-g btn-sm" data-act="supp-del" '+A+' title="Quitar" aria-label="Quitar '+esc(s.name)+'">'+I.trash+'</button></div>'+
+      (_suppDel===s.id?'<div class="supp-conf">¿Quitar <b>'+esc(s.name)+'</b> de su suplementación?'+(pm?' También sale de su '+esc(pm.meal.name)+'.':'')+' <button class="btn btn-p btn-sm" data-act="supp-del-ok" '+A+'>Sí, quitar</button><button class="btn btn-g btn-sm" data-act="supp-del-no">Cancelar</button></div>':'')+
+      (mac||mic?'<div class="supp-aporta">'+(mac?'<span class="badge orange">'+esc(suppMacTxt(mac))+'</span>':'')+(mic?'<span class="tiny">'+esc(suppMicTxt(mic))+'</span>':'')+'</div>':'')+
+      (perdido?'<div class="supp-conf" style="background:none">Ya no está en el menú (se rehízo la comida). <button class="btn btn-g btn-sm" data-act="supp-resync" '+A+'>Volver a ponerlo</button></div>':'')+
+      (s.kcal&&!mac?'<p class="tiny" style="color:var(--orange);margin:0">Tiene calorías pero no tiene macros capturados: ponle sus macros en tu base para que cuenten.</p>':'')+
+      '<div class="supp-ctl">'+cant+'<div><span class="supp-l">Momento</span><select data-change="supp-f" data-k="timing" '+A+' aria-label="Momento">'+momOpts+'</select></div>'+donde+'</div>'+
       '<div class="supp-ctl"><div><span class="supp-l">Cuándo</span><span class="supp-seg">'+Object.keys(SUPP_FREC).map(k=>'<button class="'+(fr===k?'on':'')+'" aria-pressed="'+(fr===k)+'" data-act="supp-frec" data-v="'+k+'" '+A+'>'+SUPP_FREC[k]+'</button>').join('')+'</span></div>'+
         '<div><span class="supp-l">Hasta</span><input type="date" value="'+esc(s.until||'')+'" data-change="supp-f" data-k="until" '+A+' aria-label="Hasta qué fecha (vacío = sin fin)"></div></div>'+
       '<input type="text" value="'+esc(s.notes||'')+'" data-change="supp-f" data-k="notes" '+A+' placeholder="Indicación para el atleta (opcional). Ej. en ayunas con agua" aria-label="Indicación para el atleta">'+
     '</div>';
   });
   if(!rows)rows='<div class="empty" style="padding:18px"><b>Sin suplementos</b>Escoge de tu base lo que debe tomar; solo ajustas la cantidad.</div>';
-  return '<div class="card mb16"><div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">'+I.flame+' Suplementación <span class="hint">visible para el atleta'+(kg?' · '+suppFmt(kg)+' kg':'')+'</span></h3><span class="sp"><button class="btn btn-p btn-sm" data-act="supp-add" data-aid="'+aid+'">'+I.plus+' Añadir de mi base</button></span></div><div class="supp-rows">'+rows+'</div></div>';
+  return '<div class="card mb16"><div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">'+I.flame+' Suplementación <span class="hint">visible para el atleta'+(kg?' · '+suppFmt(kg)+' kg':'')+'</span></h3><span class="sp"><button class="btn btn-p btn-sm" data-act="supp-add" data-aid="'+aid+'">'+I.plus+' Añadir de mi base</button></span></div><div class="supp-rows">'+rows+'</div>'+suppMicSummary(aid)+'</div>';
 }
 /* Selector de la base (modal). El modal vive fuera de #app: render() repinta la ficha debajo sin cerrarlo. */
 function suppPickList(aid){
   const q=_suppQ.trim().toLowerCase(),ya=(nutriOf(aid).supplements||[]).map(s=>s.baseId);
   const list=(S.suppBase||[]).filter(b=>(!_suppCat||b.cat===_suppCat)&&(!q||String(b.name).toLowerCase().indexOf(q)>=0)).sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
-  const rows=list.map(b=>'<div class="supp-b"><div style="flex:1;min-width:0"><b>'+esc(b.name)+'</b><div class="tiny">'+suppFmt(b.amount)+' '+esc((b.unit||'')+(b.perKg?'/kg':''))+' · '+esc(b.timing||'')+' · '+esc(SUPP_FREC[b.freq]||'Diario')+(b.kcal?' · con calorías':'')+'</div></div>'+
+  const rows=list.map(b=>{const ex=[];if(suppHasMac(b.mac)){const m=b.mac;ex.push(Math.round((+m.p||0)*4+(+m.c||0)*4+(+m.f||0)*9)+' kcal');}if(suppHasMic(b.micros))ex.push('micros');
+    return '<div class="supp-b"><div style="flex:1;min-width:0"><b>'+esc(b.name)+'</b><div class="tiny">'+suppFmt(b.amount)+' '+esc((b.unit||'')+(b.perKg?'/kg':''))+' · '+esc(b.timing||'')+' · '+esc(SUPP_FREC[b.freq]||'Diario')+(ex.length?' · '+esc(ex.join(' · ')):'')+'</div></div>'+
     '<button class="btn btn-g btn-sm" data-act="suppb-edit" data-aid="'+aid+'" data-bid="'+b.id+'" title="Editar en mi base" aria-label="Editar '+esc(b.name)+' en mi base">'+I.edit+'</button>'+
-    (ya.indexOf(b.id)>=0?'<span class="supp-ya">✓ Agregado</span>':'<button class="btn btn-p btn-sm supp-addb" data-act="supp-pick" data-aid="'+aid+'" data-bid="'+b.id+'">Agregar</button>')+'</div>').join('');
+    (ya.indexOf(b.id)>=0?'<span class="supp-ya">✓ Agregado</span>':'<button class="btn btn-p btn-sm supp-addb" data-act="supp-pick" data-aid="'+aid+'" data-bid="'+b.id+'">Agregar</button>')+'</div>';}).join('');
   return rows||'<div class="empty" style="padding:16px">'+(q?'No hay «'+esc(_suppQ)+'» en tu base. Créalo con el botón de abajo.':'Tu base está vacía. Crea tu primer suplemento.')+'</div>';
 }
 function suppPickBody(aid){
@@ -3157,18 +3263,45 @@ function suppPickRefresh(aid,todo){
   box.innerHTML=todo?suppPickBody(aid):suppPickList(aid);if(b)b.scrollTop=y;
 }
 function suppBaseForm(aid,bid){
-  const b=(S.suppBase||[]).find(x=>x.id===bid)||{name:'',cat:'Rendimiento',amount:'',unit:'g',perKg:false,timing:'Con comida',freq:'diario',notes:'',kcal:false};
+  const b=(S.suppBase||[]).find(x=>x.id===bid)||{name:'',cat:'Rendimiento',amount:'',unit:'g',perKg:false,timing:'Con comida',freq:'diario',notes:''};
   const opt=(arr,v)=>arr.map(x=>{const k=Array.isArray(x)?x[0]:x,l=Array.isArray(x)?x[1]:x;return '<option value="'+esc(k)+'"'+(k===v?' selected':'')+'>'+esc(l)+'</option>';}).join('');
+  const mac=b.mac||{},mic=b.micros||{},mv=v=>(+v>0?suppNum(v):'');
+  const hayMic=suppHasMic(mic);
   openModal(bid?'Editar en mi base':'Nuevo suplemento en mi base',
     '<div class="frow2"><div><label for="sb_name">Nombre</label><input id="sb_name" value="'+esc(b.name)+'" placeholder="Ej. Glutamina"></div><div><label for="sb_cat">Categoría</label><select id="sb_cat">'+opt(SUPP_CATS,b.cat)+'</select></div></div>'+
     '<div class="frow2"><div><label for="sb_amount">Dosis por defecto</label><input id="sb_amount" inputmode="decimal" value="'+(b.amount===''?'':suppNum(b.amount))+'" placeholder="Ej. 5"></div><div><label for="sb_unit">Unidad</label><input id="sb_unit" value="'+esc(b.unit||'')+'" list="sb_units" placeholder="g, mg, cápsulas…"><datalist id="sb_units">'+['g','mg','UI','ml','cápsulas','tabletas','sobre','scoop','gel'].map(u=>'<option value="'+u+'"></option>').join('')+'</datalist></div></div>'+
     '<label class="supp-chk"><input type="checkbox" id="sb_perkg"'+(b.perKg?' checked':'')+'> La dosis es por kg de peso (la app la multiplica por el peso del atleta)</label>'+
     '<div class="frow2"><div><label for="sb_timing">Momento</label><select id="sb_timing">'+opt(SUPP_MOM,b.timing)+'</select></div><div><label for="sb_freq">Cuándo</label><select id="sb_freq">'+opt(Object.keys(SUPP_FREC).map(k=>[k,SUPP_FREC[k]]),b.freq||'diario')+'</select></div></div>'+
     '<label for="sb_notes">Indicación por defecto (opcional)</label><input id="sb_notes" value="'+esc(b.notes||'')+'" placeholder="Ej. en ayunas con agua">'+
-    '<label class="supp-chk"><input type="checkbox" id="sb_kcal"'+(b.kcal?' checked':'')+'> Tiene calorías (proteína, geles…): recuérdame ponerlo también en el menú</label>'+
+    '<div class="supp-sec"><h4 class="mg-h">Si aporta calorías: macros por dosis</h4>'+
+      '<p class="tiny" style="margin:0 0 8px">Para la dosis de arriba. Vacío = no aporta (creatina, cafeína…). Con macros podrás ponerlo dentro de un platillo o como toma aparte que se suma al día.</p>'+
+      '<div class="supp-food"><input id="sb_food" list="sbfoods" value="'+esc(b.food||'')+'" placeholder="Opcional: tómalos de un alimento (ej. whey)" autocomplete="off" aria-label="Alimento de donde tomar macros y micros"><button class="btn btn-g btn-sm" data-act="suppb-food">Usar sus datos</button></div>'+
+      '<datalist id="sbfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
+      '<div class="supp-mgrid"><div><label for="sb_p">Proteína (g)</label><input id="sb_p" inputmode="decimal" value="'+mv(mac.p)+'"></div><div><label for="sb_c">Carbohidratos (g)</label><input id="sb_c" inputmode="decimal" value="'+mv(mac.c)+'"></div><div><label for="sb_f">Grasas (g)</label><input id="sb_f" inputmode="decimal" value="'+mv(mac.f)+'"></div></div></div>'+
+    '<details class="supp-sec"'+(hayMic?' open':'')+'><summary class="mg-h" style="cursor:pointer">Micronutrientes por dosis (opcional)</summary>'+
+      '<p class="tiny" style="margin:6px 0 8px">Cópialos de la etiqueta. Sirven para que veas si la suma de sus suplementos pasa el límite superior (por ejemplo multivitamínico + vitamina D).</p>'+
+      '<div class="supp-mgrid">'+SUPP_MIC.map(d=>'<div><label for="sbm_'+d[0]+'">'+esc(d[1])+' ('+d[2]+')</label><input id="sbm_'+d[0]+'" inputmode="decimal" value="'+mv(mic[d[0]])+'"></div>').join('')+'</div></details>'+
     '<p class="tiny mt8">Cambiar tu base no toca lo que ya le recetaste a cada atleta.</p>',
     (bid?'<button class="btn btn-g" data-act="suppb-del" data-aid="'+aid+'" data-bid="'+bid+'" style="margin-right:auto">'+I.trash+' Borrar de mi base</button>':'')+
     '<button class="btn btn-g" data-act="supp-add" data-aid="'+aid+'">Volver</button><button class="btn btn-p" data-act="suppb-save" data-aid="'+aid+'" data-bid="'+(bid||'')+'">Guardar en mi base</button>');
+}
+/* «Usar sus datos»: macros del alimento para la dosis escrita y, si viene del catálogo, sus micros. */
+async function suppBaseFromFood(){
+  const nm=(val('sb_food')||'').trim();if(!nm){toast('Escribe o elige un alimento');return;}
+  const fo=eqvFood(nm);if(!fo){toast('No encontré «'+nm+'». Elígelo de la lista que aparece al escribir.');return;}
+  const amt=parseFloat(String(val('sb_amount')||'').replace(',','.')),un=(val('sb_unit')||'').trim().toLowerCase();
+  if(!(amt>0)){toast('Primero escribe la dosis por defecto');return;}
+  let k;
+  if(fo.unit==='u')k=amt;else if(un==='g'||un==='ml')k=amt/100;else{toast('Para tomar los datos de un alimento por peso, pon la dosis en g o ml');return;}
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v>0?suppNum(+v.toFixed(2)):'';};
+  set('sb_p',(+fo.p||0)*k);set('sb_c',(+fo.c||0)*k);set('sb_f',(+fo.f||0)*k);
+  let nmic=0;
+  if(fo.catId&&typeof supa!=='undefined'){
+    try{const r=await supa.from('food_catalog').select('micros').eq('id',fo.catId).maybeSingle();const mm=r&&r.data&&r.data.micros;
+      if(mm)SUPP_MIC.forEach(d=>{let v=+mm[d[0]]||0;if(d[0]==='vitd')v*=40;if(v>0){set('sbm_'+d[0],v*k);nmic++;}});}catch(e){}
+    if(nmic){const det=document.querySelector('#modal-root details.supp-sec');if(det)det.open=true;}
+  }
+  toast('Listo: macros'+(nmic?' y '+nmic+' micros':'')+' de «'+fo.name+'». Revísalos con la etiqueta.');
 }
 function suppOf(el){return (nutriOf(el.dataset.aid).supplements||[]).find(s=>s.id===el.dataset.sid)||null;}
 /* «✓ me lo tomé» / tipo de día: acciones del atleta, a la entrada de nutrición de hoy. */
@@ -3362,7 +3495,7 @@ function _foodFind(name){const n=String(name||'').trim().toLowerCase();return (S
    Al elegir uno se ADOPTA: entra a S.foods (y, si es el coach, a su tabla `foods`), así todo lo demás
    (macros, equivalentes, edición) funciona igual que con un alimento propio. El atleta solo lo usa en su
    registro; no toca la base del coach. */
-const FOOD_LISTS={pifoods:1,pmr_foods:1,recfoodlist:1,foodlist:1,mqfoods:1};
+const FOOD_LISTS={pifoods:1,pmr_foods:1,recfoodlist:1,foodlist:1,mqfoods:1,sbfoods:1};
 let _catCache={},_catTimer=null,_catSeq=0;
 function catAFood(r){
   return{id:'cat_'+String(r.id).replace(/[^a-z0-9]/gi,'_'),name:r.brand?r.name+' · '+r.brand:r.name,cat:FOOD_CATS.indexOf(r.cat)>=0?r.cat:'Otros',
@@ -3560,7 +3693,7 @@ function doneMealsMacros(aid){const p=athPlanOf(aid),e=athData(aid).logs.nutriti
   if((p.meals||[]).length){p.meals.forEach(m=>{if(done.indexOf(m.id)>=0){const mt=mealMacros(mealHoy(m,e.swaps));t.p+=mt.p;t.c+=mt.c;t.f+=mt.f;}});}
   else{const sh=planMealShare(p),k=done.filter(id=>/^slot/.test(id)).length;t.p=sh.p*k;t.c=sh.c*k;t.f=sh.f*k;}
   t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
-function consumedToday(aid){const a=doneMealsMacros(aid),b=intakeForDate(aid,todayISO());const t={p:+(a.p+b.p).toFixed(1),c:+(a.c+b.c).toFixed(1),f:+(a.f+b.f).toFixed(1)};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+function consumedToday(aid){const a=doneMealsMacros(aid),b=intakeForDate(aid,todayISO()),sp=suppTakenMac(aid);const t={p:+(a.p+b.p+sp.p).toFixed(1),c:+(a.c+b.c+sp.c).toFixed(1),f:+(a.f+b.f+sp.f).toFixed(1)};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 /* barras de macros restantes: objetivo − (marcadas + registradas) */
 function remainingBars(aid,n){
   const tgt={kcal:n.kcal||kcalFromMacros(n),p:n.protein||0,c:n.carbs||0,f:n.fat||0};
@@ -5729,6 +5862,7 @@ function coachTabNutri(aid){
     (ap.meals||[]).forEach((m,i)=>{
       if(m.recipe){ms+='<div class="meal">'+mHead(m,i)+mealRecipeBox(m)+'</div>';return;}
       let items='';(m.items||[]).forEach((it,ii)=>{
+        if(it.supp&&(n.supplements||[]).some(x=>x.id===it.supp)){items+='<li class="mi"><span class="mi-n">'+esc(it.food)+' <span class="badge">💊 suplemento</span></span><span class="mi-q tiny">'+esc(it.qty||'')+'</span><span class="q">P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+' <span class="tiny">se ajusta en Suplementación</span></span></li>';return;}
         const fo=_foodFind(it.food),isU=!!fo&&fo.unit==='u',q=piQty(it);
         const lbl=(+it.grams>0&&it.qty&&!/^\s*[\d.,]+\s*g\s*$/i.test(it.qty))?'<span class="tiny mi-lbl">'+esc(it.qty)+'</span>':'';
         items+='<li class="mi"><span class="mi-n">'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+lbl+'</span>'+
@@ -5750,7 +5884,7 @@ function coachTabNutri(aid){
     menuHTML='<div class="card mb16"><datalist id="mqfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
       '<div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">Menú · «'+esc(ap.name)+'»</h3><span class="sp">'+shSel+'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-p btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+warn+
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Menú vacío</b>Añade la primera comida del plan.</div>')+'</div>'+
-      '<div><div class="mprog"><h4 class="mg-h">Progreso del día vs objetivo</h4>'+bars+'<p class="tiny mt8">Cada comida dice cuánto le toca según el reparto («'+esc(shTxt)+'»; las colaciones llevan la mitad) y cuánto le falta o le sobra. ✓ = a menos del 10 %. Cambia los gramos en la misma fila.</p></div></div></div></div>';
+      '<div><div class="mprog"><h4 class="mg-h">Progreso del día vs objetivo</h4>'+bars+suppAislLine(aid,ap,planMenuTotals(ap))+'<p class="tiny mt8">Cada comida dice cuánto le toca según el reparto («'+esc(shTxt)+'»; las colaciones llevan la mitad) y cuánto le falta o le sobra. ✓ = a menos del 10 %. Cambia los gramos en la misma fila.</p></div></div></div></div>';
   }
   /* modo macros: comidas con P/C/G por comida (opcional, para precisión al marcar) */
   let macMealsHTML='';
@@ -5765,7 +5899,7 @@ function coachTabNutri(aid){
     mm.forEach(m=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'');ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="'+(m.recipe?'pmeal-recipe-edit':'pmacmeal-edit')+'" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
     macMealsHTML='<div class="card mb16"><div class="sect-h" style="margin-bottom:12px"><h3 style="margin:0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmacmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Sin comidas definidas</b>Si no defines comidas, el atleta verá un reparto estimado (objetivo ÷ nº de comidas). Define P/C/G por comida para que al marcar se reste el valor exacto.</div>')+'</div>'+
-      '<div><h4 class="mg-h">Suma de comidas vs objetivo</h4>'+bars+'<p class="tiny mt8">Opcional. Lo que el atleta marque como cumplido restará estos macros exactos; el resto lo completa con comida libre.</p></div></div></div>';
+      '<div><h4 class="mg-h">Suma de comidas vs objetivo</h4>'+bars+suppAislLine(aid,ap,tot)+'<p class="tiny mt8">Opcional. Lo que el atleta marque como cumplido restará estos macros exactos; el resto lo completa con comida libre.</p></div></div></div>';
   }
   /* suplementación (base propia, 2026-11-02): ver suppCoachCard */
   const suppCard=suppCoachCard(aid);
@@ -6954,21 +7088,26 @@ Object.assign(ACTIONS,{
   'supp-pick':el=>{const b=(S.suppBase||[]).find(x=>x.id===el.dataset.bid);if(!b)return;nutriOf(el.dataset.aid).supplements.push(suppFromBase(b));saveState();render();suppPickRefresh(el.dataset.aid);toast(b.name+' agregado: ajusta la cantidad en la ficha');},
   'suppb-new':el=>suppBaseForm(el.dataset.aid,''),
   'suppb-edit':el=>suppBaseForm(el.dataset.aid,el.dataset.bid),
+  'suppb-food':()=>{suppBaseFromFood();},
   'suppb-save':el=>{const nm=(val('sb_name')||'').trim(),amt=parseFloat(String(val('sb_amount')||'').replace(',','.'));
     if(!nm){toast('Escribe el nombre del suplemento');return;}if(!(amt>0)){toast('Escribe la dosis por defecto');return;}
-    const ck=id=>!!(document.getElementById(id)||{}).checked;
-    const o={name:nm,cat:val('sb_cat')||'Otros',amount:+amt.toFixed(3),unit:(val('sb_unit')||'').trim(),perKg:ck('sb_perkg'),step:suppStepFor(amt),timing:val('sb_timing')||'Con comida',freq:val('sb_freq')||'diario',notes:(val('sb_notes')||'').trim(),kcal:ck('sb_kcal')};
+    const ck=id=>!!(document.getElementById(id)||{}).checked,nv=id=>{const v=parseFloat(String(val(id)||'').replace(',','.'));return v>0?+v.toFixed(3):0;};
+    const mac={p:nv('sb_p'),c:nv('sb_c'),f:nv('sb_f')},mic={};SUPP_MIC.forEach(d=>{const v=nv('sbm_'+d[0]);if(v>0)mic[d[0]]=v;});
+    const o={name:nm,cat:val('sb_cat')||'Otros',amount:+amt.toFixed(3),unit:(val('sb_unit')||'').trim(),perKg:ck('sb_perkg'),step:suppStepFor(amt),timing:val('sb_timing')||'Con comida',freq:val('sb_freq')||'diario',notes:(val('sb_notes')||'').trim(),
+      food:(val('sb_food')||'').trim(),mac:suppHasMac(mac)?mac:null,micros:suppHasMic(mic)?mic:null};
+    o.kcal=!!o.mac;
     ensureSuppBase(S);const b=el.dataset.bid?S.suppBase.find(x=>x.id===el.dataset.bid):null;
     if(b){if(+b.amount===o.amount&&b.step)o.step=b.step; /* conserva el paso fino de la base de fábrica (beta-alanina 0,8 g) */ Object.assign(b,o);}
     else S.suppBase.push(Object.assign({id:'sb_'+uid()},o));
     saveState();_suppQ='';_suppCat='';suppPickOpen(el.dataset.aid);toast(b?'Guardado en tu base':nm+' quedó en tu base');},
   'suppb-del':el=>{if(!el.dataset.ok){el.dataset.ok='1';el.textContent='¿Seguro? Toca otra vez para borrar';return;}
     S.suppBase=(S.suppBase||[]).filter(x=>x.id!==el.dataset.bid);saveState();suppPickOpen(el.dataset.aid);toast('Borrado de tu base (lo ya recetado no cambia)');},
-  'supp-step':el=>{const s=suppOf(el);if(!s||s.amount==null)return;const st=+s.step||suppStepFor(s.amount);s.amount=Math.max(st,+(s.amount+(+el.dataset.d)*st).toFixed(3));saveState();render();},
+  'supp-step':el=>{const s=suppOf(el);if(!s||s.amount==null)return;const st=+s.step||suppStepFor(s.amount);s.amount=Math.max(st,+(s.amount+(+el.dataset.d)*st).toFixed(3));if(s.where)suppSyncMeal(el.dataset.aid,s);saveState();render();},
   'supp-frec':el=>{const s=suppOf(el);if(!s)return;s.freq=el.dataset.v;saveState();render();},
+  'supp-resync':el=>{const s=suppOf(el);if(!s)return;suppSyncMeal(el.dataset.aid,s);saveState();render();toast(s.where?'De vuelta en el menú':'Su comida ya no existe: quedó como toma aparte');},
   'supp-del':el=>{_suppDel=el.dataset.sid;render();},
   'supp-del-no':()=>{_suppDel=null;render();},
-  'supp-del-ok':el=>{const n=nutriOf(el.dataset.aid);n.supplements=n.supplements.filter(s=>s.id!==el.dataset.sid);_suppDel=null;saveState();toast('Suplemento quitado');render();},
+  'supp-del-ok':el=>{const n=nutriOf(el.dataset.aid),s=suppOf(el);if(s)suppSyncMeal(el.dataset.aid,s,true);n.supplements=n.supplements.filter(x=>x.id!==el.dataset.sid);_suppDel=null;saveState();toast('Suplemento quitado');render();},
   'supp-take':el=>suppHoyEdit(sp=>{const i=sp.done.indexOf(el.dataset.sid);if(i>=0)sp.done.splice(i,1);else sp.done.push(el.dataset.sid);}),
   'supp-dia':el=>suppHoyEdit(sp=>{sp.dia=el.dataset.v==='rest'?'rest':'train';}),
   /* ---- el atleta elige su tipo de día ---- */
@@ -8043,7 +8182,7 @@ VIEWS['ath-hoy']=function(u){
       list+='<div class="logitem" style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b>'+esc(m.name)+'</b><div class="tiny">'+mealKcal(m)+' kcal · P '+(m.p||0)+' g · C '+(m.c||0)+' g · G '+(m.f||0)+' g</div></div><button class="btn btn-g btn-sm" title="Eliminar" data-act="meal-del" data-id="'+m.id+'">'+I.trash+'</button></div>';
     });
     if(!list)list='<div class="empty"><b>Sin comida libre registrada hoy</b>Lo que comas fuera del plan, añádelo aquí y se restará de lo que te queda arriba.</div>';
-    return '<p class="tiny mb16">Marca arriba las comidas del plan que cumpliste y completa el resto aquí: las casillas suman '+dm.kcal+' kcal y tu comida libre '+fm.kcal+' kcal. Todo se descuenta de «Te queda por comer hoy».</p>'+
+    return '<p class="tiny mb16">Marca arriba las comidas del plan que cumpliste y completa el resto aquí: las casillas suman '+dm.kcal+' kcal y tu comida libre '+fm.kcal+' kcal'+((function(){const k=suppTakenMac(aid).kcal;return k?'; tus suplementos marcados, '+k+' kcal':'';})())+'. Todo se descuenta de «Te queda por comer hoy».</p>'+
     '<label>Busca en la base de tu coach o en el catálogo de 15 mil alimentos</label>'+
     '<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:14px"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g" aria-label="Alimento"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"><button class="btn btn-p" data-act="meal-add-food">Añadir</button></div>'+fpxHTML('mf_food')+fpmHTML('mf_g')+
     '<datalist id="foodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
@@ -8069,7 +8208,7 @@ VIEWS['ath-hoy']=function(u){
   /* ENSAMBLADO DE ACORDEONES */
   const accs=[];
   if(sv.nu)accs.push(acc('acc-nutri',I.food+' Nutrición de hoy',(curAdh!=null?'adherencia '+curAdh+'/5':(todayN?'registrada':'sin registrar')),nutriInner,false));
-  if(sv.nu){const sc=suppAthCard(aid);if(sc)accs.push(acc('acc-supps','💊 Tus suplementos',sc.tot?sc.n+' de '+sc.tot+' hoy':'hoy no toca',sc.html,false));}
+  if(sv.nu){const sc=suppAthCard(aid);if(sc)accs.push(acc('acc-supps','💊 Tus suplementos',sc.tot?sc.n+' de '+sc.tot+' hoy':(sc.meal?'van en tu menú':'hoy no toca'),sc.html,false));}
   if(sv.nu)accs.push(acc('acc-libre',I.food+' Tu comida libre','opcional · fuera del plan',freeInner,false));
   accs.push(acc('acc-peso','⚖️ Peso y pasos','opcional',pesoPasosInner,false));
   accs.push(acc('acc-medidas','📏 Medidas corporales','1×/mes · opcional',measuresInner,false));
@@ -9073,8 +9212,9 @@ document.addEventListener('change',e=>{
   }
   else if(el.dataset.change==='fd-refresh'){fdRead();fdShow();}
   else if(el.dataset.change==='mi-qty'){miQtySet(el);}
+  else if(el.dataset.change==='supp-where'){const sp=suppOf(el);if(!sp)return;sp.where=el.value||'';suppSyncMeal(el.dataset.aid,sp);saveState();render();toast(sp.where?'Quedó dentro de la comida: cuenta en el menú':'Quedó como toma aparte');}
   else if(el.dataset.change==='supp-f'){const sp=suppOf(el);if(!sp)return;const k=el.dataset.k;
-    if(k==='amount'){const v=parseFloat(String(el.value).replace(',','.'));if(v>0)sp.amount=+v.toFixed(3);saveState();render();return;}
+    if(k==='amount'){const v=parseFloat(String(el.value).replace(',','.'));if(v>0)sp.amount=+v.toFixed(3);if(sp.where)suppSyncMeal(el.dataset.aid,sp);saveState();render();return;}
     if(['dose','timing','until','notes'].indexOf(k)<0)return;sp[k]=String(el.value||'').trim();saveState();if(k==='until')render();}
   else if(el.dataset.change==='pday-shape'){const ap=activePlanOf(el.dataset.aid);ap.shape=el.value;saveState();render();}
   else if(el.dataset.change==='fd-copy'&&FD){
@@ -9277,9 +9417,11 @@ function applyTplRoutine(aid,t){
 function applyTplNutri(aid,t){
   const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile;
   const plans=dcopy(t.plans||[]);let actId=null;
-  plans.forEach(p=>{const old=p.id;p.id=uid();(p.meals||[]).forEach(m=>{m.id=uid();});if(old===t.activePlan)actId=p.id;});
+  const _pm={},_mm={}; /* ids viejos → nuevos: los suplementos «dentro de un platillo» apuntan a plan|comida */
+  plans.forEach(p=>{const old=p.id;p.id=uid();_pm[old]=p.id;(p.meals||[]).forEach(m=>{const om=m.id;m.id=uid();_mm[om]=m.id;});if(old===t.activePlan)actId=p.id;});
   if(!plans.length)plans.push({id:uid(),name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''});
-  const sups=dcopy(t.supplements||[]);sups.forEach(s=>{s.id=uid();});
+  const sups=dcopy(t.supplements||[]),_sm={};sups.forEach(s=>{const o=s.id;s.id=uid();_sm[o]=s.id;if(s.where){const w=String(s.where).split('|');s.where=(_pm[w[0]]&&_mm[w[1]])?_pm[w[0]]+'|'+_mm[w[1]]:'';}});
+  plans.forEach(p=>(p.meals||[]).forEach(m=>(m.items||[]).forEach(it=>{if(it.supp){if(_sm[it.supp])it.supp=_sm[it.supp];else delete it.supp;}})));
   d.nutrition={activePlan:actId||plans[0].id,plans:plans,supplements:sups};
   if(dp)d.nutrition.dietProfile=dp;/* el perfil de alimentación es del atleta, no se toca */
 }
