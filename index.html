@@ -8816,7 +8816,7 @@ document.addEventListener('keydown',e=>{
   /* Armado de menú: Enter en el alimento pasa a la cantidad; Enter en la cantidad lo añade; Enter en una
      cantidad ya puesta la aplica (blur dispara el change). */
   if(el&&el.dataset&&el.dataset.mqGo&&e.key==='Enter'){e.preventDefault();ACTIONS['mq-add']({dataset:{aid:el.dataset.mqAid,meal:el.dataset.mqGo}});return;}
-  if(el&&el.dataset&&el.dataset.mqMeal&&e.key==='Enter'){e.preventDefault();const g=document.getElementById(el.id+'_g');if(g){g.focus();g.select();}return;}
+  if(el&&el.dataset&&el.dataset.mqMeal&&e.key==='Enter'){/* sin preventDefault: si el Enter elige una opción de la lista, el navegador debe ponerla antes de saltar */const g=document.getElementById(el.id+'_g');if(g)setTimeout(()=>{mqHint(el);g.focus();g.select();},0);return;}
   if(el&&el.classList&&el.classList.contains('mi-in')&&e.key==='Enter'){e.preventDefault();el.blur();return;}
   if(el&&el.id==='chat_input'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();ACTIONS['chat-send']({dataset:{aid:el.dataset.chatAid,from:el.dataset.chatFrom}});}
 });
