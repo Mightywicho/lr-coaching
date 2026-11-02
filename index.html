@@ -11087,8 +11087,8 @@ function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)retu
    de PAM» como 19 g de grasa), ignoraba gustos y alergias y metía la grasa antes que la proteína (se pasaba
    ~250 kcal). Ahora:
    - Fuera lo que el perfil marca como alergia, intolerancia o «no le gusta» (por palabra, sin acentos) y lo que
-     no sirve de base de una comida (dulces, bebidas, harinas, aerosoles, embutidos, condimentos) y los alimentos
-     por pieza (huevo, tortilla, pan rebanado: la cuenta por pieza sale rara al cuadrar gramos).
+     no sirve de base de una comida (dulces, bebidas, harinas, aerosoles, embutidos, condimentos). Lo que va por
+     pieza (huevo, tortilla, pan, manzana) entra con tope de 4 piezas; la comida 1 lleva 2 huevos si están en la base.
    - Cada lista se ordena por «calidad» (cuánto de sus kcal viene del macro que cubre), con +0.2 a los de
      todos los días (pollo, res, claras, atún, arroz, avena, papa, tortilla, aguacate…) y lo que le gusta primero; se queda uno por familia (primera palabra: un solo atún, una sola carne molida) y cada comida
      toma uno distinto.
@@ -11099,7 +11099,7 @@ const AUTO_NO=/az[uú]car|miel|mermelada|panditas|gatorade|\bgel\b|cereal|concha
 function autoNorm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 function autoWords(t){return autoNorm(t).split(/[^a-zñ0-9]+/).filter(w=>w.length>=3&&!/^(con|sin|los|las|del|que|para|muy|poco|nada|todo|tipo)$/.test(w));}
 function foodPools(aid){
-  const F=(S.foods||[]).filter(x=>x.unit!=='u'&&!AUTO_NO.test(x.name));
+  const F=(S.foods||[]).filter(x=>!AUTO_NO.test(x.name));
   const dp=(aid&&nutriOf(aid).dietProfile)||{};
   const bad=autoWords([dp.allergies,dp.intolerances,dp.dislikes].join(' ')),like=autoWords(dp.likes);
   const hit=(fo,ws)=>{const n=autoNorm(fo.name);return ws.some(w=>n.indexOf(w.length>4?w.slice(0,-1):w)>=0);};
@@ -11113,9 +11113,12 @@ function foodPools(aid){
     carb:rank(ok.filter(x=>x.cat==='Carbohidratos'),'c',.6,/arroz|avena|papa|camote|tortilla|frijol|pasta|pan integral|quinoa/),
     fruit:rank(ok.filter(x=>x.cat==='Frutas'),'c',.8),
     fat:rank(ok.filter(x=>x.cat==='Grasas'),'f',.6,/aguacate|almendra|nuez|aceite de oliva|cacahuate/),
-    veg:ok.filter(x=>x.cat==='Verduras')
+    veg:ok.filter(x=>x.cat==='Verduras'),
+    egg:ok.find(x=>/^huevo/i.test(x.name))||null
   };
 }
+const UMAX=4;
+function autoQty(fo,q){if(fo.unit!=='u')return q+' g';const l=fo.unitLabel||'pieza';return q+' '+(q>1?esPlural(l):l);}
 function buildAutoMeals(N,P,C,Fg,aid,shape){
   const pools=foodPools(aid),meals=[];
   const W=mealShareW({shape:shape||'igual',meals:Array.from({length:N},()=>({}))}),Wt=W.reduce((a,b)=>a+b,0)||1;
@@ -11124,13 +11127,19 @@ function buildAutoMeals(N,P,C,Fg,aid,shape){
   for(let i=0;i<N;i++){
     const k=W[i]/Wt,mp=P*k,mc=C*k,mf=Fg*k;
     const items=[];let uP=0,uC=0,uF=0;
-    const addF=(fo,g,rol)=>{g=r5(fo,g);if(!fo||g<=0)return;const m=foodMacros(fo.name,g);if(!m)return;items.push({food:fo.name,qty:g+' g',grams:g,p:m.p,c:m.c,f:m.f,_r:rol});uP+=m.p;uC+=m.c;uF+=m.f;};
+    /* Por pieza (huevo, tortilla, pan, manzana): medias piezas y tope de UMAX; si no alcanza, otro alimento completa. */
+    const addF=(fo,g,rol)=>{if(!fo)return false;const isU=fo.unit==='u';g=isU?Math.min(UMAX,Math.round(g*2)/2):r5(fo,g);if(g<=0)return false;const m=foodMacros(fo.name,g);if(!m)return false;
+      items.push({food:fo.name,qty:autoQty(fo,g),grams:isU?0:g,_u:isU?g:0,p:m.p,c:m.c,f:m.f,_r:rol});uP+=m.p;uC+=m.c;uF+=m.f;return true;};
+    const fill=(arr,j,key,falta,max)=>{const a=pick(arr,j);if(!a||falta()<=3)return;addF(a,Math.min(gramsFor(a,key,falta()),a.unit==='u'?UMAX:max),key);
+      if(a.unit==='u'&&falta()>8){const b=arr.find(x=>x.unit!=='u'&&x!==a);if(b)addF(b,Math.min(gramsFor(b,key,falta()),max),key);}};
     if(i%2===0){const vf=pick(pools.veg,i>>1);if(vf)addF(vf,100,'v');}
     const fr=i%2===1?pick(pools.fruit,i>>1):null;
     if(fr&&mc-uC>25)addF(fr,Math.min(gramsFor(fr,'c',Math.min(25,(mc-uC)*.35)),300),'c');
-    const cf=pick(pools.carb,i);if(cf&&mc-uC>3)addF(cf,Math.min(gramsFor(cf,'c',mc-uC),450),'c');
+    fill(pools.carb,i,'c',()=>mc-uC,450);
+    /* desayuno (comida 1): 2 huevos si están en la base y no se excluyeron; la proteína que falte la pone otro */
+    if(i===0&&pools.egg&&mp-uP>15)addF(pools.egg,2,'p');
     /* la proteína va después del carbo: arroz, papa o pasta también traen proteína y antes se pasaba ~40 g */
-    const pf=pick(pools.prot,i);if(pf&&mp-uP>2)addF(pf,Math.min(gramsFor(pf,'p',mp-uP),400),'p');
+    fill(pools.prot,i,'p',()=>mp-uP,400);
     const ff=pick(pools.fat,i);if(ff&&mf-uF>3)addF(ff,Math.min(gramsFor(ff,'f',mf-uF),60),'f');
     meals.push({id:uid(),name:'Comida '+(i+1),time:'',items});
   }
@@ -11140,9 +11149,11 @@ function buildAutoMeals(N,P,C,Fg,aid,shape){
     const t=tot(),own=meals.reduce((a,m)=>a+m.items.filter(it=>it._r===key).reduce((b,it)=>b+it[key],0),0);
     if(!(own>0)||Math.abs(t[key]-obj)<=Math.max(3,obj*.03))return;
     const f=Math.max(.4,Math.min(2,(own+(obj-t[key]))/own));
-    meals.forEach(m=>m.items.forEach((it,j)=>{if(it._r!==key)return;const g=r5(null,it.grams*f);const mm=g>0?foodMacros(it.food,g):null;if(mm)m.items[j]=Object.assign({},it,{qty:g+' g',grams:g,p:mm.p,c:mm.c,f:mm.f});}));
+    meals.forEach(m=>m.items.forEach((it,j)=>{if(it._r!==key)return;const fo=_foodFind(it.food);if(!fo)return;
+      const g=it._u?Math.max(.5,Math.min(UMAX,Math.round(it._u*f*2)/2)):r5(null,it.grams*f);const mm=g>0?foodMacros(it.food,g):null;
+      if(mm)m.items[j]=Object.assign({},it,{qty:autoQty(fo,g),grams:it._u?0:g,_u:it._u?g:0,p:mm.p,c:mm.c,f:mm.f});}));
   });
-  meals.forEach(m=>{m.items=m.items.filter(it=>it.grams>0).map(it=>{const o=Object.assign({},it);delete o._r;return o;});});
+  meals.forEach(m=>{m.items=m.items.filter(it=>it.grams>0||it._u>0).map(it=>{const o=Object.assign({},it);delete o._r;delete o._u;return o;});});
   return meals;
 }
 /* Cálculo puro de objetivos (TDEE/kcal/macros) según perfil real del atleta. Sin tocar comidas/plan —
