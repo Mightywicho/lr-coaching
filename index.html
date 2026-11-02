@@ -11100,7 +11100,7 @@ function autoNorm(t){return String(t||'').toLowerCase().normalize('NFD').replace
 function autoWords(t){return autoNorm(t).split(/[^a-zñ0-9]+/).filter(w=>w.length>=3&&!/^(con|sin|los|las|del|que|para|muy|poco|nada|todo|tipo)$/.test(w));}
 function foodPools(aid){
   const F=(S.foods||[]).filter(x=>!AUTO_NO.test(x.name));
-  const dp=(aid&&nutriOf(aid).dietProfile)||{};
+  const dp=(aid&&(nutriOf(aid)||{}).dietProfile)||{};
   const bad=autoWords([dp.allergies,dp.intolerances,dp.dislikes].join(' ')),like=autoWords(dp.likes);
   const hit=(fo,ws)=>{const n=autoNorm(fo.name);return ws.some(w=>n.indexOf(w.length>4?w.slice(0,-1):w)>=0);};
   const ok=F.filter(fo=>!hit(fo,bad));
