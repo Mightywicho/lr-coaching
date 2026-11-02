@@ -11109,12 +11109,12 @@ function foodPools(aid){
     .filter(x=>x.q>=k).sort((a,b)=>b.s-a.s).map(x=>x.fo)
     .filter(fo=>{const w=autoNorm(fo.name).split(/[^a-zñ0-9]+/)[0];if(fam[w])return false;fam[w]=1;return true;});};
   return {
-    prot:rank(ok.filter(x=>x.cat==='Proteínas'||x.cat==='Lácteos'),'p',.5,/pollo|res|claras|atun|pavo|yogur|cerdo/),
+    prot:rank(ok.filter(x=>x.cat==='Proteínas'||x.cat==='Lácteos'),'p',.5,/pollo|\bres\b|claras|atun|pavo|yogur|cerdo/),
     carb:rank(ok.filter(x=>x.cat==='Carbohidratos'),'c',.6,/arroz|avena|papa|camote|tortilla|frijol|pasta|pan integral|quinoa/),
     fruit:rank(ok.filter(x=>x.cat==='Frutas'),'c',.8),
     fat:rank(ok.filter(x=>x.cat==='Grasas'),'f',.6,/aguacate|almendra|nuez|aceite de oliva|cacahuate/),
     veg:ok.filter(x=>x.cat==='Verduras'),
-    egg:ok.find(x=>/^huevo/i.test(x.name))||null
+    egg:ok.find(x=>/^huevo\b/i.test(x.name))||null
   };
 }
 const UMAX=4;
