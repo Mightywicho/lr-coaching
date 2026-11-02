@@ -11082,30 +11082,66 @@ function applyAiRoutineAdjust(aid){
 
 /* ===== GENERADOR DE NUTRICIÓN AUTOMÁTICA (objetivos + comidas con alimentos) ===== */
 function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)return 0;if(food.unit==='u'){return Math.max(0,Math.round(targetMacro/per*2)/2);}return Math.max(0,Math.round(targetMacro/(per/100)/5)*5);}
-function foodPools(){
-  const F=S.foods||[];
+/* Plan automático, versión 2 (2026-11-02). La v1 tomaba pool[i % largo] en el orden de la base, así que
+   salían los primeros por orden alfabético (aceite, amaranto, arroz, atún… atún en las 4 comidas, «19 segundos
+   de PAM» como 19 g de grasa), ignoraba gustos y alergias y metía la grasa antes que la proteína (se pasaba
+   ~250 kcal). Ahora:
+   - Fuera lo que el perfil marca como alergia, intolerancia o «no le gusta» (por palabra, sin acentos) y lo que
+     no sirve de base de una comida (dulces, bebidas, harinas, aerosoles, embutidos, condimentos) y los alimentos
+     por pieza (huevo, tortilla, pan rebanado: la cuenta por pieza sale rara al cuadrar gramos).
+   - Cada lista se ordena por «calidad» (cuánto de sus kcal viene del macro que cubre), con +0.2 a los de
+     todos los días (pollo, res, claras, atún, arroz, avena, papa, tortilla, aguacate…) y lo que le gusta primero; se queda uno por familia (primera palabra: un solo atún, una sola carne molida) y cada comida
+     toma uno distinto.
+   - Orden: verdura (comidas alternas) → proteína → carbohidrato (con fruta en comidas alternas) → grasa con lo
+     que falte. Al final se reescala carbo y grasa del día para cerrar el objetivo.
+   - Reparto entre comidas según la «forma del día» del plan (mealShareW). */
+const AUTO_NO=/az[uú]car|miel|mermelada|panditas|gatorade|\bgel\b|cereal|concha|galleta|mordisko|crout|harina|totopo|refresco|gerber|pur[eé]|granola|helado|pizza|splenda|stevia|canela|vainilla|salsa|gelatina|jam[oó]n|salchicha|surimi|\bpam\b|spray|mayonesa|vinagreta|crema de leche|mantequilla|chocolate|coco rallado|jugo|d[aá]tiles|leche con chocolate|barrita/i;
+function autoNorm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function autoWords(t){return autoNorm(t).split(/[^a-zñ0-9]+/).filter(w=>w.length>=3&&!/^(con|sin|los|las|del|que|para|muy|poco|nada|todo|tipo)$/.test(w));}
+function foodPools(aid){
+  const F=(S.foods||[]).filter(x=>x.unit!=='u'&&!AUTO_NO.test(x.name));
+  const dp=(aid&&nutriOf(aid).dietProfile)||{};
+  const bad=autoWords([dp.allergies,dp.intolerances,dp.dislikes].join(' ')),like=autoWords(dp.likes);
+  const hit=(fo,ws)=>{const n=autoNorm(fo.name);return ws.some(w=>n.indexOf(w.length>4?w.slice(0,-1):w)>=0);};
+  const ok=F.filter(fo=>!hit(fo,bad));
+  const kc=fo=>(+fo.p||0)*4+(+fo.c||0)*4+(+fo.f||0)*9||1;
+  const rank=(arr,key,k,com)=>{const fam={};return arr.map(fo=>{const q=(key==='f'?(+fo.f||0)*9:(+fo[key]||0)*4)/kc(fo);return{fo,q,s:q+(hit(fo,like)?1:0)+(com&&com.test(autoNorm(fo.name))?.2:0)};})
+    .filter(x=>x.q>=k).sort((a,b)=>b.s-a.s).map(x=>x.fo)
+    .filter(fo=>{const w=autoNorm(fo.name).split(/[^a-zñ0-9]+/)[0];if(fam[w])return false;fam[w]=1;return true;});};
   return {
-    prot:F.filter(x=>x.cat==='Proteínas').concat(F.filter(x=>x.cat==='Lácteos'&&x.p>=8)),
-    carb:F.filter(x=>x.cat==='Carbohidratos').concat(F.filter(x=>x.cat==='Frutas')),
-    fat:F.filter(x=>x.cat==='Grasas'),
-    veg:F.filter(x=>x.cat==='Verduras')
+    prot:rank(ok.filter(x=>x.cat==='Proteínas'||x.cat==='Lácteos'),'p',.5,/pollo|res|claras|atun|pavo|yogur|cerdo/),
+    carb:rank(ok.filter(x=>x.cat==='Carbohidratos'),'c',.6,/arroz|avena|papa|camote|tortilla|frijol|pasta|pan integral|quinoa/),
+    fruit:rank(ok.filter(x=>x.cat==='Frutas'),'c',.8),
+    fat:rank(ok.filter(x=>x.cat==='Grasas'),'f',.6,/aguacate|almendra|nuez|aceite de oliva|cacahuate/),
+    veg:ok.filter(x=>x.cat==='Verduras')
   };
 }
-function buildAutoMeals(N,P,C,Fg){
-  const pools=foodPools();const meals=[];const mp=P/N,mc=C/N,mf=Fg/N;
+function buildAutoMeals(N,P,C,Fg,aid,shape){
+  const pools=foodPools(aid),meals=[];
+  const W=mealShareW({shape:shape||'igual',meals:Array.from({length:N},()=>({}))}),Wt=W.reduce((a,b)=>a+b,0)||1;
+  const pick=(arr,i)=>arr.length?arr[i%Math.min(arr.length,Math.max(N,4))]:null;
+  const r5=(fo,g)=>Math.max(0,Math.round(g/5)*5);
   for(let i=0;i<N;i++){
+    const k=W[i]/Wt,mp=P*k,mc=C*k,mf=Fg*k;
     const items=[];let uP=0,uC=0,uF=0;
-    const addF=(fo,g)=>{if(!fo||g<=0)return;const m=foodMacros(fo.name,g);if(!m)return;const isU=fo.unit==='u';items.push({food:fo.name,qty:isU?(g+' '+(fo.unitLabel||'unidades')):(g+' g'),grams:isU?0:g,p:m.p,c:m.c,f:m.f});uP+=m.p;uC+=m.c;uF+=m.f;};
-    /* verdura fija (volumen y micros) en comidas alternas */
-    if(pools.veg.length&&i%2===0){const vf=pools.veg[i%pools.veg.length];addF(vf,100);}
-    /* grasa: cubre la grasa restante de la comida */
-    if(pools.fat.length){const remF=mf-uF;if(remF>2){const ff=pools.fat[i%pools.fat.length];addF(ff,gramsFor(ff,'f',remF));}}
-    /* carbohidrato: cubre el carbo restante */
-    if(pools.carb.length){const remC=mc-uC;if(remC>3){const cf=pools.carb[i%pools.carb.length];addF(cf,gramsFor(cf,'c',remC));}}
-    /* proteína al final: absorbe la proteína que falta y minimiza el exceso */
-    if(pools.prot.length){const remP=mp-uP;if(remP>2){const pf=pools.prot[i%pools.prot.length];addF(pf,gramsFor(pf,'p',remP));}}
+    const addF=(fo,g,rol)=>{g=r5(fo,g);if(!fo||g<=0)return;const m=foodMacros(fo.name,g);if(!m)return;items.push({food:fo.name,qty:g+' g',grams:g,p:m.p,c:m.c,f:m.f,_r:rol});uP+=m.p;uC+=m.c;uF+=m.f;};
+    if(i%2===0){const vf=pick(pools.veg,i>>1);if(vf)addF(vf,100,'v');}
+    const pf=pick(pools.prot,i);if(pf&&mp-uP>2)addF(pf,Math.min(gramsFor(pf,'p',mp-uP),400),'p');
+    const fr=i%2===1?pick(pools.fruit,i>>1):null;
+    if(fr&&mc-uC>25)addF(fr,Math.min(gramsFor(fr,'c',Math.min(25,(mc-uC)*.35)),300),'c');
+    const cf=pick(pools.carb,i);if(cf&&mc-uC>3)addF(cf,Math.min(gramsFor(cf,'c',mc-uC),450),'c');
+    const ff=pick(pools.fat,i);if(ff&&mf-uF>3)addF(ff,Math.min(gramsFor(ff,'f',mf-uF),60),'f');
     meals.push({id:uid(),name:'Comida '+(i+1),time:'',items});
   }
+  /* Cierre del día: carbo y grasa se reescalan juntos sobre los alimentos que los aportan. */
+  const tot=()=>meals.reduce((t,m)=>{m.items.forEach(it=>{t.p+=it.p;t.c+=it.c;t.f+=it.f;});return t;},{p:0,c:0,f:0});
+  [['c',C],['f',Fg]].forEach(([key,obj])=>{
+    const t=tot(),own=meals.reduce((a,m)=>a+m.items.filter(it=>it._r===key).reduce((b,it)=>b+it[key],0),0);
+    if(!(own>0)||Math.abs(t[key]-obj)<=Math.max(3,obj*.03))return;
+    const f=Math.max(.4,Math.min(2,(own+(obj-t[key]))/own));
+    meals.forEach(m=>m.items.forEach((it,j)=>{if(it._r!==key)return;const g=r5(null,it.grams*f);const mm=g>0?foodMacros(it.food,g):null;if(mm)m.items[j]=Object.assign({},it,{qty:g+' g',grams:g,p:mm.p,c:mm.c,f:mm.f});}));
+  });
+  meals.forEach(m=>{m.items=m.items.filter(it=>it.grams>0).map(it=>{const o=Object.assign({},it);delete o._r;return o;});});
   return meals;
 }
 /* Cálculo puro de objetivos (TDEE/kcal/macros) según perfil real del atleta. Sin tocar comidas/plan —
@@ -11155,7 +11191,7 @@ function autoNutrition(aid,useOwn){
     plan.kcal=Math.round(+plan.kcal||0)||kcalFromMacros({protein:P,carbs:C,fat:Fg});
     plan.mode='menu';
     const Nm=Math.max(1,plan.mealsPerDay||4);
-    plan.meals=buildAutoMeals(Nm,P,C,Fg);
+    plan.meals=buildAutoMeals(Nm,P,C,Fg,aid,plan.shape);
     plan.notes=autoNote(plan.notes,'[Menú generado con los macros de este plan: P'+P+' C'+C+' G'+Fg+' en '+Nm+' comidas. Ajusta gramos a tu gusto.]');
     return {target:plan.kcal,protein:P,carbs:C,fat:Fg,N:Nm,own:true};
   }
@@ -11164,7 +11200,7 @@ function autoNutrition(aid,useOwn){
   plan.kcal=tg.target;plan.protein=tg.protein;plan.carbs=tg.carbs;plan.fat=tg.fat;plan.mode='menu';
   setTargetRate(aid,tg.dir<0?-tg.pctUsed:tg.dir>0?tg.pctUsed:0);
   const N=Math.max(1,plan.mealsPerDay||4);
-  plan.meals=buildAutoMeals(N,tg.protein,tg.carbs,tg.fat);
+  plan.meals=buildAutoMeals(N,tg.protein,tg.carbs,tg.fat,aid,plan.shape);
   plan.notes=autoNote(plan.notes,'[Plan autogenerado: '+tg.goalTxt+', '+tg.protGkg+' g/kg proteína. Ajusta gramos a tu gusto.]');
   return {tdee:tg.tdee,rmr:tg.rmr,pal:tg.pal,target:tg.target,goalTxt:tg.goalTxt,protein:tg.protein,carbs:tg.carbs,fat:tg.fat,N,fromW:tg.fromW};
 }
