@@ -3327,8 +3327,12 @@ function suppMicSummary(aid){
    - Recomendado (MIC_IDR): IOM (RDA, o AI donde no hay RDA) o EFSA (PRI, o AI), la misma referencia que el
      selector de límites (S.suppRef). Por sexo y edad del perfil. B1 y B3 la EFSA las da por energía (mg/MJ):
      se usa la IOM y se dice. Sodio no tiene «recomendado» que alcanzar: se muestra contra la meta máxima.
-   - Límite: el mismo suppUL de la suplementación. Magnesio: su UL es SOLO de suplementos, así que se compara
-     solo la parte de suplementos. */
+   - Límite: el mismo suppUL de la suplementación. Tres se comparan SOLO contra la parte de suplementos
+     (MIC_UL_SUPP): magnesio (su UL es de suplementos), ácido fólico (el UL es del ácido fólico sintético, no del
+     folato de la comida; el catálogo da µg DFE) y vitamina A (el UL es de retinol preformado y el catálogo da RAE,
+     que incluye carotenos: con camote o zanahoria saltaba un falso «pasa el límite»). Probado con el menú del
+     atleta de prueba: el folato del arroz enriquecido daba 1003 µg «pasa el límite». */
+const MIC_UL_SUPP={mg:1,fol:1,vita:1};
 const MIC_DIA=[['vita','Vitamina A','µg'],['vitc','Vitamina C','mg'],['vitd','Vitamina D','UI'],['vite','Vitamina E','mg'],['vitk','Vitamina K','µg'],
   ['b1','Tiamina (B1)','mg'],['b2','Riboflavina (B2)','mg'],['b3','Niacina (B3)','mg'],['b6','Vitamina B6','mg'],['b12','Vitamina B12','µg'],['fol','Folato','µg'],
   ['ca','Calcio','mg'],['fe','Hierro','mg'],['mg','Magnesio','mg'],['zn','Zinc','mg'],['se','Selenio','µg'],['k','Potasio','mg'],['na','Sodio','mg']];
@@ -3411,16 +3415,16 @@ function micDiaHTML(aid,plan){
   const filas=MIC_DIA.map(d=>{
     const k=d[0],fo=D.tot[k]||0,su=D.sup[k]||0,t=fo+su,dat=D.kTot>0?(D.kc[k]||0)/D.kTot:0;
     const R=micIDR(aid,k),sd=SUPP_MIC.find(x=>x[0]===k),L=sd?suppUL(aid,sd):{ul:null};
-    const ulBase=k==='mg'?su:t,over=L.ul&&ulBase>L.ul;
+    const ulBase=MIC_UL_SUPP[k]?su:t,over=L.ul&&ulBase>L.ul;
     let pct=null,meta='—',cls='',nota='';
     if(R&&R.max){meta='máx. '+suppFmt(R.max);pct=Math.round(t/R.max*100);if(t>R.max){cls='supv';nota='arriba de la meta';}}
     else if(R){meta=suppFmt(R.v);pct=Math.round(t/R.v*100);
       if(dat<0.6&&su<R.v){cls='nodat';nota='poco dato';}
       else if(pct<70){cls='bajo';nota='bajo';}}
-    if(over){cls='over';nota='pasa el límite'+(k==='mg'?' (suplementos)':'');}
+    if(over){cls='over';nota='pasa el límite'+(MIC_UL_SUPP[k]?' (suplementos)':'');}
     const w=pct==null?0:Math.min(100,pct),col=cls==='over'?'var(--red)':cls==='bajo'||cls==='supv'?'var(--orange)':cls==='nodat'?'var(--tx3)':'var(--green)';
     const tip=[R?(R.max?'Meta máxima ':'Recomendado ')+suppFmt(R.max||R.v)+' '+d[2]+' ('+R.src+')':'Sin valor recomendado',
-      L.ul?'Límite superior '+suppFmt(L.ul)+' '+d[2]+' ('+L.src+')':'',
+      L.ul?'Límite superior '+suppFmt(L.ul)+' '+d[2]+' ('+L.src+')'+(MIC_UL_SUPP[k]?', se compara solo con los suplementos':''):'',
       'Comida '+suppFmt(fo)+' + suplementos '+suppFmt(su),'Dato de comida para '+Math.round(dat*100)+' % de las kcal'].filter(Boolean).join(' · ');
     return '<div class="micd-r'+(cls?' '+cls:'')+'" title="'+esc(tip)+'"><span class="micd-n">'+esc(d[1])+'</span>'+
       '<span class="micd-v"><b>'+suppFmt(t)+'</b> / '+meta+' '+d[2]+(pct!=null?' · '+pct+' %':'')+(su>0?' <span class="tiny">(💊 '+suppFmt(su)+')</span>':'')+(nota?' <span class="micd-t">'+nota+'</span>':'')+'</span>'+
