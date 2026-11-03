@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-02.9">
+<meta name="lr-build" content="2026-11-02.10">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1062,6 +1062,18 @@ input.meta-in.old{border-style:dashed}
 .supp-micw{display:flex;flex-wrap:wrap;gap:6px}
 .supp-mic{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--tx2)}
 .supp-mic b{color:var(--tx);font-weight:600}
+/* Micronutrientes del día (coach) */
+.micd{display:grid;grid-template-columns:1fr;gap:10px 22px}
+@media(min-width:720px){.micd{grid-template-columns:1fr 1fr}}
+.micd-r .mbar{height:6px;margin-top:4px}
+.micd-r{font-size:13px}
+.micd-n{font-weight:600;margin-right:8px}
+.micd-v{color:var(--tx2)}
+.micd-v b{color:var(--tx)}
+.micd-t{font-size:11.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line2);margin-left:4px}
+.micd-r.bajo .micd-t,.micd-r.supv .micd-t{color:var(--orange);border-color:var(--orange)}
+.micd-r.over .micd-t{color:var(--red);border-color:var(--red)}
+.micd-r.nodat .micd-t{color:var(--tx3)}
 .supp-mic.over{border-color:var(--red);color:var(--red);background:var(--danger-10)}
 .supp-mic.supv{border-color:var(--orange);color:var(--orange)}
 .supp-tip{margin:0;color:var(--tx2)}
@@ -3079,7 +3091,7 @@ function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid);return (d.nutriPick&
    - Micros: solo los de la SUPLEMENTACIÓN (alcance A elegido por Luis). El coach ve el máximo en un día
      (entreno o descanso, el que más sume) contra el límite superior tolerable (UL, IOM, adultos). Varios UL
      (D, A, Ca, Fe, Zn…) son de la ingesta TOTAL: si los suplementos solos ya lo pasan, seguro se pasa; el de
-     magnesio sí es solo de suplementos. Micros de todo el día (alcance B) quedó para después. */
+     magnesio sí es solo de suplementos. Micros de todo el día (alcance B): ver MICRONUTRIENTES DEL DÍA. */
 const SUPP_MOM=['Al despertar','Pre-entreno','Intra-entreno','Post-entreno','Con comida','Antes de dormir','Otro'];
 const SUPP_FREC={diario:'Diario',train:'Días de entreno',rest:'Días de descanso'};
 const SUPP_CATS=['Rendimiento','Salud','Sueño','Hidratación','Con calorías','Otros'];
@@ -3299,6 +3311,128 @@ function suppMicSummary(aid){
     (anySup?'<p class="tiny" style="color:var(--orange);margin:6px 0 0">Por encima del UL solo por dosis terapéuticas marcadas: el UL es para población sana, no para tratamientos con control.</p>':'')+
     '<p class="tiny" style="margin:6px 0 0">Límites de <b>'+SUPP_REF[suppRef()]+'</b> (cámbiala en Configuración); al lado, el de la otra referencia como dato. Ajustados por edad del perfil. Casi todos cuentan también la comida: es un aviso mínimo, no una garantía. No distinguen embarazo: para eso, las consideraciones clínicas de abajo.</p>'+
     clinChips+warnHTML+'</div>';
+}
+/* ===== MICRONUTRIENTES DEL DÍA (alcance B; Luis, 2026-11-02: «aún no veo los micros reflejados» → en el total
+   del día, comida + suplementos; solo el coach, contra lo recomendado y contra el límite superior).
+   - De dónde salen: cada alimento de la base del coach puede estar ligado al catálogo (`fo.catId`, columna
+     foods.catalog_id), y el catálogo trae micros por 100 g (food_catalog.micros, misma clave que SUPP_MIC; vitd
+     en µg, aquí en UI). Los 172 alimentos de Luis se ligaron el 2026-11-02 con modelos locales + Gemini y su
+     revisión. Lo que no esté ligado NO aporta micros, y el catálogo no trae todos los micros de todo (las marcas
+     de Open Food Facts casi solo traen sodio): por eso cada micro dice de qué parte de las kcal del día hay dato,
+     y con poco dato no se marca «bajo» (sería culpa del dato, no del menú).
+   - Cantidad: alimento por gramos → los gramos del renglón. Por unidad (tortilla, huevo, scoop) → se convierte
+     con las kcal: kcal del renglón / kcal por 100 g del catálogo. Así no hace falta saber cuánto pesa la pieza.
+   - Suplementos: suppMic de los vigentes para ese tipo de día (plan «Day off» = descanso). El ingrediente que un
+     suplemento mete en un platillo (`it.supp`) se salta: sus micros ya van por el suplemento.
+   - Recomendado (MIC_IDR): IOM (RDA, o AI donde no hay RDA) o EFSA (PRI, o AI), la misma referencia que el
+     selector de límites (S.suppRef). Por sexo y edad del perfil. B1 y B3 la EFSA las da por energía (mg/MJ):
+     se usa la IOM y se dice. Sodio no tiene «recomendado» que alcanzar: se muestra contra la meta máxima.
+   - Límite: el mismo suppUL de la suplementación. Magnesio: su UL es SOLO de suplementos, así que se compara
+     solo la parte de suplementos. */
+const MIC_DIA=[['vita','Vitamina A','µg'],['vitc','Vitamina C','mg'],['vitd','Vitamina D','UI'],['vite','Vitamina E','mg'],['vitk','Vitamina K','µg'],
+  ['b1','Tiamina (B1)','mg'],['b2','Riboflavina (B2)','mg'],['b3','Niacina (B3)','mg'],['b6','Vitamina B6','mg'],['b12','Vitamina B12','µg'],['fol','Folato','µg'],
+  ['ca','Calcio','mg'],['fe','Hierro','mg'],['mg','Magnesio','mg'],['zn','Zinc','mg'],['se','Selenio','µg'],['k','Potasio','mg'],['na','Sodio','mg']];
+/* [hombre, mujer]. a = 19+ (o 18+ EFSA), t = adolescente (IOM 14-18 / EFSA 15-17); a25/a31/a51/a71 = a partir de
+   esa edad, si cambia. ⚠ Valores para que Luis los revise. */
+const MIC_IDR={
+  vita:{iom:{a:[900,700],t:[900,700],src:'IOM 2001, RDA (µg RAE)'},efsa:{a:[750,650],t:[750,650],src:'EFSA 2015, PRI (µg RE)'}},
+  vitc:{iom:{a:[90,75],t:[75,65],src:'IOM 2000, RDA'},efsa:{a:[110,95],t:[100,90],src:'EFSA 2013, PRI'}},
+  vitd:{iom:{a:[600,600],t:[600,600],a71:[800,800],src:'IOM 2011, RDA'},efsa:{a:[600,600],t:[600,600],src:'EFSA 2016, AI (15 µg)'}},
+  vite:{iom:{a:[15,15],t:[15,15],src:'IOM 2000, RDA'},efsa:{a:[13,11],t:[13,11],src:'EFSA 2015, AI'}},
+  vitk:{iom:{a:[120,90],t:[75,75],src:'IOM 2001, AI'},efsa:{a:[70,70],t:[65,65],src:'EFSA 2017, AI'}},
+  b1:{iom:{a:[1.2,1.1],t:[1.2,1.0],src:'IOM 1998, RDA'},efsa:null},
+  b2:{iom:{a:[1.3,1.1],t:[1.3,1.0],src:'IOM 1998, RDA'},efsa:{a:[1.6,1.6],t:[1.6,1.6],src:'EFSA 2017, PRI'}},
+  b3:{iom:{a:[16,14],t:[16,14],src:'IOM 1998, RDA (mg NE)'},efsa:null},
+  b6:{iom:{a:[1.3,1.3],t:[1.3,1.2],a51:[1.7,1.5],src:'IOM 1998, RDA'},efsa:{a:[1.7,1.6],t:[1.7,1.6],src:'EFSA 2016, PRI'}},
+  b12:{iom:{a:[2.4,2.4],t:[2.4,2.4],src:'IOM 1998, RDA'},efsa:{a:[4,4],t:[4,4],src:'EFSA 2015, AI'}},
+  fol:{iom:{a:[400,400],t:[400,400],src:'IOM 1998, RDA (µg DFE)'},efsa:{a:[330,330],t:[330,330],src:'EFSA 2014, PRI (µg DFE)'}},
+  ca:{iom:{a:[1000,1000],t:[1300,1300],a51:[1000,1200],a71:[1200,1200],src:'IOM 2011, RDA'},efsa:{a:[1000,1000],a25:[950,950],t:[1150,1150],src:'EFSA 2015, PRI'}},
+  fe:{iom:{a:[8,18],t:[11,15],a51:[8,8],src:'IOM 2001, RDA'},efsa:{a:[11,16],t:[11,13],a51:[11,11],src:'EFSA 2015, PRI (mujer: 16 antes de la menopausia)'}},
+  mg:{iom:{a:[400,310],t:[410,360],a31:[420,320],src:'IOM 1997, RDA'},efsa:{a:[350,300],t:[300,250],src:'EFSA 2015, AI'}},
+  zn:{iom:{a:[11,8],t:[11,9],src:'IOM 2001, RDA'},efsa:{a:[11.7,9.3],t:[12.5,10.4],src:'EFSA 2014, PRI (fitatos 600 mg/día)'}},
+  se:{iom:{a:[55,55],t:[55,55],src:'IOM 2000, RDA'},efsa:{a:[70,70],t:[70,70],src:'EFSA 2014, AI'}},
+  k:{iom:{a:[3400,2600],t:[3000,2300],src:'NASEM 2019, AI'},efsa:{a:[3500,3500],t:[3500,3500],src:'EFSA 2016, AI'}},
+  na:{iom:{max:2300,src:'NASEM 2019, meta de reducción (CDRR)'},efsa:{max:2000,src:'EFSA 2019, ingesta segura y adecuada'}}};
+function micIDRde(ref,key,age,sexF){
+  const o=MIC_IDR[key]&&MIC_IDR[key][ref];if(!o)return null;
+  if(o.max)return{max:o.max,src:o.src};
+  let v=o.a,et='';
+  if(age&&age<18&&o.t){v=o.t;et=', adolescentes';}
+  else if(age)for(const [k,e] of [['a71',70],['a51',50],['a31',30],['a25',24]])if(age>e&&o[k]){v=o[k];et=', '+(e+1)+'+ años';break;}
+  return{v:v[sexF?1:0],src:o.src+et};
+}
+function micIDR(aid,key){
+  const p=athData(aid).profile||{},age=+p.age||0,sexF=p.sex==='F',r=suppRef(),o=r==='iom'?'efsa':'iom';
+  const a=micIDRde(r,key,age,sexF);if(a)return a;
+  const b=micIDRde(o,key,age,sexF);if(b){b.src+=' (la '+(r==='iom'?'IOM':'EFSA')+' no da un valor fijo: lo da por energía)';return b;}
+  return null;
+}
+/* Micros del catálogo por id: {kcal, m}. Se piden una sola vez por sesión y se repinta al llegar. */
+let _micCat={},_micPend=null;
+function micCatLoad(ids){
+  const falta=ids.filter(id=>id&&!(id in _micCat));
+  if(!falta.length||_micPend||typeof supa==='undefined')return;
+  _micPend=(async()=>{
+    for(let i=0;i<falta.length;i+=100){
+      const ch=falta.slice(i,i+100);
+      try{const r=await supa.from('food_catalog').select('id,kcal,micros').in('id',ch);
+        if(r.error)throw r.error;ch.forEach(id=>{_micCat[id]=null;});(r.data||[]).forEach(x=>{_micCat[x.id]={kcal:+x.kcal||0,m:x.micros||{}};});}
+      catch(e){console.warn('micros del catálogo',e);ch.forEach(id=>{_micCat[id]=null;});}
+    }
+    _micPend=null;render();
+  })();
+}
+/* Renglones del menú (alimentos sueltos e ingredientes de recetas) → micros. Devuelve también cuánto del día
+   (en kcal) tiene dato de cada micro, para no llamar «bajo» a lo que solo es falta de dato. */
+function micDiaPlan(aid,plan){
+  const rows=[],tot={},kc={},ids=[];let kTot=0,kLig=0,nLig=0,nTot=0;
+  const add=(food,grams,isG,p,c,f)=>{
+    const k=(+p||0)*4+(+c||0)*4+(+f||0)*9;if(!(k>0))return;
+    kTot+=k;nTot++;
+    const fo=_foodFind(food),cid=fo&&fo.catId;if(!cid)return;
+    ids.push(cid);const cd=_micCat[cid];if(!cd)return;
+    const g=isG?(+grams||0):(cd.kcal>0?k/cd.kcal*100:0);if(!(g>0))return;
+    kLig+=k;nLig++;
+    MIC_DIA.forEach(d=>{const v=cd.m[d[0]];if(v==null||v==='')return;let x=(+v||0)*g/100;if(d[0]==='vitd')x*=40;tot[d[0]]=(tot[d[0]]||0)+x;kc[d[0]]=(kc[d[0]]||0)+k;});
+  };
+  (plan.meals||[]).forEach(m=>{
+    if(m.recipe&&Array.isArray(m.recipe.ingredients)){m.recipe.ingredients.forEach(x=>{if(x&&typeof x==='object')add(x.food,x.grams,(x.unit==='g'||!x.unit),x.p,x.c,x.f);});return;}
+    (m.items||[]).forEach(it=>{if(it.supp)return;const fo=_foodFind(it.food);add(it.food,piQty(it),!(fo&&fo.unit==='u'),it.p,it.c,it.f);});
+  });
+  micCatLoad(ids);
+  const dia=plan.type==='off'?'rest':'train',t=todayISO(),sup={};
+  (nutriOf(aid).supplements||[]).forEach(s=>{if(!suppVigente(s,t)||!suppEnDia(s,dia))return;const o=suppMic(s);if(o)Object.keys(o).forEach(k=>{sup[k]=(sup[k]||0)+o[k];});});
+  return{tot,kc,sup,kTot,kLig,nLig,nTot,dia,cargando:!!_micPend};
+}
+function micDiaHTML(aid,plan){
+  if(!plan||plan.mode!=='menu'||!(plan.meals||[]).length)return '';
+  const D=micDiaPlan(aid,plan);if(!D.nTot)return '';
+  const p=athData(aid).profile||{},ref=suppRef(),cob=D.kTot>0?Math.round(D.kLig/D.kTot*100):0;
+  const filas=MIC_DIA.map(d=>{
+    const k=d[0],fo=D.tot[k]||0,su=D.sup[k]||0,t=fo+su,dat=D.kTot>0?(D.kc[k]||0)/D.kTot:0;
+    const R=micIDR(aid,k),sd=SUPP_MIC.find(x=>x[0]===k),L=sd?suppUL(aid,sd):{ul:null};
+    const ulBase=k==='mg'?su:t,over=L.ul&&ulBase>L.ul;
+    let pct=null,meta='—',cls='',nota='';
+    if(R&&R.max){meta='máx. '+suppFmt(R.max);pct=Math.round(t/R.max*100);if(t>R.max){cls='supv';nota='arriba de la meta';}}
+    else if(R){meta=suppFmt(R.v);pct=Math.round(t/R.v*100);
+      if(dat<0.6&&su<R.v){cls='nodat';nota='poco dato';}
+      else if(pct<70){cls='bajo';nota='bajo';}}
+    if(over){cls='over';nota='pasa el límite'+(k==='mg'?' (suplementos)':'');}
+    const w=pct==null?0:Math.min(100,pct),col=cls==='over'?'var(--red)':cls==='bajo'||cls==='supv'?'var(--orange)':cls==='nodat'?'var(--tx3)':'var(--green)';
+    const tip=[R?(R.max?'Meta máxima ':'Recomendado ')+suppFmt(R.max||R.v)+' '+d[2]+' ('+R.src+')':'Sin valor recomendado',
+      L.ul?'Límite superior '+suppFmt(L.ul)+' '+d[2]+' ('+L.src+')':'',
+      'Comida '+suppFmt(fo)+' + suplementos '+suppFmt(su),'Dato de comida para '+Math.round(dat*100)+' % de las kcal'].filter(Boolean).join(' · ');
+    return '<div class="micd-r'+(cls?' '+cls:'')+'" title="'+esc(tip)+'"><span class="micd-n">'+esc(d[1])+'</span>'+
+      '<span class="micd-v"><b>'+suppFmt(t)+'</b> / '+meta+' '+d[2]+(pct!=null?' · '+pct+' %':'')+(su>0?' <span class="tiny">(💊 '+suppFmt(su)+')</span>':'')+(nota?' <span class="micd-t">'+nota+'</span>':'')+'</span>'+
+      '<div class="mbar"><i style="width:'+w+'%;background:'+col+'"></i></div></div>';
+  }).join('');
+  const sexo=p.sex==='F'?'mujer':p.sex==='M'?'hombre':'hombre (sin sexo en el perfil)';
+  return '<div class="card mb16"><div class="sect-h" style="margin-bottom:6px"><h3 style="margin:0">Micronutrientes del día · «'+esc(plan.name)+'»</h3></div>'+
+    '<p class="tiny" style="margin:0 0 10px">Menú + suplementos de '+(D.dia==='rest'?'día de descanso':'día de entreno')+' · recomendado y límites de <b>'+SUPP_REF[ref]+'</b> para '+sexo+(p.age?' de '+p.age+' años':'')+
+      ' · con micros: '+D.nLig+' de '+D.nTot+' alimentos ('+cob+' % de las kcal)'+(D.cargando?' · cargando…':'')+'</p>'+
+    '<div class="micd">'+filas+'</div>'+
+    '<p class="tiny mt8">Verde = cubre al menos el 70 % · ámbar = bajo · gris = el catálogo no tiene ese micro para buena parte del menú (no es que falte en la dieta). '+
+      'Los alimentos sin ligar al catálogo no suman micros. Pasa el cursor por un renglón para ver fuentes y el desglose.</p></div>';
 }
 /* Tarjeta del coach: cada suplemento recetado se ajusta ahí mismo (cantidad ±, momento, cuándo, hasta, indicación). */
 let _suppDel=null,_suppQ='',_suppCat='';
@@ -6027,7 +6161,7 @@ function coachTabNutri(aid){
   const calcOpen=plegadoSet().has('plc-nutcalc')||!((+ap.kcal||0)>0||(+ap.protein||0)>0);
   const calcRes=(ap.kcal?ap.kcal+' kcal · P'+(ap.protein||0)+' C'+(ap.carbs||0)+' G'+(ap.fat||0):'sin macros todavía')+(dp.allergies?' · ⚠️ alergias: '+dp.allergies:'');
   const calcSec='<details class="acc pleg ncalc" id="plc-nutcalc"'+(calcOpen?' open':'')+'><summary>'+I.food+' Cálculo y perfil de alimentación<span class="acc-tag">gustos y alergias · dietocálculo · guía</span><span class="pleg-res">'+esc(calcRes)+'</span>'+WK_CHEV+'</summary><div class="acc-body">'+dietCard+buildDietCalc(aid)+buildMacroGuide(aid)+'</div></details>';
-  return calcSec+planBar+editorCard+menuHTML+macMealsHTML+suppCard;
+  return calcSec+planBar+editorCard+menuHTML+macMealsHTML+micDiaHTML(aid,ap)+suppCard;
 }
 
 /* MLG = peso × (1 − %grasa/100). Recalcula el campo dc_ffm en vivo al escribir % grasa o peso. */
