@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-03.1">
+<meta name="lr-build" content="2026-11-04.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3143,7 +3143,22 @@ function migrateNutrition(n){
 }
 function nutriOf(aid){return migrateNutrition(athData(aid).nutrition);}
 function activePlanOf(aid){const n=nutriOf(aid);return n.plans.find(p=>p.id===n.activePlan)||n.plans[0];}
-function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid);return (d.nutriPick&&n.plans.find(p=>p.id===d.nutriPick))||activePlanOf(aid);}
+/* Tipo de día que eligió el atleta («¿Qué día te toca hoy?»). `nutriPick` vive solo en memoria: el
+   atleta no puede escribir su nutrición en la nube (es del coach), así que al recargar la app —o cuando
+   Android la cierra en segundo plano— volvía al plan activo del coach. Probado en teléfono el 2026-11-04:
+   marcó el Desayuno de «Día 1 solo entrene», recargó, la app abrió «Día doble entrenamiento» y mostró
+   0 comido, porque los ids marcados no existen en ese plan; parecía que su registro se había borrado.
+   Ahora, en orden: la elección de esta sesión → la que se guardó en este dispositivo PARA HOY (mañana
+   vuelve al plan del coach, como antes) → el plan cuyas comidas casan con lo marcado hoy (igual que
+   `dxPlanFor` con los días pasados; esto sirve también desde otro dispositivo y en la vista del coach)
+   → el plan activo. */
+const LS_PICK='lrNutriPick';
+function athPickGet(aid){try{const o=JSON.parse(localStorage.getItem(LS_PICK)||'{}')[aid];return o&&o.d===todayISO()?o.pid:null;}catch(e){return null;}}
+function athPickSet(aid,pid){try{const o=JSON.parse(localStorage.getItem(LS_PICK)||'{}');o[aid]={d:todayISO(),pid:pid};localStorage.setItem(LS_PICK,JSON.stringify(o));}catch(e){}}
+function athPlanHoyInfer(aid,n){const e=athData(aid).logs.nutrition.find(x=>x.date===todayISO()),done=(e&&e.mealsDone)||[];if(!done.length)return null;
+  let best=null,bn=0;(n.plans||[]).forEach(p=>{const k=(p.meals||[]).filter(m=>done.indexOf(m.id)>=0).length;if(k>bn){bn=k;best=p;}});return best;}
+function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid),por=id=>id&&n.plans.find(p=>p.id===id);
+  return por(d.nutriPick)||por(athPickGet(aid))||athPlanHoyInfer(aid,n)||activePlanOf(aid);}
 /* ===== Suplementación con base propia (pedido de Luis, 2026-11-02; maqueta aprobada del 2026-10-31) =====
    Antes: nombre + dosis en texto libre + momento, común a todos los días y sin poder editar. Ahora el coach
    tiene SU base de suplementos (S.suppBase, en el blob: es un catálogo suyo, no lleva nada del atleta) y al
@@ -7584,7 +7599,7 @@ Object.assign(ACTIONS,{
   'supp-take':el=>suppHoyEdit(sp=>{const i=sp.done.indexOf(el.dataset.sid);if(i>=0)sp.done.splice(i,1);else sp.done.push(el.dataset.sid);}),
   'supp-dia':el=>suppHoyEdit(sp=>{sp.dia=el.dataset.v==='rest'?'rest':'train';}),
   /* ---- el atleta elige su tipo de día ---- */
-  'ath-plan-pick':el=>{const d=athData(el.dataset.aid);d.nutriPick=el.dataset.pid;saveState();render();},
+  'ath-plan-pick':el=>{const d=athData(el.dataset.aid);d.nutriPick=el.dataset.pid;athPickSet(el.dataset.aid,el.dataset.pid);saveState();render();},
   'rm-calc':el=>{
     const w=num('rm_w'),r=num('rm_r'),rirRaw=val('rm_rir'),useRir=val('rm_userir')!=='0';
     if(!w||!r){toast('Indica peso y repeticiones');return;}
