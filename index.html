@@ -1087,7 +1087,7 @@ input.meta-in.old{border-style:dashed}
 .supp-mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px}
 /* ---------- «Comidas» (diario tipo MyFitnessPal) y «Hoy» del atleta, 2026-11-03 ---------- */
 .dx-day{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;min-height:44px;margin-bottom:12px}
-.dx-day b{flex:1;text-align:center;font-weight:600;font-size:14px;text-transform:capitalize}
+.dx-day b{flex:1;text-align:center;font-weight:600;font-size:14px}
 .dx-navb{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--tx2);font-size:22px;line-height:1}
 .dx-navb.off{visibility:hidden}
 .dx-k{font-size:12px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
@@ -1167,7 +1167,7 @@ input.meta-in.old{border-style:dashed}
 .hx-tile .s{font-size:12px;color:var(--tx2)}
 .hx-tile.soft .v{color:var(--tx2)}
 .hx-tile.pend{border-color:var(--orange);background:var(--card2)}.hx-tile.pend .k{color:var(--orange)}.hx-tile.pend .v{font-size:15px}
-.hx-week{gap:10px}
+.hx-week{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}.hx-week .stat{padding:12px 14px}
 @media (prefers-reduced-motion:reduce){.hx-ring-v,.dx-bar i,.dx-mb i,.dx-ck{transition:none}.dx-ck.pop{animation:none}}
 </style>
 </head>
@@ -4079,11 +4079,17 @@ function recomputeAdherenceFor(aid,iso){const e=nutriEntryMake(aid,iso);if(e.adh
 function recomputeAdherence(aid){return recomputeAdherenceFor(aid,todayISO());}
 /* La siguiente comida sin marcar de hoy (null si ya marcó todas). */
 function dxSigue(aid){const iso=todayISO(),p=athPlanOf(aid),e=nutriEntryFor(aid,iso),logs=dxLogsOf(aid,iso);return dxSlots(p).find(s=>!dxHecha(s,e,logs))||null;}
-/* «Si comes lo que falta del plan, cierras en…»: solo comidas con contenido del coach, que son las que se saben. */
-function dxProyeccion(aid){const iso=todayISO(),p=athPlanOf(aid),e=nutriEntryFor(aid,iso),logs=dxLogsOf(aid,iso);let k=0,n=0;
-  dxSlots(p).forEach(s=>{if(!dxFijo(s)||dxHecha(s,e,logs))return;k+=mealMacros(mealHoy(s.meal,e&&e.swaps)).kcal;n++;});
-  if(!n)return null;const fin=consumedToday(aid).kcal+k,tg=dxTgt(p).kcal;if(!tg)return null;const df=fin-tg;
+/* «Si comes lo que falta del plan, cierras en…»: solo cuando el atleta se DESVIÓ de su plan (extras o cambios por
+   equivalente). Se compara contra el total del PLAN y no contra el objetivo: si el menú del coach ya trae unas kcal
+   arriba o abajo del objetivo, avisarle al atleta cada día por algo que no hizo él solo confunde (pasó en la prueba
+   con el atleta de prueba: +253 sin haber comido nada). Los suplementos aislados no cuentan como desvío. Solo con
+   menús completos: en una comida sin contenido del coach no se sabe qué falta. */
+function dxProyeccion(aid){const iso=todayISO(),p=athPlanOf(aid),e=nutriEntryFor(aid,iso),logs=dxLogsOf(aid,iso),ss=dxSlots(p);
+  if(!ss.length||ss.some(s=>!dxFijo(s)))return null;let k=0,n=0,plan=0;
+  ss.forEach(s=>{plan+=mealMacros(s.meal).kcal;if(dxHecha(s,e,logs))return;k+=mealMacros(mealHoy(s.meal,e&&e.swaps)).kcal;n++;});
+  if(!n)return null;const fin=consumedToday(aid).kcal-suppTakenMac(aid).kcal+k,df=fin-plan;
   if(Math.abs(df)<80)return null;return{fin,df};}
+function dxProyTxt(pr){return '<div class="dx-proj">Con lo que agregaste o cambiaste hoy, si comes lo que falta del plan cierras en '+pr.fin+' kcal ('+(pr.df>0?'+':'')+pr.df+' '+(pr.df>0?'sobre':'bajo')+' tu plan).</div>';}
 /* Promedio de kcal y proteína de esta semana (de lunes a ayer: hoy aún no termina y bajaría la media). */
 function dxSemana(aid){const hoy=todayISO();let n=0,k=0,p=0;
   for(let iso=weekStartISO(hoy);iso<hoy;iso=isoPlus(iso,1)){const e=nutriEntryFor(aid,iso);if(!nutriHasData(e)&&!dxLogsOf(aid,iso).length)continue;const t=consumedFor(aid,iso);n++;k+=t.kcal;p+=t.p;}
@@ -8521,7 +8527,7 @@ function hxNutriCard(aid){
   return card+'<div class="hx-next"><div class="h"><span class="dx-k">Sigue · '+esc(s.name)+(s.time?' · '+esc(s.time):'')+'</span><b>'+(fijo?'':'≈ ')+kc+' kcal</b></div><div>'+que+'</div>'+
     '<div class="hx-btns">'+(fijo?'<button class="btn btn-p" data-act="dx-toggle" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+I.check+' Ya la comí</button><button class="btn btn-g" data-act="nav" data-view="ath-nutri" data-params=\'{}\'>Cambiar algo</button>'
       :'<button class="btn btn-p" data-act="dx-add-open" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+I.plus+' Añadir lo que comí</button>')+'</div>'+
-    (pr?'<div class="dx-proj">'+(pr.df>0?'Si comes todo lo que falta del plan cierras en '+pr.fin+' kcal (+'+pr.df+' sobre tu objetivo).':'Con lo que falta del plan cierras en '+pr.fin+' kcal ('+pr.df+' bajo tu objetivo).')+'</div>':'')+'</div>';
+    (pr?dxProyTxt(pr):'')+'</div>';
 }
 VIEWS['ath-hoy']=function(u){
   const aid=u.id,d=athData(aid),hoyISO=todayISO();
@@ -8848,7 +8854,7 @@ VIEWS['ath-nutri']=function(u){
       '<div class="dx-eq"><div><b>'+tg.kcal+'</b><span>Objetivo</span></div><i>−</i><div><b>'+t.kcal+'</b><span>Comido</span></div><i>=</i><div class="r'+(r<0?' over':'')+'"><b>'+Math.abs(r)+'</b><span>'+(r>=0?'Restan':'De más')+'</span></div></div>'+
       '<div class="dx-bar">'+'<i data-dxp="d-kcal" style="--v:'+(tg.kcal?Math.min(1,t.kcal/tg.kcal):0).toFixed(3)+';background:'+(r<-tg.kcal*0.05?'var(--red)':'#cdf563')+'"></i></div>'+
       '<div class="dx-mac">'+macs+'</div>'+
-      (pr?'<div class="dx-proj">'+(pr.df>0?'Si comes todo lo que falta del plan cierras en '+pr.fin+' kcal (+'+pr.df+' sobre tu objetivo).':'Con lo que falta del plan cierras en '+pr.fin+' kcal ('+pr.df+' bajo tu objetivo).')+'</div>':'')+
+      (pr?dxProyTxt(pr):'')+
       '</div>';
   }
 
