@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.5">
+<meta name="lr-build" content="2026-11-04.6">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1150,6 +1150,52 @@ input.meta-in.old{border-style:dashed}
 .fres-k b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
 .fres-k span{font-size:11px;color:var(--tx2)}
 .fres-s{padding:12px;font-size:13px;color:var(--tx2)}
+/* hoja «Añadir» (maqueta 2026-11-03) */
+@media(max-width:560px){.overlay:has(.modal.dx-full){padding:0;align-items:stretch}.modal.dx-full{max-width:none;max-height:none;height:100%;border-radius:0;border:0}}
+.modal.dx-full .modal-h{gap:8px;position:sticky;top:0;z-index:3;background:var(--card);padding-bottom:12px}
+.modal.dx-full .modal-h .x{display:none}
+.modal.dx-full .modal-b{padding-top:6px}
+.dxa-listo{margin-left:auto;height:36px;padding:0 16px;border-radius:18px;background:var(--bg2);border:1px solid var(--line2);color:var(--tx);font-weight:600;font-size:13px;font-family:inherit;cursor:pointer}
+.dxa-q{display:flex;align-items:center;gap:8px;height:46px;padding:0 12px;background:var(--bg2);border:1px solid var(--bd-input);border-radius:12px;color:var(--tx2);margin-bottom:10px}
+.dxa-q:focus-within{border-color:var(--volt)}
+.dxa-q input[type=search]{flex:1;min-width:0;height:44px;border:0;background:transparent;padding:0;font-size:16px}
+.dxa-k{margin-bottom:10px}
+.dxa-acc{display:flex;gap:8px;margin-bottom:12px}
+.dxa-b{flex:1;min-height:44px;padding:0 10px;border-radius:10px;border:1px solid var(--line2);background:var(--bg2);color:var(--tx);font-size:12.5px;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.dxa-b svg{width:15px;height:15px;flex:none}
+.dxa-tabs{display:flex;gap:18px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.dxa-tab{height:40px;padding:0;border:0;border-bottom:2px solid transparent;background:none;color:var(--tx2);font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap;cursor:pointer}
+.dxa-tab.on{color:var(--tx);border-bottom-color:var(--volt)}
+.dxa-tab:focus-visible,.dxa-b:focus-visible,.dxa-listo:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.fres.dxa-list{max-height:none;margin:0;border:0;border-radius:0;background:none;overflow:visible}
+.fres.dxa-list .fres-h{background:var(--card);padding-left:2px}
+.fres.dxa-list .fres-r{padding:10px 2px}
+.fres-mas{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--line2);color:var(--tx);display:flex;align-items:center;justify-content:center}
+.fres-mas svg{width:16px;height:16px}
+.fres-r:hover .fres-mas,.fres-r:active .fres-mas{background:var(--volt);border-color:var(--volt);color:var(--on-volt)}
+.dxa-bg{position:fixed;inset:0;z-index:120;background:rgba(5,6,9,.62);animation:fade .15s}
+.dxa-det{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:121;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:10px 16px calc(20px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line2);border-radius:20px 20px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.4);animation:dxaSube .2s ease-out}
+@keyframes dxaSube{from{opacity:0;transform:translate(-50%,24px)}}
+@media(prefers-reduced-motion:reduce){.dxa-det,.dxa-bg{animation:none}}
+.dxa-asa{align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line2)}
+.dxa-dh{display:flex;align-items:flex-start;gap:6px}
+.dxa-dh>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dxa-dh h4{font-family:var(--font-d);font-size:18px;line-height:1.25}
+.dxa-dh .fpm-fav{margin-left:0;min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--line2)}
+.dxa-x{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:none;color:var(--tx3);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.dxa-cant{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.dxa-cant select{height:44px}
+.dxa-step{display:flex;align-items:center;height:44px;border:1px solid var(--bd-input);border-radius:10px;background:var(--bg2)}
+.dxa-step button{width:44px;height:42px;border:0;background:none;color:var(--tx);font-size:20px;font-family:inherit;cursor:pointer}
+.dxa-step input[type=number]{width:56px;height:42px;padding:0;border:0;background:none;text-align:center;font-family:var(--font-d);font-size:16px;font-weight:700;-moz-appearance:textfield}
+.dxa-step input::-webkit-inner-spin-button,.dxa-step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.dxa-mac{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px 6px;text-align:center;background:var(--bg2);border-radius:12px}
+.dxa-mac div{display:flex;flex-direction:column}
+.dxa-mac b{font-family:var(--font-d);font-size:15px;font-variant-numeric:tabular-nums}
+.dxa-mac span{font-size:12px;color:var(--tx2)}
+.dxa-rest{margin-top:8px;text-align:center;font-size:13px;color:var(--tx2)}
+.dxa-rest b{color:var(--tx)}
+.dxa-ok{width:100%;min-height:48px;justify-content:center;font-size:15px}
 .dx-q3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .dx-quick summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--blue)}
 .dx-added{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:6px}
@@ -3905,14 +3951,18 @@ function catAdoptar(name){
    sea lo que se suma a su día. `data-picked` evita que la lista reaparezca al poner el nombre elegido. */
 let _fresTimer=null,_fresSeq=0;const _fresCache={};
 function fresKc(fo){return Math.round((+fo.p||0)*4+(+fo.c||0)*4+(+fo.f||0)*9);}
-function fresFila(fo,origen,inputId){
+function fresFila(fo,origen,inputId,extra){
   const sinK=s=>s.replace(/\s*\(\d+ kcal\)$/,''),i=fo.name.indexOf(' · ');
   const nm=sinK(i>0?fo.name.slice(0,i):fo.name),marca=i>0?sinK(fo.name.slice(i+3)):'';
-  const isU=fo.unit==='u',med=!isU&&fo.med&&fo.med.length?catMedTxt(fo.med.slice(0,1)):'';
-  const sub=[marca,origen,med].filter(Boolean).join(' · ');
-  return '<button type="button" class="fres-r" data-act="fres-pick" data-for="'+inputId+'" data-name="'+esc(fo.name)+'">'+
+  const meds=dxaMeds(fo),med=meds.length?catMedTxt(meds.slice(0,1)):'';
+  const sub=[marca,origen,extra&&extra.kc!=null?'':med].filter(Boolean).join(' · ');
+  /* kcal de la porción que se propone al tocarla (1 pieza, 1 taza… o 100 g), como en la maqueta */
+  let kc,kl;
+  if(extra&&extra.kc!=null){kc=extra.kc;kl=extra.kl;}
+  else{const d=dxaDflt(fo);kc=dxaKcal(fo,d.mi,d.q);kl=d.mi==='g'?'100 g':d.mi==='u'?'1 '+(fo.unitLabel||'unidad'):medFmt(meds[0].n,1);}
+  return '<button type="button" class="fres-r" data-act="fres-pick" data-for="'+inputId+'" data-name="'+esc(fo.name)+'"'+((extra&&extra.attrs)||'')+'>'+
     '<span class="fres-n"><b>'+esc(nm)+'</b>'+(sub?'<span>'+esc(sub)+'</span>':'')+'</span>'+
-    '<span class="fres-k"><b>'+fresKc(fo)+'</b><span>kcal / '+(isU?esc(fo.unitLabel||'unidad'):'100 g')+'</span></span></button>';
+    '<span class="fres-k"><b>'+kc+'</b><span>kcal · '+esc(kl)+'</span></span><span class="fres-mas" aria-hidden="true">'+I.plus+'</span></button>';
 }
 /* Base del coach: cada palabra escrita debe ser el principio de una palabra del nombre (sin acentos): con
    «av» sale «Avena» pero no «Jamón de pavo». Primero lo que empieza igual y, a igualdad, el nombre más
@@ -3940,8 +3990,9 @@ function fresTol(t){
 }
 function fresBuscar(inp){
   const box=document.getElementById(inp.id+'_res');if(!box)return;
+  if(inp.dataset.res==='dx'&&_dxTab!=='res')return;
   const q=inp.value.trim();clearTimeout(_fresTimer);
-  if(!q||q===inp.dataset.picked){box.innerHTML='';return;}
+  if(!q){box.innerHTML=inp.dataset.res==='dx'?dxaListHTML('res'):'';return;}
   const loc=fresLocal(q),vacio=!box.innerHTML;
   const pinta=(cat,estado)=>{
     let h=loc.length?'<div class="fres-h">De tu coach</div>'+loc.map(fo=>fresFila(fo,'',inp.id)).join(''):'';
@@ -3987,7 +4038,7 @@ function fpLoad(){
   if(_fp||_fpLoading||!_supabaseUser)return;
   _fpLoading=(async()=>{
     try{const r=await supa.from('food_picks').select('food_key,food,fav,used_at').order('used_at',{ascending:false,nullsFirst:false}).limit(80);_fp=(r&&!r.error&&r.data)||[];}catch(e){_fp=[];}
-    _fpLoading=null;document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
+    _fpLoading=null;document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});if(document.getElementById('dxa_tabs')&&_dxTab!=='res')dxaShow();
   })();
 }
 function fpRow(name){const k=fpKey(name);return (_fp||[]).find(x=>x.food_key===k)||null;}
@@ -4228,16 +4279,79 @@ function dxTrasLog(aid,iso,sid){const s=dxSlots(dxPlanFor(aid,iso)).find(x=>x.id
 function dxAddedHTML(){const a=_dxAdd;if(!a)return'';const sl=dxLogsOf(a.aid,a.d).filter(m=>m.slot===a.sid),n=dxPlanFor(a.aid,a.d),t=consumedFor(a.aid,a.d),tg=dxTgt(n).kcal;
   const rest=tg?'<p class="tiny mt8">'+(tg>=t.kcal?'Te quedan <b>'+(tg-t.kcal)+' kcal</b>':'Vas <b>'+(t.kcal-tg)+' kcal</b> arriba de tu objetivo')+(a.d===todayISO()?' hoy.':' ese día.')+'</p>':'';
   return (sl.length?'<div class="dx-k mt16">Registrado en '+esc(a.name)+'</div><div class="dx-added">'+sl.map(l=>dxLogRow(l,a.fijo)).join('')+'</div>':'')+rest;}
-function dxAddBody(){const a=_dxAdd,d=athData(a.aid),ay=dxLogsOf(a.aid,isoPlus(a.d,-1)).filter(m=>m.slot===a.sid),ayK=ay.reduce((s,m)=>s+mealKcal(m),0);
-  return '<label for="mf_food">Busca en la base de tu coach o en el catálogo de 15 mil alimentos</label>'+
-    '<div class="dx-addrow"><input id="mf_food" type="search" enterkeyhint="search" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g" data-res="1" aria-controls="mf_food_res"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"><button class="btn btn-p" data-act="dx-add-food">Añadir</button></div>'+
-    '<div class="fres" id="mf_food_res" aria-label="Resultados de la búsqueda"></div>'+
-    fpxHTML('mf_food')+fpmHTML('mf_g')+
-    (ay.length?'<button class="btn btn-g btn-sm mt8" data-act="dx-copy">'+I.copy+' Copiar lo de ayer en '+esc(a.name)+' · '+ayK+' kcal</button>':'')+
-    '<details class="dx-quick mt16"><summary>Entrada rápida (sin buscar)</summary><div class="frow mt8"><label for="dx_qn">Qué comiste</label><input id="dx_qn" placeholder="Ej. guiso casero"></div>'+
+/* ===== Hoja «Añadir» como en la maqueta del 2026-11-03 (rehecha el 2026-11-04) =====
+   Luis notó que la hoja publicada no se parecía a la maqueta: era una ventana chica con la casilla de gramos y
+   «Añadir» en un renglón, sin ver cuánto le queda antes de confirmar. Ahora: pantalla completa en el teléfono,
+   buscador con lupa, filtros, «Copiar de ayer» y «Entrada rápida» como botones, pestañas Resultados / Recientes /
+   Favoritos / De mi plan, una fila por alimento con las kcal de su porción y +, y al tocarla una hoja abajo con
+   medida, cantidad con − y +, macros de esa cantidad y «después te quedan … kcal». Se guarda igual que antes
+   («Alimento · 3 piezas (90 g)»), así que el coach y el resto de la app no notan el cambio. */
+let _dxTab='rec',_dxSel=null;
+const DXA_TABS=[['res','Resultados'],['rec','Recientes'],['fav','Favoritos'],['plan','De mi plan']];
+function dxaMeds(fo){return fo&&fo.unit!=='u'?(fo.med||[]).filter(m=>+m.g>0).slice().sort((a,b)=>a.g-b.g).slice(0,6):[];}
+/* porción que se propone: 1 unidad, 1 de la medida casera más chica o 100 g */
+function dxaDflt(fo){if(fo.unit==='u')return{mi:'u',q:1};return dxaMeds(fo).length?{mi:0,q:1}:{mi:'g',q:100};}
+/* lo que recibe foodMacros: unidades si el alimento va por unidad, si no gramos */
+function dxaCant(fo,mi,q){if(mi==='u'||mi==='g')return q;const m=dxaMeds(fo)[mi];return m?Math.round(q*m.g*10)/10:q;}
+function dxaKcal(fo,mi,q){const a=dxaCant(fo,mi,q);return Math.round(fresKc(fo)*(mi==='u'?a:a/100));}
+function dxaPorTxt(fo,mi,q){if(mi==='u')return fmtG(q)+' '+(fo.unitLabel||'unidades');if(mi==='g')return fmtG(q)+' g';const m=dxaMeds(fo)[mi];return m?medFmt(m.n,q)+' ('+fmtG(q*m.g)+' g)':fmtG(q)+' g';}
+function dxaKinds(){return CAT_KINDS.map(k=>'<button type="button" class="'+(k[0]===_catKind?'on':'')+'" aria-pressed="'+(k[0]===_catKind)+'" data-act="fpx-kind" data-k="'+k[0]+'" data-for="mf_food">'+k[1]+'</button>').join('');}
+/* «De mi plan» solo en comidas SIN menú del coach: ahí registrar es cumplir la comida. En una comida con menú
+   «Ya la comí» ya suma todo y lo añadido cuenta como «Extra», así que añadir desde el plan lo contaría dos veces. */
+function dxaTabsOk(){return DXA_TABS.filter(t=>t[0]!=='plan'||!(_dxAdd&&_dxAdd.fijo));}
+function dxaTabsInner(){return dxaTabsOk().map(t=>'<button type="button" role="tab" class="dxa-tab'+(t[0]===_dxTab?' on':'')+'" aria-selected="'+(t[0]===_dxTab)+'" data-act="dxa-tab" data-k="'+t[0]+'">'+t[1]+'</button>').join('');}
+function dxaTabs(){const b=document.getElementById('dxa_tabs');if(b)b.innerHTML=dxaTabsInner();}
+function dxaListHTML(k){
+  if(k==='rec'||k==='fav'){
+    if(_fp===null&&_fpLoading)return '<div class="fres-s" role="status">Cargando…</div>';
+    const rows=(_fp||[]).filter(x=>x.food&&x.food.name&&(k==='fav'?x.fav:x.used_at)).slice(0,25);
+    return rows.length?rows.map(r=>fresFila(r.food,'','mf_food')).join(''):'<div class="fres-s">'+(k==='fav'?'Aún no tienes favoritos. Toca ☆ al elegir un alimento y saldrá aquí.':'Aquí saldrá lo último que registres.')+'</div>';}
+  if(k==='plan'){const a=_dxAdd,p=dxPlanFor(a.aid,a.d),vistos={},out=[];
+    (p.meals||[]).forEach(m=>(m.items||[]).forEach(it=>{const fo=_foodFind(it.food);if(!fo||vistos[fo.name])return;vistos[fo.name]=1;
+      const isU=fo.unit==='u',mi=isU?'u':'g',q=isU?(parseFloat(it.qty)||1):(+it.grams||0);if(!(q>0))return;
+      out.push(fresFila(fo,'En tu plan: '+(it.qty||dxaPorTxt(fo,mi,q)),'mf_food',{kc:dxaKcal(fo,mi,q),kl:'en tu plan',attrs:' data-mi="'+mi+'" data-q="'+q+'"'}));}));
+    return out.length?out.join(''):'<div class="fres-s">Tu plan de este día no tiene alimentos fijos. Búscalos arriba.</div>';}
+  return '<div class="fres-s">Escribe arriba para buscar en la base de tu coach y en el catálogo.</div>';
+}
+function dxaShow(){const box=document.getElementById('mf_food_res'),inp=document.getElementById('mf_food');if(!box)return;dxaTabs();
+  if(_dxTab==='res'&&inp&&inp.value.trim()){fresBuscar(inp);return;}box.innerHTML=dxaListHTML(_dxTab);}
+function dxAddBody(){const a=_dxAdd,ay=dxLogsOf(a.aid,isoPlus(a.d,-1)).filter(m=>m.slot===a.sid),ayK=ay.reduce((s,m)=>s+mealKcal(m),0);fpLoad();
+  const lupa='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>';
+  const rayo='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg>';
+  return '<div class="dxa-q">'+lupa+'<input id="mf_food" type="search" enterkeyhint="search" placeholder="Busca entre 15 mil alimentos…" autocomplete="off" data-res="dx" aria-label="Buscar alimento" aria-controls="mf_food_res"></div>'+
+    '<div class="fpx-k dxa-k" role="group" aria-label="Qué buscar en el catálogo">'+dxaKinds()+'</div>'+
+    '<div class="dxa-acc">'+(ay.length?'<button type="button" class="dxa-b" data-act="dx-copy">'+I.copy+' Copiar de ayer · '+ayK+' kcal</button>':'')+
+      '<button type="button" class="dxa-b" data-act="acc-open" data-acc="dx_quick">'+rayo+' Entrada rápida</button></div>'+
+    '<div class="dxa-tabs" role="tablist" aria-label="Qué mostrar" id="dxa_tabs">'+dxaTabsInner()+'</div>'+
+    '<div class="fres dxa-list" id="mf_food_res" aria-live="polite">'+dxaListHTML(_dxTab)+'</div>'+
+    '<details class="dx-quick mt16" id="dx_quick"><summary>Entrada rápida (sin buscar)</summary><div class="frow mt8"><label for="dx_qn">Qué comiste</label><input id="dx_qn" placeholder="Ej. guiso casero"></div>'+
     '<div class="dx-q3"><div><label for="dx_qp">Prot (g)</label><input id="dx_qp" type="number" min="0" step="1"></div><div><label for="dx_qc">Carb (g)</label><input id="dx_qc" type="number" min="0" step="1"></div><div><label for="dx_qf">Gras (g)</label><input id="dx_qf" type="number" min="0" step="1"></div></div>'+
     '<p class="tiny mt8">Las calorías se calculan solas: P×4 + C×4 + G×9.</p><button class="btn btn-g mt8" data-act="dx-add-quick">'+I.plus+' Añadir</button></details>'+
-    '<div id="dx_added">'+dxAddedHTML()+'</div>';}
+    '<div id="dx_added">'+dxAddedHTML()+'</div>'+
+    '<div id="dx_det"></div>';}
+/* Hoja de detalle: medida + cantidad con − y +, macros de esa cantidad y lo que queda del día antes de confirmar */
+function dxaOpen(name,mi,q){const fo=eqvFood(name);if(!fo){toast('Ese alimento ya no está disponible','err');return;}
+  const d=dxaDflt(fo),m=(mi==='u'||mi==='g')?mi:(mi!=null&&mi!==''&&dxaMeds(fo)[+mi]?+mi:null);
+  _dxSel=m!=null&&q>0?{fo,mi:m,q:+q}:{fo,mi:d.mi,q:d.q};dxaDet();
+  setTimeout(()=>{const b=document.getElementById('dxa_ok');if(b)try{b.focus();}catch(e){}},60);}
+function dxaPrevHTML(){const s=_dxSel,a=_dxAdd;if(!s||!a)return'';const fo=s.fo,mac=foodMacros(fo.name,dxaCant(fo,s.mi,s.q))||{p:0,c:0,f:0},kc=mealKcal(mac);
+  const tg=dxTgt(dxPlanFor(a.aid,a.d)).kcal,r=tg-consumedFor(a.aid,a.d).kcal-kc;
+  const cel=(v,l,c)=>'<div><b'+(c?' style="color:'+c+'"':'')+'>'+v+'</b><span>'+l+'</span></div>';
+  return '<div class="dxa-mac">'+cel(kc,'kcal')+cel(dxN(mac.p)+' g','Proteína',DX_MACS[0][2])+cel(dxN(mac.c)+' g','Carbos',DX_MACS[1][2])+cel(dxN(mac.f)+' g','Grasas',DX_MACS[2][2])+'</div>'+
+    '<p class="dxa-rest">'+esc(dxaPorTxt(fo,s.mi,s.q))+(tg?' · después '+(r>=0?'te quedan <b>'+r+' kcal</b>':'te pasas por <b>'+(-r)+' kcal</b>')+(a.d===todayISO()?' hoy':' ese día'):'')+'</p>';}
+function dxaPrev(){const b=document.getElementById('dxa_prev');if(b)b.innerHTML=dxaPrevHTML();}
+function dxaDet(){const box=document.getElementById('dx_det');if(!box)return;const s=_dxSel;if(!s){box.innerHTML='';return;}
+  const fo=s.fo,a=_dxAdd,meds=dxaMeds(fo),isU=fo.unit==='u',fav=!!(fpRow(fo.name)||{}).fav,favT=fav?'Quitar de favoritos':'Guardar en favoritos';
+  const opts=isU?'<option value="u">'+esc(fo.unitLabel||'unidad')+'</option>':meds.map((m,i)=>'<option value="'+i+'"'+(s.mi===i?' selected':'')+'>'+esc(medFmt(m.n,1))+' ('+fmtG(m.g)+' g)</option>').join('')+'<option value="g"'+(s.mi==='g'?' selected':'')+'>Gramos</option>';
+  box.innerHTML='<div class="dxa-bg" data-act="dxa-close"></div>'+
+    '<div class="dxa-det" role="dialog" aria-label="'+esc(fo.name)+'"><span class="dxa-asa" aria-hidden="true"></span>'+
+    '<div class="dxa-dh"><div><h4>'+esc(fo.name)+'</h4><span class="tiny">'+esc(fo.cat||'Otros')+' · '+fresKc(fo)+' kcal por '+(isU?esc(fo.unitLabel||'unidad'):'100 g')+'</span></div>'+
+    '<button type="button" class="fpm-fav'+(fav?' on':'')+'" data-act="fpx-fav" data-name="'+esc(fo.name)+'" aria-pressed="'+fav+'" aria-label="'+favT+'" title="'+favT+'">'+(fav?'★':'☆')+'</button>'+
+    '<button type="button" class="dxa-x" data-act="dxa-close" aria-label="Cerrar">'+I.x+'</button></div>'+
+    '<div class="dxa-cant"><div><label for="dxa_u">Medida</label><select id="dxa_u">'+opts+'</select></div>'+
+    '<div><label for="dxa_q">Cantidad</label><div class="dxa-step"><button type="button" data-act="dxa-step" data-d="-1" aria-label="Menos">−</button><input id="dxa_q" type="number" inputmode="decimal" min="0.25" step="any" value="'+fmtG(s.q)+'"><button type="button" data-act="dxa-step" data-d="1" aria-label="Más">+</button></div></div></div>'+
+    '<div id="dxa_prev">'+dxaPrevHTML()+'</div>'+
+    '<button type="button" class="btn btn-p dxa-ok" id="dxa_ok" data-act="dxa-add">Añadir a '+esc(a.name)+'</button></div>';}
 /* Tras añadir o quitar dentro de la hoja: se repinta solo su lista (el buscador y lo escrito se quedan) y la vista de abajo. */
 function dxAddRefresh(){const b=document.getElementById('dx_added');if(b)b.innerHTML=dxAddedHTML();const fx=document.querySelector('#modal-root .fpx[data-for="mf_food"]');if(fx)fx.innerHTML=fpxInner('mf_food');render();}
 /* barras de macros restantes: objetivo − (marcadas + registradas) */
@@ -4831,7 +4945,7 @@ function nav(view,params){route={view,params:params||{}};render();window.scrollT
 /* ---------- modal & toast ---------- */
 function openModal(title,bodyHTML,footHTML,opts){
   const mr=$('#modal-root');mr._returnFocus=document.activeElement;
-  mr.innerHTML='<div class="overlay" data-act="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"><div class="modal-h"><h3 id="modalTitle">'+title+'</h3><button class="x" aria-label="Cerrar" data-act="modal-close">'+I.x+'</button></div><div class="modal-b">'+bodyHTML+'</div>'+(footHTML?'<div class="modal-f">'+footHTML+'</div>':'')+'</div></div>';
+  mr.innerHTML='<div class="overlay" data-act="modal-overlay"><div class="modal'+(opts&&opts.cls?' '+opts.cls:'')+'" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1"><div class="modal-h"><h3 id="modalTitle">'+title+'</h3>'+(opts&&opts.hdr?opts.hdr:'')+'<button class="x" aria-label="Cerrar" data-act="modal-close">'+I.x+'</button></div><div class="modal-b">'+bodyHTML+'</div>'+(footHTML?'<div class="modal-f">'+footHTML+'</div>':'')+'</div></div>';
   mr.dataset.persist=(opts&&opts.persistent)?'1':'';
   /* nofocus: modales cuyo primer campo es un textarea opcional. Enfocarlo abre el teclado
      del móvil y tapa justo los botones de motivo que hay que elegir. */
@@ -5602,15 +5716,10 @@ ACTIONS['fpx-kind']=el=>{
   _catKind=el.dataset.k||'';document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
   const inp=document.getElementById(el.dataset.for);if(!inp)return;
   const dl=document.getElementById(inp.getAttribute('list'));if(dl)dl.querySelectorAll('option[data-cat]').forEach(o=>o.remove());
-  if(inp.dataset.res){inp.dataset.picked='';fresBuscar(inp);return;}
+  if(inp.dataset.res){document.querySelectorAll('.dxa-k').forEach(b=>{b.innerHTML=dxaKinds();});if(inp.value.trim()){_dxTab='res';dxaTabs();}fresBuscar(inp);return;}
   if(inp.value.trim().length>=3&&!_foodFind(inp.value)){catBuscar(inp);try{inp.focus();}catch(e){}}
 };
-ACTIONS['fres-pick']=el=>{
-  const inp=document.getElementById(el.dataset.for),fo=eqvFood(el.dataset.name);if(!inp)return;
-  if(!fo){toast('Ese alimento ya no está disponible','err');return;}
-  inp.dataset.picked=fo.name;inp.value=fo.name;inp.dispatchEvent(new Event('input',{bubbles:true}));
-  const t=document.getElementById(inp.dataset.hintTarget);if(t)try{t.focus();}catch(e){}
-};
+ACTIONS['fres-pick']=el=>{dxaOpen(el.dataset.name,el.dataset.mi,+el.dataset.q||0);};
 ACTIONS['fpx-pick']=el=>{
   const inp=document.getElementById(el.dataset.for),fo=eqvFood(el.dataset.name);if(!inp)return;
   if(!fo){toast('Ese alimento ya no está disponible','err');return;}
@@ -5623,6 +5732,7 @@ ACTIONS['fpx-fav']=el=>{
   el.classList.toggle('on',on);el.textContent=on?'★':'☆';el.setAttribute('aria-pressed',on);el.title=on?'Quitar de favoritos':'Añadir a favoritos';el.setAttribute('aria-label',el.title);
   document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
   toast(on?'Añadido a favoritos':'Quitado de favoritos');
+  if(document.getElementById('dxa_tabs')&&_dxTab==='fav')dxaShow();
 };
 ACTIONS['acc-open']=el=>{const dt=document.getElementById(el.dataset.acc);if(!dt)return;dt.open=true;dt.scrollIntoView({behavior:'smooth',block:'start'});const i=dt.querySelector('input');if(i)setTimeout(()=>{try{i.focus();}catch(e){}},350);};
 /* Acciones del diario de comidas («Comidas», 2026-11-03). data-d = fecha del día que se está viendo. */
@@ -5631,8 +5741,9 @@ Object.assign(ACTIONS,{
     if(i>=0)e.mealsDone.splice(i,1);else{e.mealsDone.push(el.dataset.sid);_dxPop=el.dataset.sid;}
     recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();render();},
   'dx-add-open':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),s=dxSlots(dxPlanFor(aid,iso)).find(x=>x.id===el.dataset.sid);if(!s)return;
-    _dxAdd={aid,d:iso,sid:s.id,name:s.name,fijo:dxFijo(s)};
-    openModal('Añadir a '+esc(s.name)+(iso===todayISO()?'':' · '+esc(fmtDate(iso))),dxAddBody(),'<button class="btn btn-p" data-act="modal-close">Listo</button>');},
+    _dxAdd={aid,d:iso,sid:s.id,name:s.name,fijo:dxFijo(s)};_dxSel=null;
+    _dxTab=(_fp||[]).some(x=>x.food&&x.used_at)?'rec':(dxFijo(s)?'res':'plan');
+    openModal('Añadir a '+esc(s.name)+(iso===todayISO()?'':' · '+esc(fmtDate(iso))),dxAddBody(),'',{cls:'dx-full',hdr:'<button type="button" class="dxa-listo" data-act="modal-close">Listo</button>'});},
   'dx-add-food':()=>{const a=_dxAdd;if(!a)return;const fo=eqvFood(val('mf_food').toLowerCase());if(!fo){toast('Elige un alimento de la lista');return;}
     const isU=fo.unit==='u',qty=medGrams('mf_g');if(!qty||qty<=0||qty>(isU?50:3000)){toast(isU?'Indica la cantidad':'Indica los gramos');return;}
     const mac=foodMacros(fo.name,qty);if(!mac){toast('No encontré los datos de ese alimento');return;}
@@ -5655,6 +5766,21 @@ Object.assign(ACTIONS,{
   'dx-adh-auto':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.adhManual=false;recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();render();},
   'dx-save':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.comment=val('dx_cmt');keepClear('dx_cmt_'+iso);
     if(e.adherence==null)recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();toast('Día guardado. Tu coach ya lo ve.');render();},
+});
+/* acciones de la hoja «Añadir» (2026-11-04): van aquí, después de `const ACTIONS`; antes de él la app no arranca */
+Object.assign(ACTIONS,{
+  'dxa-tab':el=>{_dxTab=el.dataset.k;dxaShow();},
+  'dxa-close':()=>{_dxSel=null;dxaDet();},
+  /* − y +: de 1 en 1 (de medio en medio por debajo de 1) en medidas y unidades; de 10 en 10 g en gramos */
+  'dxa-step':el=>{const s=_dxSel;if(!s)return;const up=+el.dataset.d>0;let q=s.q;
+    if(s.mi==='g')q=up?Math.floor(q/10)*10+10:Math.max(5,Math.ceil(q/10)*10-10);
+    else q=up?(q<1?q+0.5:Math.floor(q)+1):(q>1?Math.ceil(q)-1:Math.max(0.5,q-0.5));
+    s.q=q;const i=document.getElementById('dxa_q');if(i)i.value=fmtG(q);dxaPrev();},
+  'dxa-add':()=>{const a=_dxAdd,s=_dxSel;if(!a||!s)return;const fo=s.fo,amt=dxaCant(fo,s.mi,s.q);
+    if(!(s.q>0)||amt>(fo.unit==='u'?50:3000)){toast('Revisa la cantidad','err');return;}
+    const mac=foodMacros(fo.name,amt);if(!mac){toast('No encontré los datos de ese alimento','err');return;}
+    fpUsed(fo);dxAddLog(a,fo.name+' · '+dxaPorTxt(fo,s.mi,s.q),mac);_dxSel=null;dxaDet();dxAddRefresh();if(_dxTab!=='res')dxaShow();
+    toast('Añadido: '+mealKcal(mac)+' kcal');},
 });
 const VIEWS={};
 
@@ -9744,7 +9870,12 @@ document.addEventListener('input',e=>{
     if(box)box.innerHTML=libPickRows(el.dataset.ex,el.dataset.linkact,el.value);
   }
   if(el.getAttribute&&FOOD_LISTS[el.getAttribute('list')]){if(_catCache[el.value.trim().toLowerCase()])catAdoptar(el.value);else catBuscar(el);}
-  if(el.dataset&&el.dataset.res)fresBuscar(el);
+  if(el.dataset&&el.dataset.res){if(el.dataset.res==='dx'&&_dxTab!=='res'){_dxTab='res';dxaTabs();}fresBuscar(el);}
+  if(el.id==='dxa_q'&&_dxSel){const v=parseFloat(el.value);if(v>0){_dxSel.q=v;dxaPrev();}}
+  /* cambiar de medida conserva más o menos los mismos gramos */
+  if(el.id==='dxa_u'&&_dxSel){const v=el.value,mi=(v==='u'||v==='g')?v:+v,fo=_dxSel.fo,g=dxaCant(fo,_dxSel.mi,_dxSel.q),m=dxaMeds(fo)[mi];
+    _dxSel.mi=mi;if(mi==='g')_dxSel.q=Math.max(5,Math.round(g));else if(m)_dxSel.q=Math.max(0.5,Math.round(g/m.g*2)/2);
+    const i=document.getElementById('dxa_q');if(i)i.value=fmtG(_dxSel.q);dxaPrev();}
   if(el.dataset&&el.dataset.live==='food-hint'){
     const fo=_foodFind(el.value);
     const t=document.getElementById(el.dataset.hintTarget);
