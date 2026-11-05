@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.1">
+<meta name="lr-build" content="2026-11-04.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1135,6 +1135,21 @@ input.meta-in.old{border-style:dashed}
 .dx-adh button.on{border:2px solid var(--green);background:rgba(82,217,138,.12);color:var(--tx)}
 .dx-adh button.on.auto{border-style:dashed;background:transparent}
 .dx-addrow{display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:10px}
+.fres{margin:-2px 0 12px;border:1px solid var(--line2);border-radius:12px;background:var(--bg2);max-height:min(48vh,380px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.fres:empty{display:none}
+.fres:not(:empty)~.fpx .fpx-l{display:none}
+.fres-h{position:sticky;top:0;z-index:1;padding:6px 12px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--tx2);background:var(--bg2);border-bottom:1px solid var(--line)}
+.fres-r{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:9px 12px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--tx);font-family:inherit;text-align:left;cursor:pointer}
+.fres-r:last-child{border-bottom:0}
+.fres-r:active,.fres-r:hover{background:var(--card2)}
+.fres-r:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.fres-n{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fres-n b{font-size:14.5px;font-weight:600;line-height:1.3}
+.fres-n span{font-size:12px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fres-k{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.fres-k b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.fres-k span{font-size:11px;color:var(--tx2)}
+.fres-s{padding:12px;font-size:13px;color:var(--tx2)}
 .dx-q3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .dx-quick summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--blue)}
 .dx-added{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:6px}
@@ -3879,6 +3894,67 @@ function catAdoptar(name){
   if(_currentUserId==='coach'&&_foodsHydrated)saveFoodRow(fo).then(ok=>{if(ok)toast('«'+fo.name+'» quedó en tu base de alimentos');});
   return fo;
 }
+/* ===== Resultados propios en la hoja «Añadir» del atleta (2026-11-04) =====
+   Ese buscador era un <datalist>. En computadora se ve como lista, pero Chrome de Android lo pinta como una
+   tira horizontal de dos sugerencias encima del teclado, sin calorías ni marca: probado en el teléfono de Luis,
+   «pechuga» tenía 22 coincidencias y solo se veían dos a la vez. Ahora el atleta ve una lista de verdad debajo
+   de la casilla (nombre, marca u origen, medida casera y kcal): primero la base de su coach, luego el catálogo.
+   Solo cambia esta hoja: los buscadores del coach siguen con <datalist>, que en computadora funciona bien.
+   Elegir usa la misma ruta que antes (eqvFood → catAdoptar), así que macros, medidas y favoritos no cambian.
+   Las kcal se calculan de los macros (P×4 + C×4 + G×9), igual que al registrar, para que lo que ve al elegir
+   sea lo que se suma a su día. `data-picked` evita que la lista reaparezca al poner el nombre elegido. */
+let _fresTimer=null,_fresSeq=0;const _fresCache={};
+function fresKc(fo){return Math.round((+fo.p||0)*4+(+fo.c||0)*4+(+fo.f||0)*9);}
+function fresFila(fo,origen,inputId){
+  const sinK=s=>s.replace(/\s*\(\d+ kcal\)$/,''),i=fo.name.indexOf(' · ');
+  const nm=sinK(i>0?fo.name.slice(0,i):fo.name),marca=i>0?sinK(fo.name.slice(i+3)):'';
+  const isU=fo.unit==='u',med=!isU&&fo.med&&fo.med.length?catMedTxt(fo.med.slice(0,1)):'';
+  const sub=[marca,origen,med].filter(Boolean).join(' · ');
+  return '<button type="button" class="fres-r" data-act="fres-pick" data-for="'+inputId+'" data-name="'+esc(fo.name)+'">'+
+    '<span class="fres-n"><b>'+esc(nm)+'</b>'+(sub?'<span>'+esc(sub)+'</span>':'')+'</span>'+
+    '<span class="fres-k"><b>'+fresKc(fo)+'</b><span>kcal / '+(isU?esc(fo.unitLabel||'unidad'):'100 g')+'</span></span></button>';
+}
+/* Base del coach: todas las palabras deben aparecer (sin acentos); primero lo que empieza igual, luego lo que
+   tiene una palabra que empieza igual, y a igualdad el nombre más corto (el genérico antes que la variante). */
+function fresLocal(q){
+  const t=normTxt(q).split(/\s+/).filter(Boolean);if(!t.length)return[];
+  return (S.foods||[]).map(fo=>{const n=normTxt(fo.name);if(!t.every(w=>n.indexOf(w)>=0))return null;
+      return{fo,s:n.indexOf(t[0])===0?0:(n.indexOf(' '+t[0])>=0?1:2),l:n.length};})
+    .filter(Boolean).sort((a,b)=>a.s-b.s||a.l-b.l).slice(0,8).map(x=>x.fo);
+}
+function fresBuscar(inp){
+  const box=document.getElementById(inp.id+'_res');if(!box)return;
+  const q=inp.value.trim();clearTimeout(_fresTimer);
+  if(!q||q===inp.dataset.picked){box.innerHTML='';return;}
+  const loc=fresLocal(q),vacio=!box.innerHTML;
+  const pinta=(cat,estado)=>{
+    let h=loc.length?'<div class="fres-h">De tu coach</div>'+loc.map(fo=>fresFila(fo,'',inp.id)).join(''):'';
+    if(cat&&cat.length)h+='<div class="fres-h">Catálogo</div>'+cat.map(fo=>fresFila(fo,CAT_KIND_TXT[fo.kind]||'',inp.id)).join('');
+    if(estado)h+='<div class="fres-s" role="status">'+estado+'</div>';
+    box.innerHTML=h;
+  };
+  const nada='No encontré «'+esc(q)+'». Prueba con otra palabra o usa la entrada rápida de abajo.';
+  if(q.length<3)pinta(null,loc.length?'':'Escribe al menos 3 letras para buscar en el catálogo.');
+  else{const key=q.toLowerCase()+'|'+(_catKind||''),c=_fresCache[key];
+    if(c)pinta(c,!c.length&&!loc.length?nada:'');
+    else{pinta(null,'Buscando en el catálogo…');
+      _fresTimer=setTimeout(async()=>{
+        const seq=++_fresSeq;let rows=[];
+        try{const r=await supa.rpc('buscar_alimentos',{q:q,n:20,solo_kind:_catKind||null});if(r&&r.error)throw r.error;rows=(r&&r.data)||[];}
+        catch(e){if(seq===_fresSeq&&document.body.contains(box)&&inp.value.trim()===q)pinta(null,'No pude buscar en el catálogo. Revisa tu conexión e inténtalo otra vez.');return;}
+        if(seq!==_fresSeq||!document.body.contains(box)||inp.value.trim()!==q)return;
+        /* mismo nombre: si las kcal coinciden es un duplicado y se omite; si no, se distingue con sus kcal
+           (el nombre tiene que ser único porque es la llave con la que se adopta) */
+        const vistos={},cat=[];
+        rows.forEach(r=>{const fo=catAFood(r);if(_foodFind(fo.name))return;let k=fo.name.toLowerCase();
+          if(k in vistos){if(vistos[k]===fresKc(fo))return;fo.name+=' ('+fresKc(fo)+' kcal)';k=fo.name.toLowerCase();if(k in vistos)return;}
+          vistos[k]=fresKc(fo);_catCache[k]=fo;cat.push(fo);});
+        _fresCache[key]=cat;pinta(cat,!cat.length&&!loc.length?nada:'');
+      },250);}
+  }
+  /* en el teléfono el teclado tapa media pantalla: al abrirse la lista, la casilla sube para dejarle sitio */
+  if(vacio&&box.innerHTML&&window.matchMedia&&matchMedia('(pointer:coarse)').matches)try{inp.scrollIntoView({block:'start',behavior:'smooth'});}catch(e){}
+}
 /* ===== Selector de alimentos: medida casera, favoritos, recientes y filtro del catálogo (2026-11-01) =====
    Referencia de uso: Avena (al elegir un alimento se ve su grupo y «1 pieza ≈ 106 g»), pero aquí la cantidad
    va en gramos o en medidas caseras, no en equivalentes (Luis, 2026-10-15). Debajo del buscador (.fpx):
@@ -4137,9 +4213,9 @@ function dxAddedHTML(){const a=_dxAdd;if(!a)return'';const sl=dxLogsOf(a.aid,a.d
   const rest=tg?'<p class="tiny mt8">'+(tg>=t.kcal?'Te quedan <b>'+(tg-t.kcal)+' kcal</b>':'Vas <b>'+(t.kcal-tg)+' kcal</b> arriba de tu objetivo')+(a.d===todayISO()?' hoy.':' ese día.')+'</p>':'';
   return (sl.length?'<div class="dx-k mt16">Registrado en '+esc(a.name)+'</div><div class="dx-added">'+sl.map(l=>dxLogRow(l,a.fijo)).join('')+'</div>':'')+rest;}
 function dxAddBody(){const a=_dxAdd,d=athData(a.aid),ay=dxLogsOf(a.aid,isoPlus(a.d,-1)).filter(m=>m.slot===a.sid),ayK=ay.reduce((s,m)=>s+mealKcal(m),0);
-  return '<datalist id="foodlist">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
-    '<label for="mf_food">Busca en la base de tu coach o en el catálogo de 15 mil alimentos</label>'+
-    '<div class="dx-addrow"><input id="mf_food" list="foodlist" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"><button class="btn btn-p" data-act="dx-add-food">Añadir</button></div>'+
+  return '<label for="mf_food">Busca en la base de tu coach o en el catálogo de 15 mil alimentos</label>'+
+    '<div class="dx-addrow"><input id="mf_food" type="search" enterkeyhint="search" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="mf_g" data-res="1" aria-controls="mf_food_res"><input id="mf_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"><button class="btn btn-p" data-act="dx-add-food">Añadir</button></div>'+
+    '<div class="fres" id="mf_food_res" aria-label="Resultados de la búsqueda"></div>'+
     fpxHTML('mf_food')+fpmHTML('mf_g')+
     (ay.length?'<button class="btn btn-g btn-sm mt8" data-act="dx-copy">'+I.copy+' Copiar lo de ayer en '+esc(a.name)+' · '+ayK+' kcal</button>':'')+
     '<details class="dx-quick mt16"><summary>Entrada rápida (sin buscar)</summary><div class="frow mt8"><label for="dx_qn">Qué comiste</label><input id="dx_qn" placeholder="Ej. guiso casero"></div>'+
@@ -5510,12 +5586,19 @@ ACTIONS['fpx-kind']=el=>{
   _catKind=el.dataset.k||'';document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
   const inp=document.getElementById(el.dataset.for);if(!inp)return;
   const dl=document.getElementById(inp.getAttribute('list'));if(dl)dl.querySelectorAll('option[data-cat]').forEach(o=>o.remove());
+  if(inp.dataset.res){inp.dataset.picked='';fresBuscar(inp);return;}
   if(inp.value.trim().length>=3&&!_foodFind(inp.value)){catBuscar(inp);try{inp.focus();}catch(e){}}
+};
+ACTIONS['fres-pick']=el=>{
+  const inp=document.getElementById(el.dataset.for),fo=eqvFood(el.dataset.name);if(!inp)return;
+  if(!fo){toast('Ese alimento ya no está disponible','err');return;}
+  inp.dataset.picked=fo.name;inp.value=fo.name;inp.dispatchEvent(new Event('input',{bubbles:true}));
+  const t=document.getElementById(inp.dataset.hintTarget);if(t)try{t.focus();}catch(e){}
 };
 ACTIONS['fpx-pick']=el=>{
   const inp=document.getElementById(el.dataset.for),fo=eqvFood(el.dataset.name);if(!inp)return;
   if(!fo){toast('Ese alimento ya no está disponible','err');return;}
-  inp.value=fo.name;inp.dispatchEvent(new Event('input',{bubbles:true}));
+  inp.dataset.picked=fo.name;inp.value=fo.name;inp.dispatchEvent(new Event('input',{bubbles:true}));
   const t=document.getElementById(inp.dataset.hintTarget);if(t)try{t.focus();}catch(e){}
 };
 ACTIONS['fpx-fav']=el=>{
@@ -5540,7 +5623,7 @@ Object.assign(ACTIONS,{
     const label=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('mf_g')||(qty+' g'));
     fpUsed(fo);dxAddLog(a,fo.name+' · '+label,mac);
     const i1=document.getElementById('mf_food'),i2=document.getElementById('mf_g'),mb=document.getElementById('mf_g_med');
-    if(i1)i1.value='';if(i2)i2.value='';if(mb)mb.dataset.food='';fpmFill('mf_g',null);
+    if(i1){i1.value='';i1.dataset.picked='';}if(i2)i2.value='';if(mb)mb.dataset.food='';fpmFill('mf_g',null);
     dxAddRefresh();toast('Añadido: '+mealKcal(mac)+' kcal');if(i1)try{i1.focus();}catch(e){}},
   'dx-add-quick':()=>{const a=_dxAdd;if(!a)return;const name=val('dx_qn'),p=num('dx_qp'),c=num('dx_qc'),f=num('dx_qf');
     if(!name){toast('Describe qué comiste');return;}if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)');return;}
@@ -9645,6 +9728,7 @@ document.addEventListener('input',e=>{
     if(box)box.innerHTML=libPickRows(el.dataset.ex,el.dataset.linkact,el.value);
   }
   if(el.getAttribute&&FOOD_LISTS[el.getAttribute('list')]){if(_catCache[el.value.trim().toLowerCase()])catAdoptar(el.value);else catBuscar(el);}
+  if(el.dataset&&el.dataset.res)fresBuscar(el);
   if(el.dataset&&el.dataset.live==='food-hint'){
     const fo=_foodFind(el.value);
     const t=document.getElementById(el.dataset.hintTarget);
@@ -9663,6 +9747,8 @@ document.addEventListener('input',e=>{
 document.addEventListener('keydown',e=>{
   const el=e.target;
   if(el&&el.id==='fext_q'&&e.key==='Enter'){e.preventDefault();ACTIONS['fext-go']();return;}
+  /* buscador con lista propia: Enter elige el primer resultado */
+  if(el&&el.dataset&&el.dataset.res&&e.key==='Enter'){const b=document.querySelector('#'+el.id+'_res .fres-r');if(b){e.preventDefault();b.click();}return;}
   /* Armado de menú: Enter en el alimento pasa a la cantidad; Enter en la cantidad lo añade; Enter en una
      cantidad ya puesta la aplica (blur dispara el change). */
   if(el&&el.dataset&&el.dataset.mqGo&&e.key==='Enter'){e.preventDefault();ACTIONS['mq-add']({dataset:{aid:el.dataset.mqAid,meal:el.dataset.mqGo}});return;}
