@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.4">
+<meta name="lr-build" content="2026-11-04.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -6427,7 +6427,7 @@ function coachTabNutri(aid){
   '<p class="tiny mb16">Las kcal calculadas con estos macros son <b>'+kcalFromMacros(ap)+'</b>.</p>'+
   '<div class="frow"><label>Indicaciones para el atleta (este plan)</label><textarea id="n_notes">'+esc(ap.notes||'')+'</textarea></div>'+
   '<div style="text-align:right"><button class="btn btn-p" data-act="pnutri-save" data-aid="'+aid+'">Guardar plan</button></div>';
-  const right='<div class="card"><h3>Vista del atleta</h3>'+macroBars(ap,true)+(ap.notes?'<div class="notebox mt16">'+esc(ap.notes)+'</div>':'')+'</div>';
+  const right='<div class="card"><h3>Vista del atleta</h3>'+macroBars(ap,true)+(notaAtleta(ap.notes)?'<div class="notebox mt16">'+esc(notaAtleta(ap.notes))+'</div>':'')+'</div>';
   const editorCard='<div class="card mb16">'+planHead+seg+'<div class="grid g2"><div>'+targets+'</div>'+right+'</div></div>';
   /* menú con progreso de macros en vivo */
   let menuHTML='';
@@ -8689,7 +8689,7 @@ VIEWS['ath-hoy']=function(u){
 
   const chev='<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
   const acc=(id,title,tag,inner,open)=>'<details class="acc" id="'+id+'"'+(open?' open':'')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+chev+'</summary><div class="acc-body">'+inner+'</div></details>';
-  const coachnote=(sv.tr&&d.routine.weekNote)?'<div class="coachnote"><b>Indicación de tu coach</b>'+esc(d.routine.weekNote)+'</div>':((!sv.tr&&n.notes)?'<div class="coachnote"><b>Nota de tu coach</b>'+esc(n.notes)+'</div>':'');
+  const coachnote=(sv.tr&&d.routine.weekNote)?'<div class="coachnote"><b>Indicación de tu coach</b>'+esc(d.routine.weekNote)+'</div>':((!sv.tr&&notaAtleta(n.notes))?'<div class="coachnote"><b>Nota de tu coach</b>'+esc(notaAtleta(n.notes))+'</div>':'');
 
   const entreno=sv.tr?'<div class="card mb16"><div class="hx-top"><h3>'+I.dumbbell+' Tu entrenamiento</h3><span class="tiny">'+esc(d.routine.name||'')+'</span></div>'+wkUI+diasUI+'</div>':'';
 
@@ -9015,7 +9015,7 @@ VIEWS['ath-nutri']=function(u){
     '<button class="btn btn-p mt8" style="width:100%;justify-content:center" data-act="dx-save" data-d="'+iso+'">'+I.check+' Guardar el día</button></section>';
 
   const tools=(esHoy&&(n.meals||[]).some(m=>(m.items||[]).length))?'<div class="dx-tools"><button class="btn btn-g btn-sm" data-act="super-open" data-aid="'+aid+'">🛒 Lista del súper</button><span class="tiny">⇄ cambia un alimento por un equivalente solo hoy.</span></div>':'';
-  const nota=n.notes?'<div class="notebox mb16">'+esc(n.notes)+'</div>':'';
+  const nota=notaAtleta(n.notes)?'<div class="notebox mb16">'+esc(notaAtleta(n.notes))+'</div>':'';
   const pasado=esHoy?'':'<p class="tiny mb16">Puedes corregir lo que registraste este día. Los cambios por equivalente (⇄) solo se hacen el mismo día.</p>';
   let hist='';
   d.logs.nutrition.filter(nutriHasData).slice().reverse().slice(0,7).forEach(x=>{hist+='<div class="logitem"><div class="lh">'+adhBadge(x.adherence)+'<b>Adherencia</b><span class="dt">'+fmtDateFull(x.date)+'</span></div>'+(x.comment?'<div class="cm">'+esc(x.comment)+'</div>':'')+'</div>';});
@@ -12152,10 +12152,16 @@ function nutriTargets(aid){
 /* Nota automática: REEMPLAZA la etiqueta [..] que dejó una generación anterior en vez de apilarla
    (correr el generador dos veces dejaba la misma frase repetida en la vista del atleta) y conserva
    intacto lo que el coach haya escrito a mano. */
+const AUTO_NOTE_RE=/\[(Plan autogenerado|Menú generado|Macros ajustados|Menú armado con IA)[^\]]*\]/g;
 function autoNote(prev,tag){
-  const base=String(prev||'').replace(/\[(Plan autogenerado|Menú generado|Macros ajustados|Menú armado con IA)[^\]]*\]/g,'').replace(/\s+/g,' ').trim();
+  const base=String(prev||'').replace(AUTO_NOTE_RE,'').replace(/\s+/g,' ').trim();
   return (base?base+' ':'')+tag;
 }
+/* Lo que ve el atleta de «Indicaciones para el atleta»: sin las etiquetas automáticas [..]. Son avisos para el
+   coach («Menú armado con IA», «Macros ajustados… TDEE≈…») y el atleta las veía arriba de su diario (probado
+   2026-11-04). El coach las sigue viendo en la casilla para saber de dónde salió el plan; lo que él escribió a
+   mano se muestra igual, con sus saltos de línea. */
+function notaAtleta(t){return String(t||'').replace(AUTO_NOTE_RE,'').replace(/[ \t]{2,}/g,' ').trim();}
 /* useOwn=true: NO recalcula nada desde el perfil. Toma como objetivo los kcal/macros que el plan YA tiene
    (los que escribió el coach) y solo arma el menú de comidas con esos números. useOwn=false: lo de siempre,
    manda el perfil del atleta y los macros del plan se reemplazan. */
