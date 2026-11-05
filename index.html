@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.10">
+<meta name="lr-build" content="2026-11-05.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -118,7 +118,25 @@ a{color:var(--blue);text-decoration:none}
 .btn-d{background:var(--danger-12);color:var(--red);border:1px solid var(--danger-30)}
 .btn-sm{padding:5px 11px;font-size:12.5px;border-radius:8px}
 .btn-ic{padding:7px;border-radius:8px;line-height:0}
-.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn[disabled],.btn:disabled{opacity:.45;cursor:not-allowed}
+/* Estados de interacción (fase 1, 2026-11-05) */
+.btn{--spin:var(--tx)}.btn-p{--spin:var(--on-volt)}.btn-d{--spin:var(--red)}
+.btn:not([disabled]):not(:disabled):active{filter:brightness(.9)}
+@media(hover:none){.btn:not([disabled]):not(:disabled):active{transform:scale(.97)}}
+[data-act]:not(.btn):not([data-act=modal-overlay]):not([data-act=dxa-close]):active{opacity:.72}
+input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
+[aria-invalid="true"]{border-color:var(--red)!important;box-shadow:0 0 0 3px var(--danger-16)}
+.is-busy{cursor:progress;pointer-events:none}
+.btn.is-busy,.btn.is-loading{position:relative;pointer-events:none;animation:busyTx 0s .15s both}
+.btn.is-busy>*,.btn.is-loading>*{animation:busyHide 0s .15s both}
+.btn.is-busy::after,.btn.is-loading::after{content:'';position:absolute;inset:0;margin:auto;width:1.1em;height:1.1em;border-radius:50%;border:2px solid var(--spin);border-right-color:transparent;opacity:0;animation:busyIn 0s .15s both,busySpin .7s linear infinite}
+:not(.btn).is-busy{animation:busyDim 0s .15s both}
+@keyframes busyTx{to{color:transparent}}
+@keyframes busyHide{to{visibility:hidden}}
+@keyframes busyIn{to{opacity:1}}
+@keyframes busySpin{to{transform:rotate(360deg)}}
+@keyframes busyDim{to{opacity:.6}}
+@media (prefers-reduced-motion:reduce){.btn.is-busy::after,.btn.is-loading::after{animation-duration:0s,1.6s}}
 
 /* ---------- layout ---------- */
 #app{min-height:100vh}
@@ -2220,8 +2238,8 @@ async function pullBlob(){
   if(!_supabaseUser||!_coachUid||_currentUserId!=='coach')return false;
   let res;
   try{res=await supa.from('app_state').select('state,rev').eq('user_id',_coachUid).maybeSingle();}
-  catch(e){toast('No pude traer la versión del servidor');return false;}
-  if(res.error||!res.data||!res.data.state){toast('No pude traer la versión del servidor');return false;}
+  catch(e){toast('No pude traer la versión del servidor','err');return false;}
+  if(res.error||!res.data||!res.data.state){toast('No pude traer la versión del servidor','err');return false;}
   S=res.data.state;_blobRev=(res.data.rev==null?0:res.data.rev);
   ensureAll(S);
   _planCache={};   /* el diff de syncPlans se mide contra el estado anterior: con S nuevo, el cache viejo miente */
@@ -2354,11 +2372,11 @@ async function hydrateSwaps(){
 async function saveSwap(aid,s){
   if(!_supabaseUser)return;
   const auid=_athleteUidByAppId[aid];
-  if(!auid){toast('No se pudo guardar el cambio: sin vínculo');return;}
+  if(!auid){toast('No se pudo guardar el cambio: sin vínculo','err');return;}
   try{
     const{error}=await supa.from('athlete_swaps').upsert({id:s.id,athlete_uid:auid,coach_uid:_coachUid,day_id:s.dayId,ex_id:s.exId,from_lib_id:s.fromLibId||null,from_name:s.fromName,to_lib_id:s.toLibId||null,to_name:s.toName,reason:s.reason||null,scope:s.scope,date:s.date||null},{onConflict:'id'});
-    if(error){console.error('athlete_swaps',error);toast('No sincronizó: '+error.message);}
-  }catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e));}
+    if(error){console.error('athlete_swaps',error);toast('No sincronizó: '+error.message,'err');}
+  }catch(e){console.error(e);toast('No sincronizó: '+(e&&e.message||e),'err');}
 }
 async function delSwap(aid,id){
   if(!_supabaseUser)return;
@@ -2524,7 +2542,7 @@ function swapCandidates(ex,day,reason){
 /* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
 function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed),swaps:e.swaps||{},supps:e.supps||{},adh_manual:!!e.adhManual};}
 /* Las tres van por la cola de envíos (outboxAdd): se guardan al instante y suben solas. */
-function syncNutriRowE(aid,e){if(!_supabaseUser)return;const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid');return;}outboxAdd('nutrition','nutrition_logs',row.date,'athlete_uid,date',row,e);}
+function syncNutriRowE(aid,e){if(!_supabaseUser)return;const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid','err');return;}outboxAdd('nutrition','nutrition_logs',row.date,'athlete_uid,date',row,e);}
 function syncNutriRow(aid){if(!_supabaseUser)return;syncNutriRowE(aid,todayNutriEntry(aid));}
 function syncMealAdd(aid,m){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;outboxAdd('meal','meal_logs',m.id,'id',{id:m.id,athlete_uid:auid,coach_uid:_coachUid,date:m.date,name:m.name||'',p:m.p||0,c:m.c||0,f:m.f||0,slot:m.slot||null},m);}
 function syncMealDel(aid,id){if(!_supabaseUser)return;const auid=_athleteUidByAppId[aid];if(!auid)return;outboxAdd('mealDel','meal_logs',id,'id',{athlete_uid:auid},{id});}
@@ -2825,39 +2843,39 @@ function checkLocalOrphans(){
    Guarda: si la tabla nunca se leyó bien, S.library/S.foods pueden venir del blob viejo o de la
    semilla de fábrica; escribir en ese estado metería basura a la tabla buena. Mejor no escribir
    y decirlo. Devuelven true si la fila quedó guardada. */
-function libGuard(){if(_libHydrated)return true;toast('No pude cargar la biblioteca del servidor. Recarga la página antes de editarla.');return false;}
-function foodsGuard(){if(_foodsHydrated)return true;toast('No pude cargar la base de alimentos del servidor. Recarga la página antes de editarla.');return false;}
+function libGuard(){if(_libHydrated)return true;toast('No pude cargar la biblioteca del servidor. Recarga la página antes de editarla.','err');return false;}
+function foodsGuard(){if(_foodsHydrated)return true;toast('No pude cargar la base de alimentos del servidor. Recarga la página antes de editarla.','err');return false;}
 async function saveLibRow(l){
   try{const{error}=await supa.from('exercises').upsert([libToRow(l)],{onConflict:'coach_uid,eid'});
-    if(error){toast('Error al guardar el ejercicio: '+error.message);return false;}
+    if(error){toast('Error al guardar el ejercicio: '+error.message,'err');return false;}
     await clearTomb('ex',l&&l.id,l&&l.name);
-    return true;}catch(e){toast('No pude guardar el ejercicio');return false;}
+    return true;}catch(e){toast('No pude guardar el ejercicio','err');return false;}
 }
 async function saveLibRows(arr){
   try{const{error}=await supa.from('exercises').upsert(arr.map(libToRow),{onConflict:'coach_uid,eid'});
-    if(error){toast('Error al guardar los ejercicios: '+error.message);return false;}
+    if(error){toast('Error al guardar los ejercicios: '+error.message,'err');return false;}
     await Promise.all(arr.map(l=>clearTomb('ex',l&&l.id,l&&l.name)));
-    return true;}catch(e){toast('No pude guardar los ejercicios');return false;}
+    return true;}catch(e){toast('No pude guardar los ejercicios','err');return false;}
 }
 async function delLibRow(eid){
   const prev=(S.library||[]).find(l=>l&&l.id===eid);   /* el nombre, para la lápida: después ya no está */
   try{const{error}=await supa.from('exercises').delete().eq('coach_uid',_coachUid).eq('eid',eid);
-    if(error){toast('Error al eliminar: '+error.message);return false;}
+    if(error){toast('Error al eliminar: '+error.message,'err');return false;}
     await markTomb('ex',eid,prev&&prev.name);
-    return true;}catch(e){toast('No pude eliminar el ejercicio');return false;}
+    return true;}catch(e){toast('No pude eliminar el ejercicio','err');return false;}
 }
 async function saveFoodRow(f){
   try{const{error}=await supa.from('foods').upsert([foodToRow(f)],{onConflict:'coach_uid,fid'});
-    if(error){toast('Error al guardar el alimento: '+error.message);return false;}
+    if(error){toast('Error al guardar el alimento: '+error.message,'err');return false;}
     await clearTomb('food',f&&f.id,f&&f.name);
-    return true;}catch(e){toast('No pude guardar el alimento');return false;}
+    return true;}catch(e){toast('No pude guardar el alimento','err');return false;}
 }
 async function delFoodRow(fid){
   const prev=(S.foods||[]).find(f=>f&&f.id===fid);
   try{const{error}=await supa.from('foods').delete().eq('coach_uid',_coachUid).eq('fid',fid);
-    if(error){toast('Error al eliminar: '+error.message);return false;}
+    if(error){toast('Error al eliminar: '+error.message,'err');return false;}
     await markTomb('food',fid,prev&&prev.name);
-    return true;}catch(e){toast('No pude eliminar el alimento');return false;}
+    return true;}catch(e){toast('No pude eliminar el alimento','err');return false;}
 }
 /* ===== Lápidas: lo que el coach borró A PROPÓSITO =====
    La red de rescate compara la copia de ESTE navegador contra el servidor y ofrece subir lo que
@@ -3722,12 +3740,12 @@ function suppBaseForm(aid,bid){
 }
 /* «Usar sus datos»: macros del alimento para la dosis escrita y, si viene del catálogo, sus micros. */
 async function suppBaseFromFood(){
-  const nm=(val('sb_food')||'').trim();if(!nm){toast('Escribe o elige un alimento');return;}
-  const fo=eqvFood(nm);if(!fo){toast('No encontré «'+nm+'». Elígelo de la lista que aparece al escribir.');return;}
+  const nm=(val('sb_food')||'').trim();if(!nm){toast('Escribe o elige un alimento','err','sb_food');return;}
+  const fo=eqvFood(nm);if(!fo){toast('No encontré «'+nm+'». Elígelo de la lista que aparece al escribir.','err');return;}
   const amt=parseFloat(String(val('sb_amount')||'').replace(',','.')),un=(val('sb_unit')||'').trim().toLowerCase();
-  if(!(amt>0)){toast('Primero escribe la dosis por defecto');return;}
+  if(!(amt>0)){toast('Primero escribe la dosis por defecto','err');return;}
   let k;
-  if(fo.unit==='u')k=amt;else if(un==='g'||un==='ml')k=amt/100;else{toast('Para tomar los datos de un alimento por peso, pon la dosis en g o ml');return;}
+  if(fo.unit==='u')k=amt;else if(un==='g'||un==='ml')k=amt/100;else{toast('Para tomar los datos de un alimento por peso, pon la dosis en g o ml','err');return;}
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v>0?suppNum(+v.toFixed(2)):'';};
   set('sb_p',(+fo.p||0)*k);set('sb_c',(+fo.c||0)*k);set('sb_f',(+fo.f||0)*k);
   let nmic=0;
@@ -4994,7 +5012,9 @@ function openModal(title,bodyHTML,footHTML,opts){
   setTimeout(()=>{try{fi.focus();}catch(e){}},60);
 }
 function closeModal(){const mr=$('#modal-root');const r=mr._returnFocus;mr.innerHTML='';if(r&&r.focus){try{r.focus();}catch(e){}}}
-function toast(msg,tone){const t=document.createElement('div');t.className='toast'+(tone==='err'?' err':'');t.innerHTML=(tone==='err'?I.x:I.check)+'<span>'+esc(msg)+'</span>';$('#toast-root').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';},2200);setTimeout(()=>t.remove(),2600);}
+function toast(msg,tone,campo){if(tone==='err'&&campo)marcarCampo(campo);const t=document.createElement('div');t.className='toast'+(tone==='err'?' err':'');t.innerHTML=(tone==='err'?I.x:I.check)+'<span>'+esc(msg)+'</span>';$('#toast-root').appendChild(t);const dur=tone==='err'?4000:2200;setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';},dur);setTimeout(()=>t.remove(),dur+400);}
+/* Marca en rojo el campo que falta o está mal (aria-invalid) y lo enfoca; se limpia al escribir. */
+function marcarCampo(id){const e=document.getElementById(id);if(!e)return;e.setAttribute('aria-invalid','true');const q=()=>{e.removeAttribute('aria-invalid');e.removeEventListener('input',q);e.removeEventListener('change',q);};e.addEventListener('input',q);e.addEventListener('change',q);try{e.focus();}catch(_){}}
 /* Píldora discreta de «estoy trayendo el resto». Existe porque la app ahora pinta en
    cuanto tiene rutina y plan, y el historial (gráficas, adherencia, chat) entra después:
    sin esta marca, una gráfica a medio llenar parece un dato perdido en vez de uno en
@@ -5597,7 +5617,7 @@ const ACTIONS={
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="invite-coach">Generar código</button>'),
   'coach-invites-list':async()=>{
     const{data,error}=await supa.from('coach_invites').select('code,label,used,used_by,created_at,expires_at').order('created_at',{ascending:false});
-    if(error){toast('No pude cargar los códigos: '+error.message);return;}
+    if(error){toast('No pude cargar los códigos: '+error.message,'err');return;}
     const rows=(data||[]);
     const body=rows.length?('<div class="tblwrap"><table class="tbl" style="min-width:420px"><thead><tr><th>Código</th><th>Para</th><th>Estado</th></tr></thead><tbody>'+
       rows.map(r=>{
@@ -5666,7 +5686,7 @@ const ACTIONS={
   'perfil-save':async()=>{
     const p=cleanSelfPerfil({name:val('pf_name'),heightCm:num('pf_h'),age:num('pf_age'),sex:val('pf_sex')});
     /* cleanSelfPerfil descarta en silencio lo que no cabe en rango; aquí se avisa qué fue */
-    if(!val('pf_name')){toast('Escribe tu nombre','err');return;}
+    if(!val('pf_name')){toast('Escribe tu nombre','err','pf_name');return;}
     const h=num('pf_h'),a=num('pf_age');
     if(h&&(h<100||h>250)){toast('La altura debe estar entre 100 y 250 cm','err');return;}
     if(a&&(a<10||a>100)){toast('La edad debe estar entre 10 y 100 años','err');return;}
@@ -5752,7 +5772,7 @@ const ACTIONS={
   'cal-config':()=>openModal('Link de videollamada','<div class="frow"><label>Tu link de Calendly (u otro agendador)</label><input id="cal_url" value="'+esc(S.coachCalendly||'')+'" placeholder="calendly.com/tu-usuario/seguimiento"><p class="tiny" style="margin-top:6px">Tus atletas verán un botón «Agendar videollamada» en su chat. Déjalo vacío para ocultarlo.</p></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="cal-save">Guardar</button>'),
   'cal-save':()=>{S.coachCalendly=normUrl(val('cal_url'));saveState();closeModal();render();toast(S.coachCalendly?'Link de videollamada guardado':'Link de videollamada eliminado');},
   'export':()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lr-coaching-respaldo-'+todayISO()+'.json';a.click();toast('Respaldo descargado');},
-  'brand-set':el=>{let hx=(el.dataset.hex||val('brand_hex')||'').trim();if(hx&&hx[0]!=='#')hx='#'+hx;if(!isHex(hx)){toast('Color inválido. Usa formato #RRGGBB');return;}S.brandColor=hx;ensureBrand(S);applyBrand(hx);saveState();render();toast('Color de marca aplicado');},
+  'brand-set':el=>{let hx=(el.dataset.hex||val('brand_hex')||'').trim();if(hx&&hx[0]!=='#')hx='#'+hx;if(!isHex(hx)){toast('Color inválido. Usa formato #RRGGBB','err');return;}S.brandColor=hx;ensureBrand(S);applyBrand(hx);saveState();render();toast('Color de marca aplicado');},
   'brand-reset':()=>{S.brandColor=BRAND_DEFAULT;applyBrand(BRAND_DEFAULT);saveState();render();toast('Color restablecido');}
 };
 document.addEventListener('click',e=>{
@@ -5762,10 +5782,14 @@ document.addEventListener('click',e=>{
   /* mismo blindaje que render(): una acción async que truena dejaba una promesa rechazada
      en silencio y el usuario se quedaba mirando un botón que "no hizo nada". */
   if(fn){e.preventDefault();
-    try{const r=fn(el);if(r&&typeof r.then==='function')r.catch(err=>{console.error('acción "'+el.dataset.act+'" falló:',err);toast('Algo falló al ejecutar esa acción');});}
-    catch(err){console.error('acción "'+el.dataset.act+'" falló:',err);toast('Algo falló al ejecutar esa acción');}
+    /* 2026-11-05: mientras una acción async trabaja, el botón muestra un giro y no acepta otro toque (antes se podía guardar dos veces). */
+    if(el.classList.contains('is-busy'))return;
+    try{const r=fn(el);if(r&&typeof r.then==='function'){busyOn(el);r.catch(err=>{console.error('acción "'+el.dataset.act+'" falló:',err);toast('Algo falló al ejecutar esa acción','err');}).finally(()=>busyOff(el));}}
+    catch(err){console.error('acción "'+el.dataset.act+'" falló:',err);toast('Algo falló al ejecutar esa acción','err');}
   }
 });
+function busyOn(el){el.classList.add('is-busy');el.setAttribute('aria-busy','true');clearTimeout(el._busyT);el._busyT=setTimeout(()=>busyOff(el),30000);}
+function busyOff(el){clearTimeout(el._busyT);el.classList.remove('is-busy');el.removeAttribute('aria-busy');}
 ACTIONS['wch-range']=el=>{const w=el.closest('.wch');if(!w)return;w.dataset.r=el.dataset.r;w.querySelectorAll('.wch-seg button').forEach(b=>b.classList.toggle('on',b===el));};
 ACTIONS['fpx-kind']=el=>{
   _catKind=el.dataset.k||'';document.querySelectorAll('.fpx').forEach(b=>{b.innerHTML=fpxInner(b.dataset.for);});
@@ -5799,16 +5823,16 @@ Object.assign(ACTIONS,{
     _dxAdd={aid,d:iso,sid:s.id,name:s.name,fijo:dxFijo(s)};_dxSel=null;
     _dxTab=(_fp||[]).some(x=>x.food&&x.used_at)?'rec':(dxFijo(s)?'res':'plan');
     openModal('Añadir a '+esc(s.name)+(iso===todayISO()?'':' · '+esc(fmtDate(iso))),dxAddBody(),'',{cls:'dx-full',hdr:'<button type="button" class="dxa-listo" data-act="modal-close">Listo</button>'});},
-  'dx-add-food':()=>{const a=_dxAdd;if(!a)return;const fo=eqvFood(val('mf_food').toLowerCase());if(!fo){toast('Elige un alimento de la lista');return;}
-    const isU=fo.unit==='u',qty=medGrams('mf_g');if(!qty||qty<=0||qty>(isU?50:3000)){toast(isU?'Indica la cantidad':'Indica los gramos');return;}
-    const mac=foodMacros(fo.name,qty);if(!mac){toast('No encontré los datos de ese alimento');return;}
+  'dx-add-food':()=>{const a=_dxAdd;if(!a)return;const fo=eqvFood(val('mf_food').toLowerCase());if(!fo){toast('Elige un alimento de la lista','err','mf_food');return;}
+    const isU=fo.unit==='u',qty=medGrams('mf_g');if(!qty||qty<=0||qty>(isU?50:3000)){toast(isU?'Indica la cantidad':'Indica los gramos','err','mf_g');return;}
+    const mac=foodMacros(fo.name,qty);if(!mac){toast('No encontré los datos de ese alimento','err');return;}
     const label=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('mf_g')||(qty+' g'));
     fpUsed(fo);dxAddLog(a,fo.name+' · '+label,mac);
     const i1=document.getElementById('mf_food'),i2=document.getElementById('mf_g'),mb=document.getElementById('mf_g_med');
     if(i1){i1.value='';i1.dataset.picked='';}if(i2)i2.value='';if(mb)mb.dataset.food='';fpmFill('mf_g',null);
     dxAddRefresh();toast('Añadido: '+mealKcal(mac)+' kcal');if(i1)try{i1.focus();}catch(e){}},
   'dx-add-quick':()=>{const a=_dxAdd;if(!a)return;const name=val('dx_qn'),p=num('dx_qp'),c=num('dx_qc'),f=num('dx_qf');
-    if(!name){toast('Describe qué comiste');return;}if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)');return;}
+    if(!name){toast('Describe qué comiste','err','dx_qn');return;}if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)','err','dx_qp');return;}
     dxAddLog(a,name,{p,c,f});['dx_qn','dx_qp','dx_qc','dx_qf'].forEach(id=>{const x=document.getElementById(id);if(x)x.value='';});
     dxAddRefresh();toast('Añadido: '+mealKcal({p,c,f})+' kcal');},
   'dx-copy':()=>{const a=_dxAdd;if(!a)return;const ay=dxLogsOf(a.aid,isoPlus(a.d,-1)).filter(m=>m.slot===a.sid);if(!ay.length)return;
@@ -6587,7 +6611,7 @@ function miQtySet(el){
   const ap=activePlanOf(el.dataset.aid),m=(ap.meals||[]).find(x=>x.id===el.dataset.meal);if(!m)return;
   const i=parseInt(el.dataset.idx,10),it=(m.items||[])[i];if(!it)return;
   const q=parseFloat(String(el.value).replace(',','.'));
-  if(!(q>0)){el.value=piQty(it);toast('La cantidad tiene que ser mayor que 0');return;}
+  if(!(q>0)){el.value=piQty(it);toast('La cantidad tiene que ser mayor que 0','err');return;}
   const fo=_foodFind(it.food),mac=fo?foodMacros(it.food,q):null;if(!mac)return;
   const isU=fo.unit==='u';
   m.items[i]=Object.assign({},it,{qty:isU?(q+' '+(fo.unitLabel||'unidades')):(q+' g'),grams:isU?0:q,p:mac.p,c:mac.c,f:mac.f});
@@ -7503,11 +7527,11 @@ Object.assign(ACTIONS,{
       '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ath-new-save">Crear atleta</button>');
   },
   'ath-new-save':()=>{
-    const name=val('na_name');if(!name){toast('Escribe el nombre del atleta');return;}
+    const name=val('na_name');if(!name){toast('Escribe el nombre del atleta','err','na_name');return;}
     const nw=num('na_w');
-    if(nw&&(nw<25||nw>300)){toast('El peso debe estar entre 25 y 300 kg');return;}
+    if(nw&&(nw<25||nw>300)){toast('El peso debe estar entre 25 y 300 kg','err','na_w');return;}
     const nbf=num('na_bf');
-    if(nbf&&(nbf<=0||nbf>=70)){toast('El % de grasa debe estar entre 1 y 70');return;}
+    if(nbf&&(nbf<=0||nbf>=70)){toast('El % de grasa debe estar entre 1 y 70','err','na_bf');return;}
     const id=uid();
     const initials=name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const color=PALETTE[athleteUsers().length%PALETTE.length];
@@ -7531,9 +7555,9 @@ Object.assign(ACTIONS,{
     const aid=el.dataset.aid,p=athData(aid).profile;
     /* El peso se valida ANTES de tocar nada: si está mal, no se guarda medio perfil. */
     const hasW=!!document.getElementById('f_w'),fw=hasW?num('f_w'):0;
-    if(hasW&&document.getElementById('f_w').value.trim()&&(!fw||fw<25||fw>300)){toast('El peso debe estar entre 25 y 300 kg');return;}
+    if(hasW&&document.getElementById('f_w').value.trim()&&(!fw||fw<25||fw>300)){toast('El peso debe estar entre 25 y 300 kg','err','f_w');return;}
     const gwEl=document.getElementById('f_gw'),gw=gwEl?num('f_gw'):0;
-    if(gwEl&&gwEl.value.trim()&&(!gw||gw<25||gw>300)){toast('El peso meta debe estar entre 25 y 300 kg');return;}
+    if(gwEl&&gwEl.value.trim()&&(!gw||gw<25||gw>300)){toast('El peso meta debe estar entre 25 y 300 kg','err','f_gw');return;}
     if(gwEl)p.goalWeight=gw||null;
     p.category=val('f_cat');p.heightCm=num('f_h');p.sex=val('f_sex')||'M';p.age=num('f_age')||null;p.bodyFat=num('f_bf')||null;p.goal=val('f_goal');p.notes=val('f_notes');p.memStart=val('f_mstart')||p.memStart;p.memEnd=val('f_mend')||null;p.inactive=val('f_mact')==='inactivo';if(document.getElementById('f_service'))p.service=val('f_service')||p.service||'ambos';if(document.getElementById('f_inj')){p.training=p.training||{};p.training.injuries=val('f_inj');p.training.dislikes=val('f_exdis');p.training.likes=val('f_exlike');}
     const u=userById(aid);if(u)u.tag=p.goal;
@@ -7560,7 +7584,7 @@ Object.assign(ACTIONS,{
   'pg-pairscope':el=>{route.params.pgPairAll=el.dataset.v;route.params.pgCmpDay=null;route.params.pgA=null;route.params.pgB=null;render();},
   'routine-meta-save':el=>{const r=athData(el.dataset.aid).routine;r.name=val('r_name');r.weekNote=val('r_week');saveState();toast('Programa actualizado');render();},
   'day-add-modal':el=>openModal('Nuevo día','<div class="frow"><label>Nombre del día</label><input id="d_name" placeholder="Día 5 · Brazo"></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="day-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>'),
-  'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día');return;}const nd={id:uid(),name:nm,exercises:[]};athData(el.dataset.aid).routine.days.push(nd);route.params.rday=nd.id;
+  'day-add-save':el=>{const nm=val('d_name');if(!nm){toast('Escribe el nombre del día','err','d_name');return;}const nd={id:uid(),name:nm,exercises:[]};athData(el.dataset.aid).routine.days.push(nd);route.params.rday=nd.id;
     /* La sesión nueva nace con el plan vacío y el reparto de las demás NO se toca: rehacerlo todo
        aquí pisaba lo acomodado a mano (Jenny: Glúteo acabó en «ABS» y Bíceps en «Lower 1»).
        Para llenarla se usa ± en el paso 2 o «Repartir objetivos automáticamente». */
@@ -7590,7 +7614,7 @@ Object.assign(ACTIONS,{
   'ex-add-modal':el=>openModal('Añadir ejercicio'+(el.dataset.group?' · '+el.dataset.group:''),exForm({},el.dataset.aid,'',el.dataset.day||'',el.dataset.group||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'">Añadir</button>'),
   'ex-edit-modal':el=>{const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);const e=day.exercises.find(x=>x.id===el.dataset.ex);openModal('Editar ejercicio',exForm(e,el.dataset.aid,el.dataset.ex,el.dataset.day||''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="ex-save" data-aid="'+el.dataset.aid+'" data-day="'+el.dataset.day+'" data-ex="'+el.dataset.ex+'">Guardar</button>');},
   'ex-save':el=>{
-    const name=val('e_name');if(!name){toast('Escribe el nombre del ejercicio');return;}
+    const name=val('e_name');if(!name){toast('Escribe el nombre del ejercicio','err','e_name');return;}
     const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);
     const lib=libByName(name);
     const data={name:lib?lib.name:name,sets:num('e_sets')||3,reps:val('e_reps')||'8-10',rir:val('e_rir')||'2',rest:val('e_rest')||'2 min',notes:val('e_notes'),libId:lib?lib.id:null,revLink:normUrl(val('e_rev'))};
@@ -7678,7 +7702,7 @@ Object.assign(ACTIONS,{
      render() a propósito — repintaría la tarjeta y perdería el scroll. */
   'diet-calc':el=>{
     const aid=el.dataset.aid,dc=dcRead(),r=dietCompute(dc);
-    if(r.err){toast(r.err);return;}
+    if(r.err){toast(r.err,'err');return;}
     athData(aid).profile.dietCalc=dc;
     saveState();
     DIETRES={aid,kcal:r.target,protein:r.protein,carbs:r.carbs,fat:r.fat,ratePct:r.ratePct};
@@ -7692,7 +7716,7 @@ Object.assign(ACTIONS,{
     saveState();toast('Dietocálculo limpiado');render();
   },
   'diet-apply':el=>{
-    if(!DIETRES||DIETRES.aid!==el.dataset.aid){toast('Calcula las calorías antes de aplicarlas');return;}
+    if(!DIETRES||DIETRES.aid!==el.dataset.aid){toast('Calcula las calorías antes de aplicarlas','err');return;}
     const p=activePlanOf(el.dataset.aid);
     p.kcal=DIETRES.kcal;p.protein=DIETRES.protein;p.carbs=DIETRES.carbs;p.fat=DIETRES.fat;
     if(DIETRES.ratePct!=null)setTargetRate(el.dataset.aid,DIETRES.ratePct);
@@ -7704,7 +7728,7 @@ Object.assign(ACTIONS,{
   'plan-add-save':el=>{const n=nutriOf(el.dataset.aid),base=activePlanOf(el.dataset.aid),tp=val('pl_type')||'custom';const nm=val('pl_name')||PLAN_TYPES[tp].lbl;const id=uid();n.plans.push({id,name:nm,type:tp,mode:base.mode||'macros',kcal:base.kcal||0,protein:base.protein||0,carbs:base.carbs||0,fat:base.fat||0,mealsPerDay:base.mealsPerDay||4,shape:base.shape||'igual',meals:(document.getElementById('pl_copy')||{}).checked?(base.meals||[]).map(mealCopy):[],notes:''});n.activePlan=id;saveState();closeModal();toast('Plan «'+nm+'» creado');render();},
   'plan-rename':el=>{const p=activePlanOf(el.dataset.aid);let opts='';Object.keys(PLAN_TYPES).forEach(k=>{opts+='<option value="'+k+'"'+(p.type===k?' selected':'')+'>'+PLAN_TYPES[k].lbl+'</option>';});openModal('Renombrar plan','<div class="frow2"><div><label>Nombre</label><input id="pl_name" value="'+esc(p.name)+'"></div><div><label>Tipo</label><select id="pl_type">'+opts+'</select></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="plan-rename-save" data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'">Guardar</button>');},
   'plan-rename-save':el=>{const n=nutriOf(el.dataset.aid),p=n.plans.find(x=>x.id===el.dataset.pid);if(p){p.name=val('pl_name')||p.name;p.type=val('pl_type')||p.type;}saveState();closeModal();render();},
-  'plan-del':el=>{const n=nutriOf(el.dataset.aid);if(n.plans.length<=1){toast('Debe quedar al menos un plan');return;}confirmModal('Eliminar plan','Se borrará este plan de día y su menú.','plan-del-do','data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'"');},
+  'plan-del':el=>{const n=nutriOf(el.dataset.aid);if(n.plans.length<=1){toast('Debe quedar al menos un plan','err');return;}confirmModal('Eliminar plan','Se borrará este plan de día y su menú.','plan-del-do','data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'"');},
   'plan-del-do':el=>{const n=nutriOf(el.dataset.aid);n.plans=n.plans.filter(p=>p.id!==el.dataset.pid);if(n.activePlan===el.dataset.pid)n.activePlan=n.plans[0].id;saveState();closeModal();toast('Plan eliminado');render();},
   'pnutri-mode':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);activePlanOf(aid).mode=el.dataset.mode;saveState();render();},
   'pnutri-save':el=>{pnutriReadTargets(el.dataset.aid);saveState();toast('Plan guardado');render();},
@@ -7713,11 +7737,11 @@ Object.assign(ACTIONS,{
   'pmeal-add':el=>{const ap=activePlanOf(el.dataset.aid);
     if(ap.mode==='menu'){ap.meals=ap.meals||[];const m={id:uid(),name:'Comida '+(ap.meals.length+1),time:'',items:[]};ap.meals.push(m);saveState();render();const q=document.getElementById('mq_'+m.id);if(q){q.scrollIntoView({block:'center'});q.focus();}return;}
     openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>');},
-  'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
+  'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida','err','m_name');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
   'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'" style="width:100%;margin-bottom:12px"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
-  'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
+  'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada','err');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
   'pmeal-recipe-adapt':el=>{
-    const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada');return;}
+    const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada','err');return;}
     if(!recIsScalable(r)){toast('Esta receta es de texto libre; no se puede adaptar automáticamente. Recréala con el formulario de ingredientes para poder escalarla.');return;}
     const p=activePlanOf(aid),rem=mealTargetFor(p,null);
     const factor=recScaleFactor(r,rem),scaled=scaleRecipeIngredients(r,factor);
@@ -7746,8 +7770,8 @@ Object.assign(ACTIONS,{
   },
   'pmr-add':()=>{
     if(!_pmr)return;const fo=eqvFood(val('pmr_af')),q=medGrams('pmr_ag');
-    if(!fo){toast('Elige un alimento de la lista (tu base o el catálogo), o usa «Línea de texto»');return;}
-    if(!(q>0)){toast('Pon la cantidad en '+(fo.unit==='u'?(fo.unitLabel||'unidades'):'gramos'));return;}
+    if(!fo){toast('Elige un alimento de la lista (tu base o el catálogo), o usa «Línea de texto»','err','pmr_af');return;}
+    if(!(q>0)){toast('Pon la cantidad en '+(fo.unit==='u'?(fo.unitLabel||'unidades'):'gramos'),'err','pmr_ag');return;}
     const isU=fo.unit==='u',m=foodMacros(fo.name,q);
     _pmr.ings.push({food:fo.name,grams:q,unit:isU?(fo.unitLabel||'unidad'):'g',p:m.p,c:m.c,f:m.f});fpUsed(fo);pmrRerender();
   },
@@ -7755,28 +7779,28 @@ Object.assign(ACTIONS,{
   'pmr-fit':()=>{
     if(!_pmr||!pmrHasStruct())return;
     const tg=mealTargetFor(activePlanOf(_pmr.aid),_pmr.mid);
-    if(!(tg.p>0||tg.c>0||tg.f>0)){toast('El plan ya está cubierto: no queda nada que repartir en esta comida');return;}
+    if(!(tg.p>0||tg.c>0||tg.f>0)){toast('El plan ya está cubierto: no queda nada que repartir en esta comida','err');return;}
     const tx=pmrTxtMac(),fs=recGroupFactors(_pmr.ings,{p:Math.max(0,tg.p-tx.p),c:Math.max(0,tg.c-tx.c),f:Math.max(0,tg.f-tx.f)});
     _pmr.ings.forEach((x,i)=>{if(x.txt!=null||fs[i]===1)return;const st=pmrStep(x);pmrSetQty(i,Math.max(st,Math.round((x.grams*fs[i])/st)*st));});
     pmrRerender();toast('Cantidades ajustadas a lo que toca en esta comida');
   },
   'pmr-reset':()=>{
-    if(!_pmr)return;const r=recById(_pmr.rid);if(!r){toast('Esa receta ya no está en tu recetario');return;}
+    if(!_pmr)return;const r=recById(_pmr.rid);if(!r){toast('Esa receta ya no está en tu recetario','err');return;}
     const m=r.macros||{},ings=pmrFromIngs(r.ingredients),tm=r.txtMac||{};
     Object.assign(_pmr,{name:r.name,ings,steps:(Array.isArray(r.steps)?r.steps:[]).join('\n'),manual:ings.some(x=>x.txt==null)?{p:+tm.p||0,c:+tm.c||0,f:+tm.f||0}:{p:+m.p||0,c:+m.c||0,f:+m.g||0},eqv:-1});
     pmrRerender();
   },
   'pmr-save':async el=>{
-    if(!_pmr)return;const d=_pmr,name=(d.name||'').trim();if(!name){toast('Escribe el nombre de la receta');return;}
-    const p=activePlanOf(d.aid),m=(p.meals||[]).find(x=>x.id===d.mid);if(!m){toast('Esa comida ya no está en el plan');return;}
+    if(!_pmr)return;const d=_pmr,name=(d.name||'').trim();if(!name){toast('Escribe el nombre de la receta','err');return;}
+    const p=activePlanOf(d.aid),m=(p.meals||[]).find(x=>x.id===d.mid);if(!m){toast('Esa comida ya no está en el plan','err');return;}
     const ings=[];d.ings.forEach(x=>{if(x.txt!=null){const s=x.txt.trim();if(s)ings.push(s);return;}if(x.grams>0)ings.push({food:x.food,grams:x.grams,unit:x.unit,p:x.p,c:x.c,f:x.f});});
     const steps=d.steps.split('\n').map(s=>s.trim()).filter(Boolean),t=pmrTot(),tx=pmrTxtMac(),txtMac=(tx.p||tx.c||tx.f)?tx:null;
     if(d.toRec){
       const r0=recById(d.rid)||{},id=uid();
       const data={id,name:name===r0.name?name+' (variante)':name,category:r0.category||'',tags:Array.isArray(r0.tags)?r0.tags:[],time:m.recipe.time||r0.time||'',kcal:t.kcal,ingredients:ings,steps,macros:{p:t.p,c:t.c,g:t.f},txtMac};
       if(el&&el.classList)el.classList.add('is-loading');
-      try{const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});if(res.error){toast('No pude guardarla en tu recetario: '+res.error.message);return;}}
-      catch(e){toast('No pude guardarla en tu recetario');return;}
+      try{const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});if(res.error){toast('No pude guardarla en tu recetario: '+res.error.message,'err');return;}}
+      catch(e){toast('No pude guardarla en tu recetario','err');return;}
       finally{if(el&&el.classList)el.classList.remove('is-loading');}
       d.rid=id;await hydrateRecipes();
     }
@@ -7800,10 +7824,10 @@ Object.assign(ACTIONS,{
     saveState();closeModal();render();},
   'mq-add':el=>{const aid=el.dataset.aid,mid=el.dataset.meal,ap=activePlanOf(aid),m=(ap.meals||[]).find(x=>x.id===mid);if(!m)return;
     const qid='mq_'+mid,fname=val(qid),qty=medGrams(qid+'_g'),inp=document.getElementById(qid);
-    if(!fname){toast('Escribe un alimento');if(inp)inp.focus();return;}
-    const fo=eqvFood(fname);if(!fo){toast('Elige un alimento de la lista o usa «Manual»');if(inp)inp.focus();return;}
-    const isU=fo.unit==='u';if(!(qty>0)||qty>(isU?50:3000)){toast(isU?'Indica la cantidad':'Indica los gramos');const g=document.getElementById(qid+'_g');if(g)g.focus();return;}
-    const mac=foodMacros(fo.name,qty);if(!mac){toast('No pude calcular los macros de «'+fo.name+'»');return;}
+    if(!fname){toast('Escribe un alimento','err');if(inp)inp.focus();return;}
+    const fo=eqvFood(fname);if(!fo){toast('Elige un alimento de la lista o usa «Manual»','err');if(inp)inp.focus();return;}
+    const isU=fo.unit==='u';if(!(qty>0)||qty>(isU?50:3000)){toast(isU?'Indica la cantidad':'Indica los gramos','err');const g=document.getElementById(qid+'_g');if(g)g.focus();return;}
+    const mac=foodMacros(fo.name,qty);if(!mac){toast('No pude calcular los macros de «'+fo.name+'»','err');return;}
     m.items=m.items||[];m.items.push({food:fo.name,qty:isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel(qid+'_g')||(qty+' g')),grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f});
     fpUsed(fo);saveState();render();const nx=document.getElementById(qid);if(nx)nx.focus();},
   'pmacmeal-add':el=>{const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];const N=Math.max(1,p.mealsPerDay||4);p.meals.push({id:uid(),name:'Comida '+(p.meals.length+1),p:Math.round((p.protein||0)/N),c:Math.round((p.carbs||0)/N),f:Math.round((p.fat||0)/N),items:[]});saveState();render();},
@@ -7813,8 +7837,8 @@ Object.assign(ACTIONS,{
   'pmacmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;m.name=val('m_name')||m.name;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
   'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base ('+(S.foods||[]).length+') o el catálogo de 15 mil alimentos</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="pi_g" aria-label="Alimento"></div><div><input id="pi_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"></div></div>'+fpxHTML('pi_food')+fpmHTML('pi_g')+'<p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
   'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=p.meals.find(x=>x.id===el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=medGrams('pi_g');let it=null;
-    if(fname&&qty>0){const fo=eqvFood(fname);const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('pi_g')||(qty+' g'));it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};fpUsed(fo);}
-    else{const nm=val('pi_name'),pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(!nm){toast('Elige un alimento o pon un nombre manual');return;}if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)');return;}it={food:nm,qty:val('pi_qty'),grams:0,p:pp,c:cc,f:ff};}
+    if(fname&&qty>0){const fo=eqvFood(fname);const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual','err','pi_food');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('pi_g')||(qty+' g'));it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};fpUsed(fo);}
+    else{const nm=val('pi_name'),pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(!nm){toast('Elige un alimento o pon un nombre manual','err','pi_name');return;}if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)','err','pi_p');return;}it={food:nm,qty:val('pi_qty'),grams:0,p:pp,c:cc,f:ff};}
     m.items.push(it);saveState();closeModal();render();},
   /* Cambiar la cantidad de un alimento YA añadido. Antes solo se podía borrar y volver a
      añadirlo, que es justo lo que hace falta al cuadrar macros (subir 20 g de arroz).
@@ -7835,13 +7859,13 @@ Object.assign(ACTIONS,{
     const i=parseInt(el.dataset.idx,10),it=(m.items||[])[i];if(!it)return;
     const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===(it.food||'').toLowerCase());
     if(fo){
-      const q=num('pi_q');if(!(q>0)){toast('La cantidad tiene que ser mayor que 0');return;}
-      const mac=foodMacros(it.food,q);if(!mac){toast('No pude recalcular los macros de «'+it.food+'»');return;}
+      const q=num('pi_q');if(!(q>0)){toast('La cantidad tiene que ser mayor que 0','err','pi_q');return;}
+      const mac=foodMacros(it.food,q);if(!mac){toast('No pude recalcular los macros de «'+it.food+'»','err');return;}
       const isU=fo.unit==='u';
       m.items[i]={food:it.food,qty:isU?(q+' '+(fo.unitLabel||'unidades')):(q+' g'),grams:isU?0:q,p:mac.p,c:mac.c,f:mac.f};
     }else{
-      const nm=val('pi_name');if(!nm){toast('Escribe el nombre del alimento');return;}
-      const pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)');return;}
+      const nm=val('pi_name');if(!nm){toast('Escribe el nombre del alimento','err','pi_name');return;}
+      const pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)','err','pi_p');return;}
       m.items[i]={food:nm,qty:val('pi_qty'),grams:0,p:pp,c:cc,f:ff};
     }
     saveState();closeModal();render();
@@ -7856,7 +7880,7 @@ Object.assign(ACTIONS,{
   'suppb-edit':el=>suppBaseForm(el.dataset.aid,el.dataset.bid),
   'suppb-food':()=>{suppBaseFromFood();},
   'suppb-save':el=>{const nm=(val('sb_name')||'').trim(),amt=parseFloat(String(val('sb_amount')||'').replace(',','.'));
-    if(!nm){toast('Escribe el nombre del suplemento');return;}if(!(amt>0)){toast('Escribe la dosis por defecto');return;}
+    if(!nm){toast('Escribe el nombre del suplemento','err','sb_name');return;}if(!(amt>0)){toast('Escribe la dosis por defecto','err','sb_amount');return;}
     const ck=id=>!!(document.getElementById(id)||{}).checked,nv=id=>{const v=parseFloat(String(val(id)||'').replace(',','.'));return v>0?+v.toFixed(3):0;};
     const mac={p:nv('sb_p'),c:nv('sb_c'),f:nv('sb_f')},mic={};SUPP_MIC.forEach(d=>{const v=nv('sbm_'+d[0]);if(v>0)mic[d[0]]=v;});
     const o={name:nm,cat:val('sb_cat')||'Otros',amount:+amt.toFixed(3),unit:(val('sb_unit')||'').trim(),perKg:ck('sb_perkg'),step:suppStepFor(amt),timing:val('sb_timing')||'Con comida',freq:val('sb_freq')||'diario',notes:(val('sb_notes')||'').trim(),
@@ -7882,11 +7906,11 @@ Object.assign(ACTIONS,{
   'ath-plan-pick':el=>{const d=athData(el.dataset.aid);d.nutriPick=el.dataset.pid;athPickSet(el.dataset.aid,el.dataset.pid);saveState();render();},
   'rm-calc':el=>{
     const w=num('rm_w'),r=num('rm_r'),rirRaw=val('rm_rir'),useRir=val('rm_userir')!=='0';
-    if(!w||!r){toast('Indica peso y repeticiones');return;}
+    if(!w||!r){toast('Indica peso y repeticiones','err','rm_w');return;}
     const rir=(rirRaw==='')?null:num('rm_rir');
     const eff=(useRir&&rir!=null)?r+rir:r;
     const avg=e1rm(w,r,rir,useRir);
-    if(!avg){toast('No se puede estimar el 1RM con esos valores. Revisa el peso y las repeticiones');return;}
+    if(!avg){toast('No se puede estimar el 1RM con esos valores. Revisa el peso y las repeticiones','err');return;}
     const ep=Math.round(e1rmEpley(w,eff)*10)/10,bz=eff<37?Math.round(e1rmBrzycki(w,eff)*10)/10:null;
     const pcts=[100,95,90,85,80,75,70,65];
     let prows='';pcts.forEach(p=>{const load=Math.round(avg*p/100*2)/2;const reps=p>=100?1:Math.max(1,Math.round(30*(100/p-1)));prows+='<tr'+(p===100?' style="background:rgba(182,156,255,.10)"':'')+'><td class="num"><b>'+p+'%</b></td><td class="num">'+load+' kg</td><td class="num tiny">~'+reps+' rep'+(reps>1?'s':'')+'</td></tr>';});
@@ -8573,13 +8597,13 @@ async function pushWorkoutLog(u,w,silent){
        (ver outboxAdd). Si la sesión estuviera muerta, el rechazo lo avisa la pastilla y la
        fila espera ahí hasta que vuelva a entrar — antes se perdía con un error. */
     outboxAdd('workout','workout_logs',w.id,'id',{id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},w);
-  }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
+  }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)','err');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
   else{saveState();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
   saveStateCola();
   return{ok:true};
   }catch(e){
     console.error('pushWorkoutLog',e);
-    if(!silent)toast('No sincronizó: '+((e&&e.message)||e));
+    if(!silent)toast('No sincronizó: '+((e&&e.message)||e),'err');
     try{saveState();}catch(_){}
     return{ok:false,msg:(e&&e.message)||String(e)};
   }
@@ -8667,7 +8691,7 @@ async function saveWorkoutDraft(status,reason,extraCm,repsOk){
   const doneSet=new Set(Object.keys(WDRAFT.done||{}).filter(k=>WDRAFT.done[k]&&!(skDraft[k]&&skDraft[k].k==='none')));
   Object.keys(entries).forEach(id=>doneSet.add(id));
   const doneIds=[...doneSet];
-  if(!Object.keys(entries).length&&!doneIds.length&&!Object.keys(skips).length){toast('Marca algún ejercicio como hecho o registra una serie');return;}
+  if(!Object.keys(entries).length&&!doneIds.length&&!Object.keys(skips).length){toast('Marca algún ejercicio como hecho o registra una serie','err');return;}
   let st=status||'done';
   if(st==='done'&&Object.keys(skips).length)st='partial';       /* quedó algo sin hacer */
   if(!Object.keys(entries).length&&!doneIds.length)st='missed';  /* no hubo trabajo: es falta */
@@ -9278,7 +9302,7 @@ Object.assign(ACTIONS,{
   'wlog-start':el=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);
-    if(!day||!day.exercises.length){toast('Este día no tiene ejercicios');return;}
+    if(!day||!day.exercises.length){toast('Este día no tiene ejercicios','err');return;}
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id){
       /* El mismo día de rutina se continúa sin preguntar SOLO si el borrador es de hoy (o es una corrección
          de una sesión guardada, que conserva a propósito su fecha original). Un borrador de hace días
@@ -9316,7 +9340,7 @@ Object.assign(ACTIONS,{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
     const log=todayLogForDay(u.id,day.id);
-    if(!log){toast('No encontré el registro de hoy');return;}
+    if(!log){toast('No encontré el registro de hoy','err');return;}
     closeModal();
     WDRAFT=wdraftFromLog(u.id,day,log);
     wdraftSave();
@@ -9327,7 +9351,7 @@ Object.assign(ACTIONS,{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
     const logs=pastLogsForDay(u.id,day.id);
-    if(!logs.length){toast('No tienes sesiones de '+day.name+' en los últimos '+WLOG_EDIT_DAYS+' días');return;}
+    if(!logs.length){toast('No tienes sesiones de '+day.name+' en los últimos '+WLOG_EDIT_DAYS+' días','err');return;}
     let rows='';
     logs.forEach(w=>{
       const mk=editMarkOf(w);
@@ -9347,10 +9371,10 @@ Object.assign(ACTIONS,{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
     const log=logById(u.id,el.dataset.id);
-    if(!log){toast('No encontré ese registro');return;}
+    if(!log){toast('No encontré ese registro','err');return;}
     /* Se revalida la ventana aquí y no solo al pintar: entre que se abre el modal y se pulsa
        puede cambiar el día, y la regla tiene que vivir donde se ejecuta la acción. */
-    if(log.date<daysAgoISO(WLOG_EDIT_DAYS)||log.date>=todayISO()||isMissed(log)){toast('Esa sesión ya no se puede corregir desde aquí');return;}
+    if(log.date<daysAgoISO(WLOG_EDIT_DAYS)||log.date>=todayISO()||isMissed(log)){toast('Esa sesión ya no se puede corregir desde aquí','err');return;}
     /* Un borrador con cosas escritas no se pisa en silencio, igual que al empezar un día. */
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.wid!==log.id){
       const dn=(d.routine.days.find(x=>x.id===WDRAFT.dayId)||{}).name||WDRAFT.dayName||'otro día';
@@ -9468,7 +9492,7 @@ Object.assign(ACTIONS,{
     if(!s)return;
     const day=(d.routine.days||[]).find(x=>x.id===s.dayId);
     const ex=day&&(day.exercises||[]).find(x=>x.id===s.exId);
-    if(!ex){toast('Ese ejercicio ya no está en la rutina');await delSwap(aid,s.id);render();return;}
+    if(!ex){toast('Ese ejercicio ya no está en la rutina','err');await delSwap(aid,s.id);render();return;}
     const _from={sets:ex.sets,reps:ex.reps,rir:ex.rir,name:ex.name};
     ex.name=s.toName;ex.libId=s.toLibId||null;
     await delSwap(aid,s.id);
@@ -9498,7 +9522,7 @@ Object.assign(ACTIONS,{
     falt.forEach(f=>{if(f.prev)WDRAFT.sets[f.ex][f.i].r=String(f.prev);});
     wdraftTouch();closeModal();
     const queda=falt.filter(f=>!f.prev).length,pend=_repsPend;
-    if(queda||!pend){_repsPend=null;render();if(queda)toast(queda===1?'Falta 1 serie sin referencia: anótala':'Faltan '+queda+' series sin referencia: anótalas');return;}
+    if(queda||!pend){_repsPend=null;render();if(queda)toast(queda===1?'Falta 1 serie sin referencia: anótala':'Faltan '+queda+' series sin referencia: anótalas','err');return;}
     _repsPend=null;await saveWorkoutDraft(pend[0],pend[1],pend[2]);
   },
   /* ---- lo que NO se cumplió: serie, ejercicio y sesión (s62) ---- */
@@ -9575,7 +9599,7 @@ Object.assign(ACTIONS,{
   'super-open':el=>{SUPER.t=null;superOpen(el.dataset.aid);},
   'super-n':el=>{SUPER.n=Math.max(1,Math.min(14,SUPER.n+(+el.dataset.d)));SUPER.t=null;superOpen(el.dataset.aid);},
   'super-t':el=>{const L=superList(el.dataset.aid);if(!L)return;SUPER.t=Math.max(0,Math.min(L.n,L.t+(+el.dataset.d)));superOpen(el.dataset.aid);},
-  'super-copy':async el=>{const L=superList(el.dataset.aid);if(!L)return;try{await navigator.clipboard.writeText(superTxt(L));toast('Lista copiada: pégala en WhatsApp o en tus notas');}catch(e){toast('No se pudo copiar en este teléfono');}},
+  'super-copy':async el=>{const L=superList(el.dataset.aid);if(!L)return;try{await navigator.clipboard.writeText(superTxt(L));toast('Lista copiada: pégala en WhatsApp o en tus notas');}catch(e){toast('No se pudo copiar en este teléfono','err');}},
   'eqv-open':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;
     const ops=eqvOpts(aid,it),kc0=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);
     let rows='';ops.forEach((o,k)=>{rows+='<button class="mcheck" style="width:100%;text-align:left" data-act="eqv-pick" data-mid="'+m.id+'" data-idx="'+i+'" data-k="'+k+'"><span class="mt2"><b>'+esc(o.food)+'</b> · '+esc(o.qty)+(o.avoid?' <span class="badge orange">🚫 evitar</span>':'')+'<div class="tiny">'+o.kcal+' kcal ('+(o.dk>0?'+':'')+o.dk+') · P'+o.p+' C'+o.c+' G'+o.f+'</div></span></button>';});
@@ -9591,7 +9615,7 @@ Object.assign(ACTIONS,{
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
-    if(!kg||kg<25||kg>300){toast('Introduce un peso válido');return;}
+    if(!kg||kg<25||kg>300){toast('Introduce un peso válido','err','w_today');return;}
     const existing=d.logs.weight.find(w=>w.date===todayISO());
     if(existing)existing.kg=kg;else d.logs.weight.push({date:todayISO(),kg});
     d.logs.weight.sort((a,b)=>a.date<b.date?-1:1);
@@ -9608,7 +9632,7 @@ Object.assign(ACTIONS,{
   'steps-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const st=Math.round(num('s_today'));
-    if(!st||st<100||st>100000){toast('Introduce un número de pasos válido');return;}
+    if(!st||st<100||st>100000){toast('Introduce un número de pasos válido','err','s_today');return;}
     if(!d.logs.steps)d.logs.steps=[];
     const existing=d.logs.steps.find(s=>s.date===todayISO());
     if(existing)existing.steps=st;else d.logs.steps.push({date:todayISO(),steps:st});
@@ -9702,8 +9726,8 @@ Object.assign(ACTIONS,{
   'measures-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const m={date:todayISO()};let any=false;
-    for(const ms of MEASURE_SET){const v=num('ms_'+ms[0]);if(v){if(v<ms[2]||v>ms[3]){toast(ms[1]+': valor fuera de rango ('+ms[2]+'-'+ms[3]+' cm)');return;}m[ms[0]]=v;any=true;}}
-    if(!any){toast('Introduce al menos una medida');return;}
+    for(const ms of MEASURE_SET){const v=num('ms_'+ms[0]);if(v){if(v<ms[2]||v>ms[3]){toast(ms[1]+': valor fuera de rango ('+ms[2]+'-'+ms[3]+' cm)','err');return;}m[ms[0]]=v;any=true;}}
+    if(!any){toast('Introduce al menos una medida','err');return;}
     if(!d.logs.measures)d.logs.measures=[];
     const i=d.logs.measures.findIndex(x=>x.date===todayISO());
     if(i>=0)d.logs.measures[i]=m;else d.logs.measures.push(m);
@@ -9716,8 +9740,8 @@ Object.assign(ACTIONS,{
   'meal-add':()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const name=val('m_name'),p=num('m_p'),c=num('m_c'),f=num('m_f');
-    if(!name){toast('Describe qué comiste');return;}
-    if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)');return;}
+    if(!name){toast('Describe qué comiste','err','m_name');return;}
+    if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)','err','m_p');return;}
     if(!d.logs.meals)d.logs.meals=[];
     const _m={id:uid(),date:todayISO(),name,p,c,f};
     d.logs.meals.push(_m);syncMealAdd(u.id,_m);
@@ -9733,9 +9757,9 @@ Object.assign(ACTIONS,{
     const u=userById(getSession().userId),d=athData(u.id);
     const q=val('mf_food').toLowerCase(),qty=medGrams('mf_g');
     const food=eqvFood(q);
-    if(!food){toast('Elige un alimento de la lista');return;}
+    if(!food){toast('Elige un alimento de la lista','err','mf_food');return;}
     const isUnit=food.unit==='u';
-    if(!qty||qty<=0||qty>(isUnit?50:3000)){toast(isUnit?'Indica la cantidad':'Indica los gramos');return;}
+    if(!qty||qty<=0||qty>(isUnit?50:3000)){toast(isUnit?'Indica la cantidad':'Indica los gramos','err','mf_g');return;}
     const mac=foodMacros(food.name,qty);
     const label=isUnit?(qty+' '+(food.unitLabel||'unidades')):(medQtyLabel('mf_g')||(qty+' g'));
     if(!d.logs.meals)d.logs.meals=[];fpUsed(food);
@@ -9763,7 +9787,7 @@ Object.assign(ACTIONS,{
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="food-save" data-fid="'+f.id+'">Guardar</button>');
   },
   'food-save':async el=>{
-    const name=val('fo_name');if(!name){toast('Escribe el nombre del alimento');return;}
+    const name=val('fo_name');if(!name){toast('Escribe el nombre del alimento','err','fo_name');return;}
     if(!foodsGuard())return;
     const unit=val('fo_unit')||'g';
     const obj={name,cat:val('fo_cat')||'Otros',unit,unitLabel:unit==='u'?(val('fo_unitlabel')||'unidad'):'',p:num('fo_p'),c:num('fo_c'),f:num('fo_f')};
@@ -9791,7 +9815,7 @@ Object.assign(ACTIONS,{
     setTimeout(()=>{const i=document.getElementById('fext_q');if(i)i.focus();},50);
   },
   'fext-go':async()=>{
-    const q=val('fext_q');if(q.length<2){toast('Escribe al menos 2 letras');return;}
+    const q=val('fext_q');if(q.length<2){toast('Escribe al menos 2 letras','err','fext_q');return;}
     if(FEXT.busy)return;
     FEXT={q:q,items:[],sources:null,err:'',busy:true};
     const box=document.getElementById('fext_res');if(box)box.innerHTML='<p class="tiny muted">Buscando en las tres bases…</p>';
@@ -10383,9 +10407,9 @@ Object.assign(ACTIONS,{
     if(!libGuard())return;
     const l=libById(el.dataset.lib);if(!l)return;
     const raw=val('sv_'+l.id);
-    if(!raw){toast('Pega primero el link');return;}
+    if(!raw){toast('Pega primero el link','err');return;}
     const v=detectVideo(raw);
-    if(!v){toast('El link tiene que empezar con http:// o https://');return;}
+    if(!v){toast('El link tiene que empezar con http:// o https://','err');return;}
     const prev=l.video;l.video=v;
     if(!await saveLibRow(l)){l.video=prev;return;}
     /* sin render(): se quita solo ese renglón y se baja el contador. Un render completo
@@ -10463,7 +10487,7 @@ Object.assign(ACTIONS,{
   },
   'tpl-save-do':el=>{
     const kind=el.dataset.kind,aid=el.dataset.aid,name=val('tpl_name');
-    if(!name){toast('Ponle nombre a la plantilla');return;}
+    if(!name){toast('Ponle nombre a la plantilla','err','tpl_name');return;}
     tplList(kind).push(kind==='routine'?tplFromRoutine(aid,name):tplFromNutri(aid,name));
     saveState();closeModal();toast('Plantilla «'+name+'» guardada');
   },
@@ -10494,7 +10518,7 @@ Object.assign(ACTIONS,{
     const p=athData(aid).profile;
     const bEl=document.getElementById('tplctx_block'),eEl=document.getElementById('tplctx_exp'),phEl=document.getElementById('tplctx_phase'),sEl=document.getElementById('tplctx_start');
     if(kind==='routine'&&sEl&&sEl.value){
-      const _m=motivoInicioInvalido(aid,sEl.value);if(_m){toast(_m);return;}
+      const _m=motivoInicioInvalido(aid,sEl.value);if(_m){toast(_m,'err');return;}
     }
     if(bEl)p.block=parseInt(bEl.value,10)||p.block;
     if(eEl&&eEl.value)p.experience=eEl.value;
@@ -10525,13 +10549,13 @@ Object.assign(ACTIONS,{
   'tpl-ren-save':el=>{const t=tplById(el.dataset.kind,el.dataset.tpl);if(!t)return;t.name=val('tpl_name')||t.name;saveState();closeModal();render();},
   'tpl-del-ask':el=>confirmModal('Eliminar plantilla','Se borrará la plantilla de tu librería. Los atletas que ya la tengan aplicada no se ven afectados.','tpl-del-do','data-kind="'+el.dataset.kind+'" data-tpl="'+el.dataset.tpl+'"'),
   'tpl-del-do':el=>{const kind=el.dataset.kind;const arr=tplList(kind);const i=arr.findIndex(x=>x.id===el.dataset.tpl);if(i>-1)arr.splice(i,1);saveState();closeModal();render();toast('Plantilla eliminada');},
-  'rtimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>rtImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
+  'rtimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.csv,text/csv';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>rtImportPreview(String(rd.result||''));rd.onerror=()=>toast('No pude leer el archivo','err');rd.readAsText(f);};inp.click();},
   'rtimport-link':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));rtImportRender();},
   'rtimport-unlink':el=>{if(!_rtImport)return;_rtImport.days.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=null;}));rtImportRender();},
   'rtimport-pick-modal':el=>{if(!_rtImport)return;const nm=val('rt_name');if(nm)_rtImport.name=nm;const exId=el.dataset.ex;openModal('Elegir ejercicio de tu biblioteca','<p class="tiny mb8">Busca el ejercicio correcto y vincúlalo. Hereda grupo muscular y video de tu biblioteca.</p><input id="libpick_q" placeholder="Buscar ejercicio, grupo o especialización…" data-live="libpick-q" data-ex="'+exId+'" data-linkact="rtimport-link" style="width:100%;margin-bottom:12px"><div id="libpick_list">'+libPickRows(exId,'rtimport-link','')+'</div>','<button class="btn btn-g" data-act="rtimport-unlink" data-ex="'+exId+'">Quitar vínculo (es nuevo)</button><button class="btn btn-g" data-act="rtimport-resume">Cancelar</button>');},
   'rtimport-resume':()=>{if(_rtImport)rtImportRender();},
   'rtimport-save':()=>{if(!_rtImport)return;const name=(val('rt_name')||'').trim()||'Rutina importada';S.templates.routines.push({id:uid(),name:name,weekNote:'',days:_rtImport.days,created:todayISO()});_rtImport=null;saveState();closeModal();render();toast('Plantilla importada');},
-  'aiimport-pick':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri)){aiPreviewRender();toast('Tienes un análisis sin guardar — guárdalo, asígnalo o descártalo primero');return;}pickAiImportFile();},
+  'aiimport-pick':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri)){aiPreviewRender();toast('Tienes un análisis sin guardar — guárdalo, asígnalo o descártalo primero','err');return;}pickAiImportFile();},
   'aiimport-discard':()=>{_aiImport=null;aiDraftSave();closeModal();pickAiImportFile();},
   'aiimport-resume':()=>{if(_aiImport&&(_aiImport.routine||_aiImport.nutri))aiPreviewRender();},
   'aiimport-link':el=>{if(!_aiImport||!_aiImport.routine)return;const nm=val('ai_rt_name');if(nm)_aiImport.routineName=nm;const nn=val('ai_nt_name');if(nn&&_aiImport.nutri)_aiImport.nutri.name=nn;_aiImport.routine.forEach(d=>d.exercises.forEach(e=>{if(e.id===el.dataset.ex)e.libId=el.dataset.lib;}));aiPreviewRender();},
@@ -10570,7 +10594,7 @@ Object.assign(ACTIONS,{
     const p=athData(aid).profile;
     const bEl=document.getElementById('tplctx_block'),eEl=document.getElementById('tplctx_exp'),phEl=document.getElementById('tplctx_phase'),sEl=document.getElementById('tplctx_start');
     if(A.routine&&sEl&&sEl.value){
-      const _m=motivoInicioInvalido(aid,sEl.value);if(_m){toast(_m);return;}
+      const _m=motivoInicioInvalido(aid,sEl.value);if(_m){toast(_m,'err');return;}
     }
     if(bEl)p.block=parseInt(bEl.value,10)||p.block;
     if(eEl&&eEl.value)p.experience=eEl.value;
@@ -10999,20 +11023,20 @@ Object.assign(ACTIONS,{
       if(!res.ok)throw 0;
       const list=await res.json();
       recImportPreview(list);
-    }catch(e){toast('No pude cargar el recetario base (recetario-base.json)');}
+    }catch(e){toast('No pude cargar el recetario base (recetario-base.json)','err');}
   },
-  'recimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{recImportPreview(JSON.parse(String(rd.result||'')));}catch(e){toast('Ese archivo no es un JSON válido');}};rd.onerror=()=>toast('No pude leer el archivo');rd.readAsText(f);};inp.click();},
+  'recimport-pick':()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{recImportPreview(JSON.parse(String(rd.result||'')));}catch(e){toast('Ese archivo no es un JSON válido','err');}};rd.onerror=()=>toast('No pude leer el archivo','err');rd.readAsText(f);};inp.click();},
   'recimport-save':async el=>{
     if(!_recImport||!_recImport.add.length)return;
     const rows=_recImport.add.map(r=>({coach_uid:_coachUid,rid:r.id,data:r}));
     if(el&&el.classList)el.classList.add('is-loading');
     try{
       const res=await supa.from('recipes').upsert(rows,{onConflict:'coach_uid,rid'});
-      if(res.error){toast('Error al guardar: '+res.error.message);return;}
+      if(res.error){toast('Error al guardar: '+res.error.message,'err');return;}
       const n=rows.length;_recImport=null;
       await hydrateRecipes();
       closeModal();render();toast(n+' recetas agregadas al recetario');
-    }catch(e){toast('No pude guardar las recetas');}
+    }catch(e){toast('No pude guardar las recetas','err');}
   },
   'rec-open':el=>{
     const r=recById(el.dataset.rec);if(!r)return;
@@ -11041,7 +11065,7 @@ Object.assign(ACTIONS,{
   },
   'rec-edit-modal':el=>{
     const r=recById(el.dataset.rec);
-    if(!r||!recIsScalable(r)){toast('Esta receta es de texto libre (importada); no se puede editar con el formulario de ingredientes.');return;}
+    if(!r||!recIsScalable(r)){toast('Esta receta es de texto libre (importada); no se puede editar con el formulario de ingredientes.','err');return;}
     recDraftReset(r);
     openModal('Editar receta',recDraftFormHTML(),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rec-draft-save" data-rec="'+esc(r.id)+'">Guardar cambios</button>');
   },
@@ -11055,11 +11079,11 @@ Object.assign(ACTIONS,{
   'rec-draft-save':async el=>{
     if(!_recDraft)return;
     recDraftSync();
-    const name=(_recDraft.name||'').trim();if(!name){toast('Escribe el nombre de la receta');return;}
+    const name=(_recDraft.name||'').trim();if(!name){toast('Escribe el nombre de la receta','err');return;}
     const tags=_recDraft.tagsStr.split(',').map(s=>s.trim()).filter(Boolean);
     const steps=_recDraft.stepsStr.split('\n').map(s=>s.trim()).filter(Boolean);
     const validIngs=_recDraft.ingredients.filter(x=>x.food&&+x.grams>0);
-    if(!validIngs.length){toast('Agrega al menos un ingrediente con cantidad');return;}
+    if(!validIngs.length){toast('Agrega al menos un ingrediente con cantidad','err');return;}
     const tm=_recDraft.txtMac||{},built=[];const tot={p:+tm.p||0,c:+tm.c||0,f:+tm.f||0};
     for(const ing of validIngs){
       const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===String(ing.food).toLowerCase());
@@ -11075,18 +11099,18 @@ Object.assign(ACTIONS,{
     if(el&&el.classList)el.classList.add('is-loading');
     try{
       const res=await supa.from('recipes').upsert([{coach_uid:_coachUid,rid:id,data}],{onConflict:'coach_uid,rid'});
-      if(res.error){toast('Error al guardar: '+res.error.message);return;}
+      if(res.error){toast('Error al guardar: '+res.error.message,'err');return;}
       _recDraft=null;await hydrateRecipes();closeModal();render();toast('Receta «'+name+'» guardada');
-    }catch(e){toast('No pude guardar la receta');}
+    }catch(e){toast('No pude guardar la receta','err');}
   },
   'rec-del-ask':el=>confirmModal('Eliminar receta','Se quitará de tu recetario. Las comidas ya asignadas a atletas con esta receta conservan sus datos; solo deja de estar disponible para asignarla de nuevo.','rec-del-do','data-rec="'+esc(el.dataset.rec)+'"'),
   'rec-del-do':async el=>{
     const r=recById(el.dataset.rec);if(!r){closeModal();return;}
     try{
       const res=await supa.from('recipes').delete().eq('coach_uid',_coachUid).eq('rid',r.rid||r.id);
-      if(res.error){toast('Error al eliminar: '+res.error.message);return;}
+      if(res.error){toast('Error al eliminar: '+res.error.message,'err');return;}
       await hydrateRecipes();closeModal();render();toast('Receta eliminada');
-    }catch(e){toast('No pude eliminar la receta');}
+    }catch(e){toast('No pude eliminar la receta','err');}
   }
 });
 VIEWS['recetario']=function(u){
@@ -11147,7 +11171,7 @@ function libForm(l){
 
 Object.assign(ACTIONS,{
   'lib-open':el=>{
-    const l=libById(el.dataset.lib);if(!l){toast('Este ejercicio ya no está en la biblioteca');return;}
+    const l=libById(el.dataset.lib);if(!l){toast('Este ejercicio ya no está en la biblioteca','err');return;}
     const me=userById(getSession().userId);
     const usage=libUsage(l.id);
     const ci=catInfo(l.group,l.cat);
@@ -11159,17 +11183,17 @@ Object.assign(ACTIONS,{
   'lib-new-modal':()=>openModal('Nuevo ejercicio',libForm(null),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="lib-save">Crear</button>'),
   'lib-edit-modal':el=>{const l=libById(el.dataset.lib);openModal('Editar ejercicio',libForm(l),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="lib-save" data-lib="'+l.id+'">Guardar</button>');},
   'lib-save':async el=>{
-    const name=val('l_name');if(!name){toast('Escribe el nombre del ejercicio');return;}
+    const name=val('l_name');if(!name){toast('Escribe el nombre del ejercicio','err','l_name');return;}
     if(!libGuard())return;
     const dup=libByName(name);
-    if(dup&&dup.id!==el.dataset.lib){toast('Ya existe un ejercicio con ese nombre');return;}
+    if(dup&&dup.id!==el.dataset.lib){toast('Ya existe un ejercicio con ese nombre','err');return;}
     const group=val('l_group')||GROUPS[0];
     const cat=val('l_cat');
     const secondary=Array.prototype.slice.call(document.querySelectorAll('.sec-chk:checked')).map(c=>c.dataset.m).filter(m=>m!==group);
     const vtype=val('l_vtype');let video=null;
     if(vtype==='link'){const u2=val('l_yturl');video=detectVideo(u2);
-      if(!video){toast(u2?'El link debe empezar con https://':'Pega el link del video');return;}}
-    if(vtype==='file'){const f=val('l_vfname');if(!f){toast('Indica el nombre del archivo de video');return;}video={type:'file',file:f};}
+      if(!video){toast(u2?'El link debe empezar con https://':'Pega el link del video','err');return;}}
+    if(vtype==='file'){const f=val('l_vfname');if(!f){toast('Indica el nombre del archivo de video','err');return;}video={type:'file',file:f};}
     const data={name,group,cat,focus:val('l_focus'),secondary,equipment:val('l_eq')||'Otro',cues:val('l_cues'),video};
     let row=null,renamed=false;
     if(el.dataset.lib){
@@ -12607,8 +12631,8 @@ Object.assign(ACTIONS,{
     const aid=el.dataset.aid;
     pnutriReadTargets(aid); /* números recién escritos y sin guardar: igual que «Plan automático» */
     const ap=activePlanOf(aid),T=niaTargets(aid);
-    if(T.err){toast('Escribe los macros del plan o completa el perfil del atleta (peso y altura) para usar la IA');return;}
-    if(!(S.foods||[]).length){toast('Tu base de alimentos está vacía');return;}
+    if(T.err){toast('Escribe los macros del plan o completa el perfil del atleta (peso y altura) para usar la IA','err');return;}
+    if(!(S.foods||[]).length){toast('Tu base de alimentos está vacía','err');return;}
     const N=ap.mealsPerDay||4,diet=nutriOf(aid).dietProfile||{};
     const dl=[['allergies','Alergias'],['intolerances','Intolerancias'],['likes','Le gusta'],['dislikes','No le gusta'],['notes','Notas']].filter(x=>String(diet[x[0]]||'').trim());
     let body='<div class="grid g2 mb16"><div class="stat"><div class="k">'+(T.own?'Objetivo de este plan':'Calculado del perfil')+'</div><div class="v">'+T.kcal+'<small> kcal</small></div><div class="sub">P'+T.p+' · C'+T.c+' · G'+T.f+'</div></div>'+
@@ -12620,7 +12644,7 @@ Object.assign(ACTIONS,{
     openModal('Armar menú con IA',body,'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="nia-gen" data-aid="'+aid+'" data-pid="'+ap.id+'">Generar menú</button>');
   },
   'nia-gen':async el=>{
-    const aid=el.dataset.aid,T=niaTargets(aid);if(T.err){toast(T.err);return;}
+    const aid=el.dataset.aid,T=niaTargets(aid);if(T.err){toast(T.err,'err');return;}
     const N=Math.max(1,Math.min(8,parseInt(($('#nia_n')||{}).value,10)||4));
     _nia={aid,pid:el.dataset.pid,T,N,instr:(($('#nia_txt')||{}).value||'').trim(),meals:[],notes:'',warn:[]};
     niaBusy('La IA está escogiendo alimentos de tu base para '+N+' comidas.');
@@ -12631,7 +12655,7 @@ Object.assign(ACTIONS,{
   },
   'nia-change':async ()=>{
     const z=_nia;if(!z)return;
-    const chg=(($('#nia_chg')||{}).value||'').trim();if(!chg){toast('Escribe qué quieres cambiar');return;}
+    const chg=(($('#nia_chg')||{}).value||'').trim();if(!chg){toast('Escribe qué quieres cambiar','err','nia_chg');return;}
     const prev={meals:z.meals,notes:z.notes,warn:z.warn};
     niaBusy('Aplicando el cambio: «'+chg+'»');
     const res=await niaCall({current:niaAsRaw(z.meals,z.notes),change:chg});
@@ -12643,7 +12667,7 @@ Object.assign(ACTIONS,{
   'nia-apply':()=>{
     const z=_nia;if(!z)return;
     const plan=nutriOf(z.aid).plans.find(p=>p.id===z.pid);
-    if(!plan){toast('El plan ya no existe');_nia=null;closeModal();return;}
+    if(!plan){toast('El plan ya no existe','err');_nia=null;closeModal();return;}
     if(!z.T.own){plan.protein=z.T.p;plan.carbs=z.T.c;plan.fat=z.T.f;plan.kcal=z.T.kcal;}
     plan.mode='menu';plan.mealsPerDay=z.meals.length;
     plan.meals=z.meals.map(m=>({id:uid(),name:m.name,time:m.time,items:m.items.map(it=>Object.assign({},it))}));
@@ -12657,7 +12681,7 @@ Object.assign(ACTIONS,{
 Object.assign(ACTIONS,{
   'startdate-save':el=>{
     const v=val('bk_start');
-    const _m=motivoInicioInvalido(el.dataset.aid,v);if(_m){toast(_m);return;}
+    const _m=motivoInicioInvalido(el.dataset.aid,v);if(_m){toast(_m,'err');return;}
     const[moved,merged]=setBlockStart(el.dataset.aid,v);
     saveState();
     toast('Fecha de inicio actualizada'+(moved?' · '+moved+(moved===1?' registro recolocado':' registros recolocados')+' en su semana':'')+(merged?' · '+merged+' snapshot'+(merged===1?'':'s')+' fusionado'+(merged===1?'':'s'):''));
@@ -12724,7 +12748,7 @@ Object.assign(ACTIONS,{
   },
   'split-auto-regen':el=>{
     const aid=el.dataset.aid,cfg=athData(aid).routine.autoSplitCfg;
-    if(!cfg){toast('Genera un split automático primero');return;}
+    if(!cfg){toast('Genera un split automático primero','err');return;}
     const res=autoSplit(aid,cfg.nDays,cfg.style,cfg.emphasis,{variety:true});
     saveState();render();
     const et=res.emphasis&&res.emphasis.length?(' · énfasis'+(res.emphRandom?' auto':'')+': '+res.emphasis.join(', ')):'';
@@ -12742,7 +12766,7 @@ Object.assign(ACTIONS,{
     const tg=nutriTargets(aid);
     const miss=[];if(!lw)miss.push('un pesaje');if(!d.profile.heightCm)miss.push('la altura');
     /* Sin macros escritos y sin perfil no hay de dónde partir: es el único caso que se bloquea. */
-    if(!own&&tg.err){toast('Falta '+miss.join(' y ')+' para autogenerar (pestaña Resumen → perfil)');return;}
+    if(!own&&tg.err){toast('Falta '+miss.join(' y ')+' para autogenerar (pestaña Resumen → perfil)','err');return;}
     let body='';
     if(own&&!tg.err){
       body+='<p class="muted" style="margin-bottom:10px">Este plan ya tiene objetivos escritos. Elige con cuáles armar el menú de <b>'+N+'</b> comidas:</p>'+
@@ -12765,7 +12789,7 @@ Object.assign(ACTIONS,{
   },
   'nutri-auto-do':el=>{
     const res=autoNutrition(el.dataset.aid,el.dataset.own==='1');
-    if(res.err){toast(res.err);return;}
+    if(res.err){toast(res.err,'err');return;}
     saveState();closeModal();toast((res.own?'Menú armado con tus macros: ':'Plan generado: ')+res.target+' kcal · P'+res.protein+' C'+res.carbs+' G'+res.fat+' · '+res.N+' comidas');render();
   },
   'voltargets-auto-ask':el=>{
@@ -12778,10 +12802,10 @@ Object.assign(ACTIONS,{
   },
   'voltargets-from-routine':el=>{
     const aid=el.dataset.aid,d=athData(aid),r=d.routine;
-    if(!r.days.length||!r.days.some(dy=>dy.exercises.length)){toast('La rutina no tiene ejercicios programados');return;}
+    if(!r.days.length||!r.days.some(dy=>dy.exercises.length)){toast('La rutina no tiene ejercicios programados','err');return;}
     const vol=programmedVolumeByGroup(r.days);
     const any=GROUPS.some(g=>vol[g]>0);
-    if(!any){toast('No se pudo determinar el grupo de ningún ejercicio. Vincula al menos algunos a tu biblioteca.');return;}
+    if(!any){toast('No se pudo determinar el grupo de ningún ejercicio. Vincula al menos algunos a tu biblioteca.','err');return;}
     d.profile.priorities=priorityFromVolume(vol,d.profile.experience);
     /* Objetivo = lo programado (no la recomendación genérica) */
     d.profile.volTargets=d.profile.volTargets||{};
@@ -12813,14 +12837,14 @@ Object.assign(ACTIONS,{
     GROUPS.filter(g=>d.profile.priorities[g]===0).forEach(g=>{
       d.routine.days.forEach(dy=>{if(dy.plan&&dy.plan[g]!=null){delete dy.plan[g];n++;}});
     });
-    if(!n){toast('No había plan que quitar');return;}
+    if(!n){toast('No había plan que quitar','err');return;}
     saveState();toast('Plan quitado de '+n+' celda'+(n===1?'':'s')+' · los ejercicios no se han tocado');render();
   },
   'plan-auto':el=>{
     const aid=el.dataset.aid,d=athData(aid);
-    if(!d.routine.days.length){toast('Añade sesiones primero');return;}
+    if(!d.routine.days.length){toast('Añade sesiones primero','err');return;}
     const n=autoDistributeDayPlan(aid);
-    if(!n){toast('Asigna primero objetivos semanales en el paso 1');return;}
+    if(!n){toast('Asigna primero objetivos semanales en el paso 1','err');return;}
     saveState();toast('Objetivos repartidos entre '+d.routine.days.length+' sesiones');render();
   }
 });
@@ -13046,14 +13070,14 @@ function cargarHtml2canvas(){
 Object.assign(ACTIONS,{
  'report-png':async el=>{
    const node=document.getElementById('reportSheet');
-   if(!node){toast('No se pudo generar la imagen');return;}
+   if(!node){toast('No se pudo generar la imagen','err');return;}
    toast('Generando imagen…');
    const h2c=await cargarHtml2canvas();
-   if(!h2c){toast('No se pudo cargar el generador de imágenes');return;}
+   if(!h2c){toast('No se pudo cargar el generador de imágenes','err');return;}
    const name=(el.dataset.name||'atleta').replace(/[^\wáéíóúñÁÉÍÓÚÑ\- ]+/g,'').trim().replace(/\s+/g,'_');
    h2c(node,{backgroundColor:'#0b0d11',scale:2,useCORS:true}).then(c=>{
      const a=document.createElement('a');a.download='reporte_'+name+'_'+todayISO()+'.png';a.href=c.toDataURL('image/png');a.click();
-   }).catch(err=>{console.error(err);toast('Error al generar la imagen');});
+   }).catch(err=>{console.error(err);toast('Error al generar la imagen','err');});
  },
  'report-print':()=>{window.print();},
  'keyex-toggle':el=>{
@@ -13713,7 +13737,7 @@ Object.assign(ACTIONS,{
     /* Mismo suelo que en la pestaña Rutina: bajar a 0 dejaba el ejercicio en la sesión sin
        series, que no es ni quitarlo ni programarlo. Para eliminarlo se usa Rutina. */
     const oldS=parseInt(ex.sets,10)||0,newS=Math.max(1,oldS+delta);
-    if(newS===oldS){toast('Mínimo 1 serie — para quitar el ejercicio, hazlo en la pestaña Rutina');return;}
+    if(newS===oldS){toast('Mínimo 1 serie — para quitar el ejercicio, hazlo en la pestaña Rutina','err');return;}
     ex.sets=String(newS);
     const sync=syncPlanToSets(aid,day,g,newS-oldS);
     logChange(aid,'ajuste','Series '+oldS+'→'+newS+(sync?' · '+sync:''),day.name,ex.name,null,
