@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.6">
+<meta name="lr-build" content="2026-11-05.7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -541,6 +541,7 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .acc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-top:16px;overflow:hidden}
 .acc>summary{list-style:none;cursor:pointer;padding:16px 20px;display:flex;align-items:center;gap:10px;font-family:var(--font-d);font-size:var(--fs-5);font-weight:600;user-select:none}
 .acc>summary::-webkit-details-marker{display:none}
+.acc>summary .acc-ic{display:inline-flex;flex:0 0 auto;color:var(--tx3)}
 .acc>summary .chev{margin-left:auto;color:var(--tx3);transition:transform .2s;flex:0 0 auto}
 .acc[open]>summary .chev{transform:rotate(180deg)}
 .acc>summary .acc-tag{font-family:var(--font-b);font-weight:400;font-size:var(--fs-2);color:var(--tx3)}
@@ -947,6 +948,10 @@ input.meta-in.old{border-style:dashed}
     background:var(--bg2);border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0;color:var(--tx2)}
   .nav-tab svg{transition:transform .18s}
   body.nav-hide .nav-tab svg,body.nav-col .nav-tab svg{transform:rotate(180deg)}
+  /* Con la barra escondida la pestaña flota sobre el contenido (tapaba «No pude entrenar» en Hoy):
+     más baja y translúcida para que se lea lo de debajo; recupera su cuerpo al tocarla. */
+  body.nav-hide .nav-tab,body.nav-col .nav-tab{height:20px;top:-20px;width:40px;opacity:.6;transition:opacity .18s}
+  body.nav-hide .nav-tab:active,body.nav-col .nav-tab:active{opacity:1}
   body.kbd-open .nav-tab{display:none}
 }
 @media(min-width:701px){
@@ -975,6 +980,8 @@ input.meta-in.old{border-style:dashed}
   .shell:not(.coach) .nav-item .lbl-c{display:inline}
   .shell:not(.coach) .nav-item .navbadge{position:absolute;top:4px;left:calc(50% + 6px);padding:0 5px;font-size:var(--fs-1);min-width:16px;margin:0}
 }
+/* Coach en teléfono (≤700): «Material de apoyo» se cortaba en «Material…»; usa su nombre corto. */
+@media(max-width:700px){.shell.coach .nav-item .lbl-l{display:none}.shell.coach .nav-item .lbl-c{display:inline}}
 .nav-mas-f{margin-bottom:8px}
 .nav-mas-f .navbadge{margin-left:auto}
 /* ---- Panel del COACH: el mismo diseño de escritorio en tablet y computadora (2026-10-04) ----
@@ -3273,7 +3280,9 @@ function mealKcal(m){return Math.round((m.p||0)*4+(m.c||0)*4+(m.f||0)*9);}
 function intakeForDate(aid,iso){const t={p:0,c:0,f:0,kcal:0};(athData(aid).logs.meals||[]).filter(m=>m.date===iso).forEach(m=>{t.p+=m.p||0;t.c+=m.c||0;t.f+=m.f||0;});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 
 /* ===== modelo de nutrición: varios PLANES por tipo de día (pesado/normal/off/recarga) ===== */
-const PLAN_TYPES={normal:{lbl:'Día normal',cls:'volt'},heavy:{lbl:'Día pesado',cls:'blue'},off:{lbl:'Day off',cls:'orange'},refeed:{lbl:'Recarga',cls:'green'},custom:{lbl:'Personalizado',cls:''}};
+/* Tipo de día = categoría, no estado: chips neutros (regla de color 2026-11-05: el color solo
+   dice algo — ámbar atención, verde ok, marca acción). Antes Day off salía ámbar y Recarga verde. */
+const PLAN_TYPES={normal:{lbl:'Día normal',cls:''},heavy:{lbl:'Día pesado',cls:''},off:{lbl:'Day off',cls:''},refeed:{lbl:'Recarga',cls:''},custom:{lbl:'Personalizado',cls:''}};
 function planType(t){return PLAN_TYPES[t]||PLAN_TYPES.custom;}
 function foodMacros(name,qty){const fo=eqvFood(name);if(!fo)return null;const k=fo.unit==='u'?qty:qty/100;return{p:+(fo.p*k).toFixed(1),c:+(fo.c*k).toFixed(1),f:+(fo.f*k).toFixed(1)};}
 /* Cantidad numérica de un ítem del menú. Los alimentos por peso la guardan en `grams`;
@@ -4976,6 +4985,10 @@ function acwrZone(r){
 /* ================= NÚCLEO (render, navegación, UI) ================= */
 const $=sel=>document.querySelector(sel);
 const I={
+  bascula:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9.5a5 5 0 0 1 8 0"/><path d="m12 10.5 1.5-2"/></svg>',
+  regla:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15.5 15.5 3 21 8.5 8.5 21z"/><path d="m7 12 2 2M10 9l2 2M13 6l2 2"/></svg>',
+  pulso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg>',
+  lista:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>',
   panel:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
   bell:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6.5h11M4 12h16M6.5 17.5h11"/></svg>',
   dumbbell:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M3.5 8.5v7M17.5 6.5v11M20.5 8.5v7M6.5 12h11"/></svg>',
@@ -5244,7 +5257,7 @@ function renderNewPass(){
 }
 function navItemsFor(u){
   if(u.role==='coach'){
-    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'coach-mon',icon:I.check,label:'Monitoreo',badge:revBadgeTotal()},{v:'apoyo',icon:I.folder,label:'Material de apoyo',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
+    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'coach-mon',icon:I.check,label:'Monitoreo',badge:revBadgeTotal()},{v:'apoyo',icon:I.folder,label:'Material de apoyo',corto:'Material',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
@@ -8996,11 +9009,11 @@ VIEWS['ath-hoy']=function(u){
   })():'';
 
   const accs=[];
-  accs.push(acc('acc-peso','⚖️ Peso y pasos','opcional',pesoPasosInner,false));
-  accs.push(acc('acc-medidas','📏 Medidas corporales','1×/mes · opcional',measuresInner,false));
-  if(sv.tr)accs.push(acc('acc-fatiga','🩺 Check-in semanal de fatiga','1×/semana',fatInner,false));
+  accs.push(acc('acc-peso','<span class="acc-ic">'+I.bascula+'</span>Peso y pasos','opcional',pesoPasosInner,false));
+  accs.push(acc('acc-medidas','<span class="acc-ic">'+I.regla+'</span>Medidas corporales','1×/mes · opcional',measuresInner,false));
+  if(sv.tr)accs.push(acc('acc-fatiga','<span class="acc-ic">'+I.pulso+'</span>Check-in semanal de fatiga','1×/semana',fatInner,false));
   const formsInner=athFormsInner(aid),fPend=formsPending(aid).length;
-  if(formsInner)accs.push(acc('acc-forms','📋 Cuestionarios de tu coach',fPend?fPend+' pendiente'+(fPend>1?'s':''):'al día',formsInner,false));
+  if(formsInner)accs.push(acc('acc-forms','<span class="acc-ic">'+I.lista+'</span>Cuestionarios de tu coach',fPend?fPend+' pendiente'+(fPend>1?'s':''):'al día',formsInner,false));
 
   /* Cabecera (maqueta): fecha · tipo de día del plan de comidas (toca → Comidas, donde se cambia) y el botón de
      Mensajes con punto rojo si hay algo sin leer: en el teléfono Mensajes ya no está en la barra. */
@@ -9018,7 +9031,7 @@ function weighReminder(aid){
   if(dow<2)return'';
   const from=weekStartISO(t),n=(athData(aid).logs.weight||[]).filter(w=>w&&w.date>=from&&w.date<=t).length;
   if(n>=2)return'';
-  return '<div class="notebox mb16" style="border-left-color:var(--blue);display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>'+(n?'Esta semana llevas 1 pesaje.':'Esta semana aún no te has pesado.')+'</b> Pésate al menos 3 días por semana, al despertar y en ayunas: así tu tendencia es fiable aunque un día salga raro.</div><button class="btn btn-g btn-sm" data-act="acc-open" data-acc="acc-peso">Registrar peso</button></div>';
+  return '<div class="notebox mb16 u-bl-orange" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>'+(n?'Esta semana llevas 1 pesaje.':'Esta semana aún no te has pesado.')+'</b> Pésate al menos 3 días por semana, al despertar y en ayunas: así tu tendencia es fiable aunque un día salga raro.</div><button class="btn btn-g btn-sm" data-act="acc-open" data-acc="acc-peso">Registrar peso</button></div>';
 }
 /* Botón/insignia de cambio de ejercicio en las vistas del atleta */
 function swapRowUI(e,dayId){
