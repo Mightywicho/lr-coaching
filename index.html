@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.8">
+<meta name="lr-build" content="2026-11-05.9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -115,7 +115,7 @@ a{color:var(--blue);text-decoration:none}
 
 /* Utilidades (fase 4, 2026-11-05): reemplazan estilos en línea fijos. Usan la escala (márgenes de 4 en 4,
    colores con significado). Llevan !important para conservar la prioridad que tenía el style="". */
-.u-m0{margin:0!important}.u-aic{align-items:center!important}.u-bl-blue{border-left-color:var(--blue)!important}.u-bl-green{border-left-color:var(--green)!important}.u-bl-orange{border-left-color:var(--orange)!important}.u-bl-red{border-left-color:var(--red)!important}.u-bl-volt{border-left-color:var(--volt)!important}.u-f1{flex:1!important}.u-fs1{font-size:var(--fs-1)!important}.u-fs3{font-size:var(--fs-3)!important}.u-fs4{font-size:var(--fs-4)!important}.u-fs5{font-size:var(--fs-5)!important}.u-fs6{font-size:var(--fs-6)!important}.u-fs7{font-size:var(--fs-7)!important}.u-fw6{font-weight:600!important}.u-fw7{font-weight:700!important}.u-gap16{gap:16px!important}.u-mb12{margin-bottom:12px!important}.u-mb16{margin-bottom:16px!important}.u-mb4{margin-bottom:4px!important}.u-mb8{margin-bottom:8px!important}.u-minw0{min-width:0!important}.u-minwa{min-width:auto!important}.u-ml8{margin-left:8px!important}.u-mlauto{margin-left:auto!important}.u-mt0{margin-top:0px!important}.u-mt12{margin-top:12px!important}.u-mt16{margin-top:16px!important}.u-mt20{margin-top:20px!important}.u-mt4{margin-top:4px!important}.u-mt8{margin-top:8px!important}.u-nowrap{white-space:nowrap!important}.u-ptr{cursor:pointer!important}.u-tc{text-align:center!important}.u-tl{text-align:left!important}.u-tr{text-align:right!important}.u-w100{width:100%!important}.u-wrap{flex-wrap:wrap!important}
+.u-m0{margin:0!important}.u-aic{align-items:center!important}.u-bl-blue{border-left-color:var(--blue)!important}.u-bl-green{border-left-color:var(--green)!important}.u-bl-orange{border-left-color:var(--orange)!important}.u-bl-red{border-left-color:var(--red)!important}.u-bl-volt{border-left-color:var(--volt)!important}.u-c-blue{color:var(--blue)!important}.u-c-green{color:var(--green)!important}.u-c-orange{color:var(--orange)!important}.u-c-purple{color:var(--purple)!important}.u-c-red{color:var(--red)!important}.u-c-tx{color:var(--tx)!important}.u-c-tx2{color:var(--tx2)!important}.u-c-tx3{color:var(--tx3)!important}.u-c-volt{color:var(--volt)!important}.u-col{flex-direction:column!important}.u-dblock{display:block!important}.u-dflex{display:flex!important}.u-f1{flex:1!important}.u-fs1{font-size:var(--fs-1)!important}.u-fs3{font-size:var(--fs-3)!important}.u-fs4{font-size:var(--fs-4)!important}.u-fs5{font-size:var(--fs-5)!important}.u-fs6{font-size:var(--fs-6)!important}.u-fs7{font-size:var(--fs-7)!important}.u-fw6{font-weight:600!important}.u-fw7{font-weight:700!important}.u-gap12{gap:12px!important}.u-gap16{gap:16px!important}.u-gap20{gap:20px!important}.u-gap8{gap:8px!important}.u-jcc{justify-content:center!important}.u-jce{justify-content:flex-end!important}.u-jcsb{justify-content:space-between!important}.u-mb12{margin-bottom:12px!important}.u-mb16{margin-bottom:16px!important}.u-mb20{margin-bottom:20px!important}.u-mb4{margin-bottom:4px!important}.u-mb8{margin-bottom:8px!important}.u-minw0{min-width:0!important}.u-minwa{min-width:auto!important}.u-ml8{margin-left:8px!important}.u-mlauto{margin-left:auto!important}.u-mr8{margin-right:8px!important}.u-mt0{margin-top:0px!important}.u-mt12{margin-top:12px!important}.u-mt16{margin-top:16px!important}.u-mt20{margin-top:20px!important}.u-mt4{margin-top:4px!important}.u-mt8{margin-top:8px!important}.u-nowrap{white-space:nowrap!important}.u-ptr{cursor:pointer!important}.u-span{grid-column:1/-1!important}.u-tc{text-align:center!important}.u-tl{text-align:left!important}.u-tr{text-align:right!important}.u-w100{width:100%!important}.u-w110{width:110px!important}.u-w130{width:130px!important}.u-w140{width:140px!important}.u-w56{width:56px!important}.u-w60{width:60px!important}.u-w64{width:64px!important}.u-w70{width:70px!important}.u-w80{width:80px!important}.u-wrap{flex-wrap:wrap!important}
 /* ---------- scrollbar ---------- */
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:var(--r-xs);border:2px solid var(--bg)}
@@ -3570,9 +3570,9 @@ function suppMicSummary(aid){
   const chips=rows.map(d=>{const v=tot[d[0]],L=suppUL(aid,d),ul=L.ul,over=ul&&(lib[d[0]]||0)>ul,sup=!over&&ul&&v>ul;anyOver=anyOver||over;anySup=anySup||sup;
     return '<span class="supp-mic'+(over?' over':sup?' supv':'')+'" title="'+esc(ul?'Límite superior: '+suppFmt(ul)+' '+d[2]+' ('+L.src+')'+(L.otro?' · '+(suppRef()==='iom'?'EFSA':'IOM')+': '+suppFmt(L.otro.ul)+' '+d[2]+' ('+L.otro.src+')':''):'Sin límite superior establecido')+'"><b>'+esc(d[1])+'</b> '+suppFmt(v)+' '+d[2]+(ul?' <span class="tiny">/ UL '+suppFmt(ul)+(L.otro&&L.otro.ul!==ul?' · '+(suppRef()==='iom'?'EFSA':'IOM')+' '+suppFmt(L.otro.ul):'')+'</span>':'')+(over?' ⚠':sup?' · supervisado':'')+'</span>';}).join('');
   return '<div class="supp-mics"><h4 class="mg-h">Micronutrientes de sus suplementos <span class="hint">máximo en un día · solo suplementos, sin comida'+(age?' · límites para '+age+' años':'')+' · '+(suppRef()==='iom'?'IOM':'EFSA')+'</span></h4><div class="supp-micw">'+chips+'</div>'+
-    (anyOver?'<p class="tiny" style="color:var(--red);margin:6px 0 0">⚠ Solo con suplementos ya pasa el límite superior tolerable (UL). Revisa dosis o si dos productos repiten el mismo nutriente; si es un tratamiento con análisis, márcalo como «dosis terapéutica».</p>':'')+
-    (anySup?'<p class="tiny" style="color:var(--orange);margin:6px 0 0">Por encima del UL solo por dosis terapéuticas marcadas: el UL es para población sana, no para tratamientos con control.</p>':'')+
-    '<p class="tiny" style="margin:6px 0 0">Límites de <b>'+SUPP_REF[suppRef()]+'</b> (cámbiala en Configuración); al lado, el de la otra referencia como dato. Ajustados por edad del perfil. Casi todos cuentan también la comida: es un aviso mínimo, no una garantía. No distinguen embarazo: para eso, las consideraciones clínicas de abajo.</p>'+
+    (anyOver?'<p class="tiny u-c-red u-m0 u-mt8">⚠ Solo con suplementos ya pasa el límite superior tolerable (UL). Revisa dosis o si dos productos repiten el mismo nutriente; si es un tratamiento con análisis, márcalo como «dosis terapéutica».</p>':'')+
+    (anySup?'<p class="tiny u-c-orange u-m0 u-mt8">Por encima del UL solo por dosis terapéuticas marcadas: el UL es para población sana, no para tratamientos con control.</p>':'')+
+    '<p class="tiny u-m0 u-mt8">Límites de <b>'+SUPP_REF[suppRef()]+'</b> (cámbiala en Configuración); al lado, el de la otra referencia como dato. Ajustados por edad del perfil. Casi todos cuentan también la comida: es un aviso mínimo, no una garantía. No distinguen embarazo: para eso, las consideraciones clínicas de abajo.</p>'+
     clinChips+warnHTML+'</div>';
 }
 /* ===== MICRONUTRIENTES DEL DÍA (alcance B; Luis, 2026-11-02: «aún no veo los micros reflejados» → en el total
@@ -3728,7 +3728,7 @@ function suppCoachCard(aid){
       (_suppDel===s.id?'<div class="supp-conf">¿Quitar <b>'+esc(s.name)+'</b> de su suplementación?'+(pm?' También sale de su '+esc(pm.meal.name)+'.':'')+' <button class="btn btn-p btn-sm" data-act="supp-del-ok" '+A+'>Sí, quitar</button><button class="btn btn-g btn-sm" data-act="supp-del-no">Cancelar</button></div>':'')+
       (mac||mic?'<div class="supp-aporta">'+(mac?'<span class="badge orange">'+esc(suppMacTxt(mac))+'</span>':'')+(mic?'<span class="tiny">'+esc(suppMicTxt(mic))+'</span>':'')+'</div>':'')+
       (perdido?'<div class="supp-conf" style="background:none">Ya no está en el menú (se rehízo la comida). <button class="btn btn-g btn-sm" data-act="supp-resync" '+A+'>Volver a ponerlo</button></div>':'')+
-      (s.kcal&&!mac?'<p class="tiny" style="color:var(--orange);margin:0">Tiene calorías pero no tiene macros capturados: ponle sus macros en tu base para que cuenten.</p>':'')+
+      (s.kcal&&!mac?'<p class="tiny u-c-orange u-m0">Tiene calorías pero no tiene macros capturados: ponle sus macros en tu base para que cuenten.</p>':'')+
       ((t2=>t2?'<p class="tiny supp-tip">💡 '+esc(t2)+'</p>':'')(suppTip(aid,s)))+
       (mic||suppTip(aid,s)?'<label class="supp-chk u-m0"><input type="checkbox" data-change="supp-supv" '+A+(s.supv?' checked':'')+'> Dosis terapéutica (con análisis o indicación médica): no la marca en rojo si pasa el límite</label>':'')+
       '<div class="supp-ctl">'+cant+'<div><span class="supp-l">Momento</span><select data-change="supp-f" data-k="timing" '+A+' aria-label="Momento">'+momOpts+'</select></div>'+donde+'</div>'+
@@ -3782,7 +3782,7 @@ function suppBaseForm(aid,bid){
       '<datalist id="sbfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
       '<div class="supp-mgrid"><div><label for="sb_p">Proteína (g)</label><input id="sb_p" inputmode="decimal" value="'+mv(mac.p)+'"></div><div><label for="sb_c">Carbohidratos (g)</label><input id="sb_c" inputmode="decimal" value="'+mv(mac.c)+'"></div><div><label for="sb_f">Grasas (g)</label><input id="sb_f" inputmode="decimal" value="'+mv(mac.f)+'"></div></div></div>'+
     '<details class="supp-sec"'+(hayMic?' open':'')+'><summary class="mg-h u-ptr">Micronutrientes por dosis (opcional)</summary>'+
-      '<p class="tiny" style="margin:6px 0 8px">Cópialos de la etiqueta. Sirven para que veas si la suma de sus suplementos pasa el límite superior (por ejemplo multivitamínico + vitamina D).</p>'+
+      '<p class="tiny u-m0 u-mt8 u-mb8">Cópialos de la etiqueta. Sirven para que veas si la suma de sus suplementos pasa el límite superior (por ejemplo multivitamínico + vitamina D).</p>'+
       '<div class="supp-mgrid">'+SUPP_MIC.map(d=>'<div><label for="sbm_'+d[0]+'">'+esc(d[1])+' ('+d[2]+')</label><input id="sbm_'+d[0]+'" inputmode="decimal" value="'+mv(mic[d[0]])+'"></div>').join('')+'</div></details>'+
     '<p class="tiny mt8">Cambiar tu base no toca lo que ya le recetaste a cada atleta.</p>',
     (bid?'<button class="btn btn-g" data-act="suppb-del" data-aid="'+aid+'" data-bid="'+bid+'" style="margin-right:auto">'+I.trash+' Borrar de mi base</button>':'')+
@@ -3920,14 +3920,14 @@ function pmrRowMac(x){return 'P'+x.p+' C'+x.c+' G'+x.f+' · '+Math.round(x.p*4+x
 function pmrBody(){
   const d=_pmr,fo=S.foods||[];let rows='';
   d.ings.forEach((x,i)=>{
-    if(x.txt!=null){rows+='<div class="meal" style="padding:8px 10px"><div style="display:flex;gap:6px;align-items:center"><input class="u-f1" value="'+esc(x.txt)+'" data-pmr-t="'+i+'" placeholder="Texto libre (p. ej. sal y pimienta al gusto)"><button class="btn btn-g btn-sm" title="Quitar" data-act="pmr-del" data-idx="'+i+'">'+I.x+'</button></div></div>';return;}
+    if(x.txt!=null){rows+='<div class="meal" style="padding:8px 10px"><div class="u-dflex u-gap8 u-aic"><input class="u-f1" value="'+esc(x.txt)+'" data-pmr-t="'+i+'" placeholder="Texto libre (p. ej. sal y pimienta al gusto)"><button class="btn btn-g btn-sm" title="Quitar" data-act="pmr-del" data-idx="'+i+'">'+I.x+'</button></div></div>';return;}
     const st=pmrStep(x),u=x.unit==='g'?'g':x.unit;
     let sw='';
     if(d.eqv===i){
       const ops=eqvOpts(d.aid,x);
       sw='<div class="u-mt8">'+(ops.length?ops.map((o,j)=>'<button class="btn btn-g btn-sm" style="margin:0 6px 6px 0" data-act="pmr-eqv-pick" data-idx="'+i+'" data-j="'+j+'">'+esc(o.food)+' · '+esc(o.qty)+(o.dk?' <span class="tiny">('+(o.dk>0?'+':'')+o.dk+' kcal)</span>':'')+(o.avoid?' <span class="tiny">· evitar</span>':'')+'</button>').join(''):'<p class="tiny">No hay equivalentes con kcal parecidas en tu base para este alimento.</p>')+'</div>';
     }
-    rows+='<div class="meal" style="padding:8px 10px"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="flex:1;min-width:120px">'+esc(x.food)+foodConflictChip(foodConflict(d.aid,x.food))+'</b>'+
+    rows+='<div class="meal" style="padding:8px 10px"><div class="u-dflex u-gap8 u-aic u-wrap"><b style="flex:1;min-width:120px">'+esc(x.food)+foodConflictChip(foodConflict(d.aid,x.food))+'</b>'+
       '<button class="btn btn-g btn-sm" data-act="pmr-q" data-idx="'+i+'" data-d="-1" aria-label="Menos">−</button>'+
       '<input type="number" min="'+st+'" step="'+st+'" value="'+x.grams+'" data-pmr-q="'+i+'" style="width:76px;text-align:center" aria-label="Cantidad de '+esc(x.food)+'"><span class="tiny">'+esc(u)+'</span>'+
       '<button class="btn btn-g btn-sm" data-act="pmr-q" data-idx="'+i+'" data-d="1" aria-label="Más">+</button>'+
@@ -3942,13 +3942,13 @@ function pmrBody(){
   return '<p class="tiny mb8">Los cambios valen solo para este plan; tu recetario no se toca.</p>'+
     '<div class="frow"><label>Nombre</label><input value="'+esc(d.name)+'" data-pmr-f="name"></div>'+
     '<div id="pmr_tot" class="mb8">'+pmrTotHTML()+'</div>'+
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+(pmrHasStruct()?'<button class="btn btn-g btn-sm" data-act="pmr-fit" title="Ajusta cada ingrediente según lo que más aporta (proteína, carbos o grasa) para acercarse a lo que toca en esta comida">'+I.recipe+' Ajustar a lo que toca</button>':'')+(r?'<button class="btn btn-g btn-sm" data-act="pmr-reset" title="Vuelve a la receta tal cual está en tu recetario">Restaurar original</button>':'')+'</div>'+
+    '<div class="u-dflex u-gap8 u-wrap u-mb8">'+(pmrHasStruct()?'<button class="btn btn-g btn-sm" data-act="pmr-fit" title="Ajusta cada ingrediente según lo que más aporta (proteína, carbos o grasa) para acercarse a lo que toca en esta comida">'+I.recipe+' Ajustar a lo que toca</button>':'')+(r?'<button class="btn btn-g btn-sm" data-act="pmr-reset" title="Vuelve a la receta tal cual está en tu recetario">Restaurar original</button>':'')+'</div>'+
     '<h4 class="mg-h">Ingredientes</h4>'+(rows||'<p class="tiny">Sin ingredientes.</p>')+man+
     '<datalist id="pmr_foods">'+fo.map(f=>'<option value="'+esc(f.name)+'"></option>').join('')+'</datalist>'+
-    '<div class="frow2 mt8"><div><input id="pmr_af" list="pmr_foods" placeholder="Busca en tu base o en el catálogo…" autocomplete="off" data-live="food-hint" data-hint-target="pmr_ag" aria-label="Alimento"></div><div style="display:flex;gap:6px"><input class="u-f1" id="pmr_ag" type="number" min="0.5" step="5" placeholder="g o piezas" aria-label="Cantidad"><button class="btn btn-g btn-sm" data-act="pmr-add">'+I.plus+' Añadir</button></div></div>'+fpxHTML('pmr_af')+fpmHTML('pmr_ag')+
+    '<div class="frow2 mt8"><div><input id="pmr_af" list="pmr_foods" placeholder="Busca en tu base o en el catálogo…" autocomplete="off" data-live="food-hint" data-hint-target="pmr_ag" aria-label="Alimento"></div><div class="u-dflex u-gap8"><input class="u-f1" id="pmr_ag" type="number" min="0.5" step="5" placeholder="g o piezas" aria-label="Cantidad"><button class="btn btn-g btn-sm" data-act="pmr-add">'+I.plus+' Añadir</button></div></div>'+fpxHTML('pmr_af')+fpmHTML('pmr_ag')+
     '<button class="btn btn-g btn-sm mt8" data-act="pmr-add-txt">'+I.plus+' Línea de texto (complemento)</button>'+
     '<h4 class="mg-h mt16">Preparación <span class="hint">un paso por línea</span></h4><textarea class="u-w100" rows="5" data-pmr-f="steps">'+esc(d.steps)+'</textarea>'+
-    '<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-pmr-f="toRec"'+(d.toRec?' checked':'')+'> Guardar también en mi recetario como receta nueva</label>';
+    '<label class="u-dflex u-gap8 u-aic u-mt12"><input type="checkbox" data-pmr-f="toRec"'+(d.toRec?' checked':'')+'> Guardar también en mi recetario como receta nueva</label>';
 }
 function pmrRerender(){const b=document.querySelector('#modal-root .modal-b');if(b){const y=b.scrollTop;b.innerHTML=pmrBody();b.scrollTop=y;}}
 function pmrSetQty(i,q){
@@ -4268,7 +4268,7 @@ function superCant(a){if(a.isU)return Math.ceil(a.q-1e-9)+' '+a.lbl;const g=Math
 function superTxt(L){let t='🛒 Lista del súper · '+L.n+' '+(L.n===1?'día':'días')+'\n';FOOD_CATS.forEach(c=>{const g=L.grupos[c];if(!g)return;t+='\n'+c+'\n';g.forEach(a=>{t+='• '+a.food+' — '+superCant(a)+'\n';});});const sl=Object.keys(L.sueltos);if(sl.length){t+='\nDe tus recetas\n';sl.forEach(x=>{t+='• '+x+(L.sueltos[x]>1?' (×'+L.sueltos[x]+')':'')+'\n';});}return t;}
 function superOpen(aid){
   const L=superList(aid);if(!L){openModal('Lista del súper','<div class="empty"><b>Sin menú</b>Tu plan es de macros flexibles; la lista se arma cuando tu coach te da un menú con alimentos.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
-  const ctl=(lbl,v,act)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><span>'+lbl+'</span><span style="display:flex;align-items:center;gap:8px"><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="-1">−</button><b>'+v+'</b><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="1">+</button></span></div>';
+  const ctl=(lbl,v,act)=>'<div class="u-dflex u-aic u-jcsb u-gap8 u-mb8"><span>'+lbl+'</span><span class="u-dflex u-aic u-gap8"><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="-1">−</button><b>'+v+'</b><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="1">+</button></span></div>';
   let h=ctl('¿Para cuántos días compras?',L.n,'super-n');
   if(L.pl.tr!==L.pl.rs){
     h+=ctl('De entreno · '+esc(L.pl.tr.name),L.t,'super-t');
@@ -4469,7 +4469,7 @@ function remainingBars(aid,n){
   const rows=[['Calorías',t.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',t.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',t.c,tgt.c,'g','#52d98a'],['Grasas',t.f,tgt.f,'g','#ffb45c']];
   let bars='';
   rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);
-    const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span style="color:var(--red)">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';
+    const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';
     bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
   return bars;}
 
@@ -4837,7 +4837,7 @@ function drCard(aid){
   const ped=athData(aid).profile.datosPedidos||{};
   const items=pend.slice(0,8).map(x=>'<div class="logitem"><div class="lh"><span class="badge orange">⚠ '+fmtDate(x.date)+'</span><b>'+esc(x.name)+'</b>'+(ped[x.key]?'<span class="badge blue" title="Le mandaste el mensaje por el chat; el aviso sigue hasta que lo corrija">Se lo pediste el '+fmtDate(ped[x.key])+'</span>':'')+'</div>'+
     '<div class="cm">'+esc(x.txt)+'</div>'+
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn btn-g btn-sm" data-act="dr-ok" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Ya lo revisé</button>'+
+    '<div class="u-dflex u-gap8 u-wrap u-mt8"><button class="btn btn-g btn-sm" data-act="dr-ok" data-aid="'+aid+'" data-key="'+esc(x.key)+'">Ya lo revisé</button>'+
     '<button class="btn btn-g btn-sm" data-act="dr-ask" data-aid="'+aid+'" data-key="'+esc(x.key)+'">'+(ped[x.key]?'Volver a pedírselo':'Pedirle que lo corrija')+'</button></div></div>').join('');
   return '<div class="card mb16" id="dr-card" style="border-left:3px solid var(--orange);scroll-margin-top:16px"><h3>⚠ Datos a revisar <span class="hint">'+pend.length+' sin revisar'+(nOk?' · '+nOk+' ya revisado'+(nOk===1?'':'s'):'')+'</span></h3>'+
     '<p class="tiny mb8">Registros que no cuadran. Mientras no los revises, los récords, «Estancado» y «Regresión» que dependan de ellos salen como <b>dudosos</b>. La app no cambia nada sola.</p>'+items+
@@ -4947,7 +4947,7 @@ function revCard(aid){
     (nv.chips.length?'<div class="revchips mb8">'+revChipsHTML(nv)+'</div>':'')+
     revNotaHTML(nv)+
     (n?list+(n>12?'<p class="tiny mt8">… y '+(n-12)+' más abajo, marcadas «nuevo».</p>':''):'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+
-    '<div class="frow" style="margin:12px 0 0"><label>Nota de esta revisión (opcional)</label><textarea id="rev_nota_h" rows="2" placeholder="Qué decidiste o qué queda pendiente"></textarea></div>'+
+    '<div class="frow u-m0 u-mt12"><label>Nota de esta revisión (opcional)</label><textarea id="rev_nota_h" rows="2" placeholder="Qué decidiste o qué queda pendiente"></textarea></div>'+
     '<div class="revbtns u-mt8 u-aic"><span class="tiny">Revisar</span>'+revCadaSel(aid,nv)+'<button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+aid+'" data-nota="rev_nota_h">'+I.check+' Marcar revisado</button></div>'+
     (nv.rv.notas.length>1?'<details class="revhist"><summary class="tiny">Revisiones anteriores con nota ('+(nv.rv.notas.length-1)+')</summary>'+nv.rv.notas.slice(1).map(x=>'<div class="revit"><span class="badge">'+fmtDate(x.date)+'</span><span>'+esc(x.txt)+'</span></div>').join('')+'</details>':'')+'</div>';
 }
@@ -5229,7 +5229,7 @@ const planSinObjetivos=n=>!(n.kcal>0)&&!(n.protein>0)&&!(n.carbs>0)&&!(n.fat>0);
 function macroBars(n,big){
   const kcal=n.kcal||kcalFromMacros(n);
   const rows=[['Proteína',n.protein,'g','#7cd0fb',n.protein*4],['Carbohidratos',n.carbs,'g','#cdf563',n.carbs*4],['Grasas',n.fat,'g','#ffb45c',n.fat*9]];
-  let html=big?'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:18px"><span class="kcal-big">'+kcal+'</span><small style="color:var(--tx2)">kcal / día</small></div>':'';
+  let html=big?'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:18px"><span class="kcal-big">'+kcal+'</span><small class="u-c-tx2">kcal / día</small></div>':'';
   rows.forEach(r=>{const pct=kcal>0?Math.min(100,Math.round(r[4]/kcal*100)):0; /* sin metas, 0 y no NaN */
     html+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+r[1]+' '+r[2]+' · '+pct+'%</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+r[3]+'"></i></div></div>';});
   return html;
@@ -5237,7 +5237,7 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div></div><div class="login-foot">LR Coaching · <a href="#" data-act="show-signup" style="color:var(--volt)">Cuenta coach</a> · <a href="#" data-act="show-ath-signup" style="color:var(--blue)">Soy atleta</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div></div><div class="login-foot">LR Coaching · <a class="u-c-volt" href="#" data-act="show-signup">Cuenta coach</a> · <a class="u-c-blue" href="#" data-act="show-ath-signup">Soy atleta</a></div></div></div>';
   setTimeout(()=>{
     const em=document.getElementById('l_email');if(em)em.focus();
     const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
@@ -5247,12 +5247,12 @@ function renderLogin(){
    pantallas de acceso, se pinta con innerHTML directo porque aquí todavía no hay sesión
    ni estado que render() pueda usar. */
 function renderForgot(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny u-mt8">Escribe el email con el que te diste de alta y te mandamos un enlace para crear una contraseña nueva. Tiene que ser esa misma dirección, no otra.</p><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:var(--fs-3);min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny u-mt8">Escribe el email con el que te diste de alta y te mandamos un enlace para crear una contraseña nueva. Tiene que ser esa misma dirección, no otra.</p><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:var(--fs-3);min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
   setTimeout(()=>{const em=document.getElementById('f_email');if(em){em.focus();em.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-forgot"]')?.click();}});}},50);
 }
 /* Se pinta solo cuando el atleta vuelve del enlace del correo (ver _recovery y el arranque). */
 function renderNewPass(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Elige tu contraseña nueva</p></div><div class="login-card"><h3>Contraseña nueva</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Contraseña</label><input type="password" id="n_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Repítela</label><input type="password" id="n_pass2" placeholder="La misma otra vez" autocomplete="new-password"><button class="btn btn-p" data-act="auth-newpass" style="margin-top:6px;width:100%;padding:12px">Guardar y entrar →</button><div id="n_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot">Este enlace funciona una sola vez</div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Elige tu contraseña nueva</p></div><div class="login-card"><h3>Contraseña nueva</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Contraseña</label><input type="password" id="n_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Repítela</label><input type="password" id="n_pass2" placeholder="La misma otra vez" autocomplete="new-password"><button class="btn btn-p" data-act="auth-newpass" style="margin-top:6px;width:100%;padding:12px">Guardar y entrar →</button><div id="n_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot">Este enlace funciona una sola vez</div></div></div>';
   setTimeout(()=>{const p=document.getElementById('n_pass');if(p){p.focus();}const p2=document.getElementById('n_pass2');if(p2)p2.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-newpass"]')?.click();}});},50);
 }
 function navItemsFor(u){
@@ -5600,7 +5600,7 @@ const ACTIONS={
     await initAfterAuth(data.user);
   },
   'show-signup':async(el)=>{
-    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Crea tu cuenta de coach</p></div><div class="login-card"><h3>Registro</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Nombre</label><input type="text" id="r_name" placeholder="Tu nombre"><label class="u-mt4">Email</label><input type="email" id="r_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="r_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Código de acceso</label><input type="text" id="r_code" placeholder="Código de invitación" autocomplete="off"><button class="btn btn-p" data-act="auth-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="r_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Crea tu cuenta de coach</p></div><div class="login-card"><h3>Registro</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Nombre</label><input type="text" id="r_name" placeholder="Tu nombre"><label class="u-mt4">Email</label><input type="email" id="r_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="r_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Código de acceso</label><input type="text" id="r_code" placeholder="Código de invitación" autocomplete="off"><button class="btn btn-p" data-act="auth-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="r_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
     setTimeout(()=>{document.getElementById('r_name')?.focus();},50);
   },
   'back-login':()=>render(),
@@ -5710,7 +5710,7 @@ const ACTIONS={
       '<button class="btn btn-p" data-act="modal-close">Listo</button>');
   },
   'show-ath-signup':()=>{
-    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3><div style="display:flex;flex-direction:column;gap:10px;margin-top:14px"><label>Nombre</label><input type="text" id="a_name" placeholder="Tu nombre"><label class="u-mt4">Email</label><input type="email" id="a_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="a_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Código de atleta</label><input type="text" id="a_code" placeholder="Código que te dio tu coach" autocomplete="off" style="text-transform:uppercase"><button class="btn btn-p" data-act="auth-ath-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="a_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a href="#" data-act="back-login" style="color:var(--volt)">← Volver al login</a></div></div></div>';
+    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Nombre</label><input type="text" id="a_name" placeholder="Tu nombre"><label class="u-mt4">Email</label><input type="email" id="a_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="a_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Código de atleta</label><input type="text" id="a_code" placeholder="Código que te dio tu coach" autocomplete="off" style="text-transform:uppercase"><button class="btn btn-p" data-act="auth-ath-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="a_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
     setTimeout(()=>{document.getElementById('a_name')?.focus();},50);
   },
   'auth-ath-signup':async()=>{
@@ -5947,7 +5947,7 @@ VIEWS['ath-perfil']=function(u){
   const aid=u.id,p=(athData(aid)&&athData(aid).profile)||{};
   const em=(_supabaseUser&&_supabaseUser.email)||'';
   const unit=weightUnitForAid(aid);
-  const unidad=svcOf(aid).tr?('<div class="frow"><label>Unidad de las cargas de entrenamiento</label><div style="display:flex;gap:8px">'+
+  const unidad=svcOf(aid).tr?('<div class="frow"><label>Unidad de las cargas de entrenamiento</label><div class="u-dflex u-gap8">'+
     '<button class="btn btn-sm '+(unit==='kg'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="kg">kg</button>'+
     '<button class="btn btn-sm '+(unit==='lb'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="lb">lb</button></div></div>'):'';
   const datos='<div class="card"><h3>Mis datos <span class="hint">tu coach los ve y los usa en tus cálculos</span></h3>'+
@@ -5956,16 +5956,16 @@ VIEWS['ath-perfil']=function(u){
     '<div><label>Edad (años)</label><input id="pf_age" type="number" inputmode="numeric" value="'+esc(p.age||'')+'"></div>'+
     '<div><label>Sexo</label><select id="pf_sex"><option value="M"'+(p.sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(p.sex==='F'?' selected':'')+'>Mujer</option></select></div></div>'+
     unidad+
-    '<div style="display:flex;justify-content:flex-end"><button class="btn btn-p" data-act="perfil-save">Guardar datos</button></div></div>';
+    '<div class="u-dflex u-jce"><button class="btn btn-p" data-act="perfil-save">Guardar datos</button></div></div>';
   const cuenta='<div class="card"><h3>Mi acceso <span class="hint">correo y contraseña de tu cuenta</span></h3>'+
     '<div class="frow"><label>Correo</label><input id="pf_email" type="email" value="'+esc(em)+'" autocomplete="email" inputmode="email"></div>'+
     '<p class="tiny" style="margin:-6px 0 10px">Te mandamos un enlace de confirmación al correo nuevo; el cambio se aplica cuando lo abras. Mientras tanto sigues entrando con el actual.</p>'+
-    '<div style="display:flex;justify-content:flex-end"><button class="btn btn-g" data-act="perfil-email">Cambiar correo</button></div>'+
+    '<div class="u-dflex u-jce"><button class="btn btn-g" data-act="perfil-email">Cambiar correo</button></div>'+
     '<div id="pf_email_msg" class="tiny" style="min-height:18px;margin-top:6px"></div>'+
     '<hr style="border:0;border-top:1px solid var(--line);margin:14px 0">'+
     '<div class="frow"><label>Contraseña nueva</label><input id="pf_pass" type="password" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"></div>'+
     '<div class="frow"><label>Repítela</label><input id="pf_pass2" type="password" autocomplete="new-password"></div>'+
-    '<div style="display:flex;justify-content:flex-end"><button class="btn btn-g" data-act="perfil-pass">Cambiar contraseña</button></div>'+
+    '<div class="u-dflex u-jce"><button class="btn btn-g" data-act="perfil-pass">Cambiar contraseña</button></div>'+
     '<div id="pf_pass_msg" class="tiny" style="min-height:18px;margin-top:6px"></div></div>';
   return{title:'Mi perfil',crumb:'Tus datos y tu acceso',body:'<div class="grid g2">'+datos+cuenta+'</div>'};
 };
@@ -5993,7 +5993,7 @@ function accesoAtletaHTML(aid){
   const c=_athEmailCache[aid];
   const txt=c===undefined?'Cargando…':(c===false?'No pude leerlo':(c||'—'));
   return'<div class="frow"><label>Correo del atleta <span class="hint">con el que entra a la app</span></label>'+
-    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="ath_email_txt" data-aid="'+esc(aid)+'" style="word-break:break-all">'+esc(txt)+'</span>'+
+    '<div class="u-dflex u-gap8 u-aic u-wrap"><span id="ath_email_txt" data-aid="'+esc(aid)+'" style="word-break:break-all">'+esc(txt)+'</span>'+
     '<button class="btn btn-g btn-sm" data-act="ath-email-modal" data-aid="'+esc(aid)+'">Cambiar correo</button></div></div>';
 }
 
@@ -6028,14 +6028,14 @@ VIEWS['ajustes']=function(u){
   }).join('');
   const brandCard='<div class="card mb16"><h3>Color de marca <span class="hint">tu identidad, visible para ti y tus atletas</span></h3>'+
     '<p class="tiny u-m0 u-mb16">Elige el color de acento de toda la app. Se guarda en tu cuenta y tus atletas lo heredan automáticamente. En el tema oscuro ajusto el brillo para que siempre se lea bien.</p>'+
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+sw+'</div>'+
+    '<div class="u-dflex u-gap12 u-wrap u-mb16">'+sw+'</div>'+
     '<div class="frow" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">'+
       '<div style="flex:1;min-width:150px"><label>Color personalizado (HEX)</label><input id="brand_hex" value="'+esc(cur)+'" placeholder="#c80508" style="max-width:180px"></div>'+
       '<button class="btn btn-p" data-act="brand-set">Aplicar</button>'+
       '<button class="btn btn-g" data-act="brand-reset">Restablecer</button>'+
     '</div>'+
     '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)"><label>Vista previa</label>'+
-      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">'+
+      '<div class="u-dflex u-gap12 u-aic u-wrap u-mt8">'+
         '<button class="btn btn-p">Botón principal</button>'+
         '<button class="btn btn-d">'+I.trash+' Eliminar</button>'+
         '<span class="chip volt">Acento</span>'+
@@ -6049,7 +6049,7 @@ VIEWS['ajustes']=function(u){
     '<button class="btn btn-g" data-act="cal-config">'+(cal?'Editar link':'Configurar link')+'</button></div>';
   const teamCard='<div class="card"><h3>Equipo de coaches <span class="hint">invitaciones de un solo uso</span></h3>'+
     '<p class="tiny u-m0 u-mb12">Genera un código para dar de alta a otro coach. Al usarlo recibe una <b>copia</b> de tu biblioteca de ejercicios, tu base de alimentos y tu recetario, y a partir de ahí los edita por su cuenta sin tocar los tuyos. Sin código nadie puede crear cuenta de coach.</p>'+
-    '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+    '<div class="u-dflex u-gap12 u-wrap">'+
       '<button class="btn btn-p" data-act="invite-coach-form">Invitar a un coach</button>'+
       '<button class="btn btn-g" data-act="coach-invites-list">Ver códigos generados</button>'+
     '</div></div>';
@@ -6077,7 +6077,7 @@ VIEWS['coach-dash']=function(u){
   if(unreadTotal>0){
     const withMsg=aths.filter(a=>unreadByAth[a.id]>0).sort((a,b)=>unreadByAth[b.id]-unreadByAth[a.id]);
     let chips='';withMsg.forEach(a=>{chips+='<button class="planchip" data-act="nav" data-view="coach-chat" data-params=\'{"aid":"'+a.id+'"}\'>'+esc(a.name)+'<span class="cdot">'+unreadByAth[a.id]+'</span></button>';});
-    msgNotice='<div class="card mb16" style="border-color:var(--volt-40)"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="color:var(--volt);display:flex">'+ICON_CHAT+'</span><b>'+unreadTotal+' mensaje'+(unreadTotal===1?'':'s')+' sin leer</b><span class="tiny">de '+withMsg.length+' atleta'+(withMsg.length===1?'':'s')+'</span><button class="btn btn-g btn-sm u-mlauto" data-act="nav" data-view="coach-chats">Ver todos</button></div><div class="planchips u-mt12">'+chips+'</div></div>';
+    msgNotice='<div class="card mb16" style="border-color:var(--volt-40)"><div class="u-dflex u-aic u-gap12 u-wrap"><span class="u-c-volt u-dflex">'+ICON_CHAT+'</span><b>'+unreadTotal+' mensaje'+(unreadTotal===1?'':'s')+' sin leer</b><span class="tiny">de '+withMsg.length+' atleta'+(withMsg.length===1?'':'s')+'</span><button class="btn btn-g btn-sm u-mlauto" data-act="nav" data-view="coach-chats">Ver todos</button></div><div class="planchips u-mt12">'+chips+'</div></div>';
   }
   const sts={};aths.forEach(a=>{sts[a.id]=athStatus(a.id);});
   /* estancamiento de peso actual de cada atleta activo (el mismo cálculo del semáforo del Resumen) */
@@ -6113,12 +6113,12 @@ VIEWS['coach-dash']=function(u){
       '<span class="m">Entrenos<b>'+ww.done+' / '+ww.total+' <small class="'+pend.cls+'">'+pend.txt+'</small></b></span>'+
       '<span class="m">Adherencia<b>'+(adh!=null?adh+' / 5':'—')+'</b></span>'+
       '<span class="m">Último<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="badge" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
+      '<div class="u-dflex u-gap8 u-wrap"><span class="badge" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
       (function(){const z=stalls[a.id];if(!z)return'';return z.recomp?'<span class="badge" title="Peso estancado pero la cintura bajó '+Math.abs(z.waist.delta)+' cm">Recomposición · '+z.n+' sem</span>':'';})()+
             (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
       '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+'</div></div>';
   });
-  if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>Nadie en este estado</b>Cambia el filtro para ver al resto de atletas.</div>';
+  if(!cards)cards='<div class="empty u-span"><b>Nadie en este estado</b>Cambia el filtro para ver al resto de atletas.</div>';
   return{title:'Panel',crumb:fmtDateFull(todayISO())+' · '+(aths.length-counts.inactivo)+' atleta'+((aths.length-counts.inactivo)===1?'':'s')+' activo'+((aths.length-counts.inactivo)===1?'':'s'),
     actions:'<button class="btn btn-p" data-act="ath-new-modal">'+I.plus+' Nuevo atleta</button>',
     body:'<div class="grid g4 mb16">'+
@@ -6255,7 +6255,7 @@ function coachTabResumen(aid){
     '<p class="tiny" style="margin:-6px 0 14px">'+(function(){const st=athStatus(aid);return'<span class="badge '+st.cls+'">'+st.lbl+'</span>'+(st.hint?' '+esc(st.hint)+' · ':' ');})()+'<button class="exlink" data-act="mem-renew" data-aid="'+aid+'">Renovar +4 semanas</button></p>'+
     accesoAtletaHTML(aid)+
     '<div class="frow"><label>Notas internas (solo las ves tú)</label><textarea id="f_notes">'+esc(d.profile.notes)+'</textarea></div>'+
-    '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="btn btn-d btn-sm" data-act="ath-del-ask" data-aid="'+aid+'">'+I.trash+' Eliminar atleta</button><button class="btn btn-p" data-act="profile-save" data-aid="'+aid+'">Guardar perfil</button></div></div>')+
+    '<div class="u-dflex u-jcsb u-gap8 u-wrap"><button class="btn btn-d btn-sm" data-act="ath-del-ask" data-aid="'+aid+'">'+I.trash+' Eliminar atleta</button><button class="btn btn-p" data-act="profile-save" data-aid="'+aid+'">Guardar perfil</button></div></div>')+
     (sv.tr?secPleg('plc-perfil-tr',I.dumbbell+' Perfil de entrenamiento','','lesiones y ejercicios que evitar o le gustan','<div>'+
       '<div class="frow"><label>Lesiones o limitaciones</label><textarea id="f_inj" placeholder="Ej. molestia de hombro en presses verticales, hernia lumbar, rodilla…">'+esc(tr.injuries||'')+'</textarea></div>'+
       '<div class="frow2"><div><label>Ejercicios que NO le gustan / evitar</label><textarea id="f_exdis" placeholder="Ej. sentadilla trasera, zancadas…">'+esc(tr.dislikes||'')+'</textarea></div><div><label>Ejercicios que le gustan mucho</label><textarea id="f_exlike" placeholder="Ej. remo con barra, press banca…">'+esc(tr.likes||'')+'</textarea></div></div>'+
@@ -6377,7 +6377,7 @@ function coachTabRutina(aid){
   const diasHTML=secPleg('pl-dias','3 · Rutina por día','',nDias?'<span class="badge">'+nDias+' día'+(nDias>1?'s':'')+'</span>':'',
     '<div class="daytabs">'+tabs+'</div>'+(days?'':'<div class="empty mb16"><b>Sin días todavía</b>Añade el primer día de entrenamiento.</div>')+'<div class="daygrid">'+days+'<button class="dayblk daycol add" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Añadir día</button></div>');
   return secPleg('pl-prog','Programa actual','',r.name?'<span class="badge">'+esc(r.name)+'</span>':'','<div class="frow2"><div><label>Nombre del programa</label><input id="r_name" value="'+esc(r.name)+'"></div><div><label>Indicación de la semana</label><input id="r_week" value="'+esc(r.weekNote)+'"></div></div>'+
-  '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-g" data-act="tpl-apply-modal" data-kind="routine" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g" data-act="tpl-save-modal" data-kind="routine" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div>')+volHTML+diasHTML;
+  '<div class="u-dflex u-gap8 u-jce u-wrap"><button class="btn btn-g" data-act="tpl-apply-modal" data-kind="routine" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g" data-act="tpl-save-modal" data-kind="routine" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p" data-act="routine-meta-save" data-aid="'+aid+'">Guardar</button></div>')+volHTML+diasHTML;
 }
 
 function coachTabVolumen(aid){
@@ -6393,7 +6393,7 @@ function coachTabVolumen(aid){
   const emphBadge=emA.length?'<span class="chip" style="border-color:var(--blue);color:var(--blue)" title="Músculos enfatizados en este split'+(d.routine.emphRandom?' (elegidos al azar entre grupos grandes)':'')+'">★ Énfasis'+(d.routine.emphRandom?' auto':'')+': '+esc(emA.join(', '))+'</span>':'';
   const regenBtn=d.routine.autoSplitCfg?'<button class="btn btn-g btn-sm" data-act="split-auto-regen" data-aid="'+aid+'" title="Genera otra variante con la misma configuración (varía ejercicios y, si el énfasis es automático, los grupos enfatizados).">'+I.refresh+' Regenerar</button>':'';
   const ctxRes='<span class="badge">'+esc((EXPERIENCES.find(e=>e[0]===exp)||[0,exp])[1])+' · '+esc(phaseName(phase))+' · Bloque '+block+'</span>';
-  const ctx=secPleg('pl-ctx','Contexto del atleta','determina el volumen, el RIR y las cargas recomendadas',ctxRes,'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-bottom:12px">'+emphBadge+regenBtn+'<button class="btn btn-p btn-sm" data-act="split-auto-ask" data-aid="'+aid+'" title="Genera el split completo (estructura de días + reparto de volumen + ejercicios) según los días/semana y las prioridades. Editable después.">'+I.refresh+' Generar split automático</button></div>'+
+  const ctx=secPleg('pl-ctx','Contexto del atleta','determina el volumen, el RIR y las cargas recomendadas',ctxRes,'<div class="u-dflex u-gap8 u-aic u-wrap u-jce u-mb12">'+emphBadge+regenBtn+'<button class="btn btn-p btn-sm" data-act="split-auto-ask" data-aid="'+aid+'" title="Genera el split completo (estructura de días + reparto de volumen + ejercicios) según los días/semana y las prioridades. Editable después.">'+I.refresh+' Generar split automático</button></div>'+
     '<div class="ctx-bar"><div class="fld"><label>Experiencia</label><select data-change="ctx-exp" data-aid="'+aid+'">'+eopts+'</select></div>'+
     '<div class="fld"><label>Fase actual</label><select data-change="ctx-phase" data-aid="'+aid+'">'+popts+'</select></div>'+
     '<div class="fld"><label>Bloque del período</label><select data-change="ctx-block" data-aid="'+aid+'">'+bopts+'</select></div></div>'+
@@ -6471,10 +6471,10 @@ function coachTabVolumen(aid){
   const staleCtx=staleList.length?((p.volTargetsCtx||{})[staleList[0]]||''):'';
   const staleBox=staleList.length?'<div class="volstale"><span>⚠ <b>'+staleList.length+' grupo'+(staleList.length>1?'s tienen metas':' tiene una meta')+' del bloque anterior</b> ('+esc(volCtxLabel(staleCtx))+'). El atleta ya está en <b>'+esc(phaseName(phase)+' · Bloque '+block)+'</b>: la banda recomendada cambió, tus metas no. Están marcadas con borde punteado.</span><button class="btn btn-g btn-sm" data-act="voltargets-auto-ask" data-aid="'+aid+'">Rellenar metas con el recomendado de esta fase</button></div>':'';
   const volRes=(nOk?'<span class="badge green">'+nOk+' bien</span>':'')+(nAjuste?'<span class="badge orange">'+nAjuste+' por ajustar</span>':'')+(staleList.length||zBits.length?'<span class="badge orange">⚠ avisos</span>':'');
-  const table=secPleg('pl-vol','1 · Volumen semanal por grupo','tu meta del bloque frente a lo que suma la rutina',volRes,'<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-g btn-sm" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></div>'+
+  const table=secPleg('pl-vol','1 · Volumen semanal por grupo','tu meta del bloque frente a lo que suma la rutina',volRes,'<div class="u-dflex u-jce u-mb12"><button class="btn btn-g btn-sm" title="Infiere prioridades y distribución desde los ejercicios ya programados en la rutina actual" data-act="voltargets-from-routine" data-aid="'+aid+'">Calcular desde rutina</button></div>'+
     prioBoard(aid,pcols,exp,phase)+staleBox+zeroBox+
     '<details class="acc mt12" id="pl-voltbl"><summary>Tabla detallada<span class="acc-tag">banda VM·VME·VMA·VMR y barra por grupo</span>'+WK_CHEV+'</summary><div class="acc-body">'+
-    '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">Prioridad</th><th>Grupo muscular</th><th style="width:130px">Recomendado</th><th style="width:78px">Meta</th><th style="width:105px">Programado</th><th style="width:110px">VM·VME·VMA·VMR</th><th style="width:140px">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div></div></details>'+
+    '<div class="tblwrap"><table class="tbl"><thead><tr><th class="u-w130">Prioridad</th><th>Grupo muscular</th><th class="u-w130">Recomendado</th><th style="width:78px">Meta</th><th style="width:105px">Programado</th><th class="u-w110">VM·VME·VMA·VMR</th><th class="u-w140">Estado</th></tr></thead><tbody>'+trs+'</tbody></table></div></div></details>'+
     '<p class="tiny mt8"><b>Meta</b> son las series semanales que tú decides para este bloque — se puede escribir siempre, tenga o no ejercicios el grupo. <b>Programado</b> son las series directas que ya suman los ejercicios vinculados. Con meta escrita, el estado te dice cuánto falta o sobra para cumplirla; si la dejas vacía, se compara contra la banda recomendada. Una meta con el número en naranja queda fuera de esa banda. <a class="u-ptr" data-act="nav" data-view="ref" data-params="{}">Ver referencias →</a></p>');
 
   return ctx+table+coachDistSesiones(aid);
@@ -6566,7 +6566,7 @@ function coachDistSesiones(aid){
   const d=athData(aid),p=d.profile,days=d.routine.days;
   const tgts=p.volTargets||{};
   /* gestor de sesiones */
-  let sess='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">';
+  let sess='<div class="u-dflex u-gap8 u-wrap u-aic u-mb16">';
   days.forEach((day,di)=>{sess+='<span class="badge">D'+(di+1)+' · '+esc(day.name)+' <button style="color:var(--tx3);line-height:0;margin-left:4px" title="Renombrar sesión" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button style="color:var(--tx3);line-height:0" title="Eliminar sesión" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.x+'</button></span>';});
   sess+='<button class="btn btn-g btn-sm" data-act="day-add-modal" data-aid="'+aid+'">'+I.plus+' Añadir sesión</button></div>';
   if(!days.length)return secPleg('pl-dist','2 · Sesiones y distribución del objetivo','','',sess+'<div class="empty"><b>Define primero tus sesiones</b>Crea los días de entrenamiento y reparte en ellos el objetivo semanal de cada grupo.</div>');
@@ -6580,7 +6580,7 @@ function coachDistSesiones(aid){
   const dGroups=GROUPS.filter(g=>(tgts[g]!=null&&tgts[g]!=='')||progDay[g]||days.some(day=>((day.plan||{})[g]||0)>0));
   let head='<tr><th>Grupo</th>';
   days.forEach((day,di)=>{head+='<th class="u-tc" title="'+esc(day.name)+'">D'+(di+1)+'</th>';});
-  head+='<th style="width:64px">Plan Σ</th><th style="width:80px">Objetivo</th><th style="width:56px">Δ</th></tr>';
+  head+='<th class="u-w64">Plan Σ</th><th class="u-w80">Objetivo</th><th class="u-w56">Δ</th></tr>';
   let trs2='',nDescuadre=0;
   dGroups.forEach(g=>{
     let tot=0,cells='';
@@ -6604,7 +6604,7 @@ function coachDistSesiones(aid){
   const distRes='<span class="badge">'+days.length+' sesion'+(days.length>1?'es':'')+'</span>'+(nDescuadre?'<span class="badge orange">'+nDescuadre+' grupo'+(nDescuadre>1?'s':'')+' sin cuadrar</span>':'');
   return secPleg('pl-dist','2 · Sesiones y distribución del objetivo','planifica series por sesión antes de elegir ejercicios',distRes,sess+
     '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead>'+head+'</thead><tbody>'+trs2+totRow+'</tbody></table></div>'+
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center"><button class="btn btn-g" data-act="plan-auto" data-aid="'+aid+'">Repartir objetivos automáticamente</button>'+
+    '<div class="u-dflex u-gap12 u-wrap u-mt12 u-aic"><button class="btn btn-g" data-act="plan-auto" data-aid="'+aid+'">Repartir objetivos automáticamente</button>'+
     '<button class="btn btn-p" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"entrenamiento"}\' onclick="setTimeout(()=>{const e=document.getElementById(\'pl-dias\');if(e){e.open=true;e.scrollIntoView({behavior:\'smooth\',block:\'start\'});}},100)">3 · Construir la rutina ↓</button></div>'+
     '<p class="tiny mt8">El reparto automático usa la guía del material: 1 sesión por cada 4-10 series del grupo (≈8 por sesión), mínimo 2 estímulos si se busca crecimiento, equilibrando la carga entre días. «prog.» indica lo ya cubierto por ejercicios reales; en la pestaña Rutina cada día muestra qué falta del plan.</p>');
 }
@@ -6700,7 +6700,7 @@ function coachTabNutri(aid){
   if(ap.mode==='menu'){
     const tot=planMenuTotals(ap),tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
     const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
-    let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span style="color:var(--red)">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
+    let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     const MT=mealTargetsOf(ap),nM=(ap.meals||[]).length,dp0=n.dietProfile||{};
     const bt=(act,m,ic,tl,extra)=>'<button class="btn btn-g btn-sm btn-mi" data-act="'+act+'" data-aid="'+aid+'" data-meal="'+m.id+'"'+(extra||'')+' title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';
     const mHead=(m,i)=>{const mt=mealMacros(m);
@@ -6745,7 +6745,7 @@ function coachTabNutri(aid){
     tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);tot.kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
     const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
     const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
-    let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span style="color:var(--red)">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
+    let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     let ms='';
     mm.forEach(m=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'');ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="'+(m.recipe?'pmeal-recipe-edit':'pmacmeal-edit')+'" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
     macMealsHTML='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmacmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
@@ -6757,7 +6757,7 @@ function coachTabNutri(aid){
   const dp=n.dietProfile||{};
   const dietCard='<div class="card mb16"><h3>'+I.food+' Perfil de alimentación <span class="hint">gustos, alergias e intolerancias del atleta</span></h3>'+
     '<div class="frow2"><div><label>Alimentos que le gustan</label><textarea id="dp_likes" placeholder="Ej. arroz, pollo, avena, fruta…">'+esc(dp.likes||'')+'</textarea></div><div><label>Alimentos que NO le gustan / evitar</label><textarea id="dp_dislikes" placeholder="Ej. pescado azul, brócoli…">'+esc(dp.dislikes||'')+'</textarea></div></div>'+
-    '<div class="frow2"><div><label>Alergias <span class="tiny" style="color:var(--red)">(evitar siempre)</span></label><textarea id="dp_allerg" placeholder="Ej. frutos secos, marisco…">'+esc(dp.allergies||'')+'</textarea></div><div><label>Intolerancias</label><textarea id="dp_intol" placeholder="Ej. lactosa, gluten…">'+esc(dp.intolerances||'')+'</textarea></div></div>'+
+    '<div class="frow2"><div><label>Alergias <span class="tiny u-c-red">(evitar siempre)</span></label><textarea id="dp_allerg" placeholder="Ej. frutos secos, marisco…">'+esc(dp.allergies||'')+'</textarea></div><div><label>Intolerancias</label><textarea id="dp_intol" placeholder="Ej. lactosa, gluten…">'+esc(dp.intolerances||'')+'</textarea></div></div>'+
     '<div class="frow"><label>Notas de alimentación (contexto)</label><textarea id="dp_notes" placeholder="Horarios, nº de comidas preferido, presupuesto, turnos…">'+esc(dp.notes||'')+'</textarea></div>'+
     (dp.allergies||dp.dislikes?'<div class="notebox u-bl-orange u-mb16">⚠️ Al armar menús evita: '+esc([dp.allergies,dp.dislikes].filter(Boolean).join(' · '))+'</div>':'')+
     '<div class="u-tr"><button class="btn btn-p" data-act="dietprofile-save" data-aid="'+aid+'">Guardar perfil de alimentación</button></div></div>';
@@ -6825,8 +6825,8 @@ function dietCompute(dc){
   const protein=Math.round(protGkg*protRef);
   const fat=fatmode==='gkg'?Math.round(fatVal*W):Math.round(target*(fatVal/100)/9);
   let carbs=Math.round((target-(protein*4+fat*9))/4),warn='';
-  if(carbs<0){carbs=0;warn='<p class="tiny" style="color:var(--red)">⚠ Proteína + grasa superan las kcal objetivo. Baja la grasa o la proteína.</p>';}
-  if(protbase==='ffm'&&FFM<=0)warn+='<p class="tiny" style="color:var(--orange)">Pediste proteína por MLG pero no hay MLG; se usó el peso corporal.</p>';
+  if(carbs<0){carbs=0;warn='<p class="tiny u-c-red">⚠ Proteína + grasa superan las kcal objetivo. Baja la grasa o la proteína.</p>';}
+  if(protbase==='ffm'&&FFM<=0)warn+='<p class="tiny u-c-orange">Pediste proteína por MLG pero no hay MLG; se usó el peso corporal.</p>';
   let ratePct=0;
   if(dir!==0)ratePct=(adjtype==='pct')?dir*adjval:+((dir*adjval*7/KCAL_PER_KG)/W*100).toFixed(2);
   return{W,bf,FFM,eqs,eqKey:dc.eq,chosen,rmr,tdee,methodTxt,delta,goalTxt,target,
@@ -6860,7 +6860,7 @@ function buildDietCalc(aid){
      cambiar sus objetivos sin que el coach lo pida sería peor que dejarlo desactualizado */
   const lw=lastWeight(aid);
   const stale=(saved&&lw&&dcN(saved.w)&&Math.abs(dcN(saved.w)-lw.kg)>0.05)
-    ?'<p class="tiny" style="color:var(--orange);margin:6px 0 0">El atleta pesa ahora <b>'+lw.kg+' kg</b> y este cálculo se hizo con '+dcN(saved.w)+' kg. Actualiza el peso y vuelve a calcular.</p>':'';
+    ?'<p class="tiny u-c-orange u-m0 u-mt8">El atleta pesa ahora <b>'+lw.kg+' kg</b> y este cálculo se hizo con '+dcN(saved.w)+' kg. Actualiza el peso y vuelve a calcular.</p>':'';
   /* el resultado se rehace en cada render a partir de lo guardado */
   let res='';
   if(saved){const r=dietCompute(dc);if(!r.err){DIETRES={aid,kcal:r.target,protein:r.protein,carbs:r.carbs,fat:r.fat,ratePct:r.ratePct};res=dietResultHTML(aid,r);}}
@@ -6875,7 +6875,7 @@ function buildDietCalc(aid){
   '<hr class="hr"><label class="u-fw6">Gasto energético total</label>'+
   '<div class="frow2 u-mt8"><div><label>Factor de actividad (PAL)</label><select id="dc_pal">'+palopts+'</select></div>'+
   '<div><label>O factor manual (opcional)</label><input id="dc_palman" type="number" step="0.01" value="'+esc(dc.palman||'')+'" placeholder="ej. 1.65"></div></div>'+
-  '<p class="tiny" style="margin:4px 0 4px">Si rellenas el factor manual se usa ese valor en lugar del desplegable. TDEE = TMB × factor.</p>'+
+  '<p class="tiny u-m0 u-mt4 u-mb4">Si rellenas el factor manual se usa ese valor en lugar del desplegable. TDEE = TMB × factor.</p>'+
   '<hr class="hr"><label class="u-fw6">Objetivo</label>'+
   '<div class="frow3 u-mt8"><div><label>Dirección</label><select id="dc_goal"><option value="0"'+sel('0',dc.goal)+'>Mantenimiento</option><option value="-1"'+sel('-1',dc.goal)+'>Déficit (perder grasa)</option><option value="1"'+sel('1',dc.goal)+'>Superávit (ganar masa)</option></select></div>'+
   '<div><label>Tipo de ajuste</label><select id="dc_adjtype"><option value="pct"'+sel('pct',dc.adjtype)+'>% del peso por semana</option><option value="kcal"'+sel('kcal',dc.adjtype)+'>kcal fijas/día</option></select></div>'+
@@ -6909,7 +6909,7 @@ function buildMacroGuide(aid){
   if(!W) return '<div class="card mb16"><h3>'+I.food+' Guía de macros y timing <span class="hint">rangos basados en evidencia</span></h3><div class="empty"><b>Falta el peso del atleta</b>Registra un peso corporal para calcular los gramos por kg.</div></div>';
   const r=x=>Math.round(x);
   const gw=(lo,hi)=>r(lo*W)+(hi?'–'+r(hi*W):'')+' g';          /* gramos por PESO corporal */
-  const gf=(lo,hi)=>FFM?(r(lo*FFM)+(hi?'–'+r(hi*FFM):'')+' g'):'<span style="color:var(--tx3)">—</span>';/* por MLG */
+  const gf=(lo,hi)=>FFM?(r(lo*FFM)+(hi?'–'+r(hi*FFM):'')+' g'):'<span class="u-c-tx3">—</span>';/* por MLG */
   const ffmTag=FFM?(' · MLG '+FFM+' kg ('+bf+'% grasa)'):' · sin % grasa en el perfil';
 
   /* A · Rangos recomendados de macros (mín/máx) */
@@ -6950,9 +6950,9 @@ function buildMacroGuide(aid){
   const protRows=[
     ['Total diaria — objetivo','1.6–2.2 g/kg',gw(1.6,2.2),gf(1.6,2.2)],
     ['Total diaria — en déficit','2.3–3.1 g/kg',gw(2.3,3.1),gf(2.3,3.1)],
-    ['Post-ejercicio (por toma, inmediato–2 h)','0.25–0.40 g/kg',gw(0.25,0.40)+' <span class="tiny">(≈20–40 g)</span>','<span style="color:var(--tx3)">—</span>'],
+    ['Post-ejercicio (por toma, inmediato–2 h)','0.25–0.40 g/kg',gw(0.25,0.40)+' <span class="tiny">(≈20–40 g)</span>','<span class="u-c-tx3">—</span>'],
     ['Por comida — óptimo (mín. 4 comidas)','0.4 g/kg',gw(0.4),gf(0.4)],
-    ['Pre-sueño (caseína)','30–40 g fijos','30–40 g','<span style="color:var(--tx3)">—</span>']
+    ['Pre-sueño (caseína)','30–40 g fijos','30–40 g','<span class="u-c-tx3">—</span>']
   ];
   let mD='';protRows.forEach(x=>{mD+='<tr><td>'+x[0]+'</td><td>'+x[1]+'</td><td class="num"><b>'+x[2]+'</b></td><td class="num">'+x[3]+'</td></tr>';});
 
@@ -6970,9 +6970,9 @@ function buildMacroGuide(aid){
 
     '<h4 class="mg-h">'+dot('#7cd0fb')+'Proteína: total y post-ejercicio — por peso y por MLG</h4>'+
     '<div class="tblwrap mb16"><table class="tbl"><thead><tr><th>Concepto</th><th>g/kg</th><th class="num">Por peso ('+W+' kg)</th><th class="num">Por MLG'+(FFM?' ('+FFM+' kg)':'')+'</th></tr></thead><tbody>'+mD+'</tbody></table></div>'+
-    (FFM?'':'<p class="tiny" style="color:var(--orange)">Añade el % de grasa corporal en el perfil del atleta para calcular la columna por MLG.</p>')+
+    (FFM?'':'<p class="tiny u-c-orange">Añade el % de grasa corporal en el perfil del atleta para calcular la columna por MLG.</p>')+
 
-    '<p class="tiny mt8" style="color:var(--tx3)">Fuentes (PubMed): ISSN Proteína y ejercicio (Jäger 2017, <a href="https://doi.org/10.1186/s12970-017-0177-8" target="_blank">DOI</a>) · ISSN Nutrient timing (Kerksick 2017, <a href="https://doi.org/10.1186/s12970-017-0189-4" target="_blank">DOI</a>) · AND/DC/ACSM Nutrition & Athletic Performance (Thomas 2016, <a href="https://doi.org/10.1016/j.jand.2015.12.006" target="_blank">DOI</a>) · Morton meta-análisis, BJSM 2018 (<a href="https://doi.org/10.1136/bjsports-2017-097608" target="_blank">DOI</a>) · Schoenfeld & Aragon, proteína por comida 2018 (<a href="https://doi.org/10.1186/s12970-018-0215-1" target="_blank">DOI</a>). Coincide con los PDF de tus carpetas.</p>'+
+    '<p class="tiny mt8 u-c-tx3">Fuentes (PubMed): ISSN Proteína y ejercicio (Jäger 2017, <a href="https://doi.org/10.1186/s12970-017-0177-8" target="_blank">DOI</a>) · ISSN Nutrient timing (Kerksick 2017, <a href="https://doi.org/10.1186/s12970-017-0189-4" target="_blank">DOI</a>) · AND/DC/ACSM Nutrition & Athletic Performance (Thomas 2016, <a href="https://doi.org/10.1016/j.jand.2015.12.006" target="_blank">DOI</a>) · Morton meta-análisis, BJSM 2018 (<a href="https://doi.org/10.1136/bjsports-2017-097608" target="_blank">DOI</a>) · Schoenfeld & Aragon, proteína por comida 2018 (<a href="https://doi.org/10.1186/s12970-018-0215-1" target="_blank">DOI</a>). Coincide con los PDF de tus carpetas.</p>'+
     '</details></div>';
 }
 
@@ -7113,7 +7113,7 @@ function coachTabRegistros(aid){
         const det=[s.k?skipLbl(s.why):'',nSets?nSets+(nSets===1?' serie':' series')+' sin completar':''].filter(Boolean).join(' · ');
         li+='<div class="logitem u-m0 u-mb8"><div class="lh">'+cab+'<b>'+esc(nm)+'</b><span class="tiny">'+esc(det)+'</span></div>'+(s.cm?'<div class="cm">'+esc(s.cm)+'</div>':'')+'</div>';
       });
-      skHTML='<div class="u-mt8"><div class="tiny" style="margin-bottom:5px;font-weight:700;color:var(--tx2)">Lo que no se cumplió</div>'+li+'</div>';
+      skHTML='<div class="u-mt8"><div class="tiny u-mb4 u-fw7 u-c-tx2">Lo que no se cumplió</div>'+li+'</div>';
     }
     const miss=isMissed(w),part=w.status==='partial';
     /* Una sesión corregida días después cambia números de una semana que quizá ya diste por
@@ -7346,7 +7346,7 @@ function pgSemTabla(aid,win,wk){
   let body='';
   R.forEach(([lbl,k])=>{
     const vals=C.map(c=>c[k]).filter(v=>v!=null);
-    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>td(i)+(k==='faltas'&&c[k]?'<b style="color:var(--red)">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#7cd0fb'))+'</td></tr>';
+    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>td(i)+(k==='faltas'&&c[k]?'<b class="u-c-red">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#7cd0fb'))+'</td></tr>';
   });
   if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map((c,i)=>td(i)+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#7cd0fb')+'</td></tr>';
   body+='<tr><td class="exname">Fatiga (check-in)</td>'+C.map((c,i)=>td(i)+(c.fq?'<span class="badge '+fqDecision(c.fq.total).cls+'" title="'+esc(fqDecision(c.fq.total).short)+'">'+c.fq.total+'/15</span>':'—')+'</td>').join('')+'<td></td></tr>';
@@ -7444,7 +7444,7 @@ function pgPairCompare(aid,win){
   const fTxt=f=>f?(f.total+'/15 · '+fqDecision(f.total).short):'sin check-in';
   const fCls=f=>f?fqDecision(f.total).cls:'';
   const fatLine='<div class="notebox mt16 u-bl-blue">Contexto de fatiga · <b>A '+esc(lab(A))+':</b> <span class="badge '+fCls(fA)+'">'+fTxt(fA)+'</span> · <b>B '+esc(lab(B))+':</b> <span class="badge '+fCls(fB)+'">'+fTxt(fB)+'</span><div class="tiny mt8">Si B rinde menos con fatiga alta, puede ser acumulación de cansancio más que pérdida real de forma; si rinde más con fatiga baja, la progresión es sólida.</div></div>';
-  const resumen='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px"><span class="badge volt">▲ '+up+' subieron</span><span class="badge red">▼ '+down+' bajaron</span><span class="badge">= '+eq+' igual</span><span class="tiny" style="align-self:center">'+esc(lab(A))+' → '+esc(lab(B))+'</span></div>';
+  const resumen='<div class="u-dflex u-gap8 u-wrap u-m0 u-mt4 u-mb12"><span class="badge volt">▲ '+up+' subieron</span><span class="badge red">▼ '+down+' bajaron</span><span class="badge">= '+eq+' igual</span><span class="tiny" style="align-self:center">'+esc(lab(A))+' → '+esc(lab(B))+'</span></div>';
   const table='<div class="tblwrap"><table class="tbl"><thead><tr><th>Ejercicio</th><th>A · '+esc(lab(A))+'</th><th>B · '+esc(lab(B))+'</th><th>Δ 1RM</th><th>Δ vol</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   return wrap(sel+cabB+resumen+table+totals+fatLine+'<p class="tiny mt8">«vol» = tonelaje del ejercicio (Σ peso×reps). 🏆 = récord histórico · «calidad» = mismo peso pero mejores reps/RIR. Δ compara B respecto a A.</p>');
 }
@@ -7976,7 +7976,7 @@ Object.assign(ACTIONS,{
     const pcts=[100,95,90,85,80,75,70,65];
     let prows='';pcts.forEach(p=>{const load=Math.round(avg*p/100*2)/2;const reps=p>=100?1:Math.max(1,Math.round(30*(100/p-1)));prows+='<tr'+(p===100?' style="background:var(--purple-12)"':'')+'><td class="num"><b>'+p+'%</b></td><td class="num">'+load+' kg</td><td class="num tiny">~'+reps+' rep'+(reps>1?'s':'')+'</td></tr>';});
     const html='<hr class="hr"><div class="grid g3 mb16">'+
-      '<div class="stat"><div class="k">1RM estimado</div><div class="v" style="color:var(--purple)">'+avg+'<small> kg</small></div><div class="sub">promedio Epley·Brzycki</div></div>'+
+      '<div class="stat"><div class="k">1RM estimado</div><div class="v u-c-purple">'+avg+'<small> kg</small></div><div class="sub">promedio Epley·Brzycki</div></div>'+
       '<div class="stat"><div class="k">Epley</div><div class="v">'+ep+'<small> kg</small></div><div class="sub">'+w+' kg × '+eff+(useRir&&rir!=null?' reps efect.':' reps')+'</div></div>'+
       '<div class="stat"><div class="k">Brzycki</div><div class="v">'+(bz!=null?bz+'<small> kg</small>':'—')+'</div><div class="sub">'+(bz!=null?'válida < 37 reps':'fuera de rango')+'</div></div></div>'+
       '<div class="grid g2"><div class="card u-m0"><h3>Cargas por % de 1RM <span class="hint">para prescribir</span></h3><div class="tblwrap"><table class="tbl u-minwa"><thead><tr><th>% 1RM</th><th>Carga</th><th>Reps aprox.</th></tr></thead><tbody>'+prows+'</tbody></table></div></div>'+
@@ -8072,7 +8072,7 @@ function exGroupDirectExcluding(aid,exId){
 /* tarjeta de impacto del ejercicio sobre el volumen semanal del grupo */
 function exVolCore(aid,exId,nm,sets){
   const lib=libByName(nm);
-  if(!lib)return '<p class="tiny" style="margin:0;color:var(--tx3)">Escribe el ejercicio y elígelo de tu biblioteca para ver el impacto en el volumen del grupo. Los ejercicios no vinculados no suman volumen.</p>';
+  if(!lib)return '<p class="tiny u-m0 u-c-tx3">Escribe el ejercicio y elígelo de tu biblioteca para ver el impacto en el volumen del grupo. Los ejercicios no vinculados no suman volumen.</p>';
   const g=lib.group,p=athData(aid).profile;
   const base=(exGroupDirectExcluding(aid,exId)[g])||0,proj=base+(parseInt(sets,10)||0);
   const prio=p.priorities[g];
@@ -8088,7 +8088,7 @@ function exVolCore(aid,exId,nm,sets){
     bar='<div class="volbar u-m0 u-mt8 u-mb8" title="Recomendado: '+mxR.lo+'–'+mxR.hi+' series/sem"><span class="rng" style="left:'+left+'%;width:'+w+'%"></span><span class="act" style="left:'+ax+'%"></span></div>';
   }
   const recTxt=(mxR&&prio!==0)?('Recomendado '+mxR.lo+'–'+mxR.hi+' series/sem'+(hasTgt?' · objetivo '+tgt:'')+' · prioridad '+(PRIOS[prio]?PRIOS[prio].lbl:'')):(prio===-1?'Este grupo aún está «sin asignar»: dale prioridad en Volumen y fase para ver su recomendado.':'Este grupo está como «no entrenar» en la fase actual.');
-  const sec=(lib.secondary||[]).length?'<p class="tiny" style="margin:6px 0 0;color:var(--tx3)">Indirecto: '+esc(lib.secondary.join(', '))+'</p>':'';
+  const sec=(lib.secondary||[]).length?'<p class="tiny u-m0 u-mt8 u-c-tx3">Indirecto: '+esc(lib.secondary.join(', '))+'</p>':'';
   /* categoría / patrón biomecánico */
   let catTxt='';
   if(lib.cat){
@@ -8096,14 +8096,14 @@ function exVolCore(aid,exId,nm,sets){
     const ci=catInfo(g,lib.cat),defined=(GROUP_CATS[g]||[]);
     const coveredNow=exCatDirectExcluding(aid,exId,g),coveredCount=defined.filter(ct=>coveredNow[ct.c]).length+(catB?0:1);
     const nuevo=catB===0;
-    catTxt='<p class="tiny" style="margin:6px 0 0"><span class="mini-chip" title="'+esc(ci?ci.p:'')+(ci?' · Cargas '+esc(ci.l):'')+'">Patrón '+esc(lib.cat)+'</span> '+catB+' → '+catP+' series'+(nuevo?' <span style="color:var(--volt)">· patrón nuevo en el grupo</span>':' <span style="color:var(--tx3)">· patrón ya trabajado</span>')+' · cubre '+Math.min(coveredCount,defined.length)+'/'+defined.length+' patrones de '+esc(g)+'</p>';
-  } else if(lib.group){catTxt='<p class="tiny" style="margin:6px 0 0;color:var(--tx3)">Sin categoría asignada en la biblioteca — no se puede valorar la cobertura de patrones.</p>';}
+    catTxt='<p class="tiny u-m0 u-mt8"><span class="mini-chip" title="'+esc(ci?ci.p:'')+(ci?' · Cargas '+esc(ci.l):'')+'">Patrón '+esc(lib.cat)+'</span> '+catB+' → '+catP+' series'+(nuevo?' <span class="u-c-volt">· patrón nuevo en el grupo</span>':' <span class="u-c-tx3">· patrón ya trabajado</span>')+' · cubre '+Math.min(coveredCount,defined.length)+'/'+defined.length+' patrones de '+esc(g)+'</p>';
+  } else if(lib.group){catTxt='<p class="tiny u-m0 u-mt8 u-c-tx3">Sin categoría asignada en la biblioteca — no se puede valorar la cobertura de patrones.</p>';}
   const flags=exFlags(aid,nm),fchips=exFlagChips(flags);
   let warn='';
-  if(flags.injury)warn+='<div class="notebox" style="border-left-color:var(--red);margin:8px 0 0">⚠️ Posible conflicto con una lesión/limitación del atleta («'+esc(flags.injury)+'»). Revisa la técnica o elige una variante alternativa.</div>';
-  if(flags.avoid)warn+='<div class="notebox" style="border-left-color:var(--orange);margin:8px 0 0">🚫 Está en la lista de ejercicios a evitar («'+esc(flags.avoid)+'»). Considera una variante que cubra el mismo patrón.</div>';
-  if(flags.like&&!flags.injury&&!flags.avoid)warn+='<div class="notebox" style="border-left-color:var(--volt);margin:8px 0 0">★ Ejercicio favorito del atleta — buena elección para la adherencia.</div>';
-  return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px"><span class="mini-chip">'+esc(g)+'</span><b class="u-fs3">'+base+' → '+proj+' series/sem</b>'+((parseInt(sets,10)||0)?'<span class="tiny" style="color:var(--volt)">(+'+(parseInt(sets,10)||0)+')</span>':'')+fchips+'<span class="badge '+(st.cls||'')+' u-mlauto">'+esc(st.txt)+'</span></div>'+bar+'<p class="tiny u-m0">'+recTxt+'</p>'+catTxt+sec+warn;
+  if(flags.injury)warn+='<div class="notebox u-bl-red u-m0 u-mt8">⚠️ Posible conflicto con una lesión/limitación del atleta («'+esc(flags.injury)+'»). Revisa la técnica o elige una variante alternativa.</div>';
+  if(flags.avoid)warn+='<div class="notebox u-bl-orange u-m0 u-mt8">🚫 Está en la lista de ejercicios a evitar («'+esc(flags.avoid)+'»). Considera una variante que cubra el mismo patrón.</div>';
+  if(flags.like&&!flags.injury&&!flags.avoid)warn+='<div class="notebox u-bl-volt u-m0 u-mt8">★ Ejercicio favorito del atleta — buena elección para la adherencia.</div>';
+  return '<div class="u-dflex u-aic u-gap8 u-wrap u-mb4"><span class="mini-chip">'+esc(g)+'</span><b class="u-fs3">'+base+' → '+proj+' series/sem</b>'+((parseInt(sets,10)||0)?'<span class="tiny u-c-volt">(+'+(parseInt(sets,10)||0)+')</span>':'')+fchips+'<span class="badge '+(st.cls||'')+' u-mlauto">'+esc(st.txt)+'</span></div>'+bar+'<p class="tiny u-m0">'+recTxt+'</p>'+catTxt+sec+warn;
 }
 function renderExVol(){const box=document.getElementById('exvolbox');if(!box)return;box.innerHTML=exVolCore(box.dataset.aid,box.dataset.ex||'',val('e_name'),val('e_sets'));}
 function normUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u;}
@@ -8202,7 +8202,7 @@ function exForm(e,aid,exId,dayId,gForce){
     '<div class="frow"><label>La técnica aplica a</label><select id="e_techon"><option value="all"'+(e.techOn==='last'?'':' selected')+'>Todas las series</option><option value="last"'+(e.techOn==='last'?' selected':'')+'>Solo la última serie</option></select>'+
     '<div class="u-mt8" id="e_tech_par">'+techParHTML(tSel,e.techP)+'</div>'+
     '<div class="tiny u-mt4" id="e_tech_hint">'+techEdHint(tSel,e.techP)+'</div></div>';
-  const origen=aid?('<p class="tiny" style="margin:0 0 5px;color:var(--tx3)">'+(ses?'Las series que faltan son las de <b>esta sesión</b> (reparto del paso 2).':'Esta sesión no tiene reparto en el paso 2, así que lo que falta se mide contra la <b>meta semanal</b>.')+'</p>'):'';
+  const origen=aid?('<p class="tiny u-m0 u-mb4 u-c-tx3">'+(ses?'Las series que faltan son las de <b>esta sesión</b> (reparto del paso 2).':'Esta sesión no tiene reparto en el paso 2, así que lo que falta se mide contra la <b>meta semanal</b>.')+'</p>'):'';
   return dl+'<div class="frow"><label>Filtrar por grupo muscular</label>'+origen+'<select id="e_grp" data-change="ex-grp" data-aid="'+esc(aid||'')+'" data-day="'+esc(dayId||'')+'" data-ex="'+esc(exId||'')+'">'+gopts+'</select><p class="tiny u-mt4" id="e_grp_hint">'+esc(exGrpHint(g0,aid,dayId,exId))+'</p></div>'+
   '<div class="frow"><label>Ejercicio</label><input id="e_name" list="exlist" data-exvol="1" value="'+esc(e.name||'')+'" placeholder="Escribe o abre la lista para elegir…"><p class="tiny u-mt4">Si coincide con uno de la biblioteca, queda vinculado: hereda video y músculos.</p></div>'+
   '<div class="frow3"><div><label>Series</label><input id="e_sets" type="number" data-exvol="1" value="'+esc(e.sets||3)+'"></div><div><label>Reps</label><input id="e_reps" value="'+esc(e.reps||'8-10')+'"></div><div><label>RIR</label><input id="e_rir" value="'+esc(e.rir||'2')+'"></div></div>'+
@@ -8931,7 +8931,7 @@ VIEWS['ath-hoy']=function(u){
   /* El borrador ya no se pierde, pero hay que poder VOLVER a él. */
   const _wdName=wdraftDayName(aid),_wdEdit=!!(WDRAFT&&WDRAFT.editing);
   const _wdDay=(WDRAFT&&WDRAFT.date&&WDRAFT.date!==hoyISO)?WDRAFT.date:null;
-  const wdUI=_wdName?'<div class="coachnote u-bl-blue u-ptr" data-act="wlog-resume"><b style="color:var(--blue)">'+(_wdEdit?'Correcciones sin guardar · ':'Entreno sin guardar · ')+esc(_wdName)+(_wdDay?' · '+fmtDate(_wdDay):'')+'</b>'+(_wdEdit?'Cambiaste algo de tu registro '+(_wdDay?'del '+fmtDateFull(_wdDay):'de hoy')+' y todavía no lo has guardado. Toca aquí para terminar y pulsar «Guardar cambios».':'Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».')+'</div>':'';
+  const wdUI=_wdName?'<div class="coachnote u-bl-blue u-ptr" data-act="wlog-resume"><b class="u-c-blue">'+(_wdEdit?'Correcciones sin guardar · ':'Entreno sin guardar · ')+esc(_wdName)+(_wdDay?' · '+fmtDate(_wdDay):'')+'</b>'+(_wdEdit?'Cambiaste algo de tu registro '+(_wdDay?'del '+fmtDateFull(_wdDay):'de hoy')+' y todavía no lo has guardado. Toca aquí para terminar y pulsar «Guardar cambios».':'Tienes series anotadas que todavía no has guardado. Toca aquí para continuar y pulsar «Guardar entrenamiento».')+'</div>':'';
 
   const chev='<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
   const acc=(id,title,tag,inner,open)=>'<details class="acc" id="'+id+'"'+(open?' open':'')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+chev+'</summary><div class="acc-body">'+inner+'</div></details>';
@@ -8985,14 +8985,14 @@ VIEWS['ath-hoy']=function(u){
   const statStrip=stats.length?'<div class="hx-sec">Tu semana</div><div class="grid g2 hx-week mb16">'+stats.join('')+'</div>':'';
 
   /* data-keep: lo tecleado sobrevive a render(). El aviso «en kg» solo si captura sus cargas en lb. */
-  const pesoPasosInner='<label style="display:block;margin-bottom:8px">Peso corporal de hoy <span class="hint u-ml8">opcional · al despertar, en ayunas'+(weightUnitForAid(aid)==='lb'?' · en kg':'')+'</span></label><div style="display:flex;gap:10px;margin-bottom:18px"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div><button class="btn btn-g btn-sm" style="margin:-8px 0 18px" data-act="weight-back">Días anteriores</button>'+
-    '<label style="display:block;margin-bottom:8px">Pasos de hoy <span class="hint u-ml8">opcional · total del día</span></label><div style="display:flex;gap:10px"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p><button class="btn btn-g btn-sm mt8" data-act="steps-back">Días anteriores</button>';
+  const pesoPasosInner='<label class="u-dblock u-mb8">Peso corporal de hoy <span class="hint u-ml8">opcional · al despertar, en ayunas'+(weightUnitForAid(aid)==='lb'?' · en kg':'')+'</span></label><div class="u-dflex u-gap12 u-mb20"><input id="w_today" data-keep="w_today" type="number" step="0.1" placeholder="'+(lastWeight(aid)?lastWeight(aid).kg:'kg')+'" value="'+(todayW?todayW.kg:'')+'"><button class="btn btn-p" data-act="weight-save">Guardar</button></div><button class="btn btn-g btn-sm" style="margin:-8px 0 18px" data-act="weight-back">Días anteriores</button>'+
+    '<label class="u-dblock u-mb8">Pasos de hoy <span class="hint u-ml8">opcional · total del día</span></label><div class="u-dflex u-gap12"><input id="s_today" data-keep="s_today" type="number" step="100" min="0" placeholder="'+(lastSteps(aid)?lastSteps(aid).steps:'pasos')+'" value="'+(todayS?todayS.steps:'')+'"><button class="btn btn-p" data-act="steps-save">Guardar</button></div><p class="tiny mt8">Copia el total de tu móvil, reloj o pulsera. Sirve para valorar tu actividad diaria.</p><button class="btn btn-g btn-sm mt8" data-act="steps-back">Días anteriores</button>';
 
   const todayM=measureLogs(aid).find(m=>m.date===hoyISO);
   const lm=lastMeasure(aid);
   const measuresInner='<p class="tiny mb16">Mídete relajado y por la mañana. Ideal 1×/mes, con la misma cinta y en el mismo punto. Deja en blanco lo que no midas.</p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">'+
-    MEASURE_SET.map(ms=>'<div><label style="display:block;margin-bottom:6px">'+ms[1]+' <span class="hint">cm</span></label><input id="ms_'+ms[0]+'" data-keep="ms_'+ms[0]+'" type="number" step="0.1" min="0" placeholder="'+(lm&&lm[ms[0]]!=null?lm[ms[0]]:'cm')+'" value="'+(todayM&&todayM[ms[0]]!=null?todayM[ms[0]]:'')+'"></div>').join('')+
+    MEASURE_SET.map(ms=>'<div><label class="u-dblock u-mb8">'+ms[1]+' <span class="hint">cm</span></label><input id="ms_'+ms[0]+'" data-keep="ms_'+ms[0]+'" type="number" step="0.1" min="0" placeholder="'+(lm&&lm[ms[0]]!=null?lm[ms[0]]:'cm')+'" value="'+(todayM&&todayM[ms[0]]!=null?todayM[ms[0]]:'')+'"></div>').join('')+
     '</div><button class="btn btn-p mt16 u-w100" data-act="measures-save">'+I.check+' Guardar medidas</button>'+
     (lm?'<p class="tiny mt8">Último registro: '+fmtDate(lm.date)+'</p>':'');
 
@@ -9001,7 +9001,7 @@ VIEWS['ath-hoy']=function(u){
     /* La semana pasada sin responder se dice AQUÍ y con su propio botón. */
     const wks=fqWeeksOpen(aid),prevW=wks.length>1?wks[1]:null;
     const faltaPrev=prevW&&!fatigueLogs(aid).some(e=>e.week===prevW);
-    return '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    return '<div class="u-dflex u-gap12 u-aic u-wrap">'+
     (pf?'<span class="badge orange">Pendiente esta semana</span><p class="muted" style="flex:1;min-width:160px">Tu coach lo usa para decidir si subir, mantener o bajar tus series.</p>':
       '<span class="badge green">Completado · '+(last?last.gs+'/25':'')+'</span><p class="muted" style="flex:1;min-width:160px">Puedes actualizarlo si algo cambió esta semana.</p>')+
     '<button class="btn '+(pf?'btn-p':'btn-g')+'" data-act="fq-open">'+(pf?'Responder ahora':'Actualizar respuestas')+'</button></div>'+
@@ -9031,7 +9031,7 @@ function weighReminder(aid){
   if(dow<2)return'';
   const from=weekStartISO(t),n=(athData(aid).logs.weight||[]).filter(w=>w&&w.date>=from&&w.date<=t).length;
   if(n>=2)return'';
-  return '<div class="notebox mb16 u-bl-orange" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>'+(n?'Esta semana llevas 1 pesaje.':'Esta semana aún no te has pesado.')+'</b> Pésate al menos 3 días por semana, al despertar y en ayunas: así tu tendencia es fiable aunque un día salga raro.</div><button class="btn btn-g btn-sm" data-act="acc-open" data-acc="acc-peso">Registrar peso</button></div>';
+  return '<div class="notebox mb16 u-bl-orange u-dflex u-gap12 u-aic u-wrap"><div style="flex:1;min-width:200px"><b>'+(n?'Esta semana llevas 1 pesaje.':'Esta semana aún no te has pesado.')+'</b> Pésate al menos 3 días por semana, al despertar y en ayunas: así tu tendencia es fiable aunque un día salga raro.</div><button class="btn btn-g btn-sm" data-act="acc-open" data-acc="acc-peso">Registrar peso</button></div>';
 }
 /* Botón/insignia de cambio de ejercicio en las vistas del atleta */
 function swapRowUI(e,dayId){
@@ -9060,7 +9060,7 @@ VIEWS['ath-wlog']=function(u){
         'El día «'+esc(WDRAFT.dayName||'que tenías abierto')+'» ya no existe tal cual en tu programa.</div>'+
         '<p class="tiny mt8">'+(ns?'Lo que anotaste sigue aquí: <b>'+ns+(ns===1?' serie':' series')+'</b>. ':'')+
         'Guárdalo igual: el entreno lo hiciste y tu coach lo verá con el nombre que tenía ese día. O descártalo y empieza la sesión nueva desde «Mi rutina».</p>'+
-        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">'+
+        '<div class="u-dflex u-gap12 u-wrap u-mt12">'+
         '<button class="btn btn-p" data-act="wlog-save">Guardar lo anotado</button>'+
         '<button class="btn btn-g" data-act="wlog-drop">Descartar</button></div></div>'};
   }
@@ -9118,7 +9118,7 @@ VIEWS['ath-wlog']=function(u){
     let lastTxt='';
     if(lref)lastTxt='<div class="last">Última sesión: '+lref.sets.map(s=>s?dispW(s.w||0,unit)+'×'+(s.r||0)+(s.rir!=null?' @'+s.rir:''):'—').join(' · ')+' ('+fmtDate(lref.date)+')</div>';
     const lib=e.libId?libById(e.libId):null;
-    const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:var(--fs-4);font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue)" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
+    const nameH=lib?'<button class="exlink" style="font-family:var(--font-d);font-size:var(--fs-4);font-weight:600" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span class="u-c-blue" title="Ver video"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<b>'+esc(e.name)+'</b>';
     const exDone=!!(WDRAFT.done&&WDRAFT.done[e.id]);
     const exSk=(WDRAFT.skips||{})[e.id];
     const revBtn=e.revLink?'<a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;color:var(--blue);font-size:var(--fs-3);font-weight:600;text-decoration:none">🎥 Revisión de tu coach →</a>':'';
@@ -9152,21 +9152,21 @@ VIEWS['ath-wlog']=function(u){
   const legend='<p class="sklegend" style="padding:0 0 12px">En cada serie, el botón <b>○</b> marca lo que no hiciste: <b>1 toque</b> = no la hice · <b>2 toques</b> = no la terminé. No hace falta explicar nada ahí; el motivo se pregunta una sola vez por ejercicio.</p>';
   /* Unidad de peso: la elige el atleta, vive en athlete_settings (no en el blob) y aplica
      a todo lo que ve de sus cargas de entreno. Un toque re-pinta con la conversión ya aplicada. */
-  const unitToggle='<div style="display:flex;align-items:center;gap:8px;margin:0 0 14px"><span class="tiny muted">Unidad de las cargas</span>'+
+  const unitToggle='<div class="u-dflex u-aic u-gap8 u-m0 u-mb16"><span class="tiny muted">Unidad de las cargas</span>'+
     '<button class="btn btn-sm '+(unit==='kg'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="kg">kg</button>'+
     '<button class="btn btn-sm '+(unit==='lb'?'btn-p':'btn-g')+'" data-act="wunit-set" data-u="lb">lb</button></div>';
   /* Corrigiendo: hay que decirlo en pantalla. Si no, la atleta no distingue esto de empezar
      una sesión nueva — que es exactamente el equívoco que creó la fila duplicada. */
   const _edPast=!!(WDRAFT&&WDRAFT.editing&&(WDRAFT.date||todayISO())!==todayISO());
   const planUI=(WDRAFT&&WDRAFT.planNote)?'<div id="planNoteBox" class="coachnote" style="margin-bottom:14px;display:flex;align-items:flex-start;gap:6px"><div class="u-f1"><b>Tu plan cambió</b>'+esc(WDRAFT.planNote)+'. Lo que tenías anotado sigue donde estaba.</div><button class="notex" data-act="wlog-plannote-ok" aria-label="Cerrar aviso">&times;</button></div>':'';
-  const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote u-bl-blue u-mb16"><b style="color:var(--blue)">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
+  const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote u-bl-blue u-mb16"><b class="u-c-blue">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
     body:planUI+editUI+unitToggle+legend+blocks+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow2"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div></div><div class="frow"><label>Comentario para tu coach</label><textarea id="wl_comment" rows="4" placeholder="Sensaciones, molestias, PRs…" data-wl="comment">'+esc(WDRAFT.comment||'')+'</textarea></div>'+
-    '<p class="tiny" style="margin:2px 0 0">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
+    '<p class="tiny u-m0 u-mt4">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
        ve cuántos lleva y puede cerrar la sesión sin recorrer toda la lista hasta abajo. */
-    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b>'+(nSkip?' · <b style="color:var(--red)">'+nSkip+' sin hacer</b>':'')+'<br>'+((WDRAFT&&WDRAFT.editing)?'Los cambios no llegan a tu coach hasta que pulses «Guardar cambios».':'Lo que anotas se guarda en este dispositivo mientras entrenas.')+'</div>'+
+    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b>'+(nSkip?' · <b class="u-c-red">'+nSkip+' sin hacer</b>':'')+'<br>'+((WDRAFT&&WDRAFT.editing)?'Los cambios no llegan a tu coach hasta que pulses «Guardar cambios».':'Lo que anotas se guarda en este dispositivo mientras entrenas.')+'</div>'+
     '<button class="btn btn-g" data-act="wlog-partial-ask">Terminar incompleta</button>'+
     '<button class="btn btn-p" data-act="wlog-save">'+I.check+' '+((WDRAFT&&WDRAFT.editing)?'Guardar cambios':'Guardar entrenamiento')+'</button></div>'};
 };
@@ -9191,7 +9191,7 @@ VIEWS['ath-rutina']=function(u){
     const tag=wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+(wd.partial?' · incompleta':'')+'</span>'
       :md?'<span class="daydone" style="background:var(--danger-08);color:var(--red)">✕ no la hiciste</span>':'';
     days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+pastBtn+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn btn-p btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
-    '<div class="tblwrap"><table class="tbl rtbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th style="width:60px">Series</th><th style="width:70px">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    '<div class="tblwrap"><table class="tbl rtbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th class="u-w60">Series</th><th class="u-w70">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
   /* Mismo resumen de semana que en «Hoy»: es la vista donde el atleta decide qué toca,
      así que la cifra tiene que estar aquí también y no obligarle a volver al inicio. */
@@ -9225,14 +9225,14 @@ VIEWS['ath-nutri']=function(u){
   const dayNav='<div class="dx-day">'+navB(iso>min?isoPlus(iso,-1):null,'Día anterior','‹')+'<b>'+dayLbl+'</b>'+navB(iso<hoy?isoPlus(iso,1):null,'Día siguiente','›')+'</div>';
 
   let dayPick='';
-  if(esHoy&&np.plans.length>1){let chips='';np.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.id?' on':'')+'" data-act="ath-plan-pick" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});dayPick='<div class="mb16"><label class="tiny" style="display:block;margin-bottom:6px">¿Qué día te toca hoy?</label><div class="planchips">'+chips+'</div></div>';}
+  if(esHoy&&np.plans.length>1){let chips='';np.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.id?' on':'')+'" data-act="ath-plan-pick" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});dayPick='<div class="mb16"><label class="tiny u-dblock u-mb8">¿Qué día te toca hoy?</label><div class="planchips">'+chips+'</div></div>';}
 
   /* RESUMEN: Objetivo − Comido = Restan */
   let sum='';
   if(planSinObjetivos(n))sum='<div class="card mb16"><div class="empty"><b>Tu coach está preparando tu plan</b>Todavía no tiene objetivos de calorías y macros. Mientras, puedes ir registrando lo que comes.</div></div>';
   else{
     const tg=dxTgt(n),t=consumedFor(aid,iso),r=tg.kcal-t.kcal;
-    const macs=DX_MACS.map(m=>{const c=t[m[1]],o=tg[m[1]],l=o-c;return '<div><span class="tiny">'+m[0]+'</span>'+dxBar('d-'+m[1],c,o,m[2])+(l>=0?'<span class="v">'+dxN(l)+' g</span><span class="tiny">faltan de '+dxN(o)+'</span>':'<span class="v" style="color:var(--red)">+'+dxN(-l)+' g</span><span class="tiny">de más</span>')+'</div>';}).join('');
+    const macs=DX_MACS.map(m=>{const c=t[m[1]],o=tg[m[1]],l=o-c;return '<div><span class="tiny">'+m[0]+'</span>'+dxBar('d-'+m[1],c,o,m[2])+(l>=0?'<span class="v">'+dxN(l)+' g</span><span class="tiny">faltan de '+dxN(o)+'</span>':'<span class="v u-c-red">+'+dxN(-l)+' g</span><span class="tiny">de más</span>')+'</div>';}).join('');
     const pr=esHoy?dxProyeccion(aid):null;
     sum='<div class="card dx-sum"><div class="dx-k">'+(r>=0?'Te quedan':'Te pasaste')+'</div>'+
       '<div class="dx-hero'+(r<0?' over':'')+'"><b>'+Math.abs(r)+'</b><span>kcal</span></div><div class="dx-sub">Objetivo '+tg.kcal+' · Comido '+t.kcal+'</div>'+
@@ -9282,7 +9282,7 @@ VIEWS['ath-nutri']=function(u){
     '<div class="dx-adh" role="group" aria-label="Adherencia">'+[1,2,3,4,5].map(v=>'<button class="'+(adh===v?'on'+(man?'':' auto'):'')+'" aria-pressed="'+(adh===v&&man)+'" data-act="dx-adh" data-v="'+v+'" data-d="'+iso+'">'+v+'</button>').join('')+'</div>'+
     (man?'<button class="hx-lnk" data-act="dx-adh-auto" data-d="'+iso+'">Que la calcule la app</button>':'')+
     '<label for="dx_cmt" class="mt16">Comentario para tu coach</label><textarea id="dx_cmt" rows="3" data-keep="dx_cmt_'+iso+'" placeholder="Opcional: cómo te fue, hambre, antojos, eventos…">'+esc((e&&e.comment)||'')+'</textarea>'+
-    '<button class="btn '+(esHoy&&dxSigue(aid)?'btn-o':'btn-p')+' mt8" style="width:100%;justify-content:center" data-act="dx-save" data-d="'+iso+'">'+I.check+' Guardar el día</button></section>';
+    '<button class="btn '+(esHoy&&dxSigue(aid)?'btn-o':'btn-p')+' mt8 u-w100 u-jcc" data-act="dx-save" data-d="'+iso+'">'+I.check+' Guardar el día</button></section>';
 
   const conMenu=esHoy&&(n.meals||[]).some(m=>(m.items||[]).length);
   const tools=conMenu?'<div class="dx-tools"><span class="tiny">⇄ cambia un alimento por un equivalente solo por hoy.</span></div>':'';
@@ -9419,7 +9419,7 @@ Object.assign(ACTIONS,{
     let rows='';
     logs.forEach(w=>{
       const mk=editMarkOf(w);
-      rows+='<div class="logitem" style="display:flex;align-items:center;gap:10px;margin:0 0 8px"><div class="u-f1">'+
+      rows+='<div class="logitem u-dflex u-aic u-gap12 u-m0 u-mb8"><div class="u-f1">'+
         '<b>'+fmtDateFull(w.date)+'</b>'+
         (w.status==='partial'?' <span class="badge orange">incompleta</span>':'')+
         (mk?' <span class="badge blue" title="Ya la corregiste el '+esc(fmtDateFull(mk.at))+'">✎ corregida</span>':'')+
@@ -9428,7 +9428,7 @@ Object.assign(ACTIONS,{
     });
     openModal('Corregir una sesión de '+esc(day.name),
       '<p class="muted u-mb12">Elige la sesión que quieres corregir. Se actualiza <b>ese mismo registro</b>: no se crea otro y la fecha no cambia, así que tu historial sigue cuadrando.</p>'+rows+
-      '<p class="tiny mt8" style="color:var(--tx3)">Solo salen las sesiones de los últimos '+WLOG_EDIT_DAYS+' días. Tu coach verá que la corregiste.</p>',
+      '<p class="tiny mt8 u-c-tx3">Solo salen las sesiones de los últimos '+WLOG_EDIT_DAYS+' días. Tu coach verá que la corregiste.</p>',
       '<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
   },
   'wlog-past-edit':el=>{
@@ -9717,7 +9717,7 @@ Object.assign(ACTIONS,{
       const[yy,mm,dd]=iso.split('-').map(Number);
       const lbl=(n===1?'Ayer':DIAS[new Date(yy,mm-1,dd).getDay()]);
       const prev=arr.find(w=>w.date===iso);
-      rows+='<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><label class="u-f1 u-m0">'+lbl+' <span class="hint">'+fmtDate(iso)+'</span></label><input id="wb_'+iso+'" type="number" step="0.1" min="0" placeholder="kg" value="'+(prev?prev.kg:'')+'" style="max-width:150px"></div>';
+      rows+='<div class="u-dflex u-gap12 u-aic u-mb12"><label class="u-f1 u-m0">'+lbl+' <span class="hint">'+fmtDate(iso)+'</span></label><input id="wb_'+iso+'" type="number" step="0.1" min="0" placeholder="kg" value="'+(prev?prev.kg:'')+'" style="max-width:150px"></div>';
     }
     openModal('Peso de días anteriores',
       '<p class="tiny mb16">Rellena los días que te falten, en kg. Lo que dejes en blanco se queda como está.</p>'+rows,
@@ -9758,7 +9758,7 @@ Object.assign(ACTIONS,{
       const[yy,mm,dd]=iso.split('-').map(Number);
       const lbl=(n===1?'Ayer':DIAS[new Date(yy,mm-1,dd).getDay()]);
       const prev=arr.find(s=>s.date===iso);
-      rows+='<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><label class="u-f1 u-m0">'+lbl+' <span class="hint">'+fmtDate(iso)+'</span></label><input id="sb_'+iso+'" type="number" step="100" min="0" placeholder="pasos" value="'+(prev?prev.steps:'')+'" style="max-width:150px"></div>';
+      rows+='<div class="u-dflex u-gap12 u-aic u-mb12"><label class="u-f1 u-m0">'+lbl+' <span class="hint">'+fmtDate(iso)+'</span></label><input id="sb_'+iso+'" type="number" step="100" min="0" placeholder="pasos" value="'+(prev?prev.steps:'')+'" style="max-width:150px"></div>';
     }
     openModal('Pasos de días anteriores',
       '<p class="tiny mb16">Rellena los días que te falten. Lo que dejes en blanco se queda como está.</p>'+rows,
@@ -9873,7 +9873,7 @@ Object.assign(ACTIONS,{
      Nada entra directo: «Agregar» abre el modal de «Nuevo alimento» ya lleno y el coach revisa y guarda. */
   'fext-modal':()=>{
     openModal('Buscar en bases externas','<p class="tiny u-mt0">Primero el catálogo LR (unos 15 mil alimentos en español con subgrupo y clasificación AIS), luego Open Food Facts, USDA y FatSecret en vivo. Revisa siempre los valores antes de guardar.</p>'+
-    '<div style="display:flex;gap:8px"><input class="u-f1" id="fext_q" placeholder="Ej. yogur griego, avena, tortilla de maíz…" autocomplete="off" value="'+esc(FEXT.q)+'"><button class="btn btn-p" data-act="fext-go">Buscar</button></div>'+
+    '<div class="u-dflex u-gap8"><input class="u-f1" id="fext_q" placeholder="Ej. yogur griego, avena, tortilla de maíz…" autocomplete="off" value="'+esc(FEXT.q)+'"><button class="btn btn-p" data-act="fext-go">Buscar</button></div>'+
     '<div class="u-mt12" id="fext_res">'+fextResHTML()+'</div>',
     '<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
     setTimeout(()=>{const i=document.getElementById('fext_q');if(i)i.focus();},50);
@@ -9905,7 +9905,7 @@ Object.assign(ACTIONS,{
     const u=document.getElementById('fo_unit');
     if(u&&x.unit==='u'){u.value='u';u.dispatchEvent(new Event('change',{bubbles:true}));set('fo_unitlabel',x.unitLabel||'porción');}
     const n=document.getElementById('fo_name');
-    if(n)n.insertAdjacentHTML('afterend','<p class="tiny muted" style="margin:4px 0 0">De '+FEXT_SRC[x.src]+(x.nameOrig&&x.nameOrig!==x.name?' · original: '+esc(x.nameOrig):'')+'. Puedes cambiar el nombre y los valores.</p>');
+    if(n)n.insertAdjacentHTML('afterend','<p class="tiny muted u-m0 u-mt4">De '+FEXT_SRC[x.src]+(x.nameOrig&&x.nameOrig!==x.name?' · original: '+esc(x.nameOrig):'')+'. Puedes cambiar el nombre y los valores.</p>');
   }
 });
 let FEXT={q:'',items:[],sources:null,err:'',busy:false};
@@ -10371,11 +10371,11 @@ function rtImportRender(){
   days.forEach(d=>{body+='<div class="meal"><div class="meal-h"><span>'+esc(d.name)+'</span><span class="tm">'+d.exercises.length+' ej.</span></div><ul>';
     d.exercises.forEach(e=>{
       let tail;
-      if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+' <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">cambiar</a></span>';}
+      if(e.libId){const l=libById(e.libId);tail='<span class="q u-c-volt">✓ '+esc(l?l.group:'vinculado')+' <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny u-c-tx3 u-ml8">cambiar</a></span>';}
       else{const m=libBestMatch(e.name);
-        if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="rtimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button> <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">no es este, elegir otro</a></span>';
-        else tail='<span class="q"><span class="badge">nuevo</span> <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">buscar en tu biblioteca</a></span>';}
-      body+='<li><span>'+esc(e.name)+' <span class="tiny" style="color:var(--tx3)">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';
+        if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="rtimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button> <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny u-c-tx3 u-ml8">no es este, elegir otro</a></span>';
+        else tail='<span class="q"><span class="badge">nuevo</span> <a href="#" data-act="rtimport-pick-modal" data-ex="'+e.id+'" class="tiny u-c-tx3 u-ml8">buscar en tu biblioteca</a></span>';}
+      body+='<li><span>'+esc(e.name)+' <span class="tiny u-c-tx3">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';
     });
     body+='</ul></div>';});
   openModal('Importar rutina desde CSV',body,'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rtimport-save">Guardar plantilla</button>');
@@ -10437,7 +10437,7 @@ function vidPastePreview(text){
   if(reemplazo.length){
     body+='<div class="notebox mt8 u-bl-red">Estos <b>ya tienen</b> un video distinto. No se tocan salvo que marques la casilla de abajo.</div>';
     body+=bloque('Ya tienen otro link',reemplazo,x=>'<span>'+esc(x.l.name)+'</span>'+trunc(x.url));
-    body+='<label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="vp_repl"><span>Reemplazar también esos '+reemplazo.length+' links</span></label>';
+    body+='<label class="u-dflex u-aic u-gap8 u-mt12"><input type="checkbox" id="vp_repl"><span>Reemplazar también esos '+reemplazo.length+' links</span></label>';
   }
   body+=bloque('No están en tu biblioteca (se omiten)',nofound,r=>'<span>'+esc(r.name)+'</span>'+trunc(r.url));
   if(nofound.length)body+='<p class="tiny u-mt8">Se buscan por nombre exacto (sin distinguir mayúsculas ni acentos). Si el nombre no coincide con el de tu biblioteca, no lo encuentra — este pegado nunca crea ejercicios nuevos.</p>';
@@ -10766,7 +10766,7 @@ async function aiImportFile(file){
   if(error||!data||!data.ok){
     let msg=(data&&data.error)||'La IA no pudo procesar el archivo.';
     try{if(error&&error.context&&error.context.json){const j=await error.context.json();if(j&&j.error)msg=j.error;}}catch(_){}
-    openModal('Error al analizar','<p>'+esc(msg)+'</p><p class="tiny" style="color:var(--tx3)">Si menciona ANTHROPIC_API_KEY, falta configurar la key en Supabase → Edge Functions → Secrets.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');
+    openModal('Error al analizar','<p>'+esc(msg)+'</p><p class="tiny u-c-tx3">Si menciona ANTHROPIC_API_KEY, falta configurar la key en Supabase → Edge Functions → Secrets.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');
     return;
   }
   const r=data.result||{};
@@ -10788,11 +10788,11 @@ function aiPreviewRender(){
     if(sugg)body+='<div class="notebox mt8 u-bl-volt">Hay '+sugg+' ejercicio(s) parecidos a tu biblioteca (posible tilde o typo). Enlázalos si son el mismo: heredan grupo y video.</div>';
     A.routine.forEach(d=>{body+='<div class="meal"><div class="meal-h"><span>'+esc(d.name)+'</span><span class="tm">'+d.exercises.length+' ej.</span></div><ul>';
       d.exercises.forEach(e=>{let tail;
-        if(e.libId){const l=libById(e.libId);tail='<span class="q" style="color:var(--volt)">✓ '+esc(l?l.group:'vinculado')+' <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">cambiar</a></span>';}
+        if(e.libId){const l=libById(e.libId);tail='<span class="q u-c-volt">✓ '+esc(l?l.group:'vinculado')+' <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny u-c-tx3 u-ml8">cambiar</a></span>';}
         else{const m=libBestMatch(e.name);
-          if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="aiimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button> <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">no es este, elegir otro</a></span>';
-          else tail='<span class="q"><span class="badge">nuevo</span> <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny" style="color:var(--tx3);margin-left:6px">buscar en tu biblioteca</a></span>';}
-        body+='<li><span>'+esc(e.name)+' <span class="tiny" style="color:var(--tx3)">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';});
+          if(m)tail='<span class="q"><button class="btn btn-g btn-sm" data-act="aiimport-link" data-ex="'+e.id+'" data-lib="'+m.lib.id+'">Enlazar con «'+esc(m.lib.name)+'»</button> <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny u-c-tx3 u-ml8">no es este, elegir otro</a></span>';
+          else tail='<span class="q"><span class="badge">nuevo</span> <a href="#" data-act="aiimport-pick-modal" data-ex="'+e.id+'" class="tiny u-c-tx3 u-ml8">buscar en tu biblioteca</a></span>';}
+        body+='<li><span>'+esc(e.name)+' <span class="tiny u-c-tx3">'+e.sets+'×'+esc(e.reps||'—')+'</span></span>'+tail+'</li>';});
       body+='</ul></div>';});
     body+='<button class="btn btn-p" data-act="aiimport-save-routine">Guardar rutina como plantilla</button></div>';
   }
@@ -10804,8 +10804,8 @@ function aiPreviewRender(){
   }
   const hasResult=!!body;
   if(body)body+='<div class="card mb16 u-tc"><button class="btn btn-p" data-act="aiimport-assign-modal">'+I.users+' Asignar directo a un atleta</button><p class="hint mt8">Guarda lo detectado como plantilla y lo aplica de una vez a quien elijas, con el mismo ajuste automático al perfil.</p></div>';
-  if(body)body+='<p class="tiny" style="text-align:center;color:var(--tx3)">Este análisis queda guardado en este navegador. Si cierras o recargas, lo retomas desde <b>Plantillas</b> o <b>Material de apoyo</b> sin volver a analizar el archivo.</p>';
-  if(body)body+='<p class="tiny u-tc"><a href="#" data-act="aiimport-discard" style="color:var(--tx3)">Descartar este análisis y subir otro archivo</a></p>';
+  if(body)body+='<p class="tiny u-tc u-c-tx3">Este análisis queda guardado en este navegador. Si cierras o recargas, lo retomas desde <b>Plantillas</b> o <b>Material de apoyo</b> sin volver a analizar el archivo.</p>';
+  if(body)body+='<p class="tiny u-tc"><a class="u-c-tx3" href="#" data-act="aiimport-discard">Descartar este análisis y subir otro archivo</a></p>';
   if(!body)body='<p>No identifiqué una rutina ni un plan de nutrición en el archivo. Revisa que tenga ejercicios o comidas claras, o intenta con otro formato.</p>';
   openModal('Importar desde archivo (IA)',body,'<button class="btn btn-g" data-act="modal-close">'+(hasResult?'Cerrar (queda guardado)':'Cerrar')+'</button>',{persistent:hasResult});
 }
@@ -10822,7 +10822,7 @@ VIEWS['apoyo']=function(u){
      el analisis seguia vivo pero no habia por donde volver a el. */
   const aiPend=(_aiImport&&(_aiImport.routine||_aiImport.nutri))?'<div class="notebox mb16 u-bl-red">Tienes un análisis de IA sin guardar (de un archivo subido antes). <button class="btn btn-p btn-sm" data-act="aiimport-resume">Continuar con ese análisis</button></div>':'';
   const body=aiPend+'<div class="grid g2">'+cards.map(c=>
-    '<div class="card u-ptr" data-act="nav" data-view="'+c.v+'" data-params="{}"><h3>'+c.icon+' '+c.title+'</h3><p class="muted" style="margin:4px 0 10px">'+c.desc+'</p><span class="hint">'+c.stat+'</span></div>'
+    '<div class="card u-ptr" data-act="nav" data-view="'+c.v+'" data-params="{}"><h3>'+c.icon+' '+c.title+'</h3><p class="muted u-m0 u-mt4 u-mb12">'+c.desc+'</p><span class="hint">'+c.stat+'</span></div>'
   ).join('')+'</div>';
   return{title:'Material de apoyo',crumb:'Biblioteca, plantillas, alimentos, recetario y referencias en un solo lugar',body};
 };
@@ -10868,7 +10868,7 @@ VIEWS['lib']=function(u){
     const ci=catInfo(l.group,l.cat);
     cards+='<div class="lib-card" data-act="lib-open" data-lib="'+l.id+'"><div class="nm">'+(l.video?'<span class="vid" title="Tiene video"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':'')+esc(l.name)+'</div>'+muscleChips(l)+'<div class="eq">'+esc(l.equipment)+(ci?' · Cargas '+esc(ci.l):'')+'</div></div>';
   });
-  if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>Sin resultados</b>Prueba con otro filtro o crea el ejercicio.</div>';
+  if(!cards)cards='<div class="empty u-span"><b>Sin resultados</b>Prueba con otro filtro o crea el ejercicio.</div>';
   const sinVid=exSinVideo().length;
   return{title:'Biblioteca de ejercicios',crumb:(S.library||[]).length+' ejercicios · '+list.length+' mostrados · '+sinVid+' sin video',back:{v:'apoyo'},
     actions:(sinVid?'<button class="btn btn-g" data-act="nav" data-view="sinvideo" data-params="{}">'+sinVid+' sin video</button>':'')+'<button class="btn btn-p" data-act="lib-new-modal">'+I.plus+' Nuevo ejercicio</button>',
@@ -10904,7 +10904,7 @@ VIEWS['sinvideo']=function(u){
     let lastG=' ';
     list.forEach(l=>{
       const g=l.group||'Sin grupo';
-      if(g!==lastG){body+='<div class="meal-h" style="margin:14px 0 4px"><span>'+esc(g)+'</span></div>';lastG=g;}
+      if(g!==lastG){body+='<div class="meal-h u-m0 u-mt16 u-mb4"><span>'+esc(g)+'</span></div>';lastG=g;}
       body+='<div id="svrow_'+esc(l.id)+'" style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)">'+
         '<span style="flex:0 0 32%;font-size:var(--fs-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(l.name)+'">'+esc(l.name)+'</span>'+
         '<input class="u-f1 u-minw0" id="sv_'+esc(l.id)+'" placeholder="Pega aquí el link del video…" autocomplete="off" '+
@@ -11058,7 +11058,7 @@ function recDraftFormHTML(){
   let copts='<option value="">Sin categoría</option>';REC_CATS.forEach(c=>{copts+='<option value="'+c+'"'+(_recDraft.category===c?' selected':'')+'>'+c+'</option>';});
   return '<div class="frow2"><div><label>Nombre de la receta</label><input id="rec_name" value="'+esc(_recDraft.name)+'" placeholder="Bowl de pollo y arroz"></div><div><label>Categoría</label><select id="rec_cat">'+copts+'</select></div></div>'+
   '<div class="frow2"><div><label>Tiempo de preparación (opcional)</label><input id="rec_time" value="'+esc(_recDraft.time)+'" placeholder="20 min"></div><div><label>Etiquetas (opcional, separadas por coma)</label><input id="rec_tags" value="'+esc(_recDraft.tagsStr)+'" placeholder="alto en proteína, rápida"></div></div>'+
-  '<label style="margin-top:6px;display:block">Ingredientes <span class="tiny muted">— elige el alimento de tu base y la cantidad; los macros se calculan solos</span></label>'+
+  '<label class="u-mt8 u-dblock">Ingredientes <span class="tiny muted">— elige el alimento de tu base y la cantidad; los macros se calculan solos</span></label>'+
   '<div id="rec_ing_rows">'+recIngRowsHTML()+'</div>'+
   '<button type="button" class="btn btn-g btn-sm" data-act="recdraft-ing-add">'+I.plus+' Agregar ingrediente</button>'+
   '<div id="rec_totals">'+recTotalsHTML()+'</div>'+
@@ -11195,7 +11195,7 @@ VIEWS['recetario']=function(u){
       '<div class="rec-chips"><span class="chip">'+esc(r.category||'')+'</span>'+(recKcal(r)?'<span class="chip">'+recKcal(r)+' kcal</span>':'')+'</div>'+
       '<div class="eq">'+esc(recMacroStr(r)||(r.time||''))+'</div></div>';
   });
-  if(!cards)cards='<div class="empty" style="grid-column:1/-1"><b>'+(RECIPES.length?'Sin resultados':'Tu recetario está vacío')+'</b>'+(RECIPES.length?'Prueba con otro filtro.':'Importa el recetario base (240 recetas) o crea tu primera receta con el botón de arriba.')+'</div>';
+  if(!cards)cards='<div class="empty u-span"><b>'+(RECIPES.length?'Sin resultados':'Tu recetario está vacío')+'</b>'+(RECIPES.length?'Prueba con otro filtro.':'Importa el recetario base (240 recetas) o crea tu primera receta con el botón de arriba.')+'</div>';
   return{title:'Recetario',crumb:RECIPES.length+' recetas · '+list.length+' mostradas',back:{v:'apoyo'},
     actions:'<button class="btn btn-p" data-act="rec-new-modal">'+I.plus+' Crear receta</button><button class="btn btn-g" data-act="recimport-base">'+I.recipe+' Importar recetario base</button><button class="btn btn-g" data-act="recimport-pick">'+I.copy+' Importar JSON</button>',
     body:'<div class="filterbar"><input id="rec_q" placeholder="Buscar por nombre, ingrediente o etiqueta…" value="'+esc(route.params.q||'')+'" data-live="rec-q"><select data-change="rec-cat">'+copts+'</select><select data-change="rec-tag">'+topts+'</select><select data-change="rec-kcal">'+kopts+'</select></div><div class="lib-grid">'+cards+'</div>'};
@@ -11352,7 +11352,7 @@ VIEWS['foods']=function(u){
   return{title:'Base de alimentos',crumb:(S.foods||[]).length+' alimentos · valores por 100 g o por pieza/porción (ver cada fila) · tus atletas los usan al registrar comidas',back:{v:'apoyo'},
     actions:'<button class="btn btn-g" data-act="fext-modal">Buscar fuera del catálogo</button><button class="btn btn-p" data-act="food-new-modal">'+I.plus+' Nuevo alimento</button>',
     body:'<div class="filterbar"><input id="food_q" placeholder="Buscar alimento o categoría…" value="'+esc(route.params.q||'')+'" data-live="food-q"></div>'+
-    '<div class="card"><div class="tblwrap"><table class="tbl"><thead><tr><th>Alimento</th><th style="width:70px">kcal</th><th style="width:60px">P (g)</th><th style="width:60px">C (g)</th><th style="width:60px">G (g)</th><th style="width:80px"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'};
+    '<div class="card"><div class="tblwrap"><table class="tbl"><thead><tr><th>Alimento</th><th class="u-w70">kcal</th><th class="u-w60">P (g)</th><th class="u-w60">C (g)</th><th class="u-w60">G (g)</th><th class="u-w80"></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'};
 };
 
 VIEWS['ref']=function(u){
@@ -11968,7 +11968,7 @@ function progressCard(aid,forAth){
      motiva y el que evita que alguien abandone justo cuando está funcionando. */
   const wz=waistChange(aid,'0000-01-01','9999-12-31');
   if(wz&&Math.abs(wz.delta)>=0.5){
-    lines+='<p class="pg-sub">Cintura: <b style="color:var(--tx)">'+(wz.delta<0?'−':'+')+k(wz.delta)+' cm</b> desde el '+fmtDate(wz.from)+' ('+k(wz.a)+' → '+k(wz.b)+' cm).</p>';
+    lines+='<p class="pg-sub">Cintura: <b class="u-c-tx">'+(wz.delta<0?'−':'+')+k(wz.delta)+' cm</b> desde el '+fmtDate(wz.from)+' ('+k(wz.a)+' → '+k(wz.b)+' cm).</p>';
     const rec=waistChange(aid,addDaysISO(todayISO(),-42),todayISO());
     if(rec&&rec.delta<=-1&&r.month!=null&&Math.abs(r.month)<0.4)lines+='<div class="pg-note">'+(forAth?'Tu peso casi no se movió este mes, pero tu cintura bajó '+k(rec.delta)+' cm. Buena señal: la báscula no lo cuenta todo.':'El peso casi no se movió este mes, pero la cintura bajó '+k(rec.delta)+' cm: probable recomposición.')+'</div>';
   }
@@ -12069,7 +12069,7 @@ function blockCompareCard(aid){
    ['Fatiga /15',c=>c.s.avgFatigue==null?'—':c.s.avgFatigue],
    ['Volumen final',c=>c.s.volNow]
   ];
-  let head='<tr><th>Métrica</th>'+cols.map(c=>'<th'+(c.now?' style="color:var(--volt)"':'')+'>'+esc(c.lbl)+'</th>').join('')+'</tr>';
+  let head='<tr><th>Métrica</th>'+cols.map(c=>'<th'+(c.now?' class="u-c-volt"':'')+'>'+esc(c.lbl)+'</th>').join('')+'</tr>';
   let body='';rows.forEach(rw=>{body+='<tr><td class="exname">'+rw[0]+'</td>'+cols.map(c=>'<td class="num"'+(c.now?' style="background:var(--volt-08)"':'')+'>'+rw[1](c)+'</td>').join('')+'</tr>';});
   return '<div class="card mb16"><h3>Comparación entre bloques <span class="hint">cada fase/bloque cerrado frente al actual</span></h3><div class="tblwrap"><table class="tbl" style="min-width:520px"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div><p class="tiny mt8">Sirve para decidir el siguiente paso: si la tasa de peso, la adherencia o el RPE empeoraron, ajusta volumen, calorías o descarga antes de seguir subiendo.</p></div>';
 }
@@ -12555,7 +12555,7 @@ function coachTabSemanas(aid){
   let chg='';
   const byWeek={};CS.real.forEach(c=>{(byWeek[c.week]=byWeek[c.week]||[]).push(c);});
   Object.keys(byWeek).map(Number).sort((a,b)=>b-a).forEach(w2=>{
-    chg+='<div class="sect-h" style="margin:14px 0 8px"><h2 class="u-fs4">Semana '+w2+'</h2><span class="tiny">'+byWeek[w2].length+' cambio'+(byWeek[w2].length>1?'s':'')+'</span></div>';
+    chg+='<div class="sect-h u-m0 u-mt16 u-mb8"><h2 class="u-fs4">Semana '+w2+'</h2><span class="tiny">'+byWeek[w2].length+' cambio'+(byWeek[w2].length>1?'s':'')+'</span></div>';
     byWeek[w2].slice().reverse().forEach(c=>{
       const bd=CHG_BADGE[c.type]||['','Cambio'];
       chg+='<div class="logitem"><div class="lh"><span class="badge '+bd[0]+'">'+bd[1]+'</span><b>'+esc(c.ex||c.day)+'</b>'+(c.ex&&c.day?'<span class="tiny">'+esc(c.day)+'</span>':'')+'<span class="muted u-fs3">'+esc(c.detail)+'</span><span class="dt">'+fmtDateFull(c.date)+'</span></div></div>';
@@ -12661,9 +12661,9 @@ function niaPreviewHTML(){
     h+='</ul></div>';
   });
   if(z.notes)h+='<p class="tiny mt8"><b>Nota de la IA:</b> '+esc(z.notes)+'</p>';
-  z.warn.forEach(w=>{h+='<p class="tiny" style="color:var(--orange)">⚠ '+esc(w)+'</p>';});
-  h+='<div class="mt8"><label class="tiny">¿Algún cambio? Escríbelo y la IA rehace solo eso</label><div style="display:flex;gap:8px;margin-top:4px"><input class="u-f1" id="nia_chg" placeholder="Ej. cámbiale el arroz por papa, y la cena más ligera"><button class="btn btn-g" data-act="nia-change">Pedir cambio</button></div></div>';
-  h+='<p class="tiny mt8" style="color:var(--orange)">Al aplicar se reemplaza el menú del plan «'+esc((nutriOf(z.aid).plans.find(p=>p.id===z.pid)||{}).name||'')+'». No toca otros planes de día.</p>';
+  z.warn.forEach(w=>{h+='<p class="tiny u-c-orange">⚠ '+esc(w)+'</p>';});
+  h+='<div class="mt8"><label class="tiny">¿Algún cambio? Escríbelo y la IA rehace solo eso</label><div class="u-dflex u-gap8 u-mt4"><input class="u-f1" id="nia_chg" placeholder="Ej. cámbiale el arroz por papa, y la cena más ligera"><button class="btn btn-g" data-act="nia-change">Pedir cambio</button></div></div>';
+  h+='<p class="tiny mt8 u-c-orange">Al aplicar se reemplaza el menú del plan «'+esc((nutriOf(z.aid).plans.find(p=>p.id===z.pid)||{}).name||'')+'». No toca otros planes de día.</p>';
   return h;
 }
 function niaShowPreview(){
@@ -12700,7 +12700,7 @@ Object.assign(ACTIONS,{
     const N=ap.mealsPerDay||4,diet=nutriOf(aid).dietProfile||{};
     const dl=[['allergies','Alergias'],['intolerances','Intolerancias'],['likes','Le gusta'],['dislikes','No le gusta'],['notes','Notas']].filter(x=>String(diet[x[0]]||'').trim());
     let body='<div class="grid g2 mb16"><div class="stat"><div class="k">'+(T.own?'Objetivo de este plan':'Calculado del perfil')+'</div><div class="v">'+T.kcal+'<small> kcal</small></div><div class="sub">P'+T.p+' · C'+T.c+' · G'+T.f+'</div></div>'+
-      '<div class="stat"><div class="k">Comidas al día</div><div class="v"><input id="nia_n" type="number" min="1" max="8" value="'+N+'" style="width:70px"></div><div class="sub">Plan «'+esc(ap.name)+'»</div></div></div>';
+      '<div class="stat"><div class="k">Comidas al día</div><div class="v"><input class="u-w70" id="nia_n" type="number" min="1" max="8" value="'+N+'"></div><div class="sub">Plan «'+esc(ap.name)+'»</div></div></div>';
     if(dl.length){body+='<p class="tiny u-mb8">También se manda el perfil de alimentación del atleta:</p><ul class="tiny" style="margin:0 0 12px 18px">';dl.forEach(x=>{body+='<li><b>'+x[1]+':</b> '+esc(diet[x[0]])+'</li>';});body+='</ul>';}
     else body+='<p class="tiny u-mb12">Este atleta no tiene gustos ni alergias capturados (perfil de alimentación). Si tiene alguno, escríbelo abajo.</p>';
     body+='<label class="tiny">¿Cómo quieres el menú?</label><textarea class="u-w100 u-mt4" id="nia_txt" rows="4" placeholder="Ej. sin lácteos, comida mexicana, presupuesto bajo, más carbos antes de entrenar (entrena a las 7 pm), desayuno rápido">'+esc((_nia&&_nia.aid===aid&&_nia.instr)||'')+'</textarea>';
@@ -12795,11 +12795,11 @@ Object.assign(ACTIONS,{
       '<div class="frow2"><div><label>Días de entrenamiento por semana</label><select id="sp_days" data-change="sp-preview" data-aid="'+aid+'">'+dop+'</select></div>'+
       '<div><label>Estilo de split</label><select id="sp_style" data-change="sp-preview" data-aid="'+aid+'">'+sop+'</select></div></div>'+
       '<div class="notebox" id="sp_prev"><b>Estructura sugerida:</b> '+esc(prev)+'</div>'+
-      '<label style="margin-top:12px;display:block">Músculos de interés <span class="tiny muted">(opcional · máx. 2)</span></label>'+
+      '<label class="u-mt12 u-dblock">Músculos de interés <span class="tiny muted">(opcional · máx. 2)</span></label>'+
       '<div id="sp_interest" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">'+chips+'</div>'+
       '<p class="tiny u-mt8">Los músculos de interés reciben <b>más volumen, más frecuencia y van primero</b> en la sesión. Si no eliges ninguno, se enfatizan al azar 1-2 grupos grandes (cuádriceps, glúteo, isquios, pectoral o espalda) para que el split no salga plano.</p>'+
       '<p class="tiny u-mt8">PPL reparte mejor los grupos (sesiones más cortas) a partir de 4-6 días; Torso/Pierna concentra más músculos por sesión; Full body va bien con 1-3 días.</p>'+
-      '<p class="tiny" style="color:var(--orange);margin-top:6px">⚠ Esto reemplaza los días y ejercicios actuales del atleta y reinicia el bloque (volumen inicial = nuevo). El historial de bloques cerrados se conserva.</p>',
+      '<p class="tiny u-c-orange u-mt8">⚠ Esto reemplaza los días y ejercicios actuales del atleta y reinicia el bloque (volumen inicial = nuevo). El historial de bloques cerrados se conserva.</p>',
       '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="split-auto-do" data-aid="'+aid+'">Generar split</button>');
   },
   'split-auto-do':el=>{
@@ -12845,7 +12845,7 @@ Object.assign(ACTIONS,{
       body+='<p class="muted u-mb12">Se calculará a partir de: peso <b>'+lw.kg+' kg</b>, '+(d.profile.bodyFat?'<b>'+d.profile.bodyFat+'%</b> grasa, ':'')+'fase <b>'+esc(phaseName(d.profile.phase))+'</b>, <b>'+d.routine.days.length+'</b> días/sem de entreno.</p>'+
         '<ul class="tiny" style="margin:0 0 12px 18px"><li>Calorías objetivo (TDEE ± ritmo de la fase)</li><li>Macros: proteína 2–2,2 g/kg, grasa 25%, resto carbohidratos</li><li>Menú de '+N+' comidas con alimentos de tu base, en gramos</li></ul>';
     }
-    body+='<p class="tiny" style="color:var(--orange)">⚠ En cualquier caso se reemplaza el menú del plan «'+esc(ap.name)+'» y queda en «Menú cerrado». No toca otros planes de día. Ajustas lo que quieras después.</p>';
+    body+='<p class="tiny u-c-orange">⚠ En cualquier caso se reemplaza el menú del plan «'+esc(ap.name)+'» y queda en «Menú cerrado». No toca otros planes de día. Ajustas lo que quieras después.</p>';
     let foot='<button class="btn btn-g" data-act="modal-close">Cancelar</button>';
     if(!tg.err)foot+='<button class="btn '+(own?'btn-g':'btn-p')+'" data-act="nutri-auto-do" data-aid="'+aid+'">'+(own?'Recalcular del perfil':'Generar plan')+'</button>';
     if(own)foot+='<button class="btn btn-p" data-act="nutri-auto-do" data-aid="'+aid+'" data-own="1">Usar mis macros</button>';
@@ -13037,10 +13037,10 @@ function reportSheet(aid,rw,readOnly){
     keyIds.forEach(ident=>{
       const name=(exU.find(x=>x.ident===ident)||{}).name||ident.replace(/^lib:|^nm:/,'');
       const h=keyExHistory(aid,ident,cutoff);
-      if(!h.length){rows+='<tr><td class="exname">'+esc(name)+'</td><td class="num">—</td><td class="num">—</td><td><span class="tiny" style="color:var(--tx3)">sin registros</span></td></tr>';return;}
+      if(!h.length){rows+='<tr><td class="exname">'+esc(name)+'</td><td class="num">—</td><td class="num">—</td><td><span class="tiny u-c-tx3">sin registros</span></td></tr>';return;}
       const f=h[0],l=h[h.length-1],dl=Math.round((l.e1rm-f.e1rm)*10)/10,pct=f.e1rm>0?Math.round((l.e1rm-f.e1rm)/f.e1rm*1000)/10:0;
       const cmp=h.length>=2;if(cmp){sumPct+=pct;nPct++;}
-      const pill=cmp?'<span class="delta-pill '+(dl>0?'up':dl<0?'down':'flat')+'">'+(dl>0?'+':'')+dl+' kg · '+(pct>0?'+':'')+pct+'%</span>':'<span class="tiny" style="color:var(--tx3)">1 sesión</span>';
+      const pill=cmp?'<span class="delta-pill '+(dl>0?'up':dl<0?'down':'flat')+'">'+(dl>0?'+':'')+dl+' kg · '+(pct>0?'+':'')+pct+'%</span>':'<span class="tiny u-c-tx3">1 sesión</span>';
       rows+='<tr><td class="exname">'+esc(name)+'</td><td class="num">'+setTxt(f.set)+'<div class="tiny">'+f.e1rm+' kg 1RM</div></td><td class="num">'+setTxt(l.set)+'<div class="tiny">'+l.e1rm+' kg 1RM</div></td><td>'+pill+'</td></tr>';
       if(cmp)rendCharts+='<h4 class="mg-h mt16">'+esc(name)+' <span class="hint">1RM estimado</span></h4>'+svgLine(h.map(x=>({x:x.date,y:x.e1rm})),{color:'#b69cff',unit:'kg',h:120});
     });
@@ -13058,7 +13058,7 @@ function reportSheet(aid,rw,readOnly){
   const nNut=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff&&nutriHasData(n)).length;
   const nWk=athData(aid).logs.workouts.filter(w=>w.date>=cutoff&&!isMissed(w)).length;
   const wb=wellbeingAvgs(aid,days);
-  const wbbar=(label,v)=>{if(v==null)return'';const pct=Math.max(0,Math.min(100,v/5*100));const col=v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066';return '<div class="u-m0 u-mt8 u-mb8"><div class="wbbar-l"><span>'+label+'</span><span style="color:var(--tx)">'+v+'<small style="color:var(--tx3)">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div></div>';};
+  const wbbar=(label,v)=>{if(v==null)return'';const pct=Math.max(0,Math.min(100,v/5*100));const col=v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066';return '<div class="u-m0 u-mt8 u-mb8"><div class="wbbar-l"><span>'+label+'</span><span class="u-c-tx">'+v+'<small class="u-c-tx3">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div></div>';};
   const adhCards=[];
   if(sv.nu){
     adhCards.push('<div class="stat u-m0"><div class="k">Adherencia nutrición</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">media de '+nNut+' registros</div></div>');
@@ -13075,7 +13075,7 @@ function reportSheet(aid,rw,readOnly){
       '<div>'+wbbar('Estrés',wb.st)+wbbar('Ánimo',wb.a)+'</div>'+
       '</div>';
     if(wb.hunger!=null)adhBody+='<p class="tiny mt8">🍽 Hambre/apetito medio: <b>'+wb.hunger+'/5</b> · '+esc(hungerLabel(Math.round(wb.hunger)))+'</p>';
-  }else adhBody+='<p class="tiny" style="color:var(--tx3)">Aún sin check-ins en el periodo.</p>';
+  }else adhBody+='<p class="tiny u-c-tx3">Aún sin check-ins en el periodo.</p>';
   /* ---- NUTRICIÓN · plan objetivo (solo modo nutrición) ---- */
   let nutriBody='';
   if(sv.nu){
@@ -13087,7 +13087,7 @@ function reportSheet(aid,rw,readOnly){
   const showRend=sv.tr&&(!readOnly||keyIds.length);
   const periodTxt='Últimas '+rw+' semanas · '+fmtDate(cutoff)+' → '+fmtDate(todayISO());
   return '<div id="reportSheet" class="report-sheet">'+
-    '<div class="rep-head"><div><div class="rep-brand">LR COACHING</div><h2 style="margin:6px 0 2px">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny" style="text-align:right;color:var(--tx3)">Reporte de progreso<br>'+esc(sv.lbl)+'<br>Generado '+fmtDate(todayISO())+'</div></div>'+
+    '<div class="rep-head"><div><div class="rep-brand">LR COACHING</div><h2 class="u-m0 u-mt8 u-mb4">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny u-tr u-c-tx3">Reporte de progreso<br>'+esc(sv.lbl)+'<br>Generado '+fmtDate(todayISO())+'</div></div>'+
     '<div class="rep-sect"><h3>Peso corporal</h3>'+pesoBody+'</div>'+
     (showRend?'<div class="rep-sect"><h3>Rendimiento en fuerza</h3>'+rendBody+'</div>':'')+
     '<div class="rep-sect"><h3>Medidas y composición</h3>'+medBody+'</div>'+
@@ -13099,18 +13099,18 @@ function coachTabReporte(aid){
   const rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
   const a=userById(aid), sv=svcOf(aid);
   const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"reporte","rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
-  const controls='<div class="rep-controls" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><div><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div><div class="report-actions"><button class="btn btn-g btn-sm" data-act="report-print">🖨 PDF</button><button class="btn btn-p btn-sm" data-act="report-png" data-name="'+esc(a?a.name:'atleta')+'">📷 Descargar imagen</button></div></div>';
+  const controls='<div class="rep-controls u-dflex u-jcsb u-aic u-gap12 u-wrap u-mb16"><div><span class="tiny u-c-tx3 u-mr8">Periodo</span>'+sel+'</div><div class="report-actions"><button class="btn btn-g btn-sm" data-act="report-print">🖨 PDF</button><button class="btn btn-p btn-sm" data-act="report-png" data-name="'+esc(a?a.name:'atleta')+'">📷 Descargar imagen</button></div></div>';
   ensureKeyEx(S);
   const keyIds=Array.isArray(S.keyEx[aid])?S.keyEx[aid]:[];
   const _exSel=routineExUnique(aid),_keySet=new Set(keyIds);
-  const _chips=_exSel.length?_exSel.map(x=>'<button class="btn btn-sm '+(_keySet.has(x.ident)?'btn-p':'btn-g')+'" data-act="keyex-toggle" data-aid="'+aid+'" data-ident="'+encodeURIComponent(x.ident)+'">'+(_keySet.has(x.ident)?'★ ':'☆ ')+esc(x.name)+'</button>').join(' '):'<span class="tiny" style="color:var(--tx3)">El atleta aún no tiene ejercicios en su programa.</span>';
-  const keySelector=!sv.tr?'':'<details class="acc u-mb16" id="keyexSel"><summary style="cursor:pointer;font-weight:600;user-select:none">⭐ Ejercicios a seguir en el reporte'+(keyIds.length?' · '+keyIds.length:'')+'</summary><div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">'+_chips+'</div><p class="tiny mt8" style="color:var(--tx3)">Marca los básicos (sentadilla, press, peso muerto…). Solo aparecen en el reporte de progreso que generas.</p></details>';
+  const _chips=_exSel.length?_exSel.map(x=>'<button class="btn btn-sm '+(_keySet.has(x.ident)?'btn-p':'btn-g')+'" data-act="keyex-toggle" data-aid="'+aid+'" data-ident="'+encodeURIComponent(x.ident)+'">'+(_keySet.has(x.ident)?'★ ':'☆ ')+esc(x.name)+'</button>').join(' '):'<span class="tiny u-c-tx3">El atleta aún no tiene ejercicios en su programa.</span>';
+  const keySelector=!sv.tr?'':'<details class="acc u-mb16" id="keyexSel"><summary style="cursor:pointer;font-weight:600;user-select:none">⭐ Ejercicios a seguir en el reporte'+(keyIds.length?' · '+keyIds.length:'')+'</summary><div class="u-mt12 u-dflex u-wrap u-gap8">'+_chips+'</div><p class="tiny mt8 u-c-tx3">Marca los básicos (sentadilla, press, peso muerto…). Solo aparecen en el reporte de progreso que generas.</p></details>';
   return '<div class="card mb16">'+controls+keySelector+reportSheet(aid,rw,false)+'</div>';
 }
 VIEWS['ath-reporte']=function(u){
   const aid=u.id, rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
   const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="ath-reporte" data-params=\'{"rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
-  const controls='<div class="rep-controls u-mb16"><span class="tiny" style="color:var(--tx3);margin-right:8px">Periodo</span>'+sel+'</div>';
+  const controls='<div class="rep-controls u-mb16"><span class="tiny u-c-tx3 u-mr8">Periodo</span>'+sel+'</div>';
   return{title:'Mi reporte',crumb:'Tu progreso · solo lectura',body:'<div class="card mb16">'+controls+reportSheet(aid,rw,true)+'</div>'};
 };
 /* html2canvas bajo demanda. Se pide una sola vez: la promesa se guarda, así que dos
@@ -13244,7 +13244,7 @@ function acwrCard(aid){
   const bar='<div style="position:relative;height:12px;border-radius:var(--r-xs);overflow:hidden;background:var(--bg2);margin:6px 0 4px">'+
     seg('rgba(124,208,251,.35)',0,0.8)+seg('rgba(82,217,138,.40)',0.8,1.3)+seg('rgba(255,180,92,.45)',1.3,1.5)+seg('rgba(255,112,102,.45)',1.5,2.0)+
     (pos!=null?'<span style="position:absolute;top:-3px;width:3px;height:18px;background:var(--tx);border-radius:2px;left:'+pos+'%"></span>':'')+'</div>'+
-    '<div class="tiny" style="display:flex;justify-content:space-between;color:var(--tx3)"><span>0</span><span>0,8</span><span>1,3 · 1,5</span><span>2,0</span></div>';
+    '<div class="tiny u-dflex u-jcsb u-c-tx3"><span>0</span><span>0,8</span><span>1,3 · 1,5</span><span>2,0</span></div>';
   const toggle='<span class="sp"><button class="btn btn-sm '+(metric==='srpe'?'btn-p':'btn-g')+'" data-act="acwr-set" data-aid="'+aid+'" data-m="srpe">sRPE</button> <button class="btn btn-sm '+(metric==='tonnage'?'btn-p':'btn-g')+'" data-act="acwr-set" data-aid="'+aid+'" data-m="tonnage">Tonelaje</button></span>';
   const series=acwrSeries(aid,metric,10,21);
   const chart='<h4 class="mg-h u-mt20">Carga de entrenamiento y ACWR <span class="hint">por sesión · barras = carga, línea = ACWR, banda = objetivo de fase</span></h4>'+acwrComboChart(series,{unit:unit,band:{lo:pb.lo,hi:pb.hi},bandLabel:pb.lbl});
@@ -13256,9 +13256,9 @@ function acwrCard(aid){
   const verdict='<div class="notebox mt16" style="border-left-color:var(--'+(z.cls||'blue')+')"><b>'+z.lbl+(A.ratio!=null?' · ACWR '+A.ratio.toFixed(2):'')+'.</b> '+z.msg+'</div>';
   const provisional=A.daysSpan<21?'<div class="notebox mt8 u-bl-orange"><b>Base crónica provisional:</b> solo hay ~'+A.daysSpan+' días de historial (se recomiendan 28). El ratio es orientativo hasta consolidar 3-4 semanas de registro continuo.</div>':'';
   const phaseCtx='<div class="notebox mt8" style="border-left-color:var(--'+(pv.cls||'blue')+')"><b>Contexto de fase · '+pb.lbl+':</b> '+pv.txt+'</div>';
-  const guide='<details class="u-mt12"><summary style="cursor:pointer;color:var(--blue);font-size:var(--fs-3);font-weight:600">Cómo contextualizar la tasa · guía sesión y semana</summary><div class="grid g2 u-mt12"><div class="notebox"><b>Sesión a sesión</b><br>· Recuperación: 0,4–0,6<br>· Medias sesiones: no llegar a 0,8<br>· Promedio de sesiones: 0,8–1,0<br>· Sesión clave para el éxito: ~1,3<br>· Supera 1,3: no progresar métricas/exigencias<br>· Supera 1,5: reducir exigencias</div><div class="notebox"><b>Semana a semana · por fase</b><br>· Acumulación: gradual 0,8 → 1,3<br>· Mantenimiento: 1,3 – 1,5<br>· Regeneración: caída drástica, ≤ 0,8<br><span class="tiny">La aproximación a límites altos es gradual, bloque a bloque. A igual tasa, más trabajo (UA) acumulado vuelve la tasa más estable.</span></div></div></details>';
+  const guide='<details class="u-mt12"><summary class="u-ptr u-c-blue u-fs3 u-fw6">Cómo contextualizar la tasa · guía sesión y semana</summary><div class="grid g2 u-mt12"><div class="notebox"><b>Sesión a sesión</b><br>· Recuperación: 0,4–0,6<br>· Medias sesiones: no llegar a 0,8<br>· Promedio de sesiones: 0,8–1,0<br>· Sesión clave para el éxito: ~1,3<br>· Supera 1,3: no progresar métricas/exigencias<br>· Supera 1,5: reducir exigencias</div><div class="notebox"><b>Semana a semana · por fase</b><br>· Acumulación: gradual 0,8 → 1,3<br>· Mantenimiento: 1,3 – 1,5<br>· Regeneración: caída drástica, ≤ 0,8<br><span class="tiny">La aproximación a límites altos es gradual, bloque a bloque. A igual tasa, más trabajo (UA) acumulado vuelve la tasa más estable.</span></div></div></details>';
   return '<div class="card mb16"><div class="sect-h u-m0 u-mb12"><h3 class="u-m0">Carga aguda:crónica · ACWR <span class="hint">'+mlabel+'</span></h3>'+toggle+'</div>'+
-    stats+'<label class="tiny" style="color:var(--tx3)">Zona de riesgo (marcador = ACWR actual)</label>'+bar+verdict+phaseCtx+provisional+chart+guide+
+    stats+'<label class="tiny u-c-tx3">Zona de riesgo (marcador = ACWR actual)</label>'+bar+verdict+phaseCtx+provisional+chart+guide+
     '<p class="tiny mt8">ACWR «acoplada»: carga de los últimos 7 días ÷ media semanal de los últimos 28. Bandas de Gabbett (0,8–1,3 = óptimo; >1,5 = riesgo alto). Es una guía poblacional con limitaciones metodológicas en debate (sensible al método de cálculo); intégrala con el check-in de fatiga y el criterio clínico, no de forma aislada.</p></div>';
 }
 function fatigueCard(aid){
@@ -13282,10 +13282,10 @@ function fatigueCard(aid){
      const col=dir==='neutral'?'#b69cff':(v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066');
      let arrow='';
      if(dv!=null){
-       if(dv===0)arrow=' <span class="tiny" style="color:var(--tx3)">=</span>';
+       if(dv===0)arrow=' <span class="tiny u-c-tx3">=</span>';
        else{const up=dv>0;let c='var(--tx3)';if(dir==='high')c=up?'#52d98a':'#ff7066';else if(dir==='low')c=up?'#ff7066':'#52d98a';arrow=' <span class="tiny" style="color:'+c+'">'+(up?'▲':'▼')+Math.abs(dv)+'</span>';}
      }
-     return '<div class="u-m0 u-mt8 u-mb8"><div class="wbbar-l"><span>'+esc(label)+arrow+'</span><span style="color:var(--tx)">'+v+'<small style="color:var(--tx3)">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div><div class="tiny" style="color:var(--tx3);margin-top:2px">'+esc(desc)+'</div></div>';
+     return '<div class="u-m0 u-mt8 u-mb8"><div class="wbbar-l"><span>'+esc(label)+arrow+'</span><span class="u-c-tx">'+v+'<small class="u-c-tx3">/5</small></span></div><div class="wbbar-t"><span style="display:block;height:100%;width:'+pct+'%;background:'+col+'"></span></div><div class="tiny u-c-tx3 u-mt4">'+esc(desc)+'</div></div>';
    };
    const sigRow=it=>{const k=it[0],v=g[k];if(v==null)return'';const dv=(prevF&&pg[k]!=null)?v-pg[k]:null;return sigBar(it[1],v,sigDesc(k,v),dv,'high');};
    const hungerRow=last.hunger!=null?sigBar('🍽 Hambre / apetito',last.hunger,hungerLabel(last.hunger),(prevF&&prevF.hunger!=null)?last.hunger-prevF.hunger:null,'neutral'):'';
@@ -13293,7 +13293,7 @@ function fatigueCard(aid){
      '<div>'+sigRow(FQ_ITEMS[0])+sigRow(FQ_ITEMS[1])+sigRow(FQ_ITEMS[2])+'</div>'+
      '<div>'+sigRow(FQ_ITEMS[3])+sigRow(FQ_ITEMS[4])+hungerRow+'</div>'+
      '</div>'+
-     (prevF?'':'<p class="tiny mt8" style="color:var(--tx3)">Las flechas ▲▼ aparecerán cuando haya un check-in previo para comparar.</p>');
+     (prevF?'':'<p class="tiny mt8 u-c-tx3">Las flechas ▲▼ aparecerán cuando haya un check-in previo para comparar.</p>');
    let flags='';
    if(last.risk>=3)flags+='<div class="notebox mt16 u-bl-red"><b>Riesgo de lesión en 3:</b> considera un microciclo de descarga o reducir 1-2 series en el grupo afectado; cuidado especial con lesiones previas.</div>';
    if(dec.k==='sube2')flags+='<p class="tiny mt8">Si el 20% supone más de 4 series, limita el incremento a +4 semanales; si el riesgo de lesión marca más de 1, mantén el volumen.</p>';
@@ -13301,12 +13301,12 @@ function fatigueCard(aid){
    let hist='';
    fatigueLogs(aid).slice(-6).reverse().forEach(e=>{const dd=fqDecision(e.total);hist+='<tr><td class="num">S'+e.week+'</td><td>'+fmtDate(e.date)+'</td><td class="num">'+e.gs+'/25</td><td class="num"><b>'+e.total+'</b></td><td><span class="badge '+dd.cls+'">'+dd.short+'</span></td></tr>';});
    const pts=fatigueLogs(aid).map(e=>({x:e.date,y:e.gs}));
-   body='<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">'+
+   body='<div class="u-dflex u-gap20 u-aic u-wrap">'+
      '<div class="stat" style="margin:0;min-width:150px"><div class="k">Marco de progresión</div><div class="v">'+last.total+'<small> / 15</small></div><div class="sub">S'+last.week+' · '+fmtDate(last.date)+'</div></div>'+
      '<div><span class="badge '+dec.cls+'" style="font-size:var(--fs-3);padding:6px 14px">'+dec.lbl+'</span>'+chips+'</div></div>'+
      '<h4 class="mg-h mt16">Desglose del check-in <span class="hint">1-5 · ▲▼ vs semana previa · Global '+last.gs+'/25</span></h4>'+breakdown+
      (last.comment?'<div class="cm u-mt12">'+esc(last.comment)+'</div>':'')+flags+
-     (pend?'<p class="tiny mt8" style="color:var(--orange)">El check-in de esta semana sigue pendiente — este es el de la semana '+last.week+'.</p>':'')+
+     (pend?'<p class="tiny mt8 u-c-orange">El check-in de esta semana sigue pendiente — este es el de la semana '+last.week+'.</p>':'')+
      (pts.length>=2?'<hr class="hr">'+svgLine(pts,{color:'#b69cff',unit:'/25',h:150}):'')+
      (hist?'<div class="tblwrap mt16"><table class="tbl u-minwa"><thead><tr><th>Sem.</th><th>Fecha</th><th>Global</th><th>Total</th><th>Decisión</th></tr></thead><tbody>'+hist+'</tbody></table></div>':'');
  }
@@ -13326,8 +13326,8 @@ Object.assign(ACTIONS,{
    if(open.length>1){
      const opt=n=>'<button class="btn btn-sm '+(n===w?'btn-p':'btn-g')+'" data-act="fq-open" data-week="'+n+'">'+(n===cur?'Semana actual':'Semana anterior')+' · S'+n+(logs.some(e=>e.week===n)?' ✓':'')+'</button>';
      picker='<div class="frow"><label>¿De qué semana es este check-in?</label>'+
-       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+open.map(opt).join('')+'</div>'+
-       '<p class="tiny mt8" style="color:var(--tx3)">'+(prev
+       '<div class="u-dflex u-gap8 u-wrap">'+open.map(opt).join('')+'</div>'+
+       '<p class="tiny mt8 u-c-tx3">'+(prev
          ?'Ya respondiste la S'+w+' ('+fmtDate(prev.date)+'): abajo están tus respuestas y al guardar se <b>actualizan</b>, no se duplica nada.'
          :'Todavía no has respondido la S'+w+'.')+' La ✓ marca las semanas que ya contestaste.</p></div>';
    }
@@ -13525,10 +13525,10 @@ function coachTabForms(aid){
         :cur?'<span class="badge volt" title="Periodo en curso: aún puede responderlo">⏳ '+lbl+' · en curso</span>'
         :'<span class="badge red u-fw7" title="No lo respondió">✗ '+lbl+' · no respondió</span>';
     });
-    const histUI=per.length?'<div class="tiny mt8 u-fw7">Historial'+(nTot?' · respondió '+nR+' de '+nTot:'')+(per.length===12?' (últimos 12)':'')+'</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+hist+'</div>':'';
+    const histUI=per.length?'<div class="tiny mt8 u-fw7">Historial'+(nTot?' · respondió '+nR+' de '+nTot:'')+(per.length===12?' (últimos 12)':'')+'</div><div class="u-dflex u-wrap u-gap8 u-mt8">'+hist+'</div>':'';
     rows+='<div class="logitem"><div class="lh"><b>'+esc(f.title)+'</b>'+st+'</div>'+
       '<div class="tiny mt8">'+esc(fmFreqTxt(f))+(f.remind?' · aviso a las '+esc(f.remind):' · sin aviso al teléfono')+' · '+f.qs.length+(f.qs.length===1?' pregunta':' preguntas')+(!off&&fmNext(f,t)?' · próximo: '+fmtDate(fmNext(f,t)):'')+'</div>'+histUI+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+      '<div class="u-dflex u-gap8 u-wrap u-mt12">'+
       '<button class="btn btn-g btn-sm" data-act="fm-edit" data-aid="'+aid+'" data-fid="'+esc(f.id)+'">Editar</button>'+
       '<button class="btn btn-g btn-sm" data-act="fm-toggle" data-aid="'+aid+'" data-fid="'+esc(f.id)+'">'+(off?'Reanudar':'Pausar')+'</button>'+
       '<button class="btn btn-g btn-sm" data-act="fm-del" data-aid="'+aid+'" data-fid="'+esc(f.id)+'">Eliminar</button></div></div>';
@@ -13542,7 +13542,7 @@ function coachTabForms(aid){
       (r.items||[]).map(it=>'<div class="tiny mt8 u-fw7">'+esc(it.q)+'</div><div class="cm u-mt4">'+esc(fmAnsTxt(it))+'</div>').join('')+'</div>';
   });
   const auid=_athleteUidByAppId[aid],nDev=auid?(_pushDev[auid]||0):0;
-  const devUI=list.some(f=>f.remind)?(nDev?'<p class="tiny mb8">📱 Tiene los avisos activados en '+nDev+(nDev===1?' dispositivo':' dispositivos')+'.</p>':'<p class="tiny mb8" style="color:var(--orange)">📵 Aún no ha activado los avisos en su teléfono: se le pide al abrir «Cuestionarios de tu coach» en «Hoy». Mientras tanto solo los ve dentro de la app.</p>'):'';
+  const devUI=list.some(f=>f.remind)?(nDev?'<p class="tiny mb8">📱 Tiene los avisos activados en '+nDev+(nDev===1?' dispositivo':' dispositivos')+'.</p>':'<p class="tiny mb8 u-c-orange">📵 Aún no ha activado los avisos en su teléfono: se le pide al abrir «Cuestionarios de tu coach» en «Hoy». Mientras tanto solo los ve dentro de la app.</p>'):'';
   return'<div class="card mb16"><h3>Respuestas <span class="hint">'+resp.length+'</span></h3>'+(rh||'<p class="tiny">Todavía no hay respuestas.</p>')+'</div>'+
     secPleg('pl-fm-asig','Cuestionarios asignados','',list.length+' asignado'+(list.length===1?'':'s')+' · le aparecen en «Hoy» cuando le toca','<div>'+devUI+
     '<button class="btn btn-p btn-sm mb16" data-act="fm-new" data-aid="'+aid+'">'+I.plus+' Nuevo cuestionario</button>'+rows+'</div>');
@@ -13592,7 +13592,7 @@ function fdHTML(){
     if(q.t==='scale')extra='<div class="frow2"><div><label>Desde</label><input id="fd_qmin_'+i+'" type="number" min="0" max="10" value="'+esc(q.min)+'"></div><div><label>Hasta</label><input id="fd_qmax_'+i+'" type="number" min="1" max="10" value="'+esc(q.max)+'"></div></div>'+
       '<div class="frow2"><div><label>Texto del extremo bajo (opcional)</label><input id="fd_qlo_'+i+'" value="'+esc(q.lo)+'" placeholder="Ej. Muy mal"></div><div><label>Texto del extremo alto (opcional)</label><input id="fd_qhi_'+i+'" value="'+esc(q.hi)+'" placeholder="Ej. Excelente"></div></div>';
     if(q.t==='choice')extra='<div class="frow"><label>Opciones (una por línea)</label><textarea id="fd_qo_'+i+'" rows="4" placeholder="Sí, todo bien&#10;Más o menos&#10;No">'+esc((q.opts||[]).join('\n'))+'</textarea></div>';
-    qh+='<div class="fm-qbox"><div class="fm-qhead"><b>Pregunta '+(i+1)+'</b><span style="margin-left:auto;display:flex;gap:6px">'+
+    qh+='<div class="fm-qbox"><div class="fm-qhead"><b>Pregunta '+(i+1)+'</b><span class="u-mlauto u-dflex u-gap8">'+
       (i>0?'<button class="btn btn-g btn-sm" data-act="fd-move" data-i="'+i+'" data-d="-1" aria-label="Subir">↑</button>':'')+
       (i<f.qs.length-1?'<button class="btn btn-g btn-sm" data-act="fd-move" data-i="'+i+'" data-d="1" aria-label="Bajar">↓</button>':'')+
       '<button class="btn btn-g btn-sm" data-act="fd-qdel" data-i="'+i+'" aria-label="Quitar pregunta">'+I.x+'</button></span></div>'+
@@ -13749,9 +13749,9 @@ function applyCard(aid){
          has terminado de repartir en vez de perseguir un número que se aleja solo. */
       const left=sug-cur;
       let volTxt;
-      if(!dec||dec.k==='manten')volTxt=cur+' series/sem · recomendado mantener'+(cur!==base?' · <span style="color:var(--orange)">la semana empezó en '+base+'</span>':'');
+      if(!dec||dec.k==='manten')volTxt=cur+' series/sem · recomendado mantener'+(cur!==base?' · <span class="u-c-orange">la semana empezó en '+base+'</span>':'');
       else volTxt=cur+' series/sem · sugerido <b>'+sug+'</b> (desde '+base+' al empezar la semana'+(dec.k==='reduce'?', −10-20%':'')+') · '+
-        (left===0?'<span style="color:var(--green)">✓ objetivo de la semana cumplido</span>'
+        (left===0?'<span class="u-c-green">✓ objetivo de la semana cumplido</span>'
          :left>0?'falta'+(left>1?'n':'')+' <b>'+left+'</b> serie'+(left>1?'s':'')
          :'<b>'+(-left)+'</b> serie'+(-left>1?'s':'')+' por encima del sugerido');
       let rows='';
@@ -13765,14 +13765,14 @@ function applyCard(aid){
            una fila por ejercicio, cada una con sus botones: la serie va donde tú decidas. */
         const multi=exs.length>1;
         const pmBtns=ex=>'<span class="dcell"><button class="setpm" title="Quitar una serie de '+esc(ex?ex.name:g)+' aquí" data-act="apply-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'"'+(ex?' data-ex="'+ex.id+'"':'')+' data-d="-1">−</button><button class="setpm" title="Añadir una serie de '+esc(ex?ex.name:g)+' aquí" data-act="apply-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-group="'+esc(g)+'"'+(ex?' data-ex="'+ex.id+'"':'')+' data-d="1">+</button></span>';
-        rows+='<tr><td><b>D'+(di+1)+'</b> <span class="tiny">'+esc(day.name)+'</span><div class="tiny" style="margin-top:2px;color:var(--tx2)">'+(multi?exs.length+' ejercicios de '+esc(g)+' — elige abajo en cuál aplicarla':esc(exs[0].name))+'</div></td>'+
+        rows+='<tr><td><b>D'+(di+1)+'</b> <span class="tiny">'+esc(day.name)+'</span><div class="tiny u-mt4 u-c-tx2">'+(multi?exs.length+' ejercicios de '+esc(g)+' — elige abajo en cuál aplicarla':esc(exs[0].name))+'</div></td>'+
           '<td class="num u-tc"><b>'+gsets+'</b></td>'+
           '<td class="num u-tc" title="Duración estimada de la sesión completa (series × ejecución + descansos)">≈'+est+'′</td>'+
           '<td class="num u-tc" title="Duración real media (últimos registros)">'+(rs.dur?rs.dur+'′':'—')+'</td>'+
           '<td class="num u-tc" title="RPE medio reportado en esta sesión">'+(rs.rpe!=null?rs.rpe:'—')+'</td>'+
-          '<td class="u-tc">'+(multi?'<span class="tiny" style="color:var(--tx3)">por ejercicio ↓</span>':pmBtns(exs[0]))+'</td></tr>';
+          '<td class="u-tc">'+(multi?'<span class="tiny u-c-tx3">por ejercicio ↓</span>':pmBtns(exs[0]))+'</td></tr>';
         if(multi)exs.forEach(ex=>{
-          rows+='<tr style="background:var(--card2)"><td style="padding-left:28px"><span style="color:var(--tx3)">↳</span> '+esc(ex.name)+'</td>'+
+          rows+='<tr style="background:var(--card2)"><td style="padding-left:28px"><span class="u-c-tx3">↳</span> '+esc(ex.name)+'</td>'+
             '<td class="num u-tc">'+(parseInt(ex.sets,10)||0)+'</td>'+
             '<td colspan="3"></td>'+
             '<td class="u-tc">'+pmBtns(ex)+'</td></tr>';
@@ -13780,8 +13780,8 @@ function applyCard(aid){
       });
       if(!rows)rows='<tr><td colspan="6" class="tiny">Este grupo aún no tiene ejercicios en la rutina — añádelos en la pestaña Rutina.</td></tr>';
       const pr=PRIOS[p.priorities[g]]||PRIOS[-1];
-      inner+='<div class="sect-h" style="margin:14px 0 8px"><h2 class="u-fs4">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+volTxt+'</span></div>'+
-        '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Sesión y ejercicios del grupo</th><th style="width:60px">Series</th><th style="width:64px">Est.</th><th style="width:64px">Real</th><th style="width:56px">RPE</th><th style="width:88px">Aplicar</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+      inner+='<div class="sect-h u-m0 u-mt16 u-mb8"><h2 class="u-fs4">'+esc(g)+'</h2><span class="badge '+(pr.cls||'')+'">'+pr.lbl+'</span><span class="tiny">'+volTxt+'</span></div>'+
+        '<div class="tblwrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Sesión y ejercicios del grupo</th><th class="u-w60">Series</th><th class="u-w64">Est.</th><th class="u-w64">Real</th><th class="u-w56">RPE</th><th style="width:88px">Aplicar</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
     });
     inner+='<p class="tiny mt8">Coloca la serie extra en la sesión con menor duración y RPE (más margen de calidad). Si la sesión tiene varios ejercicios del grupo, elige en su propia fila a cuál se la sumas o quitas; con uno solo, «+» y «−» van directos a él. El sugerido se calcula sobre el volumen con el que empezó la semana, así que no se mueve mientras repartes las series: cuando llegas a él verás el ✓. Al aplicar, la meta semanal del grupo y el plan de esa sesión (pestaña Entrenamiento) se mueven solos con la serie, y todo cambio queda registrado en los ajustes de la semana. Recuerda el tope de +4 series semanales y que con riesgo de lesión alto conviene mantener.</p>';
   }
