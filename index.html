@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.3">
+<meta name="lr-build" content="2026-11-04.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3919,10 +3919,24 @@ function fresFila(fo,origen,inputId){
    corto (el genérico antes que la variante). */
 function fresLocal(q){
   const t=normTxt(q).split(/[^a-z0-9]+/).filter(Boolean);if(!t.length)return[];
-  return (S.foods||[]).map(fo=>{const n=normTxt(fo.name),ws=n.split(/[^a-z0-9]+/).filter(Boolean);
+  const exacta=(S.foods||[]).map(fo=>{const n=normTxt(fo.name),ws=n.split(/[^a-z0-9]+/).filter(Boolean);
       if(!t.every(x=>ws.some(w=>w.indexOf(x)===0)))return null;
       return{fo,s:n.indexOf(t[0])===0?0:1,l:n.length};})
     .filter(Boolean).sort((a,b)=>a.s-b.s||a.l-b.l).slice(0,8).map(x=>x.fo);
+  return exacta.length?exacta:fresTol(t);
+}
+/* Errores de dedo (2026-11-04): solo si lo exacto no trae nada. Mismas reglas que `buscar_alimentos` en el
+   servidor, para que la base del coach y el catálogo se comporten igual: hasta 1 letra de diferencia en
+   palabras de 4-5 letras y 2 en las de 6 o más (las de 3 o menos tienen que coincidir), comparando con la
+   palabra entera o con su inicio. «tortlla» → Tortilla, «avna» → Avena, «qeso» → Queso. */
+function fresLev(a,b){if(a===b)return 0;let v=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){const u=[i];for(let j=1;j<=b.length;j++)u[j]=Math.min(v[j]+1,u[j-1]+1,v[j-1]+(a[i-1]===b[j-1]?0:1));v=u;}return v[b.length];}
+function fresTol(t){
+  const tope=x=>x.length<=3?0:x.length<=5?1:2;
+  return (S.foods||[]).map(fo=>{const ws=normTxt(fo.name).split(/[^a-z0-9]+/).filter(Boolean);if(!ws.length)return null;let tot=0;
+      for(const x of t){const d=Math.min(...ws.map(w=>Math.min(fresLev(x,w),fresLev(x,w.slice(0,x.length)))));if(!(d<=tope(x)))return null;tot+=d;}
+      return{fo,tot,p:fresLev(t[0],ws[0].slice(0,t[0].length+1)),l:fo.name.length};})
+    .filter(Boolean).sort((a,b)=>a.tot-b.tot||a.p-b.p||a.l-b.l).slice(0,8).map(x=>x.fo);
 }
 function fresBuscar(inp){
   const box=document.getElementById(inp.id+'_res');if(!box)return;
