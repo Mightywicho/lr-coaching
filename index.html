@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.2">
+<meta name="lr-build" content="2026-11-04.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -3914,12 +3914,14 @@ function fresFila(fo,origen,inputId){
     '<span class="fres-n"><b>'+esc(nm)+'</b>'+(sub?'<span>'+esc(sub)+'</span>':'')+'</span>'+
     '<span class="fres-k"><b>'+fresKc(fo)+'</b><span>kcal / '+(isU?esc(fo.unitLabel||'unidad'):'100 g')+'</span></span></button>';
 }
-/* Base del coach: todas las palabras deben aparecer (sin acentos); primero lo que empieza igual, luego lo que
-   tiene una palabra que empieza igual, y a igualdad el nombre más corto (el genérico antes que la variante). */
+/* Base del coach: cada palabra escrita debe ser el principio de una palabra del nombre (sin acentos): con
+   «av» sale «Avena» pero no «Jamón de pavo». Primero lo que empieza igual y, a igualdad, el nombre más
+   corto (el genérico antes que la variante). */
 function fresLocal(q){
-  const t=normTxt(q).split(/\s+/).filter(Boolean);if(!t.length)return[];
-  return (S.foods||[]).map(fo=>{const n=normTxt(fo.name);if(!t.every(w=>n.indexOf(w)>=0))return null;
-      return{fo,s:n.indexOf(t[0])===0?0:(n.indexOf(' '+t[0])>=0?1:2),l:n.length};})
+  const t=normTxt(q).split(/[^a-z0-9]+/).filter(Boolean);if(!t.length)return[];
+  return (S.foods||[]).map(fo=>{const n=normTxt(fo.name),ws=n.split(/[^a-z0-9]+/).filter(Boolean);
+      if(!t.every(x=>ws.some(w=>w.indexOf(x)===0)))return null;
+      return{fo,s:n.indexOf(t[0])===0?0:1,l:n.length};})
     .filter(Boolean).sort((a,b)=>a.s-b.s||a.l-b.l).slice(0,8).map(x=>x.fo);
 }
 function fresBuscar(inp){
