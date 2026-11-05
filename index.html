@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.5">
+<meta name="lr-build" content="2026-11-05.6">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -912,6 +912,8 @@ input.meta-in.old{border-style:dashed}
   .nav-item{flex-direction:column;gap:4px;font-size:var(--fs-1);padding:8px 3px;flex:1;align-items:center}
   .side-foot{margin:0;border:none;padding:0}
   .g2,.g3,.g4{grid-template-columns:1fr 1fr}
+  /* g3 a 2 columnas: con 3 (o 5) tarjetas la última quedaba sola con un hueco al lado: que ocupe la fila */
+  .g2>.stat:last-child:nth-child(odd),.g3>.stat:last-child:nth-child(odd){grid-column:1/-1}
   .content{padding:18px 14px 110px}
   .topbar{padding:14px 16px}
   .frow2,.frow3{grid-template-columns:1fr}
@@ -9267,7 +9269,7 @@ VIEWS['ath-nutri']=function(u){
     '<div class="dx-adh" role="group" aria-label="Adherencia">'+[1,2,3,4,5].map(v=>'<button class="'+(adh===v?'on'+(man?'':' auto'):'')+'" aria-pressed="'+(adh===v&&man)+'" data-act="dx-adh" data-v="'+v+'" data-d="'+iso+'">'+v+'</button>').join('')+'</div>'+
     (man?'<button class="hx-lnk" data-act="dx-adh-auto" data-d="'+iso+'">Que la calcule la app</button>':'')+
     '<label for="dx_cmt" class="mt16">Comentario para tu coach</label><textarea id="dx_cmt" rows="3" data-keep="dx_cmt_'+iso+'" placeholder="Opcional: cómo te fue, hambre, antojos, eventos…">'+esc((e&&e.comment)||'')+'</textarea>'+
-    '<button class="btn btn-p mt8" style="width:100%;justify-content:center" data-act="dx-save" data-d="'+iso+'">'+I.check+' Guardar el día</button></section>';
+    '<button class="btn '+(esHoy&&dxSigue(aid)?'btn-o':'btn-p')+' mt8" style="width:100%;justify-content:center" data-act="dx-save" data-d="'+iso+'">'+I.check+' Guardar el día</button></section>';
 
   const conMenu=esHoy&&(n.meals||[]).some(m=>(m.items||[]).length);
   const tools=conMenu?'<div class="dx-tools"><span class="tiny">⇄ cambia un alimento por un equivalente solo por hoy.</span></div>':'';
