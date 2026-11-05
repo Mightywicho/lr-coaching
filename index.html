@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.9">
+<meta name="lr-build" content="2026-11-04.10">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -915,6 +915,21 @@ input.meta-in.old{border-style:dashed}
   .sidebar{padding-left:4px;padding-right:4px;gap:0}
   .nav-item{font-size:10px;padding:8px 1px}
 }
+/* ---- Barra del ATLETA en teléfono: 5 botones (maqueta 2026-11-03) ----
+   Con 8 botones los nombres se cortaban («Mensaj…», «Mi rep…»). Mensajes, Mi reporte, Perfil y Salir
+   (.nav-mas-i) pasan a la hoja de «Más»; en computadora siguen en la barra lateral. El coach no cambia. */
+.nav-mas{display:none}
+.nav-item .lbl-c{display:none}
+@media(max-width:920px){
+  .shell:not(.coach) .nav-mas{display:flex}
+  .shell:not(.coach) .nav-mas-i{display:none}
+  .shell:not(.coach) .nav-item{font-size:11px;position:relative}
+  .shell:not(.coach) .nav-item .lbl-l{display:none}
+  .shell:not(.coach) .nav-item .lbl-c{display:inline}
+  .shell:not(.coach) .nav-item .navbadge{position:absolute;top:4px;left:calc(50% + 6px);padding:0 5px;font-size:10px;min-width:16px;margin:0}
+}
+.nav-mas-f{margin-bottom:8px}
+.nav-mas-f .navbadge{margin-left:auto}
 /* ---- Panel del COACH: el mismo diseño de escritorio en tablet y computadora (2026-10-04) ----
    Antes, por debajo de 920 px (iPad vertical) el coach caía en el diseño de teléfono: barra de
    navegación fija abajo y cabecera fija arriba. Ahora, desde 701 px, el coach conserva la barra
@@ -1224,6 +1239,22 @@ input.meta-in.old{border-style:dashed}
 .hx-btns{display:flex;gap:8px;margin-top:12px}.hx-btns .btn{flex:1;min-height:44px;justify-content:center}
 .hx-sec{font-size:12px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin:4px 2px 8px}
 .hx-otros summary{cursor:pointer;color:var(--tx2);font-size:13px;font-weight:600;padding:8px 0;min-height:40px;display:flex;align-items:center}
+/* «Hoy» como la maqueta (2026-11-04): tarjeta del coach, entreno compacto, chip de tipo de día y botón de Mensajes */
+.mb12{margin-bottom:12px}
+.hx-coach{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+.hx-coach[data-act]{cursor:pointer;border-color:var(--line2)}
+.hx-coach-av{width:32px;height:32px;border-radius:50%;background:rgba(245,72,75,.16);color:var(--volt);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hx-coach-t{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:14px}
+.hx-coach-t b{font-size:12px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+.hx-coach-t u{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
+.hx-tr{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.hx-tr>div{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hx-tr b{font-size:18px;font-weight:700}
+.hx-tr span{font-size:13px;color:var(--tx2)}
+.hx-tr .btn{min-height:44px;padding:0 18px}
+.hx-tipo{display:inline;padding:0;border:0;background:none;cursor:pointer;vertical-align:baseline}
+.hx-chat{position:relative}
+.hx-dot{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--volt)}
 .hx-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
 .hx-tile{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:3px;min-height:92px;color:var(--tx)}
 .hx-tile .k{font-size:12.5px;color:var(--tx2)}
@@ -4893,6 +4924,7 @@ const I={
   chart:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 17v-5M11 17V7M16 17v-3M21 17V4"/></svg>',
   users:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.5 14.5c2.6.2 4.4 1.7 5 4.5"/></svg>',
   logout:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
+  mas:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
   plus:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   edit:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>',
   trash:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
@@ -5153,14 +5185,19 @@ function navItemsFor(u){
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
-  if(sv.tr)items.push({v:'ath-rutina',icon:I.dumbbell,label:'Mi rutina',match:r=>r.view==='ath-rutina'||r.view==='ath-wlog'});
+  /* En el teléfono la barra lleva 5 botones (maqueta del 2026-11-03): Hoy, Comidas, Entreno, Progreso y «Más».
+     Los marcados `mas` se esconden de la barra a ≤920 px y viven en la hoja de «Más» (navMasItems); en
+     computadora siguen todos en la barra lateral. Mensajes no se pierde: «Hoy» lleva su botón en la cabecera
+     y «Más» suma su globo de no leídos. `corto` = nombre en la barra del teléfono. */
   if(sv.nu)items.push({v:'ath-nutri',icon:I.food,label:'Comidas'});
-  items.push({v:'ath-chat',icon:ICON_CHAT,label:'Mensajes',badge:chatUnread(u.id,'ath')});
+  if(sv.tr)items.push({v:'ath-rutina',icon:I.dumbbell,label:'Mi rutina',corto:'Entreno',match:r=>r.view==='ath-rutina'||r.view==='ath-wlog'});
+  items.push({v:'ath-chat',icon:ICON_CHAT,label:'Mensajes',badge:chatUnread(u.id,'ath'),mas:true});
   items.push({v:'ath-prog',icon:I.chart,label:'Progreso'});
-  items.push({v:'ath-reporte',icon:I.copy,label:'Mi reporte'});
-  items.push({v:'ath-perfil',icon:I.user,label:'Perfil'});
+  items.push({v:'ath-reporte',icon:I.copy,label:'Mi reporte',mas:true});
+  items.push({v:'ath-perfil',icon:I.user,label:'Perfil',mas:true});
   return items;
 }
+function navMasItems(u){return u&&u.role!=='coach'?navItemsFor(u).filter(it=>it.mas):[];}
 let _lastRenderView=null;
 /* Red de seguridad del arranque: una excepción dentro de render() dejaba la app
    clavada en «Cargando datos…» sin ningún mensaje (ver bitácora s40).
@@ -5409,12 +5446,15 @@ function renderUnsafe(){
   const page=V(u);
   let navHTML='';navItemsFor(u).forEach(it=>{
     const on=it.match?it.match(route):route.view===it.v;
-    navHTML+='<button class="nav-item'+(on?' on':'')+'" title="'+esc(it.label)+'" data-act="nav" data-view="'+it.v+'" data-params=\''+(it.p?JSON.stringify(it.p):'{}')+'\'>'+it.icon+'<span class="lbl">'+esc(it.label)+'</span>'+(it.badge?'<span class="navbadge">'+it.badge+'</span>':'')+'</button>';
+    navHTML+='<button class="nav-item'+(on?' on':'')+(it.mas?' nav-mas-i':'')+'" title="'+esc(it.label)+'" data-act="nav" data-view="'+it.v+'" data-params=\''+(it.p?JSON.stringify(it.p):'{}')+'\'>'+it.icon+
+      (it.corto?'<span class="lbl"><span class="lbl-l">'+esc(it.label)+'</span><span class="lbl-c">'+esc(it.corto)+'</span></span>':'<span class="lbl">'+esc(it.label)+'</span>')+(it.badge?'<span class="navbadge">'+it.badge+'</span>':'')+'</button>';
   });
+  if(u.role!=='coach'){const mi=navMasItems(u),onM=mi.some(it=>route.view===it.v),bM=mi.reduce((s,it)=>s+(+it.badge||0),0);
+    navHTML+='<button type="button" class="nav-item nav-mas'+(onM?' on':'')+'" title="Más" data-act="nav-mas" aria-haspopup="dialog">'+I.mas+'<span class="lbl">Más</span>'+(bM?'<span class="navbadge">'+bM+'</span>':'')+'</button>';}
   const sideHTML='<div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+
     '<button type="button" class="nav-tab" data-act="nav-tab" aria-label="Mostrar u ocultar la barra" title="Mostrar / ocultar la barra"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>'+
     (u.role==='coach'?'<button type="button" class="side-tog" data-act="side-tog" title="Colapsar / expandir el menú"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="lbl">Colapsar menú</span></button>':'')+navHTML+
-    '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
+    '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item'+(u.role!=='coach'?' nav-mas-i':'')+'" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
   const topHTML=(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div>';
   const bodyHTML=page.body;
 
@@ -5696,6 +5736,12 @@ const ACTIONS={
     const t=document.getElementById('ath_email_txt');if(t&&t.dataset.aid===aid)t.textContent=email;
   },
   'nav':el=>{document.body.classList.remove('nav-hide');nav(el.dataset.view,JSON.parse(el.dataset.params||'{}'));},
+  /* Hoja de «Más» del atleta en el teléfono: lo que no cabe en la barra de 5 + «Salir» */
+  'nav-mas':()=>{const u=userById((getSession()||{}).userId);if(!u)return;
+    const fila=(act,v,icon,lbl,badge)=>'<button type="button" class="userbtn nav-mas-f" data-act="'+act+'"'+(v?' data-view="'+v+'"':'')+'><span class="ava" style="background:var(--card2);color:var(--tx2);border:1px solid var(--line2)">'+icon+'</span><span class="who"><b>'+esc(lbl)+'</b></span>'+(badge?'<span class="navbadge">'+badge+'</span>':'<span class="arr">→</span>')+'</button>';
+    openModal('Más',navMasItems(u).map(it=>fila('nav-mas-go',it.v,it.icon,it.label,it.badge)).join('')+fila('nav-mas-salir','',I.logout,'Salir',0));},
+  'nav-mas-go':el=>{closeModal();document.body.classList.remove('nav-hide');nav(el.dataset.view,{});},
+  'nav-mas-salir':()=>{closeModal();ACTIONS.logout();},
   /* pestaña de la barra de abajo: si está escondida por scroll solo la muestra; si no, alterna colapsada */
   'nav-tab':()=>{const b=document.body;if(b.classList.contains('nav-hide')&&!b.classList.contains('nav-col')){b.classList.remove('nav-hide');return;}
     const col=!b.classList.contains('nav-col');b.classList.toggle('nav-col',col);b.classList.remove('nav-hide');try{localStorage.setItem(LS_NAVCOL,col?'1':'0');}catch(e){}},
@@ -8791,32 +8837,12 @@ VIEWS['ath-hoy']=function(u){
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===aid&&WDRAFT.dayId===day.id;
     const sub=enCurso?'sin guardar · continúa donde ibas'
       :day.exercises.length+' ejercicios'+(wd?' · hecho '+(hoy?'hoy':'el '+fmtDow(wd.date))+(wd.partial?' (incompleta)':''):md?' · no la hiciste · '+missLbl(md.reason).toLowerCase():'');
-    dias.push({enCurso,hecho:!!wd,falta:!!md,html:'<button class="userbtn" data-act="wlog-start" data-day="'+day.id+'" style="margin-bottom:8px">'+
+    dias.push({id:day.id,enCurso,hecho:!!wd,falta:!!md,ult:wd?wd.date+'|'+day.name+'|'+(hoy?'hoy':'el '+fmtDow(wd.date)):null,html:'<button class="userbtn" data-act="wlog-start" data-day="'+day.id+'" style="margin-bottom:8px">'+
       '<span class="ava" style="background:'+(enCurso?'var(--blue)':wd?'var(--green)':md?'var(--danger-08)':'var(--card2)')+';color:'+(enCurso||wd?'#0d1015':md?'var(--red)':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':wd?'✓':md?'✕':day.exercises.length)+'</span>'+
       '<span class="who"><b>'+esc(day.name)+'</b><span>'+sub+'</span></span><span class="arr">→</span></button>'});
   });
-  /* El día que toca = el que está a medias o el primero de la rutina sin hacer esta semana. Los demás, plegados:
-     antes salían todos iguales y el atleta tenía que deducir cuál seguía. */
-  let diasUI='';
-  if(dias.length){
-    const sug=dias.find(x=>x.enCurso)||dias.find(x=>!x.hecho&&!x.falta)||null,otros=dias.filter(x=>x!==sug);
-    if(sug)diasUI+='<div class="hx-sec mt16">'+(sug.enCurso?'Sigue donde ibas':'Te toca')+'</div>'+sug.html;
-    if(otros.length)diasUI+=sug?'<details class="hx-otros" id="hx-otros"><summary>Otros días ('+otros.length+')</summary><div class="mt8">'+otros.map(x=>x.html).join('')+'</div></details>':'<div class="mt16">'+otros.map(x=>x.html).join('')+'</div>';
-    diasUI+='<button class="missbtn" data-act="miss-ask">No pude entrenar — avisar a mi coach</button>';
-  }
-  let wkUI='';
-  if(wp.total){
-    let pips='';
-    d.routine.days.forEach(day=>{const b=wp.byDay[day.id];pips+='<i class="'+(b?(b.partial?'on half':'on'):wp.missDay[day.id]?'miss':'')+'"></i>';});
-    const faltan=wp.total-wp.done;
-    wkUI='<div class="wkp'+(wp.complete?' full':'')+'">'+
-      '<div class="wkp-h"><b>'+wp.done+' de '+wp.total+' sesiones</b><span>semana del '+fmtDate(wp.from)+' al '+fmtDate(wp.to)+'</span></div>'+
-      '<div class="wkp-pips">'+pips+'</div>'+
-      (wp.complete
-        ?'<div class="wkp-msg">'+I.check+' ¡Semana completa! Ya hiciste todas tus sesiones.</div>'
-        :'<div class="wkp-sub">Te '+(faltan===1?'falta 1 sesión':'faltan '+faltan+' sesiones')+' para cerrar la semana. El lunes el contador vuelve a empezar.'+(wp.missed?' Marcaste '+wp.missed+' como no hecha'+(wp.missed===1?'':'s')+'.':'')+'</div>')+
-      '</div>';
-  }
+  /* El día que toca = el que está a medias o el primero de la rutina sin hacer esta semana (ver «Entreno de hoy»
+     abajo). Los demás, plegados: antes salían todos iguales y el atleta tenía que deducir cuál seguía. */
   /* El borrador ya no se pierde, pero hay que poder VOLVER a él. */
   const _wdName=wdraftDayName(aid),_wdEdit=!!(WDRAFT&&WDRAFT.editing);
   const _wdDay=(WDRAFT&&WDRAFT.date&&WDRAFT.date!==hoyISO)?WDRAFT.date:null;
@@ -8824,9 +8850,28 @@ VIEWS['ath-hoy']=function(u){
 
   const chev='<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
   const acc=(id,title,tag,inner,open)=>'<details class="acc" id="'+id+'"'+(open?' open':'')+'><summary>'+title+(tag?'<span class="acc-tag">'+tag+'</span>':'')+chev+'</summary><div class="acc-body">'+inner+'</div></details>';
-  const coachnote=(sv.tr&&d.routine.weekNote)?'<div class="coachnote"><b>Indicación de tu coach</b>'+esc(d.routine.weekNote)+'</div>':((!sv.tr&&notaAtleta(n.notes))?'<div class="coachnote"><b>Nota de tu coach</b>'+esc(notaAtleta(n.notes))+'</div>':'');
+  /* Arriba de todo, lo que el coach le dice (maqueta 2026-11-03): el mensaje del chat sin leer más reciente
+     (toca → Mensajes, que en el teléfono ya no está en la barra) y la indicación de la semana o la nota del plan. */
+  const _sinLeer=chatOf(aid).filter(m=>m.from==='coach'&&!m.read).sort((a,b)=>(b.ts||0)-(a.ts||0))[0];
+  const hxCoach=(et,txt,extra)=>'<div class="hx-coach"'+(extra||'')+'><span class="hx-coach-av" aria-hidden="true">LR</span><span class="hx-coach-t"><b>'+et+'</b><span>'+txt+'</span></span></div>';
+  const coachnote=(_sinLeer?hxCoach('Mensaje de tu coach · '+esc(fmtChatDay(_sinLeer.ts).toLowerCase())+' '+fmtTime(_sinLeer.ts),esc(String(_sinLeer.text||'').slice(0,160))+(String(_sinLeer.text||'').length>160?'…':'')+' <u>Responder</u>',' role="button" tabindex="0" data-act="nav" data-view="ath-chat"'):'')+
+    ((sv.tr&&d.routine.weekNote)?hxCoach('Tu coach · esta semana',esc(d.routine.weekNote)):((!sv.tr&&notaAtleta(n.notes))?hxCoach('Nota de tu coach',esc(notaAtleta(n.notes))):''));
 
-  const entreno=sv.tr?'<div class="card mb16"><div class="hx-top"><h3>'+I.dumbbell+' Tu entrenamiento</h3><span class="tiny">'+esc(d.routine.name||'')+'</span></div>'+wkUI+diasUI+'</div>':'';
+  /* Entreno de hoy, compacto como la maqueta: la sesión que toca con «Empezar» y lo demás plegado en «Hacer otro día». */
+  let entrenoUI='';
+  if(dias.length){
+    const sug=dias.find(x=>x.enCurso)||dias.find(x=>!x.hecho&&!x.falta)||null,otros=dias.filter(x=>x!==sug);
+    const pips=wp.total?'<div class="wkp-pips mb12">'+d.routine.days.map(day=>{const b=wp.byDay[day.id];return '<i class="'+(b?(b.partial?'on half':'on'):wp.missDay[day.id]?'miss':'')+'"></i>';}).join('')+'</div>':'';
+    let main='';
+    if(sug){const day=d.routine.days.find(x=>x.id===sug.id);
+      main='<div class="hx-tr"><div><b>'+esc(day.name)+'</b><span>'+(sug.enCurso?'sin guardar · sigue donde ibas':day.exercises.length+' ejercicios · la toca hoy según tu semana')+'</span></div>'+
+        '<button class="btn btn-p" data-act="wlog-start" data-day="'+day.id+'">'+(sug.enCurso?'Continuar':'Empezar')+'</button></div>';}
+    else if(wp.complete)main='<div class="wkp-msg mb12">'+I.check+' ¡Semana completa! Ya hiciste todas tus sesiones.</div>';
+    const ult=otros.filter(x=>x.hecho).map(x=>x.ult).sort().pop();
+    const otrosUI=otros.length?'<details class="hx-otros" id="hx-otros"><summary>'+(sug?'Hacer otro día':'Ver tus días')+(ult?' · '+esc(ult.split('|')[1])+' hecho '+esc(ult.split('|')[2]):'')+'</summary><div class="mt8">'+otros.map(x=>x.html).join('')+'</div></details>':'';
+    entrenoUI=pips+main+otrosUI+'<button class="missbtn" data-act="miss-ask">No pude entrenar — avisar a mi coach</button>';
+  }
+  const entreno=sv.tr?'<div class="card mb16"><div class="hx-top"><h3>Entreno de hoy</h3><span class="tiny">'+(wp.total?wp.done+' de '+wp.total+' esta semana':esc(d.routine.name||''))+'</span></div>'+entrenoUI+'</div>':'';
 
   /* REGISTRO RÁPIDO: cada cuadrito abre su formulario. Sustituye a la lista de «Pendiente hoy» y a los acordeones
      de nutrición: lo pendiente se pinta en naranja aquí mismo. */
@@ -8885,7 +8930,12 @@ VIEWS['ath-hoy']=function(u){
   const formsInner=athFormsInner(aid),fPend=formsPending(aid).length;
   if(formsInner)accs.push(acc('acc-forms','📋 Cuestionarios de tu coach',fPend?fPend+' pendiente'+(fPend>1?'s':''):'al día',formsInner,false));
 
-  return{title:'Hola, '+esc(u.name),crumb:fmtDateFull(hoyISO),
+  /* Cabecera (maqueta): fecha · tipo de día del plan de comidas (toca → Comidas, donde se cambia) y el botón de
+     Mensajes con punto rojo si hay algo sin leer: en el teléfono Mensajes ya no está en la barra. */
+  const _ty=sv.nu?planType(n.type):null,_un=chatUnread(aid,'ath');
+  const hxCrumb=fmtDateFull(hoyISO)+(_ty?' · <button type="button" class="hx-tipo" data-act="nav" data-view="ath-nutri" title="Cambiar el tipo de día en Comidas"><span class="badge '+_ty.cls+'">'+_ty.lbl+'</span></button>':'');
+  const hxChat='<button type="button" class="btn btn-g btn-ic hx-chat" data-act="nav" data-view="ath-chat" aria-label="Mensajes de tu coach'+(_un?' · '+_un+' sin leer':'')+'" title="Mensajes">'+ICON_CHAT+(_un?'<span class="hx-dot" aria-hidden="true"></span>':'')+'</button>';
+  return{title:'Hola, '+esc(u.name),crumb:hxCrumb,actions:hxChat,
     body:coachnote+wdUI+(sv.nu?hxNutriCard(aid):'')+entreno+weighReminder(aid)+tilesUI+statStrip+'<div class="hx-sec">Registros</div>'+accs.join('')};
 };
 /* Recordatorio de pesaje: de miércoles a domingo, si la semana lleva menos de 2 pesajes.
