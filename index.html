@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.4">
+<meta name="lr-build" content="2026-11-05.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -213,7 +213,8 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .ath-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .ath-meta .m b small{display:block;font-weight:500;font-size:var(--fs-2)}
 @media(max-width:560px){.ath-meta{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.ath-alert{display:flex;gap:6px;align-items:flex-start;font-size:var(--fs-3);color:var(--red);line-height:1.35}
+.ath-alert{display:flex;gap:6px;align-items:flex-start;font-size:var(--fs-3);color:var(--red);color:color-mix(in srgb,var(--red) 62%,var(--tx3));line-height:1.35}
+.ath-alert.grave{color:var(--red);font-weight:600}
 .ath-alert svg{flex-shrink:0;margin-top:2px}
 /* indicador que manda en el Panel: cuántos atletas toca revisar (lleva al filtro «Atención») */
 .stat.atn{background:var(--danger-10);border-color:var(--danger-35);cursor:pointer;text-align:left;color:var(--tx);font:inherit;width:100%}
@@ -6091,7 +6092,7 @@ VIEWS['coach-dash']=function(u){
       '<div class="ath-head">'+ava(a,1)+'<span class="nm"><b>'+esc(a.name)+'</b><span>'+esc(d.profile.goal)+'</span></span>'+(unreadByAth[a.id]?'<span class="cdot" title="mensajes sin leer">💬 '+unreadByAth[a.id]+'</span>':'')+
       (function(){const lv=st.k==='inactivo'?null:revNovedades(a.id).nivel;if(lv==='urgente'||lv==='toca')return '<span class="badge '+REV_NIVELES[lv].cls+' u-mlauto" title="Ver Monitoreo">'+REV_NIVELES[lv].lbl+'</span>';return st.k==='activo'?'':'<span class="badge '+st.cls+' u-mlauto" title="'+esc(st.hint)+'">'+st.lbl+'</span>';})()+'</div>'+
       (function(){const al=[];if(sm&&sm.k!=='green')al.push(esc(sm.hint));const z=stalls[a.id];if(z&&!z.recomp)al.push('peso estancado '+z.n+' sem');const nd=drPendientes(a.id).length;if(nd)al.push(nd+' dato'+(nd===1?'':'s')+' a revisar');
-        return al.length?'<div class="ath-alert"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><span>'+al.join(' · ')+'</span></div>':'';})()+
+        const gr=sm&&sm.k==='red';return al.length?'<div class="ath-alert'+(gr?' grave':'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '+(gr?'role="img" aria-label="Grave"':'aria-hidden="true"')+'>'+(gr?'<path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/>':'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>')+'</svg><span>'+al.join(' · ')+'</span></div>':'';})()+
       '<div class="ath-meta">'+
       '<span class="m">Peso<b>'+(lw?lw.kg+' kg':'—')+(delta!=null?' <small class="'+(delta>0?'up':delta<0?'down':'flat')+'">('+(delta>0?'+':'')+delta+')</small>':'')+'</b></span>'+
       '<span class="m">Entrenos<b>'+ww.done+' / '+ww.total+' <small class="'+pend.cls+'">'+pend.txt+'</small></b></span>'+
