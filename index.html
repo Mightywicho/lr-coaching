@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.7">
+<meta name="lr-build" content="2026-11-05.8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -980,7 +980,7 @@ input.meta-in.old{border-style:dashed}
   .shell:not(.coach) .nav-item .lbl-c{display:inline}
   .shell:not(.coach) .nav-item .navbadge{position:absolute;top:4px;left:calc(50% + 6px);padding:0 5px;font-size:var(--fs-1);min-width:16px;margin:0}
 }
-/* Coach en teléfono (≤700): «Material de apoyo» se cortaba en «Material…»; usa su nombre corto. */
+/* Coach en teléfono (≤700): «Material de apoyo» y «Configuración» se cortaban; usan su nombre corto. */
 @media(max-width:700px){.shell.coach .nav-item .lbl-l{display:none}.shell.coach .nav-item .lbl-c{display:inline}}
 .nav-mas-f{margin-bottom:8px}
 .nav-mas-f .navbadge{margin-left:auto}
@@ -5257,7 +5257,7 @@ function renderNewPass(){
 }
 function navItemsFor(u){
   if(u.role==='coach'){
-    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'coach-mon',icon:I.check,label:'Monitoreo',badge:revBadgeTotal()},{v:'apoyo',icon:I.folder,label:'Material de apoyo',corto:'Material',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración'}];
+    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'coach-mon',icon:I.check,label:'Monitoreo',badge:revBadgeTotal()},{v:'apoyo',icon:I.folder,label:'Material de apoyo',corto:'Material',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración',corto:'Ajustes'}];
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
