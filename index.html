@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.7">
+<meta name="lr-build" content="2026-11-04.8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1199,6 +1199,8 @@ input.meta-in.old{border-style:dashed}
 .dxa-ok{width:100%;min-height:48px;justify-content:center;font-size:15px}
 .dx-q3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .dx-quick summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--blue)}
+/* En la hoja «Añadir» la entrada rápida ya tiene su botón arriba: cerrada no se muestra (salía dos veces, prueba en teléfono 2026-11-04) */
+#dx_quick:not([open]){display:none}
 .dx-added{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:6px}
 .dx-added .dx-it:last-child,.dx-sec .dx-it:last-of-type{border-bottom-color:var(--line)}
 .hx-lnk{color:var(--blue);font-size:13px;font-weight:600;padding:6px 0;min-height:32px}
@@ -4248,7 +4250,9 @@ function dxProyeccion(aid){const iso=todayISO(),p=athPlanOf(aid),e=nutriEntryFor
   ss.forEach(s=>{plan+=mealMacros(s.meal).kcal;if(dxHecha(s,e,logs))return;k+=mealMacros(mealHoy(s.meal,e&&e.swaps)).kcal;n++;});
   if(!n)return null;const fin=consumedToday(aid).kcal-suppTakenMac(aid).kcal+k,df=fin-plan;
   if(Math.abs(df)<80)return null;return{fin,df};}
-function dxProyTxt(pr){return '<div class="dx-proj">Con lo que agregaste o cambiaste hoy, si comes lo que falta del plan cierras en '+pr.fin+' kcal ('+(pr.df>0?'+':'')+pr.df+' '+(pr.df>0?'sobre':'bajo')+' tu plan).</div>';}
+/* Se nombra el total del menú: arriba se ve el OBJETIVO (que puede no ser igual a la suma del menú) y «cierras en
+   2374 (+85 sobre tu plan)» con un objetivo de 2215 no cuadraba a la vista (prueba en teléfono 2026-11-04). */
+function dxProyTxt(pr){const a=Math.abs(pr.df);return '<div class="dx-proj">Con lo que agregaste o cambiaste hoy, si comes lo que falta de tu menú terminas con '+a+' kcal '+(pr.df>0?'más':'menos')+' de las que trae: '+pr.fin+' en vez de '+(pr.fin-pr.df)+' kcal.</div>';}
 /* Promedio de kcal y proteína de esta semana (de lunes a ayer: hoy aún no termina y bajaría la media). */
 function dxSemana(aid){const hoy=todayISO();let n=0,k=0,p=0;
   for(let iso=weekStartISO(hoy);iso<hoy;iso=isoPlus(iso,1)){const e=nutriEntryFor(aid,iso);if(!nutriHasData(e)&&!dxLogsOf(aid,iso).length)continue;const t=consumedFor(aid,iso);n++;k+=t.kcal;p+=t.p;}
@@ -4294,7 +4298,9 @@ function dxaMeds(fo){return fo&&fo.unit!=='u'?(fo.med||[]).filter(m=>+m.g>0).sli
 function dxaDflt(fo){if(fo.unit==='u')return{mi:'u',q:1};return dxaMeds(fo).length?{mi:0,q:1}:{mi:'g',q:100};}
 /* lo que recibe foodMacros: unidades si el alimento va por unidad, si no gramos */
 function dxaCant(fo,mi,q){if(mi==='u'||mi==='g')return q;const m=dxaMeds(fo)[mi];return m?Math.round(q*m.g*10)/10:q;}
-function dxaKcal(fo,mi,q){const a=dxaCant(fo,mi,q);return Math.round(fresKc(fo)*(mi==='u'?a:a/100));}
+/* Sin redondear las kcal por 100 g antes de multiplicar: así la lista da lo mismo que el detalle y el aviso «Añadido»
+   (que suman los macros de la cantidad). Antes: yogur 67 kcal/100 g × 1.25 = 84 en la lista y 85 al añadirlo. */
+function dxaKcal(fo,mi,q){const a=dxaCant(fo,mi,q),k=(+fo.p||0)*4+(+fo.c||0)*4+(+fo.f||0)*9;return Math.round(k*(mi==='u'?a:a/100));}
 function dxaPorTxt(fo,mi,q){if(mi==='u')return fmtG(q)+' '+(fo.unitLabel||'unidades');if(mi==='g')return fmtG(q)+' g';const m=dxaMeds(fo)[mi];return m?medFmt(m.n,q)+' ('+fmtG(q*m.g)+' g)':fmtG(q)+' g';}
 function dxaKinds(){return CAT_KINDS.map(k=>'<button type="button" class="'+(k[0]===_catKind?'on':'')+'" aria-pressed="'+(k[0]===_catKind)+'" data-act="fpx-kind" data-k="'+k[0]+'" data-for="mf_food">'+k[1]+'</button>').join('');}
 /* «De mi plan» solo en comidas SIN menú del coach: ahí registrar es cumplir la comida. En una comida con menú
