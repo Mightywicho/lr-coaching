@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-04.8">
+<meta name="lr-build" content="2026-11-04.9">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4298,9 +4298,11 @@ function dxaMeds(fo){return fo&&fo.unit!=='u'?(fo.med||[]).filter(m=>+m.g>0).sli
 function dxaDflt(fo){if(fo.unit==='u')return{mi:'u',q:1};return dxaMeds(fo).length?{mi:0,q:1}:{mi:'g',q:100};}
 /* lo que recibe foodMacros: unidades si el alimento va por unidad, si no gramos */
 function dxaCant(fo,mi,q){if(mi==='u'||mi==='g')return q;const m=dxaMeds(fo)[mi];return m?Math.round(q*m.g*10)/10:q;}
-/* Sin redondear las kcal por 100 g antes de multiplicar: así la lista da lo mismo que el detalle y el aviso «Añadido»
-   (que suman los macros de la cantidad). Antes: yogur 67 kcal/100 g × 1.25 = 84 en la lista y 85 al añadirlo. */
-function dxaKcal(fo,mi,q){const a=dxaCant(fo,mi,q),k=(+fo.p||0)*4+(+fo.c||0)*4+(+fo.f||0)*9;return Math.round(k*(mi==='u'?a:a/100));}
+/* Exactamente la cuenta del detalle, del aviso «Añadido» y de lo que se guarda: macros de la cantidad redondeados a un
+   decimal como en foodMacros (toFixed(1)) y luego mealKcal. Cualquier otro orden de redondeo descuadra 1 kcal:
+   yogur Alpura 125 g daba 84 en la lista y 85 al añadirlo (prueba en teléfono 2026-11-04, dos veces). No se llama a
+   foodMacros porque busca por nombre y una fila del catálogo aún no está adoptada. */
+function dxaKcal(fo,mi,q){const a=dxaCant(fo,mi,q),k=mi==='u'?a:a/100,r=x=>+((+x||0)*k).toFixed(1);return mealKcal({p:r(fo.p),c:r(fo.c),f:r(fo.f)});}
 function dxaPorTxt(fo,mi,q){if(mi==='u')return fmtG(q)+' '+(fo.unitLabel||'unidades');if(mi==='g')return fmtG(q)+' g';const m=dxaMeds(fo)[mi];return m?medFmt(m.n,q)+' ('+fmtG(q*m.g)+' g)':fmtG(q)+' g';}
 function dxaKinds(){return CAT_KINDS.map(k=>'<button type="button" class="'+(k[0]===_catKind?'on':'')+'" aria-pressed="'+(k[0]===_catKind)+'" data-act="fpx-kind" data-k="'+k[0]+'" data-for="mf_food">'+k[1]+'</button>').join('');}
 /* «De mi plan» solo en comidas SIN menú del coach: ahí registrar es cumplir la comida. En una comida con menú
