@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.9">
+<meta name="lr-build" content="2026-11-05.10">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -10937,7 +10937,9 @@ async function hydrateRecipes(){
    revisadas a mano; 800 px en recetas-img/. CC BY/BY-SA exigen dar crédito: autor + licencia + liga, siempre visibles
    donde sale la foto completa. Van por id de la receta base (r.id / recipe.rid), así no tocan los datos del coach;
    una receta propia o editada como nueva no tiene foto. Se cargan aparte para no frenar el arranque: mientras no
-   llegan, se deja un hueco (span.rec-ph) que se llena al cargar, sin volver a pintar la pantalla. */
+   llegan, se deja un hueco (span.rec-ph) que se llena al cargar, sin volver a pintar la pantalla.
+   2026-11-05: las recetas sin foto libre llevan imagen generada en local (Z-Image Turbo, Apache 2.0) con
+   {img, ia:true}; su crédito dice «Imagen ilustrativa» para que nadie la tome como foto del platillo real. */
 let REC_FOTOS=null;
 (function(){fetch('recetas-fotos.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(j=>{REC_FOTOS=j||{};document.querySelectorAll('.rec-ph').forEach(e=>{e.outerHTML=recFotoHTML(e.dataset.rf,e.dataset.mode);});});})();
 function recFotoHTML(id,mode){
@@ -10946,6 +10948,7 @@ function recFotoHTML(id,mode){
   const f=REC_FOTOS[id];if(!f)return mode==='card'?'<div class="rec-img rec-noimg" aria-hidden="true">'+I.recipe+'</div>':'';
   const img='<img class="rec-img" src="'+esc(f.img)+'" alt="" loading="lazy" decoding="async">';
   if(mode==='card')return img;
+  if(f.ia)return '<div class="rec-hero">'+img+'<p class="rec-cred">Imagen ilustrativa</p></div>';
   const cred='<p class="rec-cred">Foto: <a href="'+esc(f.fuente)+'" target="_blank" rel="noopener">'+esc(f.autor)+'</a> · '+(f.licurl?'<a href="'+esc(f.licurl)+'" target="_blank" rel="noopener">'+esc(f.lic)+'</a>':esc(f.lic))+' · Wikimedia Commons</p>';
   return '<div class="rec-hero">'+img+cred+'</div>';
 }
