@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-05.11">
+<meta name="lr-build" content="2026-11-07.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -319,6 +319,28 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .btn-mi{padding:4px 7px;line-height:0}
 .mshape{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-size:var(--fs-3);color:var(--tx2)}
 .mshape select{min-height:32px;padding:4px 8px;width:auto}
+/* plan por equivalentes (smaeCoachHTML / smaeAthRows) */
+.eqt td,.eqt th{padding:6px 8px}
+.eqt .num{text-align:right;white-space:nowrap}
+.eqstep{display:inline-flex;align-items:center;gap:2px}
+.eqstep button{width:28px;height:30px;border-radius:var(--r-xs);border:1px solid var(--line2);background:var(--bg2);color:var(--tx2);font-weight:700;line-height:1}
+.eqstep input{width:52px;min-height:30px;padding:2px 4px;text-align:center}
+.eqd th.eqmh{text-transform:none;letter-spacing:0;font-size:var(--fs-2);vertical-align:bottom}
+.eqd th.eqmh>span{display:block}
+.eqmb{display:flex;justify-content:flex-end;gap:2px;margin-top:2px}
+.eqd tfoot td{background:var(--bg2);vertical-align:top}
+.eqmas{margin-top:8px}.eqmas summary{cursor:pointer;font-size:var(--fs-3);color:var(--tx2);padding:6px 0}
+.eql input,.eql select{min-height:32px;padding:4px 6px}
+.eql td:nth-child(3) input{width:70px}
+.modal.eqmodal{max-width:760px}
+.dx-eq{border-bottom:1px solid var(--line)}
+.dx-eq summary{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;list-style:none}
+.dx-eq summary::-webkit-details-marker{display:none}
+.dx-eq summary .nm{flex:1;min-width:0;display:flex;flex-direction:column}
+.dx-eq summary .kc{color:var(--tx2);white-space:nowrap;font-size:var(--fs-3)}
+.dx-eqo{list-style:none;margin:0;padding:0 14px 10px}
+.dx-eqo li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:var(--fs-3)}
+.dx-eqo li b{font-weight:600;text-align:right}
 @media(min-width:921px){.mprog{position:sticky;top:12px}}
 .ncalc .acc-body>.card{margin-bottom:24px}
 .chkl{display:flex;gap:8px;align-items:center;margin-top:12px;text-transform:none;letter-spacing:0;font-size:var(--fs-3);font-weight:400;color:var(--tx)}
@@ -3819,7 +3841,7 @@ function suppRefCard(){
     ' Vitamina D, vitamina A y ácido fólico son iguales en las dos.</p></div>';
 }
 function mealItemsTotals(m){const t={p:0,c:0,f:0};(m.items||[]).forEach(it=>{t.p+=it.p||0;t.c+=it.c||0;t.f+=it.f||0;});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
-function planMenuTotals(p){const t={p:0,c:0,f:0};(p.meals||[]).forEach(m=>{if((m.items||[]).length){m.items.forEach(it=>{t.p+=it.p||0;t.c+=it.c||0;t.f+=it.f||0;});}else{t.p+=+m.p||0;t.c+=+m.c||0;t.f+=+m.f||0;}});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+function planMenuTotals(p){const t={p:0,c:0,f:0};(p.meals||[]).forEach(m=>{const x=mealMacros(m);t.p+=x.p;t.c+=x.c;t.f+=x.f;});t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 /* comida-receta: bloque de ingredientes + preparación (coach y atleta) */
 /* una línea de ingrediente: texto libre (recetas importadas) u objeto {food,grams,unit} (recetas escalables) */
 function ingLine(x){if(typeof x==='string')return x;const u=(x.unit==='g'||!x.unit)?'g':x.unit;return (x.grams||0)+' '+u+' de '+(x.food||'');}
@@ -3975,7 +3997,7 @@ function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slic
 /* registro diario de nutrición del atleta: comidas del plan seguidas → adherencia automática */
 function todayNutriEntry(aid){const d=athData(aid),t=todayISO();let e=d.logs.nutrition.find(x=>x.date===t);if(!e){e={date:t,adherence:null,comment:'',mealsDone:[],planFollowed:null};d.logs.nutrition.push(e);d.logs.nutrition.sort((a,b)=>a.date<b.date?-1:1);}return e;}
 /* macros de una comida: desde sus alimentos (menú) o desde sus macros directos (modo macros) */
-function mealMacros(m){if((m.items||[]).length)return mealItemsTotals(m);const p=+m.p||0,c=+m.c||0,f=+m.f||0;return{p:+p.toFixed(1),c:+c.toFixed(1),f:+f.toFixed(1),kcal:Math.round(p*4+c*4+f*9)};}
+function mealMacros(m){if(m&&m.eqv&&!m.recipe){const a=mealItemsTotals(m),b=smaeMac(m.eqv),p=a.p+b.p,c=a.c+b.c,f=a.f+b.f;return{p:+p.toFixed(1),c:+c.toFixed(1),f:+f.toFixed(1),kcal:Math.round(p*4+c*4+f*9)};}if((m.items||[]).length)return mealItemsTotals(m);const p=+m.p||0,c=+m.c||0,f=+m.f||0;return{p:+p.toFixed(1),c:+c.toFixed(1),f:+f.toFixed(1),kcal:Math.round(p*4+c*4+f*9)};}
 /* ===== macros consumidos hoy = comidas del plan marcadas + alimentos libres registrados ===== */
 function planMealShare(p){const n=Math.max(1,p.mealsPerDay||1);return{p:+((p.protein||0)/n).toFixed(1),c:+((p.carbs||0)/n).toFixed(1),f:+((p.fat||0)/n).toFixed(1),n};}
 /* ⚠ Solo lectura: antes usaba todayNutriEntry, que CREA la entrada de hoy. Pintar las barras de
@@ -4307,7 +4329,7 @@ function dxPlanFor(aid,iso){
 function dxSlots(p){
   if((p.meals||[]).length)return p.meals.map(m=>({id:m.id,name:m.name||'Comida',time:m.time||'',meal:m}));
   const N=Math.max(1,p.mealsPerDay||1),out=[];for(let i=0;i<N;i++)out.push({id:'slot'+i,name:'Comida '+(i+1),time:'',meal:null});return out;}
-function dxFijo(s){return !!(s&&s.meal&&(((s.meal.items||[]).length)||s.meal.recipe));}
+function dxFijo(s){return !!(s&&s.meal&&(((s.meal.items||[]).length)||s.meal.recipe||smaeHas(s.meal)));}
 /* Objetivo de una sección sin contenido: sus macros (modo macros por comida) o el reparto del día. */
 function dxTarget(p,s){
   if(s.meal)return mealMacros(s.meal);
@@ -6112,7 +6134,7 @@ VIEWS['coach-dash']=function(u){
       '<span class="m">Entrenos<b>'+ww.done+' / '+ww.total+' <small class="'+pend.cls+'">'+pend.txt+'</small></b></span>'+
       '<span class="m">Adherencia<b>'+(adh!=null?adh+' / 5':'—')+'</b></span>'+
       '<span class="m">Último<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
-      '<div class="u-dflex u-gap8 u-wrap"><span class="badge" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge">'+(ap.mode==='macros'?'Macros flexibles':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
+      '<div class="u-dflex u-gap8 u-wrap"><span class="badge" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge">'+(ap.mode==='macros'?'Macros flexibles':ap.mode==='eqv'?'Equivalentes':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
       (function(){const z=stalls[a.id];if(!z)return'';return z.recomp?'<span class="badge" title="Peso estancado pero la cintura bajó '+Math.abs(z.waist.delta)+' cm">Recomposición · '+z.n+' sem</span>':'';})()+
             (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
       '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+'</div></div>';
@@ -6678,6 +6700,260 @@ function miQtySet(el){
   saveState();render();
 }
 function mealCopy(m){const c=JSON.parse(JSON.stringify(m));c.id=uid();return c;}
+/* ===== Plan por equivalentes SMAE (2026-11-07) =====
+   Luis pidió armar el plan «por equivalentes como en Avena». Es un TERCER modo del plan (ap.mode='eqv'),
+   junto a «Macros flexibles» y «Menú cerrado»:
+   1 · Porciones del día por grupo (ap.eqvDay = {grupo: n}), cuadrando contra las kcal y macros objetivo.
+   2 · Distribuye: tabla grupos × comidas (m.eqv = {grupo: n} en cada comida del plan) con «Distribuir»
+       según la forma del día (DAY_SHAPES, la misma del menú cerrado).
+   Las comidas siguen siendo las de ap.meals, así que el diario del atleta, «Hoy», la adherencia y lo
+   consumido no necesitan otra ruta: mealMacros suma los equivalentes con los valores SMAE del grupo, y
+   dxFijo trata la comida como «con contenido del coach» (la ✓ suma esos macros).
+   Mezcla (pedido de Luis): una comida puede llevar equivalentes Y alimentos fijos en gramos (m.items),
+   p. ej. 1 scoop de proteína; se suman los dos.
+   El atleta ve «2 × Cereales sin grasa» y, al tocarlo, la lista de opciones con la cantidad que le toca.
+   La lista es del coach (S.eqvList, viaja en el blob app_state que leen sus atletas); si no la ha tocado,
+   SMAE_LIST. Cada opción decide cómo se muestra la cantidad: gramos, medida casera (pieza/taza…) o ambos.
+   Valores por equivalente (SMAE): se usan P/C/G del grupo y las kcal salen de 4/4/9 como en el resto de la
+   app (por eso, p. ej., cereal = 68 kcal y no 70: así las barras cuadran con el objetivo del plan). */
+const SMAE_G=[
+  {k:'verd',n:'Verduras',s:'Verdura',p:2,c:4,f:0,m:'c'},
+  {k:'fruta',n:'Frutas',s:'Fruta',p:0,c:15,f:0,m:'c'},
+  {k:'cer_sg',n:'Cereales sin grasa',s:'Cereal',p:2,c:15,f:0,m:'c'},
+  {k:'cer_cg',n:'Cereales con grasa',s:'Cereal c/grasa',p:2,c:15,f:5,m:'c'},
+  {k:'leg',n:'Leguminosas',s:'Leguminosa',p:8,c:20,f:1,m:'c'},
+  {k:'aoa_mb',n:'AOA muy bajo en grasa',s:'AOA muy bajo',p:7,c:0,f:1,m:'p'},
+  {k:'aoa_b',n:'AOA bajo en grasa',s:'AOA bajo',p:7,c:0,f:3,m:'p'},
+  {k:'aoa_m',n:'AOA moderado en grasa',s:'AOA moderado',p:7,c:0,f:5,m:'p'},
+  {k:'aoa_a',n:'AOA alto en grasa',s:'AOA alto',p:7,c:0,f:8,m:'p'},
+  {k:'leche_d',n:'Leche descremada',s:'Leche descremada',p:9,c:12,f:2,m:'c'},
+  {k:'leche_s',n:'Leche semidescremada',s:'Leche semi',p:9,c:12,f:4,m:'c',mas:1},
+  {k:'leche_e',n:'Leche entera',s:'Leche entera',p:9,c:12,f:8,m:'c',mas:1},
+  {k:'leche_az',n:'Leche con azúcar',s:'Leche c/azúcar',p:8,c:30,f:5,m:'c',mas:1},
+  {k:'gras_sp',n:'Grasas sin proteína',s:'Grasa',p:0,c:0,f:5,m:'f'},
+  {k:'gras_cp',n:'Grasas con proteína',s:'Grasa c/proteína',p:3,c:3,f:5,m:'f'},
+  {k:'azuc_sg',n:'Azúcares sin grasa',s:'Azúcar',p:0,c:10,f:0,m:'c',mas:1},
+  {k:'azuc_cg',n:'Azúcares con grasa',s:'Azúcar c/grasa',p:0,c:10,f:5,m:'c',mas:1},
+  {k:'libre',n:'Libres',s:'Libre',p:0,c:0,f:0,m:'',mas:1}
+];
+const SMAE_BY={};SMAE_G.forEach(g=>{SMAE_BY[g.k]=g;});
+/* Lista base: [alimento, medida casera de 1 equivalente, gramos]. Medidas del SMAE donde las hay; donde no,
+   gramos calculados con el macro que define el grupo. Es un punto de partida: el coach la edita. */
+const SMAE_LIST={
+  verd:[['Brócoli cocido','½ taza',92],['Calabacita cocida','1 pieza',91],['Chayote cocido','½ taza',80],['Coliflor cocida','¾ taza',94],['Ejotes cocidos','½ taza',63],['Espinaca cruda','2 tazas',60],['Jícama picada','½ taza',60],['Jitomate','1 pieza',123],['Lechuga','3 tazas',135],['Nopal cocido','1 taza',149],['Pepino con cáscara','1¼ taza',130],['Zanahoria picada','½ taza',64]],
+  fruta:[['Arándanos','¾ taza',105],['Durazno','2 piezas',150],['Fresa rebanada','1 taza',166],['Guayaba','3 piezas',126],['Kiwi','1½ pieza',114],['Mango picado','⅔ taza',100],['Manzana','1 pieza',106],['Melón picado','1 taza',160],['Naranja','2 piezas',152],['Papaya picada','1 taza',140],['Pera','½ pieza grande',100],['Piña picada','¾ taza',124],['Plátano','½ pieza',54],['Sandía picada','1 taza',160],['Uvas','18 piezas',88]],
+  cer_sg:[['Tortilla de maíz','1 pieza',30],['Avena en hojuelas','⅓ taza',22],['Arroz cocido','⅓ taza',53],['Pasta cocida','⅓ taza',48],['Pan de caja integral','1 rebanada',27],['Bolillo sin migajón','⅓ pieza',27],['Papa cocida','½ pieza',80],['Camote cocido','½ pieza',72],['Elote en granos','½ taza',80],['Quinoa cocida','⅓ taza',70],['Cereal de maíz sin azúcar','⅔ taza',18],['Tostada horneada','2 piezas',20],['Galletas Marías','4 piezas',20],['Palomitas naturales','2½ tazas',20]],
+  cer_cg:[['Tortilla de harina','1 pieza',30],['Granola','3 cucharadas',22],['Galletas saladas','6 piezas',20],['Totopos','10 piezas',22],['Papas a la francesa','8 piezas',35]],
+  leg:[['Frijol cocido','½ taza',86],['Lenteja cocida','½ taza',99],['Garbanzo cocido','½ taza',80],['Alubia cocida','½ taza',89]],
+  aoa_mb:[['Pechuga de pollo cocida','30 g',30],['Atún en agua','30 g',30],['Claras de huevo','2 piezas',66],['Pescado blanco cocido','40 g',40],['Camarón cocido','30 g',30],['Queso cottage','¼ taza',60]],
+  aoa_b:[['Bistec de res magro cocido','30 g',30],['Carne molida 90/10 cocida','30 g',30],['Lomo de cerdo cocido','30 g',30],['Muslo de pollo sin piel','30 g',30],['Atún en aceite drenado','30 g',30]],
+  aoa_m:[['Huevo entero','1 pieza',50],['Queso panela','40 g',40],['Queso fresco','40 g',40],['Salmón cocido','30 g',30]],
+  aoa_a:[['Queso Oaxaca','30 g',30],['Queso manchego','25 g',25],['Costilla de res cocida','30 g',30]],
+  leche_d:[['Leche descremada','1 taza',240],['Yogur natural descremado','¾ taza',180]],
+  leche_s:[['Leche semidescremada','1 taza',240]],
+  leche_e:[['Leche entera','1 taza',240],['Yogur natural entero','1 taza',240]],
+  leche_az:[['Leche con chocolate','1 taza',240],['Yogur de fruta','1 taza',240]],
+  gras_sp:[['Aceite (oliva, canola, aguacate)','1 cucharadita',5],['Aguacate','⅓ pieza',30],['Mantequilla','1½ cucharadita',6],['Mayonesa','1 cucharadita',5],['Aceitunas','5 piezas',25],['Crema','1 cucharada',15]],
+  gras_cp:[['Almendras','10 piezas',12],['Cacahuates','14 piezas',12],['Pistaches','18 piezas',12],['Nuez','4 mitades',8],['Crema de cacahuate','2 cucharaditas',10],['Semillas de girasol','1 cucharada',10],['Chía','1½ cucharada',15]],
+  azuc_sg:[['Azúcar','2 cucharaditas',10],['Miel','2 cucharaditas',12],['Mermelada','1 cucharada',18]],
+  azuc_cg:[['Chocolate oscuro','2 cuadritos',15],['Helado de crema','⅓ taza',45],['Galletas con chispas','2 piezas chicas',15]],
+  libre:[['Café o té sin azúcar','al gusto',0],['Agua mineral','al gusto',0],['Limón, chile, especias','al gusto',0],['Gelatina sin azúcar','al gusto',0]]
+};
+/* lista efectiva de un grupo: [nombre, medida, gramos, mostrar('a' ambos | 'g' gramos | 'm' medida)] */
+function smaeList(k){const L=S&&S.eqvList&&S.eqvList[k];return (Array.isArray(L)?L:(SMAE_LIST[k]||[])).map(o=>[o[0],o[1]||'',+o[2]||0,o[3]||'a']);}
+function smaeR2(x){return Math.max(0,Math.round((+x||0)*2)/2);}
+function smaeN(x){x=+x||0;return x%1?String(x).replace('.',','):String(x);}
+function smaeHas(m){return !!(m&&m.eqv&&!m.recipe&&Object.keys(m.eqv).some(k=>(+m.eqv[k]||0)>0&&SMAE_BY[k]));}
+function smaeMac(e){const t={p:0,c:0,f:0};Object.keys(e||{}).forEach(k=>{const g=SMAE_BY[k],n=+e[k]||0;if(!g||!(n>0))return;t.p+=g.p*n;t.c+=g.c*n;t.f+=g.f*n;});
+  t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
+function smaeKcal(g){return Math.round(g.p*4+g.c*4+g.f*9);}
+/* «½ taza» × 3 → «1½ tazas». Se multiplica el número inicial de la medida y se pluraliza la primera palabra. */
+const SMAE_FR=[[0,''],[.25,'¼'],[1/3,'⅓'],[.5,'½'],[2/3,'⅔'],[.75,'¾']];
+function smaeParseQ(s){const m=String(s||'').match(/^\s*(\d+(?:[.,]\d+)?)?\s*([¼⅓½⅔¾])?\s*(.*)$/);if(!m||(!m[1]&&!m[2]))return null;
+  const fr={'¼':.25,'⅓':1/3,'½':.5,'⅔':2/3,'¾':.75};return{q:(m[1]?parseFloat(m[1].replace(',','.')):0)+(m[2]?fr[m[2]]:0),u:m[3]};}
+function smaeFmtQ(q){let w=Math.floor(q+1e-6),r=q-w,b=SMAE_FR[0],d=9;SMAE_FR.concat([[1,'']]).forEach(f=>{const dd=Math.abs(r-f[0]);if(dd<d){d=dd;b=f;}});
+  if(b[0]===1){w++;b=SMAE_FR[0];}if(d>0.05)return String(+q.toFixed(1)).replace('.',',');return (w?String(w):'')+b[1]||'0';}
+function smaePlural(u,q){if(!(q>1))return u;return u.replace(/^(\S+)/,w=>/[aeiouáéó]$/i.test(w)?w+'s':/d$/i.test(w)?w+'es':/z$/i.test(w)?w.slice(0,-1)+'ces':w);}
+function smaeQty(o,n){n=+n||1;const g=Math.round(o[2]*n),pq=smaeParseQ(o[1]);
+  let med=o[1]||'';if(pq&&/^\s*g\s*$/i.test(pq.u))med='';else if(pq&&n!==1)med=smaeFmtQ(pq.q*n)+' '+smaePlural(pq.u,pq.q*n);
+  if(!g)return esc(med||o[1]||'');
+  if(o[3]==='g'||!med)return g+' g';if(o[3]==='m')return esc(med);return esc(med)+' <span class="tiny">('+g+' g)</span>';}
+/* Porciones sugeridas a partir del objetivo del plan. Orden: fijos (verdura, fruta, leguminosa, leche) →
+   cereal cubre los carbohidratos → AOA la proteína (con 2 de moderado = huevos) → grasas lo que falte.
+   Es un arranque para editar, no una prescripción. */
+function smaeSuggest(ap){
+  const P=+ap.protein||0,C=+ap.carbs||0,F=+ap.fat||0,d={};if(!(P+C+F))return null;
+  const fx=C>=180?{verd:4,fruta:3,leg:1,leche_d:1}:C>=110?{verd:3,fruta:2,leg:1,leche_d:1}:{verd:3,fruta:1,leche_d:1};
+  Object.assign(d,fx);let m=smaeMac(d);
+  d.cer_sg=smaeR2((C-m.c)/15);m=smaeMac(d);
+  const aoa=smaeR2((P-m.p)/7),am=Math.min(2,aoa),rest=aoa-am,ab=smaeR2(rest/2);
+  d.aoa_m=am;d.aoa_b=ab;d.aoa_mb=+(rest-ab).toFixed(1);m=smaeMac(d);
+  const gr=smaeR2((F-m.f)/5),gcp=Math.min(2,Math.floor(gr/3));d.gras_cp=gcp;d.gras_sp=+(gr-gcp).toFixed(1);
+  Object.keys(d).forEach(k=>{if(!(d[k]>0))delete d[k];});return d;}
+/* Reparte las porciones del día entre las comidas según la forma del día (mealShareW). Las comidas-receta no entran. */
+function smaeDistribute(ap){
+  const ms=ap.meals||[],W=mealShareW(ap),idx=ms.map((m,i)=>i).filter(i=>!ms[i].recipe);if(!idx.length)return false;
+  const tw=idx.reduce((a,i)=>a+W[i],0)||1,day=ap.eqvDay||{},dk=smaeMac(day).kcal,cur={},tg={},sob=[];
+  idx.forEach(i=>{ms[i].eqv={};cur[i]=0;tg[i]=dk*W[i]/tw;});
+  /* 1) la parte entera que le toca a cada comida (nadie quiere ½ huevo en cada comida) */
+  Object.keys(day).forEach(k=>{const g=SMAE_BY[k],n=+day[k]||0;if(!g||!(n>0))return;let used=0;
+    idx.forEach(i=>{const v=Math.floor(n*W[i]/tw+1e-9);if(v>0){ms[i].eqv[k]=v;cur[i]+=smaeKcal(g)*v;used+=v;}});
+    let l=n-used;while(l>=1-1e-9){sob.push([k,1]);l-=1;}if(l>.25)sob.push([k,.5]);});
+  /* 2) lo que sobra, de lo más calórico a lo menos, a la comida que más lejos está de su parte de kcal
+        (sin repetir comida dentro del mismo grupo mientras haya otras) */
+  sob.sort((a,b)=>smaeKcal(SMAE_BY[b[0]])*b[1]-smaeKcal(SMAE_BY[a[0]])*a[1]);
+  const dio={};sob.forEach(([k,v])=>{const ya=dio[k]||(dio[k]=[]);let pool=idx.filter(i=>ya.indexOf(i)<0);if(!pool.length)pool=idx;
+    const i=pool.reduce((b,x)=>(tg[x]-cur[x])>(tg[b]-cur[b])?x:b,pool[0]);
+    ms[i].eqv[k]=(ms[i].eqv[k]||0)+v;cur[i]+=smaeKcal(SMAE_BY[k])*v;ya.push(i);});
+  return true;}
+function smaeAssigned(ap){const a={};(ap.meals||[]).forEach(m=>{if(m.recipe)return;Object.keys(m.eqv||{}).forEach(k=>{a[k]=+((a[k]||0)+(+m.eqv[k]||0)).toFixed(1);});});return a;}
+function smaeBars(tot,tgt){
+  const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
+  return rows.map(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);
+    const st=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';
+    return '<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+st+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';}).join('');}
+function smaeStep(attrs,v,lbl){
+  return '<span class="eqstep"><button type="button" data-act="smae-step" '+attrs+' data-d="-0.5" aria-label="Quitar ½ '+esc(lbl)+'">−</button>'+
+    '<input type="number" inputmode="decimal" min="0" step="0.5" value="'+(v>0?v:'')+'" placeholder="0" data-change="smae-set" '+attrs+' aria-label="'+esc(lbl)+'">'+
+    '<button type="button" data-act="smae-step" '+attrs+' data-d="0.5" aria-label="Añadir ½ '+esc(lbl)+'">+</button></span>';}
+function smaeCoachHTML(aid,ap){
+  const n=nutriOf(aid),day=ap.eqvDay||{},asg=smaeAssigned(ap),ms=ap.meals||[],cols=ms.map((m,i)=>({m,i})).filter(x=>!x.m.recipe);
+  const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0},dm=smaeMac(day);
+  /* 1 · porciones del día */
+  const row=g=>{const v=+day[g.k]||0,a=+asg[g.k]||0;
+    return '<tr><td><b>'+g.n+'</b><div class="tiny">P'+g.p+' C'+g.c+' G'+g.f+' · '+smaeKcal(g)+' kcal</div></td>'+
+      '<td class="num">'+smaeStep('data-aid="'+aid+'" data-k="'+g.k+'"',v,g.n+' del día')+'</td>'+
+      '<td class="num">'+(v?Math.round(smaeKcal(g)*v):'')+'</td>'+
+      '<td class="num tiny'+(v||a?(Math.abs(a-v)<.01?' u-c-green':' u-c-orange'):'')+'">'+(v||a?smaeN(a)+' / '+smaeN(v):'')+'</td></tr>';};
+  const thd='<thead><tr><th>Grupo</th><th class="num">Porciones</th><th class="num">kcal</th><th class="num" title="Repartidas en comidas / del día">En comidas</th></tr></thead>';
+  const main=SMAE_G.filter(g=>!g.mas),mas=SMAE_G.filter(g=>g.mas),masOn=mas.some(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
+  const tbl='<div class="tblwrap"><table class="tbl eqt">'+thd+'<tbody>'+main.map(row).join('')+'</tbody></table></div>'+
+    '<details class="acc eqmas"'+(masOn?' open':'')+'><summary>Más grupos <span class="tiny">leche semi/entera/con azúcar, azúcares, libres</span></summary><div class="tblwrap"><table class="tbl eqt"><tbody>'+mas.map(row).join('')+'</tbody></table></div></details>';
+  const dayCard='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">1 · Porciones del día <span class="hint">equivalentes SMAE · «'+esc(ap.name)+'»</span></h3><span class="sp">'+
+    '<button class="btn btn-g btn-sm" data-act="smae-list" data-aid="'+aid+'" data-k="cer_sg">'+I.edit+' Lista de equivalentes</button>'+
+    '<button class="btn btn-p btn-sm" data-act="smae-suggest" data-aid="'+aid+'" title="Calcula porciones con las kcal y macros objetivo de este plan">'+I.refresh+' Sugerir porciones</button></span></div>'+
+    '<div class="grid g2"><div>'+tbl+'</div><div><div class="mprog"><h4 class="mg-h">Porciones del día vs objetivo</h4>'+smaeBars(dm,tgt)+
+    '<p class="tiny mt8">Cada porción cuenta con el valor SMAE de su grupo. Ajusta con − / + hasta que las barras cuadren; luego repártelas en las comidas.</p></div></div></div></div>';
+  /* 2 · distribuye */
+  let dist='';
+  if(!cols.length){
+    dist='<div class="empty"><b>Sin comidas</b>Crea los tiempos de comida para repartir las porciones.<div class="u-mt12"><button class="btn btn-p" data-act="smae-meals" data-aid="'+aid+'">Crear '+(ap.mealsPerDay||4)+' comidas</button></div></div>';
+  }else{
+    const MT=mealTargetsOf(ap),gs=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
+    let h='<thead><tr><th>Grupo</th>'+cols.map(x=>'<th class="num eqmh"><span>'+esc(x.m.name)+'</span>'+(x.m.time?'<span class="tiny">'+esc(x.m.time)+'</span>':'')+
+      '<span class="eqmb"><button class="btn-mi" data-act="pmeal-edit" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Nombre, hora y colación" aria-label="Editar '+esc(x.m.name)+'">'+I.edit+'</button><button class="btn-mi" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Eliminar comida" aria-label="Eliminar '+esc(x.m.name)+'">'+I.trash+'</button></span></th>').join('')+'<th class="num">Total</th></tr></thead><tbody>';
+    gs.forEach(g=>{const v=+day[g.k]||0,a=+asg[g.k]||0,ok=Math.abs(a-v)<.01;
+      h+='<tr><td><b>'+g.s+'</b></td>'+cols.map(x=>'<td class="num">'+smaeStep('data-aid="'+aid+'" data-k="'+g.k+'" data-meal="'+x.m.id+'"',+((x.m.eqv||{})[g.k])||0,g.n+' en '+x.m.name)+'</td>').join('')+
+        '<td class="num'+(ok?' u-c-green':' u-c-orange')+'" title="Repartidas / del día">'+smaeN(a)+' / '+smaeN(v)+(ok?' ✓':'')+'</td></tr>';});
+    if(!gs.length)h+='<tr><td colspan="'+(cols.length+2)+'" class="tiny">Primero define las porciones del día (paso 1).</td></tr>';
+    h+='</tbody><tfoot><tr><td><b>kcal</b></td>'+cols.map(x=>{const mt=mealMacros(x.m),t=MT[x.i];return '<td class="num"><b>'+mt.kcal+'</b><div class="tiny">P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</div>'+(t&&t.kcal?'<div class="tiny">le toca ≈ '+t.kcal+'</div>':'')+'</td>';}).join('')+'<td></td></tr></tfoot>';
+    dist='<div class="tblwrap"><table class="tbl eqt eqd">'+h+'</table></div>';
+  }
+  const shSel='<label class="mshape">Reparto <select data-change="pday-shape" data-aid="'+aid+'" aria-label="Cómo se reparte el día entre las comidas">'+DAY_SHAPES.map(x=>'<option value="'+x[0]+'"'+((ap.shape||'igual')===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')+'</select></label>';
+  const ptot=planMenuTotals(ap);
+  const distCard='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">2 · Distribuye en comidas</h3><span class="sp">'+shSel+
+    (cols.length?'<button class="btn btn-p btn-sm" data-act="smae-dist" data-aid="'+aid+'" title="Reparte las porciones del día entre las comidas según el reparto elegido (las colaciones llevan la mitad)">Distribuir</button>':'')+
+    '<button class="btn btn-g btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+dist+
+    '<div class="grid g2 u-mt12"><div class="tiny">Lo que el atleta ve en cada comida: «2 × Cereales sin grasa» y, al tocarlo, tu lista de opciones con la cantidad que le toca. Total del plan (equivalentes + alimentos fijos): <b>'+ptot.kcal+' kcal</b> · P'+ptot.p+' C'+ptot.c+' G'+ptot.f+'.</div><div>'+suppAislLine(aid,ap,ptot)+'</div></div></div>';
+  /* 3 · mezcla: alimentos fijos en gramos por comida */
+  let fx='';
+  cols.forEach(x=>{const m=x.m;let items='';
+    (m.items||[]).forEach((it,ii)=>{const fo=_foodFind(it.food),isU=!!fo&&fo.unit==='u',q=piQty(it);
+      items+='<li class="mi"><span class="mi-n">'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+'</span>'+
+        (fo?'<span class="mi-q"><input class="mi-in" type="number" inputmode="decimal" min="0.5" step="'+(isU?'0.5':'5')+'" value="'+q+'" data-change="mi-qty" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'" aria-label="Cantidad de '+esc(it.food)+'"><span class="tiny">'+(isU?esc(fo.unitLabel||'u'):'g')+'</span></span>':'<span class="mi-q tiny">'+esc(it.qty||'')+'</span>')+
+        '<span class="q">P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+'<button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Quitar" aria-label="Quitar '+esc(it.food)+'" data-act="pitem-del" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'">'+I.x+'</button></span></li>';});
+    const qid='mq_'+m.id;
+    fx+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+((m.items||[]).length?mealItemsTotals(m).kcal+' kcal en fijos':'solo equivalentes')+'</span></div>'+(items?'<ul>'+items+'</ul>':'')+
+      '<div class="mq"><input id="'+qid+'" list="mqfoods" placeholder="Alimento fijo en '+esc(m.name)+' (opcional)…" autocomplete="off" data-live="food-hint" data-hint-target="'+qid+'_g" aria-label="Alimento fijo en '+esc(m.name)+'">'+
+      '<input id="'+qid+'_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad" data-mq-aid="'+aid+'" data-mq-go="'+m.id+'">'+
+      '<button class="btn btn-g btn-sm" data-act="mq-add" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.plus+' Añadir</button></div>'+fpmHTML(qid+'_g')+'</div>';});
+  const nFix=cols.reduce((a,x)=>a+(x.m.items||[]).length,0);
+  const fixSec=cols.length?'<details class="acc pleg mb16" id="plc-eqfix"'+(nFix||plegadoSet().has('plc-eqfix')?' open':'')+'><summary>Alimentos fijos en gramos<span class="acc-tag">opcional · se suman a los equivalentes (p. ej. 1 scoop de proteína)</span><span class="pleg-res">'+(nFix?nFix+' alimento'+(nFix>1?'s':''):'ninguno')+'</span>'+WK_CHEV+'</summary><div class="acc-body"><datalist id="mqfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+fx+'</div></details>':'';
+  const dp0=n.dietProfile||{};
+  const warn=(dp0.allergies||dp0.dislikes)?'<div class="notebox u-bl-orange u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+'</div>':'';
+  return warn+dayCard+distCard+fixSec;
+}
+/* Atleta: una fila por grupo con su lista de opciones (cantidad ya multiplicada por las porciones). */
+function smaeAthRows(m){
+  if(!smaeHas(m))return '';
+  return SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>{const n=+m.eqv[g.k],L=smaeList(g.k),k=Math.round(smaeKcal(g)*n);
+    const ops=L.map(o=>'<li><span>'+esc(o[0])+'</span><b>'+smaeQty(o,n)+'</b></li>').join('');
+    return '<details class="dx-eq"><summary><span class="nm"><b>'+smaeN(n)+' × '+esc(g.n)+'</b><span class="tiny">'+(g.k==='libre'?'sin límite':'elige una opción o combina (½ y ½)')+'</span></span><span class="kc">'+(k||'')+'</span></summary>'+
+      (ops?'<ul class="dx-eqo">'+ops+'</ul>':'<p class="tiny">Tu coach aún no tiene opciones en este grupo.</p>')+'</details>';}).join('');
+}
+function smaeSummary(m){return smaeHas(m)?SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>smaeN(+m.eqv[g.k])+' '+g.s).join(' · '):'';}
+/* Cambio de modo: al entrar a equivalentes cada comida recupera lo que tenía (eqvBak); al salir se guarda
+   aparte para no perderlo y, en macros flexibles, la comida se queda con los macros de sus equivalentes. */
+function smaeModeSwitch(ap,to){
+  const from=ap.mode;if(from===to)return;
+  (ap.meals||[]).forEach(m=>{if(m.recipe)return;
+    if(to==='eqv'){m.eqv=m.eqvBak||m.eqv||{};delete m.eqvBak;}
+    else if(from==='eqv'&&m.eqv){const mc=smaeMac(m.eqv);if(to==='macros'&&!(m.items||[]).length&&mc.kcal){m.p=mc.p;m.c=mc.c;m.f=mc.f;}if(Object.keys(m.eqv).length)m.eqvBak=m.eqv;delete m.eqv;}});
+}
+function smaeSet(el,v){
+  const ap=activePlanOf(el.dataset.aid),k=el.dataset.k;if(!SMAE_BY[k])return;v=smaeR2(v);
+  if(el.dataset.meal){const m=(ap.meals||[]).find(x=>x.id===el.dataset.meal);if(!m)return;m.eqv=m.eqv||{};if(v>0)m.eqv[k]=v;else delete m.eqv[k];}
+  else{ap.eqvDay=ap.eqvDay||{};if(v>0)ap.eqvDay[k]=v;else delete ap.eqvDay[k];}
+  saveState();render();
+}
+/* Editor de la lista de equivalentes (del coach, vale para todos sus atletas). */
+function smaeListBody(k){
+  const g=SMAE_BY[k]||SMAE_G[0],L=smaeList(g.k),cust=!!(S.eqvList&&S.eqvList[g.k]);
+  const sel='<div class="frow2"><div><label>Grupo</label><select data-change="smae-lgrp">'+SMAE_G.map(x=>'<option value="'+x.k+'"'+(x.k===g.k?' selected':'')+'>'+x.n+'</option>').join('')+'</select></div>'+
+    '<div><label>Mostrar cantidades del grupo en</label><select data-change="smae-lshowall" data-k="'+g.k+'"><option value="">— elige para todo el grupo —</option><option value="a">Medida + gramos</option><option value="m">Solo medida (pieza, taza…)</option><option value="g">Solo gramos</option></select></div></div>';
+  const rows=L.map((o,i)=>'<tr><td><input value="'+esc(o[0])+'" data-change="smae-lf" data-k="'+g.k+'" data-i="'+i+'" data-f="0" aria-label="Alimento"></td>'+
+    '<td><input value="'+esc(o[1])+'" placeholder="1 pieza" data-change="smae-lf" data-k="'+g.k+'" data-i="'+i+'" data-f="1" aria-label="Medida de 1 equivalente"></td>'+
+    '<td><input type="number" min="0" step="1" value="'+(o[2]||'')+'" data-change="smae-lf" data-k="'+g.k+'" data-i="'+i+'" data-f="2" aria-label="Gramos de 1 equivalente"></td>'+
+    '<td><select data-change="smae-lf" data-k="'+g.k+'" data-i="'+i+'" data-f="3" aria-label="Cómo se muestra"><option value="a"'+(o[3]==='a'?' selected':'')+'>Medida + g</option><option value="m"'+(o[3]==='m'?' selected':'')+'>Medida</option><option value="g"'+(o[3]==='g'?' selected':'')+'>Gramos</option></select></td>'+
+    '<td><button class="btn-mi" data-act="smae-ldel" data-k="'+g.k+'" data-i="'+i+'" aria-label="Quitar '+esc(o[0])+'">'+I.trash+'</button></td></tr>').join('');
+  return sel+'<p class="tiny mb8">1 equivalente de <b>'+g.n+'</b> = P'+g.p+' C'+g.c+' G'+g.f+' ('+smaeKcal(g)+' kcal). La cantidad que ve el atleta se multiplica por sus porciones. '+(cust?'Lista editada por ti.':'<b>Lista base:</b> armada con medidas SMAE y gramos calculados con la base de alimentos; revísala y ajústala a tu criterio, la ven todos tus atletas.')+'</p>'+
+    '<div class="tblwrap"><table class="tbl eqt eql"><thead><tr><th>Alimento</th><th>Medida (1 eq.)</th><th>Gramos</th><th>Mostrar</th><th></th></tr></thead><tbody>'+(rows||'<tr><td colspan="5" class="tiny">Sin opciones.</td></tr>')+'</tbody></table></div>'+
+    '<div class="mq u-mt12"><input id="smae_lnew" list="mqfoods_l" placeholder="Añadir alimento de tu base…" autocomplete="off" aria-label="Alimento nuevo"><input id="smae_lmed" placeholder="medida (opcional)" aria-label="Medida"><button class="btn btn-p btn-sm" data-act="smae-ladd" data-k="'+g.k+'">'+I.plus+' Añadir</button></div>'+
+    '<datalist id="mqfoods_l">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
+    '<p class="tiny mt8">Si eliges un alimento de tu base, los gramos de 1 equivalente se calculan con su '+({p:'proteína',c:'carbohidrato',f:'grasa'}[g.m]||'macro')+'. Si no está, escribe el nombre y pon tú los gramos.</p>'+
+    (cust?'<button class="btn btn-g btn-sm u-mt12" data-act="smae-lreset" data-k="'+g.k+'">Restaurar la lista SMAE de este grupo</button>':'');
+}
+function smaeListOpen(k){openModal('Lista de equivalentes','<div id="smae_lbody">'+smaeListBody(k)+'</div>','<button class="btn btn-p" data-act="modal-close">Listo</button>',{cls:'eqmodal',persistent:true});}
+function smaeListRedraw(k){const b=document.getElementById('smae_lbody');if(b)b.innerHTML=smaeListBody(k);}
+function smaeListMut(k,fn){S.eqvList=S.eqvList||{};const L=smaeList(k);fn(L);S.eqvList[k]=L;saveState();}
+function smaeChange(el){
+  const c=el.dataset.change;
+  if(c==='smae-set'){smaeSet(el,parseFloat(String(el.value).replace(',','.'))||0);return;}
+  if(c==='smae-lgrp'){smaeListRedraw(el.value);return;}
+  if(c==='smae-lshowall'){const v=el.value;if(!v)return;smaeListMut(el.dataset.k,L=>L.forEach(o=>{o[3]=v;}));smaeListRedraw(el.dataset.k);render();return;}
+  if(c==='smae-lf'){const k=el.dataset.k,i=+el.dataset.i,f=+el.dataset.f;let v=el.value;
+    if(f===0&&!String(v).trim()){toast('El alimento necesita nombre','err');smaeListRedraw(k);return;}
+    if(f===2){v=Math.max(0,Math.round(parseFloat(String(v).replace(',','.'))||0));}
+    smaeListMut(k,L=>{if(L[i])L[i][f]=f===2?v:String(v).trim();});if(f===3)render();return;}
+}
+Object.assign(ACTIONS,{
+  'smae-step':el=>{const ap=activePlanOf(el.dataset.aid),k=el.dataset.k;let cur;
+    if(el.dataset.meal){const m=(ap.meals||[]).find(x=>x.id===el.dataset.meal);cur=+((m&&m.eqv)||{})[k]||0;}else cur=+(ap.eqvDay||{})[k]||0;
+    smaeSet(el,cur+parseFloat(el.dataset.d));},
+  'smae-suggest':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);const ap=activePlanOf(aid),d=smaeSuggest(ap);
+    if(!d){toast('Primero pon las calorías y macros objetivo del plan','err');return;}
+    const go=()=>{ap.eqvDay=d;saveState();render();toast('Porciones sugeridas: ajústalas y luego «Distribuir»');};
+    if(Object.keys(ap.eqvDay||{}).length){_smaePend=go;confirmModal('Sugerir porciones','Se reemplazarán las porciones del día que ya tienes por las sugeridas. Lo repartido en comidas no se toca.','smae-suggest-do','');}else go();},
+  'smae-suggest-do':()=>{closeModal();if(_smaePend){const f=_smaePend;_smaePend=null;f();}},
+  'smae-dist':el=>{const ap=activePlanOf(el.dataset.aid);if(!Object.keys(ap.eqvDay||{}).length){toast('Primero define las porciones del día','err');return;}
+    const has=(ap.meals||[]).some(m=>smaeHas(m));
+    const go=()=>{smaeDistribute(ap);saveState();render();toast('Porciones repartidas: ajusta a mano lo que quieras');};
+    if(has){_smaePend=go;confirmModal('Distribuir','Se reemplazará lo que ya repartiste en las comidas por un reparto nuevo según «'+((DAY_SHAPES.find(x=>x[0]===(ap.shape||'igual'))||DAY_SHAPES[0])[1])+'».','smae-suggest-do','');}else go();},
+  'smae-meals':el=>{const ap=activePlanOf(el.dataset.aid),N=Math.min(8,Math.max(1,ap.mealsPerDay||4));
+    const nm={1:['Comida'],2:['Desayuno','Comida'],3:['Desayuno','Comida','Cena'],4:['Desayuno','Colación','Comida','Cena'],5:['Desayuno','Colación 1','Comida','Colación 2','Cena'],6:['Desayuno','Colación 1','Comida','Colación 2','Cena','Colación 3']}[N]||Array.from({length:N},(x,i)=>'Comida '+(i+1));
+    ap.meals=(ap.meals||[]).concat(nm.map(x=>({id:uid(),name:x,time:'',items:[],eqv:{},snack:/^Colación/.test(x)||undefined})));
+    if(Object.keys(ap.eqvDay||{}).length)smaeDistribute(ap);saveState();render();},
+  'smae-list':el=>{smaeListOpen(el.dataset.k||'cer_sg');},
+  'smae-ldel':el=>{const k=el.dataset.k,i=+el.dataset.i;smaeListMut(k,L=>L.splice(i,1));smaeListRedraw(k);},
+  'smae-lreset':el=>{const k=el.dataset.k;if(S.eqvList)delete S.eqvList[k];saveState();smaeListRedraw(k);render();toast('Lista SMAE restaurada');},
+  'smae-ladd':el=>{const k=el.dataset.k,g=SMAE_BY[k];const nm=val('smae_lnew'),med=val('smae_lmed');if(!nm){toast('Escribe un alimento','err','smae_lnew');return;}
+    const fo=eqvFood(nm);let gr=0;
+    if(fo&&g&&g.m){const need=g[g.m];if(fo.unit==='u'){const per=+fo[g.m]||0;gr=0;if(per>0&&!med){smaeListMut(k,L=>L.push([fo.name,smaeFmtQ(Math.round(need/per*4)/4)+' '+(fo.unitLabel||'pieza'),0,'m']));smaeListRedraw(k);render();return;}}
+      else gr=gramsFor(fo,g.m,need)||0;}
+    smaeListMut(k,L=>L.push([fo?fo.name:nm,med,gr,'a']));smaeListRedraw(k);render();
+    if(!gr&&k!=='libre')toast('Añadido: pon los gramos de 1 equivalente');}
+});
+let _smaePend=null;
 function coachTabNutri(aid){
   const n=nutriOf(aid),ap=activePlanOf(aid),ty=planType(ap.type);
   /* barra de planes por tipo de día */
@@ -6685,8 +6961,8 @@ function coachTabNutri(aid){
   n.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.activePlan?' on':'')+'" data-act="plan-select" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});
   const planBar='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">Planes por tipo de día <span class="hint">crea variantes: pesado, normal, day off, recarga…</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="tpl-apply-modal" data-kind="nutrition" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g btn-sm" data-act="tpl-save-modal" data-kind="nutrition" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p btn-sm" data-act="plan-add" data-aid="'+aid+'">'+I.plus+' Nuevo plan</button></span></div><div class="planchips">'+chips+'</div></div>';
   /* cabecera + edición del plan activo */
-  const planHead='<div class="sect-h u-mb12"><h3 class="u-m0"><span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(ap.name)+'</h3><span class="sp"><button class="btn btn-p btn-sm" data-act="nutri-auto-ask" data-aid="'+aid+'" data-pid="'+ap.id+'" title="Calcula calorías y macros (TDEE + objetivo de la fase) y arma un menú con alimentos de tu base. Editable después.">'+I.refresh+' Plan automático</button><button class="btn btn-p btn-sm" data-act="nia-ask" data-aid="'+aid+'" title="Describe el menú en tus palabras y la IA lo arma con alimentos de tu base. Revisas antes de aplicar.">'+I.food+' Armar con IA</button><button class="btn btn-g btn-sm" data-act="plan-rename" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.edit+' Renombrar</button>'+(n.plans.length>1?'<button class="btn btn-g btn-sm" data-act="plan-del" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.trash+'</button>':'')+'</span></div>';
-  const seg='<div class="seg mb16"><button class="'+(ap.mode==='macros'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="macros">Macros flexibles</button><button class="'+(ap.mode==='menu'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="menu">Menú cerrado</button></div>';
+  const planHead='<div class="sect-h u-mb12"><h3 class="u-m0"><span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(ap.name)+'</h3><span class="sp">'+(ap.mode==='eqv'?'':'<button class="btn btn-p btn-sm" data-act="nutri-auto-ask" data-aid="'+aid+'" data-pid="'+ap.id+'" title="Calcula calorías y macros (TDEE + objetivo de la fase) y arma un menú con alimentos de tu base. Editable después.">'+I.refresh+' Plan automático</button><button class="btn btn-p btn-sm" data-act="nia-ask" data-aid="'+aid+'" title="Describe el menú en tus palabras y la IA lo arma con alimentos de tu base. Revisas antes de aplicar.">'+I.food+' Armar con IA</button>')+'<button class="btn btn-g btn-sm" data-act="plan-rename" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.edit+' Renombrar</button>'+(n.plans.length>1?'<button class="btn btn-g btn-sm" data-act="plan-del" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.trash+'</button>':'')+'</span></div>';
+  const seg='<div class="seg mb16"><button class="'+(ap.mode==='macros'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="macros">Macros flexibles</button><button class="'+(ap.mode==='menu'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="menu">Menú cerrado</button><button class="'+(ap.mode==='eqv'?'on':'')+'" data-act="pnutri-mode" data-aid="'+aid+'" data-mode="eqv">Equivalentes</button></div>';
   const targets='<div class="frow2"><div><label>Calorías objetivo (kcal)</label><input id="n_kcal" type="number" value="'+ap.kcal+'"></div><div><label>Comidas al día</label><input id="n_meals" type="number" value="'+(ap.mealsPerDay||4)+'"></div></div>'+
   '<div class="frow3"><div><label>Proteína (g)</label><input id="n_p" type="number" value="'+ap.protein+'"></div><div><label>Carbohidratos (g)</label><input id="n_c" type="number" value="'+ap.carbs+'"></div><div><label>Grasas (g)</label><input id="n_f" type="number" value="'+ap.fat+'"></div></div>'+
   '<p class="tiny mb16">Las kcal calculadas con estos macros son <b>'+kcalFromMacros(ap)+'</b>.</p>'+
@@ -6736,6 +7012,7 @@ function coachTabNutri(aid){
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Menú vacío</b>Añade la primera comida del plan.</div>')+'</div>'+
       '<div><div class="mprog"><h4 class="mg-h">Progreso del día vs objetivo</h4>'+bars+suppAislLine(aid,ap,planMenuTotals(ap))+'<p class="tiny mt8">Cada comida dice cuánto le toca según el reparto («'+esc(shTxt)+'»; las colaciones llevan la mitad) y cuánto le falta o le sobra. ✓ = a menos del 10 %. Cambia los gramos en la misma fila.</p></div></div></div></div>';
   }
+  if(ap.mode==='eqv')menuHTML=smaeCoachHTML(aid,ap);
   /* modo macros: comidas con P/C/G por comida (opcional, para precisión al marcar) */
   let macMealsHTML='';
   if(ap.mode==='macros'){
@@ -7785,17 +8062,17 @@ Object.assign(ACTIONS,{
   /* ---- planes por tipo de día ---- */
   'plan-select':el=>{const n=nutriOf(el.dataset.aid);n.activePlan=el.dataset.pid;saveState();render();},
   'plan-add':el=>{let opts='';Object.keys(PLAN_TYPES).forEach(k=>{opts+='<option value="'+k+'">'+PLAN_TYPES[k].lbl+'</option>';});const base=activePlanOf(el.dataset.aid),nb=(base.meals||[]).length;openModal('Nuevo plan de día','<div class="frow2"><div><label>Nombre</label><input id="pl_name" placeholder="Día pesado"></div><div><label>Tipo</label><select id="pl_type">'+opts+'</select></div></div><p class="tiny">El plan nuevo copia los macros de «'+esc(base.name)+'»; ajústalos después.</p>'+(nb?'<label class="chkl"><input type="checkbox" id="pl_copy" checked> Copiar también sus '+nb+' comidas (luego cambias lo que haga falta)</label>':''),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="plan-add-save" data-aid="'+el.dataset.aid+'">Crear</button>');},
-  'plan-add-save':el=>{const n=nutriOf(el.dataset.aid),base=activePlanOf(el.dataset.aid),tp=val('pl_type')||'custom';const nm=val('pl_name')||PLAN_TYPES[tp].lbl;const id=uid();n.plans.push({id,name:nm,type:tp,mode:base.mode||'macros',kcal:base.kcal||0,protein:base.protein||0,carbs:base.carbs||0,fat:base.fat||0,mealsPerDay:base.mealsPerDay||4,shape:base.shape||'igual',meals:(document.getElementById('pl_copy')||{}).checked?(base.meals||[]).map(mealCopy):[],notes:''});n.activePlan=id;saveState();closeModal();toast('Plan «'+nm+'» creado');render();},
+  'plan-add-save':el=>{const n=nutriOf(el.dataset.aid),base=activePlanOf(el.dataset.aid),tp=val('pl_type')||'custom';const nm=val('pl_name')||PLAN_TYPES[tp].lbl;const id=uid();n.plans.push({id,name:nm,type:tp,mode:base.mode||'macros',kcal:base.kcal||0,protein:base.protein||0,carbs:base.carbs||0,fat:base.fat||0,mealsPerDay:base.mealsPerDay||4,shape:base.shape||'igual',eqvDay:Object.assign({},base.eqvDay||{}),meals:(document.getElementById('pl_copy')||{}).checked?(base.meals||[]).map(mealCopy):[],notes:''});n.activePlan=id;saveState();closeModal();toast('Plan «'+nm+'» creado');render();},
   'plan-rename':el=>{const p=activePlanOf(el.dataset.aid);let opts='';Object.keys(PLAN_TYPES).forEach(k=>{opts+='<option value="'+k+'"'+(p.type===k?' selected':'')+'>'+PLAN_TYPES[k].lbl+'</option>';});openModal('Renombrar plan','<div class="frow2"><div><label>Nombre</label><input id="pl_name" value="'+esc(p.name)+'"></div><div><label>Tipo</label><select id="pl_type">'+opts+'</select></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="plan-rename-save" data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'">Guardar</button>');},
   'plan-rename-save':el=>{const n=nutriOf(el.dataset.aid),p=n.plans.find(x=>x.id===el.dataset.pid);if(p){p.name=val('pl_name')||p.name;p.type=val('pl_type')||p.type;}saveState();closeModal();render();},
   'plan-del':el=>{const n=nutriOf(el.dataset.aid);if(n.plans.length<=1){toast('Debe quedar al menos un plan','err');return;}confirmModal('Eliminar plan','Se borrará este plan de día y su menú.','plan-del-do','data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'"');},
   'plan-del-do':el=>{const n=nutriOf(el.dataset.aid);n.plans=n.plans.filter(p=>p.id!==el.dataset.pid);if(n.activePlan===el.dataset.pid)n.activePlan=n.plans[0].id;saveState();closeModal();toast('Plan eliminado');render();},
-  'pnutri-mode':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);activePlanOf(aid).mode=el.dataset.mode;saveState();render();},
+  'pnutri-mode':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);smaeModeSwitch(activePlanOf(aid),el.dataset.mode);activePlanOf(aid).mode=el.dataset.mode;saveState();render();},
   'pnutri-save':el=>{pnutriReadTargets(el.dataset.aid);saveState();toast('Plan guardado');render();},
   /* En modo menú la comida se crea al instante («Comida N») y el foco va a su buscador; nombre, hora y
      colación se cambian con el lápiz. En modo macros sigue el modal de siempre. */
   'pmeal-add':el=>{const ap=activePlanOf(el.dataset.aid);
-    if(ap.mode==='menu'){ap.meals=ap.meals||[];const m={id:uid(),name:'Comida '+(ap.meals.length+1),time:'',items:[]};ap.meals.push(m);saveState();render();const q=document.getElementById('mq_'+m.id);if(q){q.scrollIntoView({block:'center'});q.focus();}return;}
+    if(ap.mode==='menu'||ap.mode==='eqv'){ap.meals=ap.meals||[];const m={id:uid(),name:'Comida '+(ap.meals.length+1),time:'',items:[]};if(ap.mode==='eqv')m.eqv={};ap.meals.push(m);saveState();render();const q=document.getElementById('mq_'+m.id);if(q){q.scrollIntoView({block:'center'});q.focus();}return;}
     openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>');},
   'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida','err','m_name');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
   'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input class="u-w100 u-mb12" id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
@@ -8900,7 +9177,7 @@ function hxNutriCard(aid){
   const s=dxSigue(aid),iso=todayISO();
   if(!s)return card+'<div class="hx-next"><div class="h"><span class="dx-k">Comidas de hoy</span></div><div>Ya marcaste todas tus comidas. Cierra el día con tu calificación y un comentario para tu coach.</div><div class="hx-btns"><button class="btn btn-g" data-act="nav" data-view="ath-nutri" data-params=\'{}\'>Cerrar el día</button></div></div>';
   const fijo=dxFijo(s),e=nutriEntryFor(aid,iso);let que='',kc=0;
-  if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=s.meal.recipe?esc((s.meal.recipe&&s.meal.recipe.name)||s.name):'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';}
+  if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=s.meal.recipe?esc((s.meal.recipe&&s.meal.recipe.name)||s.name):(smaeHas(s.meal)?'<div>'+esc(smaeSummary(s.meal))+'</div>':'')+'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';}
   else{const tt=dxTarget(n,s);kc=tt.kcal;que='Objetivo ≈ P '+dxN(tt.p)+' · C '+dxN(tt.c)+' · G '+dxN(tt.f)+'. Registra lo que comas.';}
   const pr=dxProyeccion(aid);
   return card+'<div class="hx-next"><div class="h"><span class="dx-k">Sigue · '+esc(s.name)+(s.time?' · '+esc(s.time):'')+'</span><span class="tiny">'+(fijo?'':'≈ ')+kc+' kcal</span></div><div>'+que+'</div>'+
@@ -9248,7 +9525,7 @@ VIEWS['ath-nutri']=function(u){
     const next=esHoy&&!hecha&&primera;if(next)primera=false;
     let rows='',kc;
     if(fijo){
-      const mh=mealHoy(s.meal,sw),pm=mealMacros(mh);kc=pm.kcal+extraK;
+      const mh=mealHoy(s.meal,sw),pm=mealMacros(mh);kc=pm.kcal+extraK;rows=smaeAthRows(s.meal);
       if(s.meal.recipe)rows='<details class="dx-rec"><summary>'+I.recipe+' Receta · P '+dxN(pm.p)+' · C '+dxN(pm.c)+' · G '+dxN(pm.f)+'</summary>'+mealRecipeBox(s.meal)+'</details>';
       else (mh.items||[]).forEach((it,ii)=>{const k=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);let bt='';
         if(esHoy)bt=it.swapped?'<button class="dx-ib" data-act="eqv-undo" data-mid="'+s.meal.id+'" data-idx="'+ii+'" aria-label="Volver a '+esc(it.orig.food)+'" title="Volver a lo de tu menú">↺</button>'
@@ -10090,6 +10367,7 @@ document.addEventListener('change',e=>{
   else if(el.dataset.change==='supp-f'){const sp=suppOf(el);if(!sp)return;const k=el.dataset.k;
     if(k==='amount'){const v=parseFloat(String(el.value).replace(',','.'));if(v>0)sp.amount=+v.toFixed(3);if(sp.where)suppSyncMeal(el.dataset.aid,sp);saveState();render();return;}
     if(['dose','timing','until','notes'].indexOf(k)<0)return;sp[k]=String(el.value||'').trim();saveState();if(k==='until')render();}
+  else if(el.dataset.change&&el.dataset.change.indexOf('smae-')===0){smaeChange(el);}
   else if(el.dataset.change==='pday-shape'){const ap=activePlanOf(el.dataset.aid);ap.shape=el.value;saveState();render();}
   else if(el.dataset.change==='fd-copy'&&FD){
     const v=el.value;let src=null;
@@ -10797,7 +11075,7 @@ function aiPreviewRender(){
   }
   if(A&&A.nutri){body+='<div class="card mb16"><h3>'+I.food+' Nutrición detectada</h3>'+
       '<div class="frow"><label>Nombre de la plantilla</label><input id="ai_nt_name" value="'+esc(A.nutri.name)+'"></div>';
-    A.nutri.plans.forEach(p=>{const k=p.kcal||kcalFromMacros(p);body+='<div class="meal"><div class="meal-h"><span>'+esc(p.name)+'</span><span class="tm">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':'macros')+' · '+p.meals.length+' comidas</span></div></div>';});
+    A.nutri.plans.forEach(p=>{const k=p.kcal||kcalFromMacros(p);body+='<div class="meal"><div class="meal-h"><span>'+esc(p.name)+'</span><span class="tm">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':p.mode==='eqv'?'equivalentes':'macros')+' · '+p.meals.length+' comidas</span></div></div>';});
     if(A.nutri.supplements.length)body+='<p class="hint">Suplementos: '+A.nutri.supplements.map(s=>esc(s.name)).join(', ')+'</p>';
     body+='<button class="btn btn-p" data-act="aiimport-save-nutri">Guardar nutrición como plantilla</button></div>';
   }
@@ -10830,7 +11108,7 @@ VIEWS['tpl']=function(u){
   const card=(kind,t)=>{
     let det='';
     if(kind==='routine'){(t.days||[]).forEach(d=>{det+='<li><span>'+esc(d.name)+'</span><span class="q">'+d.exercises.length+' ej.</span></li>';});}
-    else{(t.plans||[]).forEach(p=>{const k=p.kcal||kcalFromMacros(p);det+='<li><span>'+esc(p.name)+(p.id===t.activePlan?' <span class="badge">activo</span>':'')+'</span><span class="q">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':'macros')+'</span></li>';});
+    else{(t.plans||[]).forEach(p=>{const k=p.kcal||kcalFromMacros(p);det+='<li><span>'+esc(p.name)+(p.id===t.activePlan?' <span class="badge">activo</span>':'')+'</span><span class="q">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':p.mode==='eqv'?'equivalentes':'macros')+'</span></li>';});
       if((t.supplements||[]).length)det+='<li><span>Suplementos</span><span class="q">'+t.supplements.map(s=>esc(s.name)).join(', ')+'</span></li>';}
     return '<div class="meal"><div class="meal-h"><span>'+esc(t.name)+(t.source==='ai-import'?' <span class="badge">IA</span>':'')+'</span><span class="tm">'+tplSummary(kind,t)+(t.created?' · guardada '+fmtDate(t.created):'')+'</span><span class="sp">'+
       '<button class="btn btn-p btn-sm" data-act="tpl-assign-modal" data-kind="'+kind+'" data-tpl="'+t.id+'">Asignar a atleta</button>'+
