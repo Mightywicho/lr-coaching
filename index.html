@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.2">
+<meta name="lr-build" content="2026-11-07.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -6819,6 +6819,9 @@ function smaeStep(attrs,v,lbl){
 function smaeCoachHTML(aid,ap){
   const n=nutriOf(aid),day=ap.eqvDay||{},asg=smaeAssigned(ap),ms=ap.meals||[],cols=ms.map((m,i)=>({m,i})).filter(x=>!x.m.recipe);
   const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0},dm=smaeMac(day);
+  /* las barras cuentan también los alimentos fijos (y comidas-receta): si no, marcarían «cuadra» con el plan pasado */
+  const fijT={p:0,c:0,f:0};ms.forEach(m=>{const t=m.recipe?mealMacros(m):mealItemsTotals(m);fijT.p+=t.p;fijT.c+=t.c;fijT.f+=t.f;});
+  const fxK=Math.round(fijT.p*4+fijT.c*4+fijT.f*9);if(fxK){dm.p=+(dm.p+fijT.p).toFixed(1);dm.c=+(dm.c+fijT.c).toFixed(1);dm.f=+(dm.f+fijT.f).toFixed(1);dm.kcal=Math.round(dm.p*4+dm.c*4+dm.f*9);}
   /* 1 · porciones del día */
   const row=g=>{const v=+day[g.k]||0,a=+asg[g.k]||0;
     return '<tr><td><b>'+g.n+'</b><div class="tiny">P'+g.p+' C'+g.c+' G'+g.f+' · '+smaeKcal(g)+' kcal</div></td>'+
@@ -6832,7 +6835,7 @@ function smaeCoachHTML(aid,ap){
   const dayCard='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">1 · Porciones del día <span class="hint">equivalentes SMAE · «'+esc(ap.name)+'»</span></h3><span class="sp">'+
     '<button class="btn btn-g btn-sm" data-act="smae-list" data-aid="'+aid+'" data-k="cer_sg">'+I.edit+' Lista de equivalentes</button>'+
     '<button class="btn btn-p btn-sm" data-act="smae-suggest" data-aid="'+aid+'" title="Calcula porciones con las kcal y macros objetivo de este plan">'+I.refresh+' Sugerir porciones</button></span></div>'+
-    '<div class="grid g2"><div>'+tbl+'</div><div><div class="mprog"><h4 class="mg-h">Porciones del día vs objetivo</h4>'+smaeBars(dm,tgt)+
+    '<div class="grid g2"><div>'+tbl+'</div><div><div class="mprog"><h4 class="mg-h">'+(fxK?'Porciones + alimentos fijos vs objetivo':'Porciones del día vs objetivo')+'</h4>'+smaeBars(dm,tgt)+(fxK?'<p class="tiny u-c-orange mt8">Incluye '+fxK+' kcal de alimentos fijos o recetas.</p>':'')+
     '<p class="tiny mt8">Cada porción cuenta con el valor SMAE de su grupo. Ajusta con − / + hasta que las barras cuadren; luego repártelas en las comidas.</p></div></div></div></div>';
   /* 2 · distribuye */
   let dist='';
@@ -6884,10 +6887,16 @@ function smaeAthRows(m){
 function smaeSummary(m){return smaeHas(m)?SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>smaeN(+m.eqv[g.k])+' '+g.s).join(' · '):'';}
 /* Cambio de modo: al entrar a equivalentes cada comida recupera lo que tenía (eqvBak); al salir se guarda
    aparte para no perderlo y, en macros flexibles, la comida se queda con los macros de sus equivalentes. */
-function smaeModeSwitch(ap,to){
+/* Alimentos del menú al entrar a equivalentes: si se quedaran, se sumarían a las porciones y el plan casi
+   duplicaría kcal (lo notó una revisión el 2026-11-07). Por eso pnutri-mode pregunta: sin `keep` se guardan en
+   m.itemsBak y reaparecen al volver a «Menú cerrado»; los de suplementos (it.supp) se quedan siempre. */
+function smaeMenuItemsN(ap){return (ap.meals||[]).reduce((a,m)=>a+(m.recipe?0:(m.items||[]).filter(it=>!it.supp).length),0);}
+function smaeModeSwitch(ap,to,keep){
   const from=ap.mode;if(from===to)return;
   (ap.meals||[]).forEach(m=>{if(m.recipe)return;
-    if(to==='eqv'){m.eqv=m.eqvBak||m.eqv||{};delete m.eqvBak;}
+    if(to==='menu'&&m.itemsBak){m.items=m.itemsBak.concat(m.items||[]);delete m.itemsBak;}
+    if(to==='eqv'){m.eqv=m.eqvBak||m.eqv||{};delete m.eqvBak;
+      if(!keep&&(m.items||[]).some(it=>!it.supp)){m.itemsBak=(m.itemsBak||[]).concat(m.items.filter(it=>!it.supp));m.items=m.items.filter(it=>it.supp);}}
     else if(from==='eqv'&&m.eqv){const mc=smaeMac(m.eqv);if(to==='macros'&&!(m.items||[]).length&&mc.kcal){m.p=mc.p;m.c=mc.c;m.f=mc.f;}if(Object.keys(m.eqv).length)m.eqvBak=m.eqv;delete m.eqv;}});
 }
 function smaeSet(el,v){
@@ -8067,7 +8076,12 @@ Object.assign(ACTIONS,{
   'plan-rename-save':el=>{const n=nutriOf(el.dataset.aid),p=n.plans.find(x=>x.id===el.dataset.pid);if(p){p.name=val('pl_name')||p.name;p.type=val('pl_type')||p.type;}saveState();closeModal();render();},
   'plan-del':el=>{const n=nutriOf(el.dataset.aid);if(n.plans.length<=1){toast('Debe quedar al menos un plan','err');return;}confirmModal('Eliminar plan','Se borrará este plan de día y su menú.','plan-del-do','data-aid="'+el.dataset.aid+'" data-pid="'+el.dataset.pid+'"');},
   'plan-del-do':el=>{const n=nutriOf(el.dataset.aid);n.plans=n.plans.filter(p=>p.id!==el.dataset.pid);if(n.activePlan===el.dataset.pid)n.activePlan=n.plans[0].id;saveState();closeModal();toast('Plan eliminado');render();},
-  'pnutri-mode':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);smaeModeSwitch(activePlanOf(aid),el.dataset.mode);activePlanOf(aid).mode=el.dataset.mode;saveState();render();},
+  'pnutri-mode':el=>{const aid=el.dataset.aid;pnutriReadTargets(aid);const ap=activePlanOf(aid),to=el.dataset.mode,nI=to==='eqv'&&ap.mode!=='eqv'?smaeMenuItemsN(ap):0;
+    if(nI){openModal('Pasar a equivalentes','<p class="muted">Este plan tiene <b>'+nI+' alimento'+(nI>1?'s':'')+'</b> en su menú. Si los conservas, quedan como alimentos fijos y se suman a las porciones de equivalentes: el plan casi duplicaría calorías.</p><p class="tiny mt8">Si empiezas sin ellos, los guardo aparte y reaparecen tal cual si vuelves a «Menú cerrado».</p>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-g" data-act="smae-mode-go" data-aid="'+aid+'" data-keep="1">Conservarlos como fijos</button><button class="btn btn-p" data-act="smae-mode-go" data-aid="'+aid+'" data-keep="0">Empezar sin ellos</button>');return;}
+    smaeModeSwitch(ap,to);ap.mode=to;saveState();render();},
+  'smae-mode-go':el=>{const ap=activePlanOf(el.dataset.aid),keep=el.dataset.keep==='1';smaeModeSwitch(ap,'eqv',keep);ap.mode='eqv';closeModal();saveState();render();
+    toast(keep?'Los alimentos quedaron como fijos: revisa el total del plan':'Menú guardado aparte: vuelve a «Menú cerrado» y reaparece');},
   'pnutri-save':el=>{pnutriReadTargets(el.dataset.aid);saveState();toast('Plan guardado');render();},
   /* En modo menú la comida se crea al instante («Comida N») y el foco va a su buscador; nombre, hora y
      colación se cambian con el lápiz. En modo macros sigue el modal de siempre. */
