@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.1">
+<meta name="lr-build" content="2026-11-07.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -333,14 +333,14 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .eql input,.eql select{min-height:32px;padding:4px 6px}
 .eql td:nth-child(3) input{width:70px}
 .modal.eqmodal{max-width:760px}
-.dx-eq{border-bottom:1px solid var(--line)}
-.dx-eq summary{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;list-style:none}
-.dx-eq summary::-webkit-details-marker{display:none}
-.dx-eq summary .nm{flex:1;min-width:0;display:flex;flex-direction:column}
-.dx-eq summary .kc{color:var(--tx2);white-space:nowrap;font-size:var(--fs-3)}
-.dx-eqo{list-style:none;margin:0;padding:0 14px 10px}
-.dx-eqo li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:var(--fs-3)}
-.dx-eqo li b{font-weight:600;text-align:right}
+.dx-smae{border-bottom:1px solid var(--line)}
+.dx-smae summary{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;list-style:none}
+.dx-smae summary::-webkit-details-marker{display:none}
+.dx-smae summary .nm{flex:1;min-width:0;display:flex;flex-direction:column}
+.dx-smae summary .kc{color:var(--tx2);white-space:nowrap;font-size:var(--fs-3)}
+.dx-smaeo{list-style:none;margin:0;padding:0 14px 10px}
+.dx-smaeo li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:var(--fs-3)}
+.dx-smaeo li b{font-weight:600;text-align:right}
 @media(min-width:921px){.mprog{position:sticky;top:12px}}
 .ncalc .acc-body>.card{margin-bottom:24px}
 .chkl{display:flex;gap:8px;align-items:center;margin-top:12px;text-transform:none;letter-spacing:0;font-size:var(--fs-3);font-weight:400;color:var(--tx)}
@@ -6878,8 +6878,8 @@ function smaeAthRows(m){
   if(!smaeHas(m))return '';
   return SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>{const n=+m.eqv[g.k],L=smaeList(g.k),k=Math.round(smaeKcal(g)*n);
     const ops=L.map(o=>'<li><span>'+esc(o[0])+'</span><b>'+smaeQty(o,n)+'</b></li>').join('');
-    return '<details class="dx-eq"><summary><span class="nm"><b>'+smaeN(n)+' × '+esc(g.n)+'</b><span class="tiny">'+(g.k==='libre'?'sin límite':'elige una opción o combina (½ y ½)')+'</span></span><span class="kc">'+(k||'')+'</span></summary>'+
-      (ops?'<ul class="dx-eqo">'+ops+'</ul>':'<p class="tiny">Tu coach aún no tiene opciones en este grupo.</p>')+'</details>';}).join('');
+    return '<details class="dx-smae"><summary><span class="nm"><b>'+smaeN(n)+' × '+esc(g.n)+'</b><span class="tiny">'+(g.k==='libre'?'sin límite':'elige una opción o combina (½ y ½)')+'</span></span><span class="kc">'+(k||'')+'</span></summary>'+
+      (ops?'<ul class="dx-smaeo">'+ops+'</ul>':'<p class="tiny">Tu coach aún no tiene opciones en este grupo.</p>')+'</details>';}).join('');
 }
 function smaeSummary(m){return smaeHas(m)?SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>smaeN(+m.eqv[g.k])+' '+g.s).join(' · '):'';}
 /* Cambio de modo: al entrar a equivalentes cada comida recupera lo que tenía (eqvBak); al salir se guarda
