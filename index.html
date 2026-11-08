@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.3">
+<meta name="lr-build" content="2026-11-07.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -332,7 +332,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .eqmas{margin-top:8px}.eqmas summary{cursor:pointer;font-size:var(--fs-3);color:var(--tx2);padding:6px 0}
 .eql input,.eql select{min-height:32px;padding:4px 6px}
 .eql td:nth-child(3) input{width:70px}
-.modal.eqmodal{max-width:760px}
+.modal.eqmodal{max-width:760px}.eqhds{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.eqhd.on{border-color:var(--volt,#cdf563)}
 .dx-smae{border-bottom:1px solid var(--line)}
 .dx-smae summary{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;list-style:none}
 .dx-smae summary::-webkit-details-marker{display:none}
@@ -2169,6 +2169,8 @@ function stripDiet(n){if(!n)return n;const c=Object.assign({},n);delete c.dietPr
 function syncPlans(){
   /* solo el coach escribe, solo lo que cambió, y nunca antes de una hidratación exitosa (no pisar el servidor) */
   if(!_supabaseUser||_currentUserId!=='coach'||!_plansHydrated||!S)return;
+  /* opciones de equivalentes que cada atleta no debe ver (alergias / no le gusta): solo con el perfil ya hidratado */
+  if(_profilesHydrated)Object.keys(S.athletes||{}).forEach(aid=>{const a=S.athletes[aid];if(a&&a.nutrition)try{smaeSyncHideN(a.nutrition);}catch(e){}});
   const rows=[],keys=[];
   Object.keys(S.athletes||{}).forEach(aid=>{
     const a=S.athletes[aid];if(!a)return;
@@ -6873,16 +6875,43 @@ function smaeCoachHTML(aid,ap){
   const nFix=cols.reduce((a,x)=>a+(x.m.items||[]).length,0);
   const fixSec=cols.length?'<details class="acc pleg mb16" id="plc-eqfix"'+(nFix||plegadoSet().has('plc-eqfix')?' open':'')+'><summary>Alimentos fijos en gramos<span class="acc-tag">opcional · se suman a los equivalentes (p. ej. 1 scoop de proteína)</span><span class="pleg-res">'+(nFix?nFix+' alimento'+(nFix>1?'s':''):'ninguno')+'</span>'+WK_CHEV+'</summary><div class="acc-body"><datalist id="mqfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+fx+'</div></details>':'';
   const dp0=n.dietProfile||{};
-  const warn=(dp0.allergies||dp0.dislikes)?'<div class="notebox u-bl-orange u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+'</div>':'';
+  let warn='';
+  if(dp0.allergies||dp0.dislikes){
+    const cf=smaeConflictsDP(dp0),al=new Set(n.eqvAllow||[]),seen=new Set(),uq=cf.filter(x=>!seen.has(x.key)&&seen.add(x.key));
+    if(smaeSyncHideN(n))setTimeout(saveState,0);
+    const chip=x=>{const on=al.has(x.key);return '<button class="btn btn-g btn-sm eqhd'+(on?' on':'')+'" data-act="smae-hide-tog" data-aid="'+aid+'" data-key="'+esc(x.key)+'" title="'+(on?'Se le muestra aunque choque. Toca para ocultársela.':'No la ve. Toca para mostrársela de todos modos.')+'">'+(on?'👁 ':'🚫 ')+esc(x.n)+' <span class="tiny">'+(x.type==='allergy'?'alergia':'evitar')+': '+esc(x.term)+'</span></button>';};
+    const hidK=new Set(uq.filter(x=>!al.has(x.key)).map(x=>x.key));
+    const used=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
+    const vac=used.filter(g=>{const L=smaeList(g.k);return L.length&&L.every(o=>hidK.has(normTxt(o[0]).trim()));});
+    warn='<div class="notebox u-bl-orange u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+
+      (uq.length?'<div class="tiny mt8">Estas opciones de tu lista de equivalentes chocan con su perfil y <b>se le ocultan solo a este atleta</b>. Toca una para mostrársela de todos modos.</div><div class="eqhds">'+uq.map(chip).join('')+'</div>':'<div class="tiny mt8">Ninguna opción de tu lista de equivalentes choca con esto.</div>')+
+      (vac.length?'<div class="tiny u-c-red mt8">⚠ En '+vac.map(g=>'«'+esc(g.n)+'»').join(', ')+' no le queda ninguna opción: añade otras en la lista o cambia sus porciones.</div>':'')+'</div>';
+  }
   return warn+dayCard+distCard+fixSec;
 }
+/* Alergias y «no le gusta» contra la lista de equivalentes. La lista es UNA para todos los atletas y el perfil
+   de alimentación es solo del coach (el atleta no lo lee), así que el coach deja en la nutrición de cada atleta
+   `eqvHide` = nombres (normalizados) que ese atleta NO ve; `eqvAllow` = los que el coach decidió mostrarle
+   aunque choquen. syncPlans lo recalcula antes de subir, para que una lista o un perfil nuevos no se cuelen. */
+function smaeConflictsDP(dp){
+  const A=termList(dp&&dp.allergies),D=termList(dp&&dp.dislikes),out=[];if(!A.length&&!D.length)return out;
+  SMAE_G.forEach(g=>smaeList(g.k).forEach(o=>{const nm=normTxt(o[0]);let t=A.find(x=>nm.includes(x)),ty='allergy';if(!t){t=D.find(x=>nm.includes(x));ty='avoid';}
+    if(t)out.push({k:g.k,n:o[0],key:nm.trim(),type:ty,term:t});}));
+  return out;
+}
+function smaeSyncHideN(n){
+  if(!n)return false;const al=new Set(n.eqvAllow||[]),prev=JSON.stringify(n.eqvHide||[]);
+  const h=[...new Set(smaeConflictsDP(n.dietProfile).filter(x=>!al.has(x.key)).map(x=>x.key))].sort();
+  if(h.length)n.eqvHide=h;else delete n.eqvHide;return JSON.stringify(n.eqvHide||[])!==prev;
+}
 /* Atleta: una fila por grupo con su lista de opciones (cantidad ya multiplicada por las porciones). */
-function smaeAthRows(m){
+function smaeAthRows(m,np){
   if(!smaeHas(m))return '';
-  return SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>{const n=+m.eqv[g.k],L=smaeList(g.k),k=Math.round(smaeKcal(g)*n);
+  const hid=new Set((np&&np.eqvHide)||[]);
+  return SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>{const n=+m.eqv[g.k],L=smaeList(g.k).filter(o=>!hid.has(normTxt(o[0]).trim())),k=Math.round(smaeKcal(g)*n);
     const ops=L.map(o=>'<li><span>'+esc(o[0])+'</span><b>'+smaeQty(o,n)+'</b></li>').join('');
     return '<details class="dx-smae"><summary><span class="nm"><b>'+smaeN(n)+' × '+esc(g.n)+'</b><span class="tiny">'+(g.k==='libre'?'sin límite':'elige una opción o combina (½ y ½)')+'</span></span><span class="kc">'+(k||'')+'</span></summary>'+
-      (ops?'<ul class="dx-smaeo">'+ops+'</ul>':'<p class="tiny">Tu coach aún no tiene opciones en este grupo.</p>')+'</details>';}).join('');
+      (ops?'<ul class="dx-smaeo">'+ops+'</ul>':'<p class="tiny">'+(hid.size?'Pregúntale a tu coach qué opciones te tocan en este grupo.':'Tu coach aún no tiene opciones en este grupo.')+'</p>')+'</details>';}).join('');
 }
 function smaeSummary(m){return smaeHas(m)?SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>smaeN(+m.eqv[g.k])+' '+g.s).join(' · '):'';}
 /* Cambio de modo: al entrar a equivalentes cada comida recupera lo que tenía (eqvBak); al salir se guarda
@@ -6953,6 +6982,8 @@ Object.assign(ACTIONS,{
     ap.meals=(ap.meals||[]).concat(nm.map(x=>({id:uid(),name:x,time:'',items:[],eqv:{},snack:/^Colación/.test(x)||undefined})));
     if(Object.keys(ap.eqvDay||{}).length)smaeDistribute(ap);saveState();render();},
   'smae-list':el=>{smaeListOpen(el.dataset.k||'cer_sg');},
+  'smae-hide-tog':el=>{const n=nutriOf(el.dataset.aid),k=el.dataset.key,al=new Set(n.eqvAllow||[]);if(al.has(k))al.delete(k);else al.add(k);
+    if(al.size)n.eqvAllow=[...al];else delete n.eqvAllow;smaeSyncHideN(n);saveState();render();},
   'smae-ldel':el=>{const k=el.dataset.k,i=+el.dataset.i;smaeListMut(k,L=>L.splice(i,1));smaeListRedraw(k);},
   'smae-lreset':el=>{const k=el.dataset.k;if(S.eqvList)delete S.eqvList[k];saveState();smaeListRedraw(k);render();toast('Lista SMAE restaurada');},
   'smae-ladd':el=>{const k=el.dataset.k,g=SMAE_BY[k];const nm=val('smae_lnew'),med=val('smae_lmed');if(!nm){toast('Escribe un alimento','err','smae_lnew');return;}
@@ -9539,7 +9570,7 @@ VIEWS['ath-nutri']=function(u){
     const next=esHoy&&!hecha&&primera;if(next)primera=false;
     let rows='',kc;
     if(fijo){
-      const mh=mealHoy(s.meal,sw),pm=mealMacros(mh);kc=pm.kcal+extraK;rows=smaeAthRows(s.meal);
+      const mh=mealHoy(s.meal,sw),pm=mealMacros(mh);kc=pm.kcal+extraK;rows=smaeAthRows(s.meal,np);
       if(s.meal.recipe)rows='<details class="dx-rec"><summary>'+I.recipe+' Receta · P '+dxN(pm.p)+' · C '+dxN(pm.c)+' · G '+dxN(pm.f)+'</summary>'+mealRecipeBox(s.meal)+'</details>';
       else (mh.items||[]).forEach((it,ii)=>{const k=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);let bt='';
         if(esHoy)bt=it.swapped?'<button class="dx-ib" data-act="eqv-undo" data-mid="'+s.meal.id+'" data-idx="'+ii+'" aria-label="Volver a '+esc(it.orig.food)+'" title="Volver a lo de tu menú">↺</button>'
@@ -10581,7 +10612,7 @@ function applyTplRoutine(aid,t){
   logChange(aid,'alta','Plantilla aplicada: '+t.name+' ('+days.length+' días, '+ex+' ejercicios)','Programa','','Plantilla: '+t.name);
 }
 function applyTplNutri(aid,t){
-  const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile,cl=d.nutrition&&d.nutrition.clinico;
+  const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile,cl=d.nutrition&&d.nutrition.clinico,ea=d.nutrition&&d.nutrition.eqvAllow;
   const plans=dcopy(t.plans||[]);let actId=null;
   const _pm={},_mm={}; /* ids viejos → nuevos: los suplementos «dentro de un platillo» apuntan a plan|comida */
   plans.forEach(p=>{const old=p.id;p.id=uid();_pm[old]=p.id;(p.meals||[]).forEach(m=>{const om=m.id;m.id=uid();_mm[om]=m.id;});if(old===t.activePlan)actId=p.id;});
@@ -10591,6 +10622,7 @@ function applyTplNutri(aid,t){
   d.nutrition={activePlan:actId||plans[0].id,plans:plans,supplements:sups};
   if(dp)d.nutrition.dietProfile=dp;/* el perfil de alimentación es del atleta, no se toca */
   if(cl)d.nutrition.clinico=cl;/* las consideraciones clínicas (suplementación) también son del atleta */
+  if(ea)d.nutrition.eqvAllow=ea;smaeSyncHideN(d.nutrition);/* qué equivalentes ve pese a su perfil: decisión sobre ESTE atleta */
 }
 function tplList(kind){return kind==='routine'?S.templates.routines:S.templates.nutris;}
 function tplById(kind,id){return tplList(kind).find(x=>x.id===id);}
