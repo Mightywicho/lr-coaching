@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.4">
+<meta name="lr-build" content="2026-11-07.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -6876,14 +6876,14 @@ function smaeCoachHTML(aid,ap){
   const fixSec=cols.length?'<details class="acc pleg mb16" id="plc-eqfix"'+(nFix||plegadoSet().has('plc-eqfix')?' open':'')+'><summary>Alimentos fijos en gramos<span class="acc-tag">opcional · se suman a los equivalentes (p. ej. 1 scoop de proteína)</span><span class="pleg-res">'+(nFix?nFix+' alimento'+(nFix>1?'s':''):'ninguno')+'</span>'+WK_CHEV+'</summary><div class="acc-body"><datalist id="mqfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+fx+'</div></details>':'';
   const dp0=n.dietProfile||{};
   let warn='';
-  if(dp0.allergies||dp0.dislikes){
+  if(dp0.allergies||dp0.dislikes||dp0.intolerances){
     const cf=smaeConflictsDP(dp0),al=new Set(n.eqvAllow||[]),seen=new Set(),uq=cf.filter(x=>!seen.has(x.key)&&seen.add(x.key));
     if(smaeSyncHideN(n))setTimeout(saveState,0);
-    const chip=x=>{const on=al.has(x.key);return '<button class="btn btn-g btn-sm eqhd'+(on?' on':'')+'" data-act="smae-hide-tog" data-aid="'+aid+'" data-key="'+esc(x.key)+'" title="'+(on?'Se le muestra aunque choque. Toca para ocultársela.':'No la ve. Toca para mostrársela de todos modos.')+'">'+(on?'👁 ':'🚫 ')+esc(x.n)+' <span class="tiny">'+(x.type==='allergy'?'alergia':'evitar')+': '+esc(x.term)+'</span></button>';};
+    const chip=x=>{const on=al.has(x.key);return '<button class="btn btn-g btn-sm eqhd'+(on?' on':'')+'" data-act="smae-hide-tog" data-aid="'+aid+'" data-key="'+esc(x.key)+'" title="'+(on?'Se le muestra aunque choque. Toca para ocultársela.':'No la ve. Toca para mostrársela de todos modos.')+'">'+(on?'👁 ':'🚫 ')+esc(x.n)+' <span class="tiny">'+({allergy:'alergia',intol:'intolerancia'}[x.type]||'evitar')+': '+esc(x.term)+'</span></button>';};
     const hidK=new Set(uq.filter(x=>!al.has(x.key)).map(x=>x.key));
     const used=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
     const vac=used.filter(g=>{const L=smaeList(g.k);return L.length&&L.every(o=>hidK.has(normTxt(o[0]).trim()));});
-    warn='<div class="notebox u-bl-orange u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+
+    warn='<div class="notebox u-bl-orange u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.intolerances,dp0.dislikes].filter(Boolean).join(' · '))+
       (uq.length?'<div class="tiny mt8">Estas opciones de tu lista de equivalentes chocan con su perfil y <b>se le ocultan solo a este atleta</b>. Toca una para mostrársela de todos modos.</div><div class="eqhds">'+uq.map(chip).join('')+'</div>':'<div class="tiny mt8">Ninguna opción de tu lista de equivalentes choca con esto.</div>')+
       (vac.length?'<div class="tiny u-c-red mt8">⚠ En '+vac.map(g=>'«'+esc(g.n)+'»').join(', ')+' no le queda ninguna opción: añade otras en la lista o cambia sus porciones.</div>':'')+'</div>';
   }
@@ -6893,10 +6893,18 @@ function smaeCoachHTML(aid,ap){
    de alimentación es solo del coach (el atleta no lo lee), así que el coach deja en la nutrición de cada atleta
    `eqvHide` = nombres (normalizados) que ese atleta NO ve; `eqvAllow` = los que el coach decidió mostrarle
    aunque choquen. syncPlans lo recalcula antes de subir, para que una lista o un perfil nuevos no se cuelen. */
+/* Intolerancias: además del nombre literal, «lactosa» y «gluten» se traducen a los alimentos que los llevan
+   (por palabra completa: «pan» no debe tapar «queso panela»). Lo deslactosado / sin gluten queda fuera. */
+const SMAE_INTOL=[['lactosa',/\b(leche|yogur|queso|helado|mantequilla)\b|^crema$/,/deslactosad|sin lactosa/],
+  ['gluten',/\b(trigo|pan|pasta|galletas?|harina|cebada|centeno|bolillo|granola|cuscus|seitan)\b/,/sin gluten/]];
 function smaeConflictsDP(dp){
-  const A=termList(dp&&dp.allergies),D=termList(dp&&dp.dislikes),out=[];if(!A.length&&!D.length)return out;
-  SMAE_G.forEach(g=>smaeList(g.k).forEach(o=>{const nm=normTxt(o[0]);let t=A.find(x=>nm.includes(x)),ty='allergy';if(!t){t=D.find(x=>nm.includes(x));ty='avoid';}
-    if(t)out.push({k:g.k,n:o[0],key:nm.trim(),type:ty,term:t});}));
+  const A=termList(dp&&dp.allergies),I=termList(dp&&dp.intolerances),D=termList(dp&&dp.dislikes),out=[];
+  const it=normTxt(dp&&dp.intolerances),IX=SMAE_INTOL.filter(x=>it.includes(x[0]));
+  if(!A.length&&!I.length&&!D.length)return out;
+  SMAE_G.forEach(g=>smaeList(g.k).forEach(o=>{const nm=normTxt(o[0]).trim();let ty='allergy',t=A.find(x=>nm.includes(x));
+    if(!t){ty='intol';t=I.find(x=>nm.includes(x));if(!t){const x=IX.find(x=>x[1].test(nm)&&!x[2].test(nm));if(x)t=x[0];}}
+    if(!t){ty='avoid';t=D.find(x=>nm.includes(x));}
+    if(t)out.push({k:g.k,n:o[0],key:nm,type:ty,term:t});}));
   return out;
 }
 function smaeSyncHideN(n){
