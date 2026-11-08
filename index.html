@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.5">
+<meta name="lr-build" content="2026-11-07.6">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4354,12 +4354,16 @@ function consumedToday(aid){return consumedFor(aid,todayISO());}
 /* La adherencia la elige el atleta al «Cerrar el día» (Luis, 2026-11-03). Mientras no la elija, la app la sigue
    calculando con lo marcado, para que el coach no se quede con huecos; una vez elegida (adhManual, columna
    nutrition_logs.adh_manual) ya no se toca hasta que él pida volver a la calculada. */
-function recomputeAdherenceFor(aid,iso){const e=nutriEntryMake(aid,iso);if(e.adhManual)return e;const p=dxPlanFor(aid,iso),ss=dxSlots(p),logs=dxLogsOf(aid,iso);
+/* Sin ninguna comida marcada ni nada añadido el día queda SIN registro (null), no en 1/5: no se sabe si no siguió el
+   plan o solo no registró, y ese 1 falso bajaba el semáforo y ocultaba al atleta que dejó de registrar (Luis, 2026-11-07).
+   `explicito` = el atleta tocó «Guardar día» con nada marcado: ahí sí lo está declarando, y cuenta como 1. */
+function recomputeAdherenceFor(aid,iso,explicito){const e=nutriEntryMake(aid,iso);if(e.adhManual)return e;const p=dxPlanFor(aid,iso),ss=dxSlots(p),logs=dxLogsOf(aid,iso);
   const k=ss.filter(s=>dxHecha(s,e,logs)).length;
-  if((p.meals||[]).length||k>0)e.adherence=Math.max(1,Math.round(k/ss.length*5));
+  if((p.meals||[]).length&&!k&&!logs.length&&!explicito)e.adherence=null;
+  else if((p.meals||[]).length||k>0)e.adherence=Math.max(1,Math.round(k/ss.length*5));
   else e.adherence=e.planFollowed===true?5:e.planFollowed===false?2:3;
   return e;}
-function recomputeAdherence(aid){return recomputeAdherenceFor(aid,todayISO());}
+function recomputeAdherence(aid,explicito){return recomputeAdherenceFor(aid,todayISO(),explicito);}
 /* La siguiente comida sin marcar de hoy (null si ya marcó todas). */
 function dxSigue(aid){const iso=todayISO(),p=athPlanOf(aid),e=nutriEntryFor(aid,iso),logs=dxLogsOf(aid,iso);return dxSlots(p).find(s=>!dxHecha(s,e,logs))||null;}
 /* «Si comes lo que falta del plan, cierras en…»: solo cuando el atleta se DESVIÓ de su plan (extras o cambios por
@@ -5923,7 +5927,7 @@ Object.assign(ACTIONS,{
     if(c)e.comment=c.value;e.adherence=+el.dataset.v;e.adhManual=true;syncNutriRowE(aid,e);saveStateCola();render();},
   'dx-adh-auto':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.adhManual=false;recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();render();},
   'dx-save':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.comment=val('dx_cmt');keepClear('dx_cmt_'+iso);
-    if(e.adherence==null)recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();toast('Día guardado. Tu coach ya lo ve.');render();},
+    if(e.adherence==null)recomputeAdherenceFor(aid,iso,true);syncNutriRowE(aid,e);saveStateCola();toast('Día guardado. Tu coach ya lo ve.');render();},
 });
 /* acciones de la hoja «Añadir» (2026-11-04): van aquí, después de `const ACTIONS`; antes de él la app no arranca */
 Object.assign(ACTIONS,{
@@ -10004,7 +10008,7 @@ Object.assign(ACTIONS,{
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
   'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
-  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();toast('Registro de nutrición guardado');render();},
+  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid,true);syncNutriRow(aid);saveStateCola();toast('Registro de nutrición guardado');render();},
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
