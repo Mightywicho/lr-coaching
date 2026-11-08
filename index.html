@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.6">
+<meta name="lr-build" content="2026-11-07.7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -80,7 +80,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
   /* Negro y rojo (fase 3, 2026-11-05, pedido de Luis): fondos negros; líneas y bordes salen del color de
      marca (applyBrand los recalcula); textos secundarios en gris neutro claro para que se lean. */
   --bg:#000000; --bg2:#050505; --card:#0c0c0d; --card2:#000000; --line:#2a1214; --line2:#3d1a1d;
-  --tx:#ededed; --tx2:#b3b3b3; --tx3:#a6a6a6; --bd-input:rgba(245,72,75,.4);
+  --tx:#ededed; --tx2:#b3b3b3; --tx3:#a6a6a6; --bd-input:rgba(255,255,255,.16);
   /* acento de marca (--volt) — lo recalcula applyBrand() desde S.brandColor. Default = rojo Physique legible en oscuro */
   --volt:#f5484b; --volt-dim:#e23539; --on-volt:#f6f6f6; --ink:#0d1015;
   --volt-08:rgba(245,72,75,.08); --volt-12:rgba(245,72,75,.12); --volt-16:rgba(245,72,75,.16); --volt-22:rgba(245,72,75,.22); --volt-40:rgba(245,72,75,.4); --volt-50:rgba(245,72,75,.5); --sel:rgba(245,72,75,.25);
@@ -110,7 +110,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--volt)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible,.btn:focus-visible,.nav-item:focus-visible,.userbtn:focus-visible{outline:2px solid var(--volt);outline-offset:2px}
 input::placeholder,textarea::placeholder{color:var(--tx3)}
 textarea{resize:vertical;min-height:70px}
-label{display:block;font-size:var(--fs-2);font-weight:600;color:var(--tx2);margin:0 0 5px;text-transform:uppercase;letter-spacing:.05em}
+label{display:block;font-size:var(--fs-2);font-weight:600;color:var(--tx2);margin:0 0 5px;letter-spacing:0}
 a{color:var(--blue);text-decoration:none}
 
 /* Utilidades (fase 4, 2026-11-05): reemplazan estilos en línea fijos. Usan la escala (márgenes de 4 en 4,
@@ -160,7 +160,7 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px}
 .brand-mark{width:38px;height:38px;border-radius:var(--r-s);background:linear-gradient(135deg,var(--volt),var(--volt-dim));display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-weight:800;color:var(--on-volt);font-size:var(--fs-5);flex:none}
 .brand-name{font-family:var(--font-d);font-weight:700;font-size:var(--fs-5);line-height:1.15}
-.brand-name small{display:block;font-family:var(--font-b);font-weight:500;font-size:var(--fs-1);color:var(--tx3);letter-spacing:.08em;text-transform:uppercase}
+.brand-name small{display:block;font-family:var(--font-b);font-weight:500;font-size:var(--fs-1);color:var(--tx3);letter-spacing:0}
 .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-s);color:var(--tx2);font-weight:500;font-size:var(--fs-4);transition:background .15s,color .15s;width:100%;text-align:left}
 .nav-item svg{flex:none}
 .nav-item:hover{background:var(--card);color:var(--tx)}
@@ -189,14 +189,14 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .grid{display:grid;gap:16px}
 .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
-.stat .k{font-size:var(--fs-2);color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.stat .k{font-size:var(--fs-2);color:var(--tx2);font-weight:600;letter-spacing:0}
 .stat .v{font-family:var(--font-d);font-size:var(--fs-8);font-weight:700;margin-top:4px}
 .stat .v small{font-size:var(--fs-3);color:var(--tx3);font-weight:500}
 .stat .sub{font-size:var(--fs-2);color:var(--tx3);margin-top:2px}
 .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--tx3)}.pend{color:var(--orange)}
 /* volumen — métrica grande de la vista Hoy */
 .volbig{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin-bottom:16px}
-.volbig-k{font-size:var(--fs-2);color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.volbig-k{font-size:var(--fs-2);color:var(--tx2);font-weight:600;letter-spacing:0;display:flex;align-items:center;gap:8px}
 .volbig-k svg{width:15px;height:15px}
 .volbig-v{font-family:var(--font-d);font-size:42px;line-height:1.05;font-weight:800;margin-top:6px}
 .volbig-v small{font-size:var(--fs-5);color:var(--tx3);font-weight:500}
@@ -247,7 +247,7 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 /* ---------- tables ---------- */
 .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-s)}
 table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:560px}
-.tbl th{font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600;text-align:left;padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.tbl th{font-size:var(--fs-2);letter-spacing:0;color:var(--tx3);font-weight:600;text-align:left;padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}
 .tbl .exname{font-weight:600}
@@ -332,7 +332,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .eqmas{margin-top:8px}.eqmas summary{cursor:pointer;font-size:var(--fs-3);color:var(--tx2);padding:6px 0}
 .eql input,.eql select{min-height:32px;padding:4px 6px}
 .eql td:nth-child(3) input{width:70px}
-.modal.eqmodal{max-width:760px}.eqhds{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.eqhd.on{border-color:var(--volt,#cdf563)}
+.modal.eqmodal{max-width:760px}.nbi svg,.eqhd svg{width:14px;height:14px;vertical-align:-2px;margin-right:4px;flex-shrink:0}.eqhd{display:inline-flex;align-items:center}.eqstep.z input{color:var(--tx3);border-color:var(--line2)}.eqstep.z button{opacity:.45}.eqstep.z:hover button,.eqstep.z:focus-within button{opacity:1}.dx-smaeh{margin:0;padding:10px 14px 4px;color:var(--tx3)}.card>.sect-h:first-child{margin-top:0}.eqhds{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.eqhd.on{border-color:var(--volt,#cdf563)}
 .dx-smae{border-bottom:1px solid var(--line)}
 .dx-smae summary{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;list-style:none}
 .dx-smae summary::-webkit-details-marker{display:none}
@@ -365,7 +365,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .setrow .del{color:var(--tx3);line-height:0;padding:6px;border-radius:var(--r-xs)}
 .setrow .del:hover{color:var(--red);background:var(--danger-08)}
 .subrow{display:grid;grid-template-columns:54px 1fr;gap:8px;align-items:start;padding:0 16px 9px}
-.subrow .sl{font-size:var(--fs-1);font-weight:700;color:var(--volt);text-transform:uppercase;letter-spacing:.03em;line-height:1.25;padding-top:9px}
+.subrow .sl{font-size:var(--fs-1);font-weight:700;color:var(--volt);letter-spacing:0;line-height:1.25;padding-top:9px}
 .subrow .subs{display:flex;flex-wrap:wrap;gap:6px}
 .subcell{display:flex;align-items:center;gap:4px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-s);padding:3px 7px}
 .subcell>span{font-size:var(--fs-1);font-weight:700;color:var(--tx3);min-width:15px}
@@ -373,7 +373,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .techchip{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:var(--r-pill);font-size:var(--fs-1);font-weight:700;background:var(--volt-12);color:var(--volt);vertical-align:2px}
 .grpchip{display:inline-block;margin-right:5px;padding:1px 7px;border-radius:var(--r-pill);font-size:var(--fs-1);font-weight:700;background:var(--volt-16);color:var(--volt)}
 .bigrp{border:1.5px solid var(--volt-22);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
-.bigrp-h{padding:9px 15px;font-size:var(--fs-1);font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--volt);background:var(--volt-08)}
+.bigrp-h{padding:9px 15px;font-size:var(--fs-1);font-weight:700;letter-spacing:0;color:var(--volt);background:var(--volt-08)}
 .bigrp .wlog-ex{margin:9px;border-radius:var(--r)}
 .techhint{font-size:var(--fs-2);color:var(--tx2);margin-top:3px;line-height:1.4}
 .techhow{margin-top:5px;font-size:var(--fs-2);color:var(--tx2);line-height:1.45}
@@ -387,10 +387,10 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 /* «Mi rutina» en teléfono: las 4 columnas fijas (series, reps, RIR, descanso) dejaban al
    ejercicio y su indicación en una tira angosta. Cada fila pasa a tarjeta: nombre e
    indicación a todo lo ancho y los números en una línea debajo, con su etiqueta. */
-@media(max-width:560px){.rtbl thead{display:none}table.rtbl,.rtbl tbody{display:block;min-width:0}.rtbl tr{display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 14px;border-bottom:1px solid var(--line)}.rtbl tr:last-child{border-bottom:none}.rtbl td{padding:0;border:none;min-width:0}.rtbl td:nth-child(1){flex:0 0 22px}.rtbl td:nth-child(2){flex:1 1 calc(100% - 36px)}.rtbl td:nth-child(3){margin-left:36px}.rtbl td[data-l]{font-size:var(--fs-3);white-space:nowrap}.rtbl td[data-l]::before{content:attr(data-l) ' ';font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.04em;color:var(--tx3)}}
+@media(max-width:560px){.rtbl thead{display:none}table.rtbl,.rtbl tbody{display:block;min-width:0}.rtbl tr{display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 14px;border-bottom:1px solid var(--line)}.rtbl tr:last-child{border-bottom:none}.rtbl td{padding:0;border:none;min-width:0}.rtbl td:nth-child(1){flex:0 0 22px}.rtbl td:nth-child(2){flex:1 1 calc(100% - 36px)}.rtbl td:nth-child(3){margin-left:36px}.rtbl td[data-l]{font-size:var(--fs-3);white-space:nowrap}.rtbl td[data-l]::before{content:attr(data-l) ' ';font-size:var(--fs-1);letter-spacing:0;color:var(--tx3)}}
 .addset{margin:4px 16px 12px;font-size:var(--fs-3);color:var(--volt);font-weight:600;padding:5px 8px;border-radius:var(--r-xs)}
 .addset:hover{background:var(--volt-08)}
-.sethead{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;padding:8px 16px 0;font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600}
+.sethead{display:grid;grid-template-columns:54px 1fr 1fr 1fr 36px;gap:8px;padding:8px 16px 0;font-size:var(--fs-1);letter-spacing:0;color:var(--tx3);font-weight:600}
 /* Barra de cierre al final del scroll: estuvo pegada al fondo, pero flotando le comía
    pantalla al atleta justo mientras anotaba las series. Ahora vive en el flujo, detrás del
    bloque «Cierre de la sesión», y ya no se mueve con la barra de navegación. */
@@ -405,7 +405,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .wday{background:var(--card);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 6px;text-align:center}
 .wday.today{border-color:var(--volt)}
-.wday .d{font-size:var(--fs-1);text-transform:uppercase;color:var(--tx3);font-weight:600}
+.wday .d{font-size:var(--fs-1);color:var(--tx3);font-weight:600}
 .wday .n{font-family:var(--font-d);font-weight:700;font-size:var(--fs-5);margin:2px 0 6px}
 .wday .dots{display:flex;gap:4px;justify-content:center;min-height:7px}
 
@@ -507,7 +507,7 @@ button.revchip-btn{cursor:pointer;font-family:inherit;line-height:inherit;backgr
 .login-brand h1{font-size:var(--fs-8)}
 .login-brand p{color:var(--tx2);font-size:var(--fs-3);margin-top:5px}
 .login-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow)}
-.login-card h3{font-size:var(--fs-2);text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:12px;font-family:var(--font-b);font-weight:600}
+.login-card h3{font-size:var(--fs-2);letter-spacing:0;color:var(--tx3);margin-bottom:12px;font-family:var(--font-b);font-weight:600}
 .userbtn{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border:1px solid var(--line2);border-radius:var(--r);margin-bottom:10px;background:var(--bg2);transition:border-color .15s,background .15s;text-align:left}
 .userbtn:hover{border-color:var(--volt);background:var(--card2)}
 .userbtn .who b{display:block;font-size:var(--fs-4)}
@@ -518,7 +518,7 @@ button.revchip-btn{cursor:pointer;font-family:inherit;line-height:inherit;backgr
 
 /* ---------- athlete "Hoy": foco, resumen, pendientes, acordeones ---------- */
 .hero{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line2);border-radius:var(--r);padding:20px;margin-bottom:16px}
-.hero-h{display:flex;align-items:center;gap:8px;font-family:var(--font-d);font-size:var(--fs-3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--volt);margin-bottom:4px}
+.hero-h{display:flex;align-items:center;gap:8px;font-family:var(--font-d);font-size:var(--fs-3);font-weight:600;letter-spacing:0;color:var(--volt);margin-bottom:4px}
 .hero-sub{color:var(--tx2);font-size:var(--fs-3);margin-bottom:14px}
 /* progreso de la semana de entrenamiento (s61) */
 .wkp{background:var(--card2);border:1px solid var(--line2);border-radius:var(--r-s);padding:11px 13px;margin-bottom:14px}
@@ -537,7 +537,7 @@ button.revchip-btn{cursor:pointer;font-family:inherit;line-height:inherit;backgr
 .daydone{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-1);font-weight:700;color:var(--green);background:var(--green-12);border:1px solid var(--green-35);border-radius:20px;padding:2px 8px;vertical-align:2px;margin-left:7px;letter-spacing:.02em}
 .daydone svg{width:11px;height:11px;stroke-width:3;flex:0 0 auto}
 .coachnote{background:var(--blue-08);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:var(--r-s);padding:11px 14px;font-size:var(--fs-3);color:var(--tx);margin-bottom:16px}
-.coachnote b{color:var(--blue);font-weight:600;display:block;font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.coachnote b{color:var(--blue);font-weight:600;display:block;font-size:var(--fs-1);letter-spacing:0;margin-bottom:2px}
 .statlink{cursor:pointer;transition:border-color .15s}
 .statlink:hover{border-color:var(--line2)}
 .stat .v small{font-size:var(--fs-3);font-weight:600;color:var(--tx2)}
@@ -909,13 +909,13 @@ input.meta-in.old{border-style:dashed}
 .volstale{border:1px solid var(--orange-50);background:var(--orange-12);border-radius:var(--r-s);padding:10px 12px;margin:12px 0 0;font-size:var(--fs-3);color:var(--tx2);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
 .refgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .mtx{width:100%;border-collapse:separate;border-spacing:6px}
-.mtx th{font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);font-weight:600;padding:4px 8px;text-align:center}
+.mtx th{font-size:var(--fs-1);letter-spacing:0;color:var(--tx3);font-weight:600;padding:4px 8px;text-align:center}
 .mtx th.rowh,.mtx td.rowh{text-align:left;width:120px}
 .mtx td.rowh b{font-family:var(--font-d);font-size:var(--fs-3);display:block}
 .mtx td.rowh span{font-size:var(--fs-1);color:var(--tx3)}
 .mtx td.cell{background:var(--bg2);border:1px solid var(--line2);border-radius:var(--r-s);padding:9px 8px;text-align:center;vertical-align:middle}
 .mtx td.cell .vv{font-family:var(--font-d);font-weight:800;font-size:var(--fs-6);line-height:1;color:var(--tx)}
-.mtx td.cell .uu{font-size:var(--fs-1);color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.mtx td.cell .uu{font-size:var(--fs-1);color:var(--tx3);letter-spacing:0;margin-top:2px}
 .mtx td.cell .rr{font-size:var(--fs-1);color:var(--tx2);margin-top:5px}
 .mtx td.cell .rr b{color:var(--blue);font-weight:700}
 .mtx td.cell.t-maxima .vv{color:var(--red)}
@@ -1119,7 +1119,7 @@ input.meta-in.old{border-style:dashed}
 .supp-con{margin-left:auto}
 .supp-ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
 .supp-ctl select,.supp-ctl input[type=date]{width:auto;min-width:150px}
-.supp-l{display:block;font-size:var(--fs-1);letter-spacing:.05em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin-bottom:4px}
+.supp-l{display:block;font-size:var(--fs-1);letter-spacing:0;color:var(--tx3);font-weight:600;margin-bottom:4px}
 .supp-step{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:var(--r-s);overflow:hidden;background:var(--card2);vertical-align:middle}
 .supp-step button{width:38px;height:38px;font-size:var(--fs-6);font-weight:600;color:var(--tx);background:none;border:0;cursor:pointer}
 .supp-step button:hover{background:var(--volt-12);color:var(--volt)}
@@ -1180,7 +1180,7 @@ input.meta-in.old{border-style:dashed}
 .dx-day b{flex:1;text-align:center;font-weight:600;font-size:var(--fs-4)}
 .dx-navb{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--tx2);font-size:var(--fs-7);line-height:1}
 .dx-navb.off{visibility:hidden}
-.dx-k{font-size:var(--fs-2);font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+.dx-k{font-size:var(--fs-2);font-weight:600;color:var(--tx2);letter-spacing:0}
 .dx-sum{padding:16px;margin-bottom:12px}
 .dx-eq{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:end;text-align:center;gap:4px;margin:10px 0 12px}
 .dx-eq b{display:block;font-family:var(--font-d);font-size:var(--fs-7);font-weight:700;line-height:1.2}
@@ -1236,7 +1236,7 @@ input.meta-in.old{border-style:dashed}
 .fres{margin:-2px 0 12px;border:1px solid var(--line2);border-radius:var(--r);background:var(--bg2);max-height:min(48vh,380px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .fres:empty{display:none}
 .fres:not(:empty)~.fpx .fpx-l{display:none}
-.fres-h{position:sticky;top:0;z-index:1;padding:6px 12px;font-size:var(--fs-1);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--tx2);background:var(--bg2);border-bottom:1px solid var(--line)}
+.fres-h{position:sticky;top:0;z-index:1;padding:6px 12px;font-size:var(--fs-1);font-weight:600;letter-spacing:0;color:var(--tx2);background:var(--bg2);border-bottom:1px solid var(--line)}
 .fres-r{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:9px 12px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--tx);font-family:inherit;text-align:left;cursor:pointer}
 .fres-r:last-child{border-bottom:0}
 .fres-r:active,.fres-r:hover{background:var(--card2)}
@@ -1324,7 +1324,7 @@ input.meta-in.old{border-style:dashed}
 .hx-next{background:var(--card2);border:1px solid var(--line2);border-radius:var(--r);padding:14px;margin-bottom:16px}
 .hx-next .h{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
 .hx-btns{display:flex;gap:8px;margin-top:12px}.hx-btns .btn{flex:1;min-height:44px;justify-content:center}
-.hx-sec{font-size:var(--fs-2);font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin:4px 2px 8px}
+.hx-sec{font-size:var(--fs-2);font-weight:600;color:var(--tx2);letter-spacing:0;margin:4px 2px 8px}
 .hx-otros summary{cursor:pointer;color:var(--tx2);font-size:var(--fs-3);font-weight:600;padding:8px 0;min-height:40px;display:flex;align-items:center}
 /* «Hoy» como la maqueta (2026-11-04): tarjeta del coach, entreno compacto, chip de tipo de día y botón de Mensajes */
 .mb12{margin-bottom:12px}
@@ -1332,7 +1332,7 @@ input.meta-in.old{border-style:dashed}
 .hx-coach[data-act]{cursor:pointer;border-color:var(--line2)}
 .hx-coach-av{width:32px;height:32px;border-radius:50%;background:var(--volt-16);color:var(--volt);font-weight:700;font-size:var(--fs-3);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .hx-coach-t{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:var(--fs-4)}
-.hx-coach-t b{font-size:var(--fs-2);font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+.hx-coach-t b{font-size:var(--fs-2);font-weight:600;color:var(--tx2);letter-spacing:0}
 .hx-coach-t u{color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
 .hx-tr{display:flex;align-items:center;gap:12px;margin-bottom:6px}
 .hx-tr>div{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -3516,7 +3516,7 @@ function suppAislLine(aid,plan,tot){
   (nutriOf(aid).supplements||[]).forEach(s=>{if(s.where||!suppVigente(s,t)||!suppEnDia(s,dia))return;const m=suppMac(s);if(m){a.p+=m.p;a.c+=m.c;a.f+=m.f;n++;}});
   if(!n)return'';a.kcal=Math.round(a.p*4+a.c*4+a.f*9);
   const con=tot?' Con ellos el día queda en <b>'+(tot.kcal+a.kcal)+' kcal</b> · P'+suppFmt(tot.p+a.p)+' C'+suppFmt(tot.c+a.c)+' G'+suppFmt(tot.f+a.f)+'.':'';
-  return '<p class="tiny mt8">💊 Suplementos aislados ('+(dia==='rest'?'día de descanso':'día de entreno')+'): <b>+'+suppMacTxt({kcal:a.kcal,p:a.p,c:a.c,f:a.f})+'</b>. No están en las barras.'+con+'</p>';
+  return '<p class="tiny mt8 nbi">'+I.pastilla+' Suplementos aislados ('+(dia==='rest'?'día de descanso':'día de entreno')+'): <b>+'+suppMacTxt({kcal:a.kcal,p:a.p,c:a.c,f:a.f})+'</b>. No están en las barras.'+con+'</p>';
 }
 /* Momentos en orden del día; los que vengan del formato viejo (Mañana, Noche…) se añaden al final. */
 function suppMomOrder(list){const ms=SUPP_MOM.slice();list.forEach(s=>{const m=s.timing||'Otro';if(ms.indexOf(m)<0)ms.push(m);});return ms;}
@@ -5012,6 +5012,10 @@ function acwrZone(r){
 /* ================= NÚCLEO (render, navegación, UI) ================= */
 const $=sel=>document.querySelector(sel);
 const I={
+  alerta:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  ojo:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  ojoNo:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9 9 0 0 1 12 5c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M2 2l20 20"/></svg>',
+  pastilla:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7zM8.5 8.5l7 7"/></svg>',
   bascula:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9.5a5 5 0 0 1 8 0"/><path d="m12 10.5 1.5-2"/></svg>',
   regla:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15.5 15.5 3 21 8.5 8.5 21z"/><path d="m7 12 2 2M10 9l2 2M13 6l2 2"/></svg>',
   pulso:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg>',
@@ -5068,7 +5072,7 @@ function applyBrand(hex){
   const onAcc=_relLum(acc.r,acc.g,acc.b)>0.45?'#161f07':'#f6f6f6';
   const av=a=>`rgba(${acc.r},${acc.g},${acc.b},${a})`;
   const sh=k=>`rgb(${Math.round(acc.r*k)},${Math.round(acc.g*k)},${Math.round(acc.b*k)})`;
-  root.style.setProperty('--line',sh(.17));root.style.setProperty('--line2',sh(.25));root.style.setProperty('--bd-input',av(.4));
+  root.style.setProperty('--line',sh(.17));root.style.setProperty('--line2',sh(.25));root.style.setProperty('--bd-input','rgba(255,255,255,.16)');/* neutro: con el acento parecían campos con error */
   root.style.setProperty('--volt',`rgb(${acc.r},${acc.g},${acc.b})`);
   root.style.setProperty('--volt-dim',`rgb(${dim.r},${dim.g},${dim.b})`);
   root.style.setProperty('--on-volt',onAcc);
@@ -6728,10 +6732,10 @@ const SMAE_G=[
   {k:'cer_sg',n:'Cereales sin grasa',s:'Cereal',p:2,c:15,f:0,m:'c'},
   {k:'cer_cg',n:'Cereales con grasa',s:'Cereal c/grasa',p:2,c:15,f:5,m:'c'},
   {k:'leg',n:'Leguminosas',s:'Leguminosa',p:8,c:20,f:1,m:'c'},
-  {k:'aoa_mb',n:'AOA muy bajo en grasa',s:'AOA muy bajo',p:7,c:0,f:1,m:'p'},
-  {k:'aoa_b',n:'AOA bajo en grasa',s:'AOA bajo',p:7,c:0,f:3,m:'p'},
-  {k:'aoa_m',n:'AOA moderado en grasa',s:'AOA moderado',p:7,c:0,f:5,m:'p'},
-  {k:'aoa_a',n:'AOA alto en grasa',s:'AOA alto',p:7,c:0,f:8,m:'p'},
+  {k:'aoa_mb',n:'AOA muy bajo en grasa',s:'AOA muy bajo',a:'Proteína muy magra',ae:'pollo, atún, claras',p:7,c:0,f:1,m:'p'},
+  {k:'aoa_b',n:'AOA bajo en grasa',s:'AOA bajo',a:'Proteína magra',ae:'res, lomo',p:7,c:0,f:3,m:'p'},
+  {k:'aoa_m',n:'AOA moderado en grasa',s:'AOA moderado',a:'Proteína media',ae:'huevo, panela',p:7,c:0,f:5,m:'p'},
+  {k:'aoa_a',n:'AOA alto en grasa',s:'AOA alto',a:'Proteína con grasa',ae:'Oaxaca, manchego',p:7,c:0,f:8,m:'p'},
   {k:'leche_d',n:'Leche descremada',s:'Leche descremada',p:9,c:12,f:2,m:'c'},
   {k:'leche_s',n:'Leche semidescremada',s:'Leche semi',p:9,c:12,f:4,m:'c',mas:1},
   {k:'leche_e',n:'Leche entera',s:'Leche entera',p:9,c:12,f:8,m:'c',mas:1},
@@ -6768,7 +6772,7 @@ const SMAE_LIST={
 /* lista efectiva de un grupo: [nombre, medida, gramos, mostrar('a' ambos | 'g' gramos | 'm' medida)] */
 function smaeList(k){const L=S&&S.eqvList&&S.eqvList[k];return (Array.isArray(L)?L:(SMAE_LIST[k]||[])).map(o=>[o[0],o[1]||'',+o[2]||0,o[3]||'a']);}
 function smaeR2(x){return Math.max(0,Math.round((+x||0)*2)/2);}
-function smaeN(x){x=+x||0;return x%1?String(x).replace('.',','):String(x);}
+function smaeN(x){x=+x||0;return String(x);}
 function smaeHas(m){return !!(m&&m.eqv&&!m.recipe&&Object.keys(m.eqv).some(k=>(+m.eqv[k]||0)>0&&SMAE_BY[k]));}
 function smaeMac(e){const t={p:0,c:0,f:0};Object.keys(e||{}).forEach(k=>{const g=SMAE_BY[k],n=+e[k]||0;if(!g||!(n>0))return;t.p+=g.p*n;t.c+=g.c*n;t.f+=g.f*n;});
   t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
@@ -6815,11 +6819,13 @@ function smaeDistribute(ap){
 function smaeAssigned(ap){const a={};(ap.meals||[]).forEach(m=>{if(m.recipe)return;Object.keys(m.eqv||{}).forEach(k=>{a[k]=+((a[k]||0)+(+m.eqv[k]||0)).toFixed(1);});});return a;}
 function smaeBars(tot,tgt){
   const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
-  return rows.map(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);
-    const st=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';
-    return '<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+st+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';}).join('');}
+  /* ±3 % es «cuadra»: con 28 kcal de más sobre 2400 las cuatro barras gritaban y ninguna destacaba. Solo lo que
+     se sale del margen lleva color; lo que cuadra va en neutro con ✓. */
+  return rows.map(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1),ok=obj&&Math.abs(left)<=obj*0.03;
+    const st=!obj?'sin objetivo':ok?'<span class="u-c-green">cuadra ✓</span>'+(left?' <span class="tiny">('+(left>0?'−'+left:'+'+(-left))+' '+r[3]+')</span>':''):(left>0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>');
+    return '<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+st+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(ok?'var(--tx3)':left<0?'var(--red)':r[4])+'"></i></div></div>';}).join('');}
 function smaeStep(attrs,v,lbl){
-  return '<span class="eqstep"><button type="button" data-act="smae-step" '+attrs+' data-d="-0.5" aria-label="Quitar ½ '+esc(lbl)+'">−</button>'+
+  return '<span class="eqstep'+(v?'':' z')+'"><button type="button" data-act="smae-step" '+attrs+' data-d="-0.5" aria-label="Quitar ½ '+esc(lbl)+'">−</button>'+
     '<input type="number" inputmode="decimal" min="0" step="0.5" value="'+(v>0?v:'')+'" placeholder="0" data-change="smae-set" '+attrs+' aria-label="'+esc(lbl)+'">'+
     '<button type="button" data-act="smae-step" '+attrs+' data-d="0.5" aria-label="Añadir ½ '+esc(lbl)+'">+</button></span>';}
 function smaeCoachHTML(aid,ap){
@@ -6873,7 +6879,7 @@ function smaeCoachHTML(aid,ap){
         '<span class="q">P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+'<button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Quitar" aria-label="Quitar '+esc(it.food)+'" data-act="pitem-del" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'">'+I.x+'</button></span></li>';});
     const qid='mq_'+m.id;
     fx+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+((m.items||[]).length?mealItemsTotals(m).kcal+' kcal en fijos':'solo equivalentes')+'</span></div>'+(items?'<ul>'+items+'</ul>':'')+
-      '<div class="mq"><input id="'+qid+'" list="mqfoods" placeholder="Alimento fijo en '+esc(m.name)+' (opcional)…" autocomplete="off" data-live="food-hint" data-hint-target="'+qid+'_g" aria-label="Alimento fijo en '+esc(m.name)+'">'+
+      '<div class="mq"><input id="'+qid+'" list="mqfoods" placeholder="Buscar alimento" autocomplete="off" data-live="food-hint" data-hint-target="'+qid+'_g" aria-label="Alimento fijo en '+esc(m.name)+'">'+
       '<input id="'+qid+'_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad" data-mq-aid="'+aid+'" data-mq-go="'+m.id+'">'+
       '<button class="btn btn-g btn-sm" data-act="mq-add" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.plus+' Añadir</button></div>'+fpmHTML(qid+'_g')+'</div>';});
   const nFix=cols.reduce((a,x)=>a+(x.m.items||[]).length,0);
@@ -6883,13 +6889,13 @@ function smaeCoachHTML(aid,ap){
   if(dp0.allergies||dp0.dislikes||dp0.intolerances){
     const cf=smaeConflictsDP(dp0),al=new Set(n.eqvAllow||[]),seen=new Set(),uq=cf.filter(x=>!seen.has(x.key)&&seen.add(x.key));
     if(smaeSyncHideN(n))setTimeout(saveState,0);
-    const chip=x=>{const on=al.has(x.key);return '<button class="btn btn-g btn-sm eqhd'+(on?' on':'')+'" data-act="smae-hide-tog" data-aid="'+aid+'" data-key="'+esc(x.key)+'" title="'+(on?'Se le muestra aunque choque. Toca para ocultársela.':'No la ve. Toca para mostrársela de todos modos.')+'">'+(on?'👁 ':'🚫 ')+esc(x.n)+' <span class="tiny">'+({allergy:'alergia',intol:'intolerancia'}[x.type]||'evitar')+': '+esc(x.term)+'</span></button>';};
+    const chip=x=>{const on=al.has(x.key);return '<button class="btn btn-g btn-sm eqhd'+(on?' on':'')+'" data-act="smae-hide-tog" data-aid="'+aid+'" data-key="'+esc(x.key)+'" title="'+(on?'Se le muestra aunque choque. Toca para ocultársela.':'No la ve. Toca para mostrársela de todos modos.')+'">'+(on?I.ojo:I.ojoNo)+esc(x.n)+' <span class="tiny">'+({allergy:'alergia',intol:'intolerancia'}[x.type]||'evitar')+': '+esc(x.term)+'</span></button>';};
     const hidK=new Set(uq.filter(x=>!al.has(x.key)).map(x=>x.key));
     const used=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
     const vac=used.filter(g=>{const L=smaeList(g.k);return L.length&&L.every(o=>hidK.has(normTxt(o[0]).trim()));});
-    warn='<div class="notebox u-bl-orange u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.intolerances,dp0.dislikes].filter(Boolean).join(' · '))+
+    warn='<div class="notebox u-bl-orange u-mb12 nbi">'+I.alerta+' Evita: '+esc([dp0.allergies,dp0.intolerances,dp0.dislikes].filter(Boolean).join(' · '))+
       (uq.length?'<div class="tiny mt8">Estas opciones de tu lista de equivalentes chocan con su perfil y <b>se le ocultan solo a este atleta</b>. Toca una para mostrársela de todos modos.</div><div class="eqhds">'+uq.map(chip).join('')+'</div>':'<div class="tiny mt8">Ninguna opción de tu lista de equivalentes choca con esto.</div>')+
-      (vac.length?'<div class="tiny u-c-red mt8">⚠ En '+vac.map(g=>'«'+esc(g.n)+'»').join(', ')+' no le queda ninguna opción: añade otras en la lista o cambia sus porciones.</div>':'')+'</div>';
+      (vac.length?'<div class="tiny u-c-red mt8">En '+vac.map(g=>'«'+esc(g.n)+'»').join(', ')+' no le queda ninguna opción: añade otras en la lista o cambia sus porciones.</div>':'')+'</div>';
   }
   return warn+dayCard+distCard+fixSec;
 }
@@ -6920,12 +6926,17 @@ function smaeSyncHideN(n){
 function smaeAthRows(m,np){
   if(!smaeHas(m))return '';
   const hid=new Set((np&&np.eqvHide)||[]);
-  return SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>{const n=+m.eqv[g.k],L=smaeList(g.k).filter(o=>!hid.has(normTxt(o[0]).trim())),k=Math.round(smaeKcal(g)*n);
+  /* nombres para el atleta: «AOA» no le dice nada, ve «Proteína muy magra» con ejemplos (el coach sigue viendo SMAE).
+     La indicación de cómo elegir va UNA vez arriba, no repetida bajo cada grupo. */
+  const gs=SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0);if(!gs.length)return '';
+  return '<p class="tiny dx-smaeh">Toca un grupo para ver tus opciones. Elige una o combina mitades (½ y ½).</p>'+gs.map(g=>{const n=+m.eqv[g.k],L=smaeList(g.k).filter(o=>!hid.has(normTxt(o[0]).trim())),k=Math.round(smaeKcal(g)*n);
     const ops=L.map(o=>'<li><span>'+esc(o[0])+'</span><b>'+smaeQty(o,n)+'</b></li>').join('');
-    return '<details class="dx-smae"><summary><span class="nm"><b>'+smaeN(n)+' × '+esc(g.n)+'</b><span class="tiny">'+(g.k==='libre'?'sin límite':'elige una opción o combina (½ y ½)')+'</span></span><span class="kc">'+(k||'')+'</span></summary>'+
+    return '<details class="dx-smae"><summary><span class="nm"><b>'+smaeFmtQ(n)+' × '+esc(g.a||g.n)+'</b>'+(g.ae?'<span class="tiny">'+esc(g.ae)+'</span>':g.k==='libre'?'<span class="tiny">sin límite</span>':'')+'</span><span class="kc">'+(k?k+' kcal':'')+'</span></summary>'+
       (ops?'<ul class="dx-smaeo">'+ops+'</ul>':'<p class="tiny">'+(hid.size?'Pregúntale a tu coach qué opciones te tocan en este grupo.':'Tu coach aún no tiene opciones en este grupo.')+'</p>')+'</details>';}).join('');
 }
-function smaeSummary(m){return smaeHas(m)?SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>smaeN(+m.eqv[g.k])+' '+g.s).join(' · '):'';}
+function smaeSummary(m){return smaeHas(m)?SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0).map(g=>smaeFmtQ(+m.eqv[g.k])+' '+(g.a||g.s)).join(' · '):'';}
+/* chip de plan: la etiqueta de tipo sobra si el nombre ya empieza con ella («Día normal · Día normal») */
+function planChipBadge(t,p){return normTxt(p.name).indexOf(normTxt(t.lbl))===0?'':'<span class="badge '+t.cls+'">'+t.lbl+'</span>';}
 /* Cambio de modo: al entrar a equivalentes cada comida recupera lo que tenía (eqvBak); al salir se guarda
    aparte para no perderlo y, en macros flexibles, la comida se queda con los macros de sus equivalentes. */
 /* Alimentos del menú al entrar a equivalentes: si se quedaran, se sumarían a las porciones y el plan casi
@@ -7010,7 +7021,7 @@ function coachTabNutri(aid){
   const n=nutriOf(aid),ap=activePlanOf(aid),ty=planType(ap.type);
   /* barra de planes por tipo de día */
   let chips='';
-  n.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.activePlan?' on':'')+'" data-act="plan-select" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});
+  n.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.activePlan?' on':'')+'" data-act="plan-select" data-aid="'+aid+'" data-pid="'+p.id+'">'+planChipBadge(t,p)+esc(p.name)+'</button>';});
   const planBar='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">Planes por tipo de día <span class="hint">crea variantes: pesado, normal, day off, recarga…</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="tpl-apply-modal" data-kind="nutrition" data-aid="'+aid+'">'+I.copy+' Aplicar plantilla</button><button class="btn btn-g btn-sm" data-act="tpl-save-modal" data-kind="nutrition" data-aid="'+aid+'">Guardar como plantilla</button><button class="btn btn-p btn-sm" data-act="plan-add" data-aid="'+aid+'">'+I.plus+' Nuevo plan</button></span></div><div class="planchips">'+chips+'</div></div>';
   /* cabecera + edición del plan activo */
   const planHead='<div class="sect-h u-mb12"><h3 class="u-m0"><span class="badge '+ty.cls+'">'+ty.lbl+'</span> '+esc(ap.name)+'</h3><span class="sp">'+(ap.mode==='eqv'?'':'<button class="btn btn-p btn-sm" data-act="nutri-auto-ask" data-aid="'+aid+'" data-pid="'+ap.id+'" title="Calcula calorías y macros (TDEE + objetivo de la fase) y arma un menú con alimentos de tu base. Editable después.">'+I.refresh+' Plan automático</button><button class="btn btn-p btn-sm" data-act="nia-ask" data-aid="'+aid+'" title="Describe el menú en tus palabras y la IA lo arma con alimentos de tu base. Revisas antes de aplicar.">'+I.food+' Armar con IA</button>')+'<button class="btn btn-g btn-sm" data-act="plan-rename" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.edit+' Renombrar</button>'+(n.plans.length>1?'<button class="btn btn-g btn-sm" data-act="plan-del" data-aid="'+aid+'" data-pid="'+ap.id+'">'+I.trash+'</button>':'')+'</span></div>';
@@ -7057,7 +7068,7 @@ function coachTabNutri(aid){
       ms+='<div class="meal">'+mHead(m,i)+'<ul>'+(items||'<li class="tiny">Sin alimentos aún: escribe uno abajo y te sugiero la cantidad.</li>')+'</ul>'+add+'</div>';
     });
     const shSel='<label class="mshape">Reparto <select data-change="pday-shape" data-aid="'+aid+'" aria-label="Cómo se reparte el objetivo del día entre las comidas">'+DAY_SHAPES.map(x=>'<option value="'+x[0]+'"'+((ap.shape||'igual')===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')+'</select></label>';
-    const warn=(dp0.allergies||dp0.dislikes)?'<div class="notebox u-bl-orange u-m0 u-mb12">⚠️ Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+'</div>':'';
+    const warn=(dp0.allergies||dp0.dislikes)?'<div class="notebox u-bl-orange u-m0 u-mb12 nbi">'+I.alerta+' Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+'</div>':'';
     const shTxt=(DAY_SHAPES.find(x=>x[0]===(ap.shape||'igual'))||DAY_SHAPES[0])[1].toLowerCase();
     menuHTML='<div class="card mb16"><datalist id="mqfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
       '<div class="sect-h u-mb12"><h3 class="u-m0">Menú · «'+esc(ap.name)+'»</h3><span class="sp">'+shSel+'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-p btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+warn+
@@ -7087,7 +7098,7 @@ function coachTabNutri(aid){
     '<div class="frow2"><div><label>Alimentos que le gustan</label><textarea id="dp_likes" placeholder="Ej. arroz, pollo, avena, fruta…">'+esc(dp.likes||'')+'</textarea></div><div><label>Alimentos que NO le gustan / evitar</label><textarea id="dp_dislikes" placeholder="Ej. pescado azul, brócoli…">'+esc(dp.dislikes||'')+'</textarea></div></div>'+
     '<div class="frow2"><div><label>Alergias <span class="tiny u-c-red">(evitar siempre)</span></label><textarea id="dp_allerg" placeholder="Ej. frutos secos, marisco…">'+esc(dp.allergies||'')+'</textarea></div><div><label>Intolerancias</label><textarea id="dp_intol" placeholder="Ej. lactosa, gluten…">'+esc(dp.intolerances||'')+'</textarea></div></div>'+
     '<div class="frow"><label>Notas de alimentación (contexto)</label><textarea id="dp_notes" placeholder="Horarios, nº de comidas preferido, presupuesto, turnos…">'+esc(dp.notes||'')+'</textarea></div>'+
-    (dp.allergies||dp.dislikes?'<div class="notebox u-bl-orange u-mb16">⚠️ Al armar menús evita: '+esc([dp.allergies,dp.dislikes].filter(Boolean).join(' · '))+'</div>':'')+
+    (dp.allergies||dp.dislikes?'<div class="notebox u-bl-orange u-mb16 nbi">'+I.alerta+' Al armar menús evita: '+esc([dp.allergies,dp.dislikes].filter(Boolean).join(' · '))+'</div>':'')+
     '<div class="u-tr"><button class="btn btn-p" data-act="dietprofile-save" data-aid="'+aid+'">Guardar perfil de alimentación</button></div></div>';
   /* Perfil, dietocálculo y guía se usan al empezar; al armar el menú estorbaban (4000 px antes del menú).
      Quedan plegados en una fila; abiertos si el plan aún no tiene macros. Se recuerda abierto/cerrado. */
@@ -8542,7 +8553,7 @@ function exForm(e,aid,exId,dayId,gForce){
   '<div class="frow"><label>Descanso</label><input id="e_rest" value="'+esc(e.rest||'2 min')+'"></div>'+techBlk+
   '<div class="frow"><label>Indicaciones técnicas (opcional)</label><input id="e_notes" value="'+esc(e.notes||'')+'" placeholder="Pausa 1 s, tempo 3-0-1…"></div>'+
   '<div class="frow"><label>Link de revisión (opcional)</label><input id="e_rev" value="'+esc(e.revLink||'')+'" placeholder="Loom, YouTube… tu video corrigiendo la técnica"><p class="tiny u-mt4">El atleta verá un botón «Revisión de tu coach» en este ejercicio.</p></div>'+
-  (aid?'<div class="card" style="margin:14px 0 0;padding:12px 14px;background:var(--bg2)"><h4 style="margin:0 0 8px;font-size:var(--fs-2);text-transform:uppercase;letter-spacing:.04em;color:var(--tx2)">Impacto en el volumen semanal</h4><div id="exvolbox" data-aid="'+aid+'" data-ex="'+(exId||'')+'">'+exVolCore(aid,exId||'',e.name||'',e.sets||0)+'</div></div>':'');
+  (aid?'<div class="card" style="margin:14px 0 0;padding:12px 14px;background:var(--bg2)"><h4 style="margin:0 0 8px;font-size:var(--fs-2);color:var(--tx2)">Impacto en el volumen semanal</h4><div id="exvolbox" data-aid="'+aid+'" data-ex="'+(exId||'')+'">'+exVolCore(aid,exId||'',e.name||'',e.sets||0)+'</div></div>':'');
 }
 
 /* ================= PANEL DEL ATLETA ================= */
@@ -9558,7 +9569,7 @@ VIEWS['ath-nutri']=function(u){
   const dayNav='<div class="dx-day">'+navB(iso>min?isoPlus(iso,-1):null,'Día anterior','‹')+'<b>'+dayLbl+'</b>'+navB(iso<hoy?isoPlus(iso,1):null,'Día siguiente','›')+'</div>';
 
   let dayPick='';
-  if(esHoy&&np.plans.length>1){let chips='';np.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.id?' on':'')+'" data-act="ath-plan-pick" data-aid="'+aid+'" data-pid="'+p.id+'"><span class="badge '+t.cls+'">'+t.lbl+'</span>'+esc(p.name)+'</button>';});dayPick='<div class="mb16"><label class="tiny u-dblock u-mb8">¿Qué día te toca hoy?</label><div class="planchips">'+chips+'</div></div>';}
+  if(esHoy&&np.plans.length>1){let chips='';np.plans.forEach(p=>{const t=planType(p.type);chips+='<button class="planchip'+(p.id===n.id?' on':'')+'" data-act="ath-plan-pick" data-aid="'+aid+'" data-pid="'+p.id+'">'+planChipBadge(t,p)+esc(p.name)+'</button>';});dayPick='<div class="mb16"><label class="tiny u-dblock u-mb8">¿Qué día te toca hoy?</label><div class="planchips">'+chips+'</div></div>';}
 
   /* RESUMEN: Objetivo − Comido = Restan */
   let sum='';
@@ -11682,7 +11693,7 @@ VIEWS['foods']=function(u){
   if(q)list=list.filter(f=>f.name.toLowerCase().includes(q)||(f.cat||'').toLowerCase().includes(q));
   let rows='',lastCat=null;
   list.forEach(f=>{
-    if(f.cat!==lastCat){rows+='<tr><td colspan="6" style="background:var(--card2);font-weight:700;font-size:var(--fs-2);text-transform:uppercase;letter-spacing:.05em;color:var(--tx2)">'+esc(f.cat||'Otros')+'</td></tr>';lastCat=f.cat;}
+    if(f.cat!==lastCat){rows+='<tr><td colspan="6" style="background:var(--card2);font-weight:600;font-size:var(--fs-3);color:var(--tx2)">'+esc(f.cat||'Otros')+'</td></tr>';lastCat=f.cat;}
     rows+='<tr><td>'+esc(f.name)+(f.unit==='u'?' <span class="tiny muted">· por '+esc(f.unitLabel||'unidad')+'</span>':'')+'</td><td class="num">'+foodKcal100(f)+'</td><td class="num">'+f.p+'</td><td class="num">'+f.c+'</td><td class="num">'+f.f+'</td>'+
     '<td><div class="rowbtns"><button title="Editar" data-act="food-edit-modal" data-fid="'+f.id+'">'+I.edit+'</button><button title="Eliminar" data-act="food-del-ask" data-fid="'+f.id+'">'+I.trash+'</button></div></td></tr>';
   });
