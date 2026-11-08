@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-07.8">
+<meta name="lr-build" content="2026-11-08.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -843,6 +843,28 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
 .wkcell{font-variant-numeric:tabular-nums;color:var(--tx2)}
 .wkcell.chg{color:var(--volt);font-weight:700}
 .setpill{display:inline-block;font-size:var(--fs-2);font-weight:600;padding:2px 7px;margin:2px 3px 2px 0;border-radius:var(--r-xs);background:var(--bg2);border:1px solid var(--line2);color:var(--tx2)}
+/* Indicación rápida por ejercicio: grupo de botones del coach en Registros y su aviso en la sesión del atleta */
+.indgrp{display:flex;flex-wrap:wrap;gap:4px;min-width:220px;max-width:280px}
+.indc{display:inline-flex;align-items:center;gap:3px;font-size:var(--fs-1);font-weight:600;padding:4px 9px;border-radius:var(--r-pill);background:var(--bg2);border:1px solid var(--line2);color:var(--tx2);cursor:pointer;white-space:nowrap;transition:background-color .15s,border-color .15s,color .15s}
+.indc:hover{color:var(--tx);border-color:var(--tx3)}
+.indc:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.indc.on{background:var(--volt-16);border-color:var(--volt);color:var(--tx)}
+.indc.sug{border-color:var(--green);color:var(--green);animation:indSug 1.6s ease-in-out 3}
+.indc-n{border-style:dashed}.indc-n.on{border-style:solid}
+.indc .ei svg{width:12px;height:12px}
+@keyframes indSug{0%,100%{box-shadow:0 0 0 0 var(--green-35)}50%{box-shadow:0 0 0 3px var(--green-22)}}
+@media (prefers-reduced-motion:reduce){.indc{transition:none}.indc.sug{animation:none}}
+.indinfo{flex-basis:100%;font-size:var(--fs-1);color:var(--tx3);line-height:1.35;overflow-wrap:anywhere}
+.indnota-ed{flex-basis:100%;margin-top:2px}
+.indnota-ed label{display:block;font-size:var(--fs-1);color:var(--tx2);margin-bottom:3px}
+.indnota-ed .row{display:flex;gap:4px}
+.indnota-ed input{flex:1;min-width:0;padding:5px 8px;font-size:var(--fs-2)}
+.indmeta{padding:9px 16px;background:var(--volt-12);border-bottom:1px solid var(--volt-22);font-size:var(--fs-3);line-height:1.4}
+.indmeta .k{color:var(--volt);font-weight:600}
+.indmeta b{color:var(--tx);font-weight:700}
+.indmeta .why{font-size:var(--fs-2);color:var(--tx2);margin-top:1px}
+.indmeta .cm{margin-top:3px;white-space:pre-line;overflow-wrap:anywhere}
+.indtag{display:inline-block;margin-bottom:4px;padding:2px 8px;border-radius:var(--r-pill);font-size:var(--fs-1);font-weight:700;background:var(--volt-12);color:var(--volt)}
 .setpill small{color:var(--tx3);font-weight:600}
 .delta-pill{font-size:var(--fs-1);font-weight:700;padding:1px 8px;border-radius:var(--r-pill)}
 .delta-pill.up{background:var(--green-12);color:var(--green)}
@@ -7414,6 +7436,148 @@ function blkAviso(b){
     :'El bloque arranca el '+fmtDate(b.start)+', pero hay sesiones desde el '+fmtDate(b.from)+'. Las semanas se cuentan desde la primera sesión para no aplastarlas todas en la semana 1. Revisa la fecha en «Ajustes semanales».';
   return '<span class="badge orange" title="'+esc(t)+'">'+icx('alerta')+'revisar fecha de inicio</span>';
 }
+/* ===== Indicación rápida por ejercicio (2026-11-08) =====
+   Al revisar la sesión en Registros, las reps y el RIR ya le dicen al coach qué toca la próxima
+   vez («sube», «saca más reps»...). Apuntarlo fuera de la app, ejercicio por ejercicio, era tan
+   tedioso que no se hacía. Ahora es un toque en la misma fila.
+   Vive en el ejercicio de la RUTINA (`e.ind`), no en el registro: la rutina es lo que el atleta lee
+   al entrenar y ya viaja en su fila de athlete_plans, mientras que el registro es del atleta y el
+   coach no lo escribe. Forma {k, nota, at, src, ref}:
+     k    'subir'|'reps'|'rir'|'mant'|'' — una a la vez; la nota es aparte y puede ir sola
+     at   día en que el coach la dejó
+     src  id de la sesión desde cuya fila se dejó (es la fila que la muestra encendida)
+     ref  fecha de la última sesión con ese ejercicio en ese momento
+   Caduca sola: el atleta deja de verla en cuanto guarda una sesión con ese ejercicio POSTERIOR a
+   `ref`. Se mide contra `ref` y no contra la sesión revisada para que, si el coach revisa tarde y el
+   atleta ya entrenó otra vez, la indicación valga para la siguiente y no nazca vencida.
+   No se borra al cumplirse: el coach sigue viendo en esa fila qué indicó y cuándo lo entrenó.
+   Dejar otra desde otra sesión la reemplaza (solo hay una vigente por ejercicio). */
+const IND_TIPOS={
+  subir:{lbl:'Subir peso',why:'Sube la carga respecto a la vez pasada, aunque eso te baje a la parte baja del rango de reps.'},
+  reps:{lbl:'Pelear más reps',why:'Mismo peso que la vez pasada: busca al menos una rep más por serie.'},
+  rir:{lbl:'Ajustar RIR',why:'Apriétale más: termina cada serie con el RIR que marca el objetivo, no con reps de sobra.'},
+  mant:{lbl:'Mantener peso',why:'Mismo peso que la vez pasada: consolida la carga y cuida la técnica.'}
+};
+const IND_ORDEN=['subir','reps','rir','mant'];
+function indExDe(aid,exId){let f=null;((athData(aid).routine||{}).days||[]).forEach(dy=>{if(!f)f=(dy.exercises||[]).find(e=>e.id===exId)||null;});return f;}
+function indConEx(w,exId){return !!(w&&w.entries&&w.entries[exId]&&w.entries[exId].length);}
+function indUltFecha(aid,exId){let u='';((athData(aid).logs||{}).workouts||[]).forEach(w=>{if(indConEx(w,exId)&&w.date>u)u=w.date;});return u;}
+/* La primera sesión con la que el atleta ya entrenó la indicación (null = todavía le toca). */
+function indEntrenada(aid,exId,x){
+  const lim=x.ref||x.at;let r=null;
+  ((athData(aid).logs||{}).workouts||[]).forEach(w=>{if(w.id!==x.src&&indConEx(w,exId)&&w.date>lim&&(!r||w.date<r.date))r=w;});
+  return r;
+}
+/* Con el ejercicio cambiado por otro (swap) no se enseña: «sube el peso» de la sentadilla no vale para la prensa. */
+function indVigente(aid,e){const x=e&&e.ind;if(!x||(!x.k&&!x.nota)||e._swap)return null;return indEntrenada(aid,e.id,x)?null:x;}
+/* Tope del rango prescrito: «12-20», «12 a 20», «8–10» o un «10» suelto. AMRAP o «al fallo» no dan tope. */
+function indTopeReps(reps){const t=String(reps||'');let m=/(\d+)\s*(?:-|–|a)\s*(\d+)/i.exec(t);if(m)return +m[2];m=/^\s*(\d+)\s*$/.exec(t);return m?+m[1]:null;}
+/* Sugerir «Subir peso»: alguna serie pasó del tope, o todas lo alcanzaron. Las series marcadas como
+   no hechas o a medias no cuentan: en una serie a medias las reps no dicen nada de la carga. */
+function indSugerencia(presc,ss){
+  const top=presc?indTopeReps(presc.reps):null;if(!top)return '';
+  const v=(ss||[]).filter(s=>s&&s.sk!=='partial'&&s.sk!=='none'&&parseFloat(s.r)>0).map(s=>parseFloat(s.r));
+  if(!v.length)return '';
+  const mx=Math.max.apply(null,v);
+  if(mx>top)return 'Sugerido: hizo '+mx+' reps y el tope del rango es '+top+'.';
+  if(v.every(r=>r>=top))return 'Sugerido: llegó al tope del rango ('+top+') en todas las series.';
+  return '';
+}
+function indGrupoHTML(aid,exId,w,ss,abrirNota){
+  const e=indExDe(aid,exId);
+  if(!e)return '<span class="tiny" title="Este ejercicio ya no está en la rutina activa">—</span>';
+  const x=e.ind&&(e.ind.k||e.ind.nota)?e.ind:null,aqui=!!x&&x.src===w.id;
+  const sug=indSugerencia(e,ss);
+  const dat=' data-aid="'+esc(aid)+'" data-ex="'+esc(exId)+'" data-wid="'+esc(w.id)+'"';
+  let h='';
+  IND_ORDEN.forEach(k=>{
+    const on=aqui&&x.k===k,sg=k==='subir'&&!!sug&&!on;
+    h+='<button type="button" class="indc'+(on?' on':'')+(sg?' sug':'')+'" data-act="ind-set" data-k="'+k+'"'+dat+' aria-pressed="'+on+'"'+
+      (sg?' title="'+esc(sug)+'"':on?' title="Toca otra vez para quitarla"':'')+'>'+IND_TIPOS[k].lbl+'</button>';
+  });
+  const nOn=aqui&&!!x.nota;
+  h+='<button type="button" class="indc indc-n'+(nOn?' on':'')+'" data-act="ind-nota-abrir"'+dat+' aria-expanded="'+(abrirNota?'true':'false')+'">'+icx('nota')+'Nota</button>';
+  if(abrirNota){
+    const id='indn_'+w.id+'_'+exId;
+    h+='<div class="indnota-ed"><label for="'+esc(id)+'">Nota para el atleta (la verá sobre el ejercicio)</label><div class="row">'+
+      '<input id="'+esc(id)+'" class="indnota-in" maxlength="140" value="'+esc(nOn?x.nota:'')+'" placeholder="Ej.: baja el descanso a 90 s"'+dat+'>'+
+      '<button type="button" class="btn btn-p btn-sm" data-act="ind-nota-ok"'+dat+'>Guardar nota</button></div></div>';
+  }else if(nOn)h+='<div class="indinfo">«'+esc(x.nota)+'»</div>';
+  if(x){
+    const hecha=indEntrenada(aid,exId,x);
+    if(aqui)h+='<div class="indinfo">'+(hecha?'Ya la entrenó el '+fmtDate(hecha.date):'La verá en su próxima sesión')+'</div>';
+    else{
+      const sw=((athData(aid).logs||{}).workouts||[]).find(z=>z.id===x.src);
+      h+='<div class="indinfo">'+(hecha?'Última indicación':'Vigente')+': '+esc(x.k?IND_TIPOS[x.k].lbl:'nota')+(sw?', desde la sesión del '+fmtDate(sw.date):'')+(hecha?' · ya la entrenó el '+fmtDate(hecha.date):'')+'</div>';
+    }
+  }
+  /* data-act en el contenedor: la tarjeta entera de la sesión lleva log-toggle, y sin esto tocar la
+     casilla de la nota (o el hueco entre botones) plegaba la sesión. */
+  return '<div class="indgrp" data-act="ind-stop"'+dat+'>'+h+'</div>';
+}
+/* Repinta solo los grupos de ese ejercicio (todas sus sesiones, por el «Vigente» de las demás):
+   un render() entero plegaría la sesión abierta y movería el scroll del coach. */
+function indRefrescar(aid,exId,abrirWid){
+  const ws=(athData(aid).logs||{}).workouts||[];
+  document.querySelectorAll('.indgrp').forEach(g=>{
+    if(g.dataset.aid!==aid||g.dataset.ex!==exId)return;
+    const w=ws.find(z=>z.id===g.dataset.wid);if(!w)return;
+    g.outerHTML=indGrupoHTML(aid,exId,w,(w.entries||{})[exId],g.dataset.wid===abrirWid);
+  });
+  if(abrirWid){const i=document.getElementById('indn_'+abrirWid+'_'+exId);if(i){i.focus();try{i.setSelectionRange(i.value.length,i.value.length);}catch(e){}}}
+}
+/* Sube YA la fila de la rutina de este atleta, sin pasar por saveState: es un toque que el coach
+   espera ver confirmado, y saveState espera 1,5 s y syncPlans calla los fallos. Una cola para que
+   dos toques seguidos lleguen en orden (cada envío lleva la rutina tal como esté al salir). */
+let _indCola=Promise.resolve();
+function indGuardar(aid){
+  const run=async()=>{
+    if(_offlineMode)throw new Error('Sin conexión');
+    if(!_supabaseUser||_currentUserId!=='coach'||!_plansHydrated)throw new Error('Rutinas aún sin cargar del servidor');
+    const v=athData(aid).routine,j=JSON.stringify(v);
+    const res=await supa.from('athlete_plans').upsert([{coach_uid:_coachUid,athlete_id:aid,kind:'routine',data:v,updated_at:new Date().toISOString()}],{onConflict:'coach_uid,athlete_id,kind'});
+    if(res.error)throw res.error;
+    _planCache[aid+':routine']=j;
+  };
+  const p=_indCola.then(run);_indCola=p.catch(()=>{});return p;
+}
+function indAplicar(aid,exId,wid,cambio,abrirNota){
+  if(_offlineMode){avisoOffline();return;}
+  const e=indExDe(aid,exId);if(!e)return;
+  const antes=e.ind?Object.assign({},e.ind):null;
+  const base=(e.ind&&e.ind.src===wid)?Object.assign({},e.ind):{k:'',nota:''};
+  const nv=Object.assign(base,cambio,{at:todayISO(),src:wid,ref:indUltFecha(aid,exId)});
+  if(!nv.k&&!nv.nota)delete e.ind;else e.ind=nv;
+  const puesto=JSON.stringify(e.ind||null);
+  espejoLocalPronto();
+  indRefrescar(aid,exId,abrirNota?wid:null);
+  indGuardar(aid).catch(err=>{
+    try{console.error('No se guardó la indicación:',err);}catch(_){}
+    /* se deshace solo si nadie la volvió a tocar mientras tanto */
+    const e2=indExDe(aid,exId);
+    if(e2&&JSON.stringify(e2.ind||null)===puesto){if(antes)e2.ind=antes;else delete e2.ind;espejoLocalPronto();indRefrescar(aid,exId,null);}
+    if(_offlineMode)avisoOffline();else{authFail(err);toast('No se guardó la indicación. Revisa tu conexión y vuelve a tocarla.','err');}
+  });
+}
+/* Lo que ve el atleta: arriba del ejercicio en su sesión, y como etiqueta en «Mi rutina». */
+function indMetaHTML(aid,e){
+  const x=indVigente(aid,e);if(!x)return '';
+  const t=x.k?IND_TIPOS[x.k]:null;
+  return '<div class="indmeta" role="note">'+(t?'<div><span class="k">Meta para hoy:</span> <b>'+esc(t.lbl)+'</b></div><div class="why">'+esc(t.why)+'</div>':'<div class="k">Indicación de tu coach</div>')+
+    (x.nota?'<div class="cm">«'+esc(x.nota)+'»</div>':'')+'</div>';
+}
+function indTagHTML(aid,e){const x=indVigente(aid,e);if(!x)return '';return '<div class="indtag" title="'+esc((x.k?IND_TIPOS[x.k].why:'')+(x.nota?' «'+x.nota+'»':''))+'">Meta: '+esc(x.k?IND_TIPOS[x.k].lbl:'ver nota de tu coach')+'</div><br>';}
+Object.assign(ACTIONS,{
+  'ind-stop':()=>{},
+  'ind-set':el=>{const d=el.dataset,e=indExDe(d.aid,d.ex);if(!e)return;const on=!!(e.ind&&e.ind.src===d.wid&&e.ind.k===d.k);indAplicar(d.aid,d.ex,d.wid,{k:on?'':d.k});},
+  'ind-nota-abrir':el=>{const d=el.dataset,ab=!!document.getElementById('indn_'+d.wid+'_'+d.ex);indRefrescar(d.aid,d.ex,ab?null:d.wid);},
+  'ind-nota-ok':el=>{const d=el.dataset,i=document.getElementById('indn_'+d.wid+'_'+d.ex);if(!i)return;indAplicar(d.aid,d.ex,d.wid,{nota:i.value.trim().slice(0,140)});}
+});
+document.addEventListener('keydown',ev=>{
+  const el=ev.target;if(!el||!el.classList||!el.classList.contains('indnota-in'))return;
+  if(ev.key==='Enter'){ev.preventDefault();ACTIONS['ind-nota-ok']({dataset:el.dataset});}
+  else if(ev.key==='Escape'){ev.preventDefault();indRefrescar(el.dataset.aid,el.dataset.ex,null);}
+});
 function coachTabRegistros(aid){
   const d=athData(aid);
   const drM={};drPendientes(aid).forEach(x=>{(drM[x.wid+'|'+x.exId]=drM[x.wid+'|'+x.exId]||[]).push(x);});
@@ -7443,9 +7607,9 @@ function coachTabRegistros(aid){
         const setsTxt=ss.map((s,i)=>{const dr=drL.filter(x=>x.i===i);return '<span class="setpill"'+(dr.length?' style="border-color:var(--orange)" title="'+esc(dr.map(x=>x.txt).join(' '))+'"':s.sk==='partial'?' style="border-color:var(--orange);color:var(--orange)" title="El atleta la marcó como no terminada"':'')+'>'+(dr.length?icx('alerta'):'')+'S'+(i+1)+' '+(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' <small>@RIR '+s.rir+'</small>':'')+(s.sk==='partial'?' ½':'')+((s.sub&&s.sub.length)?' <small title="Mini-series de la técnica — no cuentan como series">+'+s.sub.map(m=>(m.w?m.w+'×':'')+(m.r||0)).join('+')+'</small>':'')+'</span>';}).join(' ')+drL.filter(x=>x.i<0).map(x=>' <span class="badge orange" title="'+esc(x.txt)+'">'+icx('alerta')+'salto de carga</span>').join('');
         const tgt=presc?('<span class="tiny">'+esc(presc.sets)+'×'+esc(presc.reps)+' · RIR '+esc(presc.rir)+(presc.rest?' · '+esc(presc.rest):'')+'</span>'):'<span class="tiny">—</span>';
         const fb=presc?(ss.length<(parseInt(presc.sets,10)||0)?'<span class="badge orange" title="Hizo menos series que las prescritas">'+ss.length+'/'+presc.sets+' series</span>':'<span class="badge green">'+ss.length+' series</span>'):('<span class="badge">'+ss.length+' series</span>');
-        rows+='<tr><td class="exname">'+esc(exName)+'<div>'+tgt+'</div></td><td>'+setsTxt+'</td><td class="u-nowrap">'+fb+'</td><td class="num">'+(exTon?Math.round(exTon)+' kg':'—')+'</td></tr>';
+        rows+='<tr><td class="exname">'+esc(exName)+'<div>'+tgt+'</div></td><td>'+setsTxt+'</td><td class="u-nowrap">'+fb+'</td><td class="num">'+(exTon?Math.round(exTon)+' kg':'—')+'</td><td>'+indGrupoHTML(aid,exId,w,ss)+'</td></tr>';
       });
-      detail='<div class="logdetail"><div class="tblwrap"><table class="tbl u-minwa"><thead><tr><th>Ejercicio · objetivo</th><th>Series realizadas (kg×reps@RIR)</th><th>Cumpl.</th><th class="num">Tonelaje</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      detail='<div class="logdetail"><div class="tblwrap"><table class="tbl u-minwa"><thead><tr><th>Ejercicio · objetivo</th><th>Series realizadas (kg×reps@RIR)</th><th>Cumpl.</th><th class="num">Tonelaje</th><th>Indicación / ajuste</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
         '<div class="grid g4 u-mt12"><div class="stat"><div class="k">Ejercicios</div><div class="v u-fs7">'+keys.length+(planDay?'<small> / '+planDay.exercises.length+'</small>':'')+'</div><div class="sub">registrados / prescritos</div></div>'+
         '<div class="stat"><div class="k">Series totales</div><div class="v u-fs7">'+totalSets+'</div><div class="sub">series de trabajo</div></div>'+
         '<div class="stat"><div class="k">Tonelaje</div><div class="v u-fs7">'+Math.round(tonnage)+'<small> kg</small></div><div class="sub">Σ peso × reps</div></div>'+
@@ -9494,7 +9658,7 @@ VIEWS['ath-wlog']=function(u){
     /* En biserie el descanso va al final del grupo, no entre ejercicios: decirlo aquí evita que
        el atleta descanse donde no toca y convierta la biserie en dos series normales. */
     const restTxt=multi?(gi<gr.items.length-1?'sin descanso, pasa al siguiente':esc(e.rest)+' al terminar el grupo'):esc(e.rest);
-    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'"><div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+'</div>'+(e.notes?'<div class="exind"><b>'+icx('nota')+'Tu coach:</b>'+esc(e.notes)+'</div>':'')+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>'+techHowHTML(techOf(e),false,e.techP):'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
+    inner+='<div class="wlog-ex'+(exSk?' skipped':exDone?' done':'')+'">'+indMetaHTML(aid,e)+'<div class="wlog-ex-h"><div class="wlog-top">'+posH+nameH+techChip(e)+headBtn+'</div><div class="tgt">Objetivo: '+esc(e.sets)+' × '+esc(e.reps)+' reps · RIR '+esc(e.rir)+' · descanso '+restTxt+'</div>'+(e.notes?'<div class="exind"><b>'+icx('nota')+'Tu coach:</b>'+esc(e.notes)+'</div>':'')+(techOf(e)?'<div class="techhint">'+esc(techOf(e).hint)+'</div>'+techHowHTML(techOf(e),false,e.techP):'')+swapUI+skUI+revBtn+lastTxt+'</div>'+
     '<div class="sethead"><span></span><span>Peso ('+unit+')</span><span>Reps</span><span>RIR</span><span></span></div>'+rows+
     '<button class="addset" data-act="wlog-addset" data-ex="'+e.id+'">+ Añadir serie</button></div>';
   });
@@ -9541,7 +9705,7 @@ VIEWS['ath-rutina']=function(u){
     day.exercises.forEach((e,ei)=>{
       const lib=e.libId?libById(e.libId):null;
       const nameCell=lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.name)+'</button>'+(lib.video?' <span style="color:var(--blue);vertical-align:-2px" title="Ver video"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span>':''):'<span class="exname">'+esc(e.name)+'</span>';
-      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:var(--fs-2);font-weight:600;text-decoration:none;white-space:nowrap">'+icx('video')+'Revisión</a>':'')+(e.notes?'<div class="exind"><b>'+icx('nota')+'</b>'+esc(e.notes)+'</div>':'')+techHowHTML(techOf(e),false,e.techP)+swapRowUI(e,day.id)+'</td><td class="num" data-l="Series">'+esc(e.sets)+'</td><td class="num" data-l="Reps">'+esc(e.reps)+'</td><td class="num" data-l="RIR">'+esc(e.rir)+'</td><td class="num" data-l="⏱">'+esc(e.rest)+'</td></tr>';});
+      rows+='<tr><td class="num tiny">'+(ei+1)+(e.grp?'<div class="grpchip">'+esc(e.grp)+'</div>':'')+'</td><td>'+indTagHTML(u.id,e)+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" style="color:var(--blue);font-size:var(--fs-2);font-weight:600;text-decoration:none;white-space:nowrap">'+icx('video')+'Revisión</a>':'')+(e.notes?'<div class="exind"><b>'+icx('nota')+'</b>'+esc(e.notes)+'</div>':'')+techHowHTML(techOf(e),false,e.techP)+swapRowUI(e,day.id)+'</td><td class="num" data-l="Series">'+esc(e.sets)+'</td><td class="num" data-l="Reps">'+esc(e.reps)+'</td><td class="num" data-l="RIR">'+esc(e.rir)+'</td><td class="num" data-l="⏱">'+esc(e.rest)+'</td></tr>';});
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id&&WDRAFT.dayId===day.id;
     /* Corregir una sesión de días anteriores. Solo se ofrece si de verdad hay alguna dentro
        de la ventana: un botón que siempre está y casi siempre dice «no hay nada» es ruido. */
@@ -10604,7 +10768,7 @@ function libUsage(libId){
 const dcopy=o=>JSON.parse(JSON.stringify(o));
 function tplFromRoutine(aid,name){
   const r=athData(aid).routine,c=dcopy({weekNote:r.weekNote||'',days:r.days||[]});
-  c.days.forEach(day=>day.exercises.forEach(e=>{delete e.revLink;}));/* el link de revisión es del atleta, no de la plantilla */
+  c.days.forEach(day=>day.exercises.forEach(e=>{delete e.revLink;delete e.ind;}));/* el link de revisión es del atleta, no de la plantilla */
   return{id:uid(),name:name,weekNote:c.weekNote,days:c.days,created:todayISO()};
 }
 function tplFromNutri(aid,name){
@@ -10640,7 +10804,7 @@ function applyTplRoutine(aid,t){
   const days=dcopy(t.days).map(day=>{day.id=claimDay(day.name)||uid();day.exercises.forEach(e=>{
     let oid=e.libId?claim(byLib[e.libId]):null;
     if(!oid){const k=(e.name||'').trim().toLowerCase();oid=claim(byName[k]);}
-    e.id=oid||uid();delete e.revLink;ex++;
+    e.id=oid||uid();delete e.revLink;delete e.ind;ex++;
   });return day;});
   /* Los ejercicios que no reclamó nadie se van con la rutina vieja: se apunta su nombre para
      que el trabajo que el atleta ya registró bajo ellos no quede sin título en Registros. */
