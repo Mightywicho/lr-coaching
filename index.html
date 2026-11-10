@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-08.1">
+<meta name="lr-build" content="2026-11-09.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1371,6 +1371,10 @@ input.meta-in.old{border-style:dashed}
 .hx-tile.pend{border-color:var(--orange);background:var(--card2)}.hx-tile.pend .k{color:var(--orange)}.hx-tile.pend .v{font-size:var(--fs-5)}
 .hx-week{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}.hx-week .stat{padding:12px 14px}
 @media (prefers-reduced-motion:reduce){.hx-ring-v,.dx-bar i,.dx-mb i,.dx-ck{transition:none}.dx-ck.pop{animation:none}}
+.miclk-r{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:220px;overflow:auto}
+.miclk-o{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+.miclk-o:hover,.miclk-o:focus-visible{border-color:var(--tx3)}
+.micd-sl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 </style>
 </head>
 <body>
@@ -3692,30 +3696,80 @@ function micCatLoad(ids){
     _micPend=null;render();
   })();
 }
+/* Liga de un alimento de la base del coach con food_catalog (de ahí salen sus micros). Vive en los modales
+   «Nuevo alimento» / «Editar alimento»; el valor viaja en el campo oculto fo_catid y lo guarda food-save. */
+let _foMicT=null,_foMicSeq=0;
+function foMicSearchHTML(){return '<p class="tiny u-m0 u-mb8">Sin ligar: este alimento no suma vitaminas ni minerales. Búscalo en el catálogo y elige el más parecido.</p>'+
+  '<input id="fo_micq" data-micq="1" placeholder="Ej. pechuga de pollo asada" autocomplete="off" aria-label="Buscar en el catálogo"><div id="fo_micr" class="miclk-r"></div>';}
+function foMicMount(cid){
+  const body=document.getElementById('fo_name');if(!body)return;const fr=body.closest('.frow');if(!fr||!fr.parentNode)return;
+  const box=document.createElement('div');box.className='frow';
+  box.innerHTML='<label>Micronutrientes</label><input type="hidden" id="fo_catid" value=""><div id="fo_mic"></div>';
+  fr.parentNode.appendChild(box);foMicSet(cid,'');
+}
+function foMicSet(cid,nombre){
+  const h=document.getElementById('fo_catid'),w=document.getElementById('fo_mic');if(!h||!w)return;h.value=cid||'';
+  if(!cid){w.innerHTML=foMicSearchHTML();return;}
+  w.innerHTML='<div class="u-dflex u-gap8 u-aic miclk-ok"><span class="u-f1 tiny">Ligado a <b id="fo_micn">'+esc(nombre||'…')+'</b> del catálogo</span>'+
+    '<button class="btn btn-g btn-sm" data-act="fo-mic-change">Cambiar</button><button class="btn btn-g btn-sm" data-act="fo-mic-off">Quitar</button></div>';
+  if(!nombre&&typeof supa!=='undefined')supa.from('food_catalog').select('name,brand').eq('id',cid).maybeSingle().then(r=>{
+    const b=document.getElementById('fo_micn'),d=r&&r.data;if(b&&h.value===cid)b.textContent=d?(d.name+(d.brand?' · '+d.brand:'')):cid;}).catch(()=>{});
+}
+function foMicBuscar(q){
+  clearTimeout(_foMicT);q=String(q||'').trim();const out=document.getElementById('fo_micr');if(!out)return;
+  if(q.length<3){out.innerHTML='';return;}
+  _foMicT=setTimeout(async()=>{
+    const seq=++_foMicSeq;let rows=[];
+    try{const r=await supa.rpc('buscar_alimentos',{q:q,n:8,solo_kind:null});if(r&&r.error)throw r.error;rows=(r&&r.data)||[];}catch(e){if(seq===_foMicSeq)out.innerHTML='<p class="tiny">No pude buscar. Revisa tu conexión.</p>';return;}
+    if(seq!==_foMicSeq||!document.body.contains(out))return;
+    out.innerHTML=rows.length?rows.map(r=>{const nm=r.name+(r.brand?' · '+r.brand:'');
+      return '<button class="miclk-o" data-act="fo-mic-pick" data-id="'+esc(r.id)+'" data-name="'+esc(nm)+'"><span>'+esc(nm)+'</span><span class="tiny">'+Math.round(+r.kcal||0)+' kcal · P '+(+r.protein||0)+' C '+(+r.carbs||0)+' G '+(+r.fat||0)+' /100 g</span></button>';}).join('')
+      :'<p class="tiny">Sin resultados. Prueba con otra palabra.</p>';
+  },300);
+}
 /* Renglones del menú (alimentos sueltos e ingredientes de recetas) → micros. Devuelve también cuánto del día
    (en kcal) tiene dato de cada micro, para no llamar «bajo» a lo que solo es falta de dato. */
 function micDiaPlan(aid,plan){
-  const rows=[],tot={},kc={},ids=[];let kTot=0,kLig=0,nLig=0,nTot=0;
+  const rows=[],tot={},kc={},ids=[],sinLiga={};let kTot=0,kLig=0,nLig=0,nTot=0,nEqv=0;
   const add=(food,grams,isG,p,c,f)=>{
     const k=(+p||0)*4+(+c||0)*4+(+f||0)*9;if(!(k>0))return;
     kTot+=k;nTot++;
-    const fo=_foodFind(food),cid=fo&&fo.catId;if(!cid)return;
+    const fo=_foodFind(food),cid=fo&&fo.catId;if(!cid){const nm=String(food||'').trim();if(nm)sinLiga[nm.toLowerCase()]={name:nm,fid:fo?fo.id:''};return;}
     ids.push(cid);const cd=_micCat[cid];if(!cd)return;
     const g=isG?(+grams||0):(cd.kcal>0?k/cd.kcal*100:0);if(!(g>0))return;
     kLig+=k;nLig++;
     MIC_DIA.forEach(d=>{const v=cd.m[d[0]];if(v==null||v==='')return;let x=(+v||0)*g/100;if(d[0]==='vitd')x*=40;tot[d[0]]=(tot[d[0]]||0)+x;kc[d[0]]=(kc[d[0]]||0)+k;});
   };
+  /* Equivalentes: cada porción aporta el promedio de las opciones que el atleta VE en ese grupo (sin las que se le
+     ocultan por alergia/gusto). Un micro cuenta como «con dato» si al menos una opción del grupo lo trae. */
+  const hid=new Set(nutriOf(aid).eqvHide||[]);
+  const addEqv=e=>Object.keys(e||{}).forEach(gk=>{
+    const g=SMAE_BY[gk],n=+e[gk]||0;if(!g||!(n>0))return;const k=smaeKcal(g)*n;if(!(k>0))return;
+    kTot+=k;nTot++;nEqv++;
+    const sum={},cnt={};let alguno=false;
+    smaeList(gk).forEach(o=>{
+      if(!(o[2]>0)||hid.has(normTxt(o[0]).trim()))return;const cid=smaeCatId(o[0]);if(!cid)return;
+      ids.push(cid);const cd=_micCat[cid];if(!cd)return;alguno=true;
+      MIC_DIA.forEach(d=>{const v=cd.m[d[0]];if(v==null||v==='')return;let x=(+v||0)*o[2]/100;if(d[0]==='vitd')x*=40;sum[d[0]]=(sum[d[0]]||0)+x;cnt[d[0]]=(cnt[d[0]]||0)+1;});
+    });
+    if(!alguno)return;kLig+=k;nLig++;
+    Object.keys(sum).forEach(x=>{tot[x]=(tot[x]||0)+sum[x]/cnt[x]*n;kc[x]=(kc[x]||0)+k;});
+  });
+  const eqvEnComidas=(plan.meals||[]).some(m=>smaeHas(m));
   (plan.meals||[]).forEach(m=>{
     if(m.recipe&&Array.isArray(m.recipe.ingredients)){m.recipe.ingredients.forEach(x=>{if(x&&typeof x==='object')add(x.food,x.grams,(x.unit==='g'||!x.unit),x.p,x.c,x.f);});return;}
     (m.items||[]).forEach(it=>{if(it.supp)return;const fo=_foodFind(it.food);add(it.food,piQty(it),!(fo&&fo.unit==='u'),it.p,it.c,it.f);});
+    if(smaeHas(m))addEqv(m.eqv);
   });
+  /* porciones del día aún sin repartir en comidas: cuentan igual (el total del día es el mismo) */
+  if(plan.mode==='eqv'&&!eqvEnComidas)addEqv(plan.eqvDay);
   micCatLoad(ids);
   const dia=plan.type==='off'?'rest':'train',t=todayISO(),sup={};
   (nutriOf(aid).supplements||[]).forEach(s=>{if(!suppVigente(s,t)||!suppEnDia(s,dia))return;const o=suppMic(s);if(o)Object.keys(o).forEach(k=>{sup[k]=(sup[k]||0)+o[k];});});
-  return{tot,kc,sup,kTot,kLig,nLig,nTot,dia,cargando:!!_micPend};
+  return{tot,kc,sup,kTot,kLig,nLig,nTot,nEqv,sinLiga:Object.values(sinLiga),dia,cargando:!!_micPend};
 }
 function micDiaHTML(aid,plan){
-  if(!plan||plan.mode!=='menu'||!(plan.meals||[]).length)return '';
+  if(!plan||(plan.mode!=='menu'&&plan.mode!=='eqv')||!((plan.meals||[]).length||Object.keys(plan.eqvDay||{}).length))return '';
   const D=micDiaPlan(aid,plan);if(!D.nTot)return '';
   const p=athData(aid).profile||{},ref=suppRef(),cob=D.kTot>0?Math.round(D.kLig/D.kTot*100):0;
   const filas=MIC_DIA.map(d=>{
@@ -3739,7 +3793,9 @@ function micDiaHTML(aid,plan){
   const sexo=p.sex==='F'?'mujer':p.sex==='M'?'hombre':'hombre (sin sexo en el perfil)';
   return '<div class="card mb16"><div class="sect-h u-mb8"><h3 class="u-m0">Micronutrientes del día · «'+esc(plan.name)+'»</h3></div>'+
     '<p class="tiny u-m0 u-mb12">Menú + suplementos de '+(D.dia==='rest'?'día de descanso':'día de entreno')+' · recomendado y límites de <b>'+SUPP_REF[ref]+'</b> para '+sexo+(p.age?' de '+p.age+' años':'')+
-      ' · con micros: '+D.nLig+' de '+D.nTot+' alimentos ('+cob+' % de las kcal)'+(D.cargando?' · cargando…':'')+'</p>'+
+      ' · con micros: '+D.nLig+' de '+D.nTot+(D.nEqv?' alimentos y grupos':' alimentos')+' ('+cob+' % de las kcal)'+(D.cargando?' · cargando…':'')+'</p>'+
+    (D.nEqv?'<p class="tiny u-m0 u-mb12">Equivalentes: cada porción cuenta como el promedio de las opciones de tu lista que ve el atleta en ese grupo. Es una estimación: depende de lo que elija.</p>':'')+
+    (D.sinLiga.length?'<div class="micd-sl tiny u-mb12">Sin micros (no están ligados al catálogo): '+D.sinLiga.map(x=>x.fid?'<button class="btn btn-g btn-sm" data-act="food-edit-modal" data-fid="'+esc(x.fid)+'">'+esc(x.name)+' · ligar</button>':'<span>'+esc(x.name)+' (no está en tu base)</span>').join(' ')+'</div>':'')+
     '<div class="micd">'+filas+'</div>'+
     '<p class="tiny mt8">Verde = cubre al menos el 70 % · ámbar = bajo · gris = el catálogo no tiene ese micro para buena parte del menú (no es que falte en la dieta). '+
       'Los alimentos sin ligar al catálogo no suman micros. Pasa el cursor por un renglón para ver fuentes y el desglose.</p></div>';
@@ -6803,6 +6859,32 @@ const SMAE_LIST={
   azuc_cg:[['Chocolate oscuro','2 cuadritos',15],['Helado de crema','⅓ taza',45],['Galletas con chispas','2 piezas chicas',15]],
   libre:[['Café o té sin azúcar','al gusto',0],['Agua mineral','al gusto',0],['Limón, chile, especias','al gusto',0],['Gelatina sin azúcar','al gusto',0]]
 };
+/* Micros de los equivalentes (2026-11-09, pedido de Luis): cada opción de SMAE_LIST ligada a su alimento de
+   food_catalog (USDA genérico donde lo hay; si Luis ya tenía ese alimento ligado en su base, la misma liga).
+   Un equivalente aporta el PROMEDIO de las opciones de su grupo: es una estimación, porque el atleta elige.
+   Una opción que el coach agregó a su lista usa la liga de su base de alimentos (mismo nombre), si la tiene. */
+const SMAE_CAT={
+  'Brócoli cocido':'usda:168510','Calabacita cocida':'usda:170534','Chayote cocido':'usda:170403','Coliflor cocida':'usda:168520','Ejotes cocidos':'usda:169321',
+  'Espinaca cruda':'usda:168462','Jícama picada':'usda:170073','Jitomate':'usda:170457','Lechuga':'usda:169249','Nopal cocido':'usda:169388',
+  'Pepino con cáscara':'usda:168409','Zanahoria picada':'usda:170393',
+  'Arándanos':'usda:171711','Durazno':'usda:171697','Fresa rebanada':'usda:167762','Guayaba':'usda:173044','Kiwi':'usda:168153','Mango picado':'usda:169910',
+  'Manzana':'usda:171688','Melón picado':'usda:169092','Naranja':'usda:169097','Papaya picada':'usda:169926','Pera':'usda:169118','Piña picada':'usda:169124',
+  'Plátano':'usda:173944','Sandía picada':'usda:167765','Uvas':'usda:174683',
+  'Tortilla de maíz':'usda:175036','Avena en hojuelas':'usda:173904','Arroz cocido':'usda:168878','Pasta cocida':'usda:169751','Pan de caja integral':'usda:172688',
+  'Bolillo sin migajón':'usda:174078','Papa cocida':'usda:170438','Camote cocido':'usda:168484','Elote en granos':'usda:169364','Quinoa cocida':'usda:168917',
+  'Cereal de maíz sin azúcar':'off:5053827111188','Tostada horneada':'off:0658480001552','Galletas Marías':'usda:171867','Palomitas naturales':'usda:170246',
+  'Tortilla de harina':'usda:175037','Granola':'usda:171646','Galletas saladas':'usda:172746','Totopos':'usda:168116','Papas a la francesa':'usda:170523',
+  'Frijol cocido':'usda:175200','Lenteja cocida':'usda:172421','Garbanzo cocido':'usda:173757','Alubia cocida':'usda:173746',
+  'Pechuga de pollo cocida':'usda:171477','Atún en agua':'usda:171986','Claras de huevo':'usda:172183','Pescado blanco cocido':'usda:175177','Camarón cocido':'usda:175180',
+  'Queso cottage':'usda:172179','Bistec de res magro cocido':'usda:170208','Carne molida 90/10 cocida':'usda:171795','Lomo de cerdo cocido':'usda:168233',
+  'Muslo de pollo sin piel':'usda:174500','Atún en aceite drenado':'usda:175157','Huevo entero':'usda:171287','Queso panela':'usda:2647442','Queso fresco':'usda:2647442',
+  'Salmón cocido':'usda:175168','Queso Oaxaca':'usda:2647441','Queso manchego':'usda:173438','Costilla de res cocida':'usda:173089',
+  'Leche descremada':'usda:171269','Yogur natural descremado':'usda:170887','Leche semidescremada':'usda:746778','Leche entera':'usda:171265','Yogur natural entero':'usda:171284',
+  'Leche con chocolate':'usda:170879','Yogur de fruta':'usda:170889',
+  'Aceite (oliva, canola, aguacate)':'usda:171413','Aguacate':'usda:171705','Mantequilla':'usda:173410','Mayonesa':'usda:171009','Aceitunas':'usda:169094','Crema':'usda:171257',
+  'Almendras':'usda:170567','Cacahuates':'usda:172430','Pistaches':'usda:170184','Nuez':'usda:170187','Crema de cacahuate':'usda:174266','Semillas de girasol':'usda:170562','Chía':'usda:170554',
+  'Azúcar':'usda:169655','Miel':'usda:169640','Mermelada':'usda:169641','Chocolate oscuro':'usda:170272','Helado de crema':'usda:168809','Galletas con chispas':'usda:175071'};
+function smaeCatId(nombre){const fo=_foodFind(nombre);return (fo&&fo.catId)||SMAE_CAT[nombre]||'';}
 /* lista efectiva de un grupo: [nombre, medida, gramos, mostrar('a' ambos | 'g' gramos | 'm' medida)] */
 function smaeList(k){const L=S&&S.eqvList&&S.eqvList[k];return (Array.isArray(L)?L:(SMAE_LIST[k]||[])).map(o=>[o[0],o[1]||'',+o[2]||0,o[3]||'a']);}
 /* ícono en línea con el texto (reemplaza a los emojis): hereda el color del texto */
@@ -10363,6 +10445,7 @@ Object.assign(ACTIONS,{
     '<div id="fo_unitlabel_wrap" style="display:none" class="frow"><label>¿Cómo se llama esa unidad?</label><input id="fo_unitlabel" placeholder="Ej. huevo, scoop, rebanada, cuadro"></div>'+
     '<div class="frow3"><div><label id="fo_p_lbl">Proteína /100 g</label><input id="fo_p" type="number" min="0" step="0.1"></div><div><label id="fo_c_lbl">Carbohidratos /100 g</label><input id="fo_c" type="number" min="0" step="0.1"></div><div><label id="fo_f_lbl">Grasas /100 g</label><input id="fo_f" type="number" min="0" step="0.1"></div></div>',
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="food-save">Guardar</button>');
+    foMicMount('');
   },
   'food-edit-modal':el=>{
     const f=S.foods.find(x=>x.id===el.dataset.fid);if(!f)return;
@@ -10373,18 +10456,23 @@ Object.assign(ACTIONS,{
     '<div id="fo_unitlabel_wrap" style="display:'+(isU?'':'none')+'" class="frow"><label>¿Cómo se llama esa unidad?</label><input id="fo_unitlabel" value="'+esc(f.unitLabel||'')+'" placeholder="Ej. huevo, scoop, rebanada, cuadro"></div>'+
     '<div class="frow3"><div><label id="fo_p_lbl">Proteína '+sfx+'</label><input id="fo_p" type="number" min="0" step="0.1" value="'+f.p+'"></div><div><label id="fo_c_lbl">Carbohidratos '+sfx+'</label><input id="fo_c" type="number" min="0" step="0.1" value="'+f.c+'"></div><div><label id="fo_f_lbl">Grasas '+sfx+'</label><input id="fo_f" type="number" min="0" step="0.1" value="'+f.f+'"></div></div>',
     '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="food-save" data-fid="'+f.id+'">Guardar</button>');
+    foMicMount(f.catId||'');
   },
   'food-save':async el=>{
     const name=val('fo_name');if(!name){toast('Escribe el nombre del alimento','err','fo_name');return;}
     if(!foodsGuard())return;
     const unit=val('fo_unit')||'g';
     const obj={name,cat:val('fo_cat')||'Otros',unit,unitLabel:unit==='u'?(val('fo_unitlabel')||'unidad'):'',p:num('fo_p'),c:num('fo_c'),f:num('fo_f')};
+    const cEl=document.getElementById('fo_catid');if(cEl)obj.catId=cEl.value||'';
     let row=null;
     if(el.dataset.fid){const f=S.foods.find(x=>x.id===el.dataset.fid);if(f){Object.assign(f,obj);row=f;}}
     if(!row){row=Object.assign({id:uid()},obj);S.foods.push(row);}
     if(!await saveFoodRow(row))return;              /* la fila manda; si no entró, no cierres el modal */
     closeModal();toast('Alimento guardado');render();
   },
+  'fo-mic-pick':el=>{foMicSet(el.dataset.id,el.dataset.name);},
+  'fo-mic-off':()=>{foMicSet('','');},
+  'fo-mic-change':()=>{const w=document.getElementById('fo_mic');if(w){w.innerHTML=foMicSearchHTML();const q=document.getElementById('fo_micq');if(q){q.value=val('fo_name');q.focus();foMicBuscar(q.value);}}},
   'food-del-ask':el=>confirmModal('Eliminar alimento','Se quitará de la base. Las comidas ya registradas por los atletas no cambian.','food-del-do','data-fid="'+el.dataset.fid+'"'),
   'food-del-do':async el=>{
     if(!foodsGuard())return;
@@ -10429,6 +10517,7 @@ Object.assign(ACTIONS,{
     const u=document.getElementById('fo_unit');
     if(u&&x.unit==='u'){u.value='u';u.dispatchEvent(new Event('change',{bubbles:true}));set('fo_unitlabel',x.unitLabel||'porción');}
     const n=document.getElementById('fo_name');
+    if(x.src==='lr'&&x.catId)foMicSet(x.catId,x.name+(x.brand?' · '+x.brand:''));
     if(n)n.insertAdjacentHTML('afterend','<p class="tiny muted u-m0 u-mt4">De '+FEXT_SRC[x.src]+(x.nameOrig&&x.nameOrig!==x.name?' · original: '+esc(x.nameOrig):'')+'. Puedes cambiar el nombre y los valores.</p>');
   }
 });
@@ -10436,7 +10525,7 @@ let FEXT={q:'',items:[],sources:null,err:'',busy:false};
 const FEXT_SRC={lr:'Catálogo LR',off:'Open Food Facts',usda:'USDA',fs:'FatSecret'};
 /* fila de food_catalog → formato del buscador externo (por 100 g; las medidas caseras van de referencia) */
 function fextDeCatalogo(r){
-  return {src:'lr',name:r.name,brand:r.brand||'',cat:r.cat,kcal:Math.round(+r.kcal||0),p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:'g',
+  return {src:'lr',catId:r.id||'',name:r.name,brand:r.brand||'',cat:r.cat,kcal:Math.round(+r.kcal||0),p:+r.protein||0,c:+r.carbs||0,f:+r.fat||0,unit:'g',
     aisG:r.ais_grupo||'',aisT:r.ais_tipo||'',med:(Array.isArray(r.measures)?r.measures:[]).slice(0,3).map(m=>m.n+' = '+m.g+' g').join(' · ')};
 }
 function fextResHTML(){
@@ -10466,6 +10555,7 @@ document.addEventListener('input',e=>{
   const el=e.target;
   if(el.dataset&&el.dataset.exvol){renderExVol();}
   if(el.dataset&&el.dataset.suppq){_suppQ=el.value;suppPickRefresh(el.dataset.suppq);}
+  if(el.dataset&&el.dataset.micq)foMicBuscar(el.value);
   if(el.dataset&&el.dataset.techp){const t=TECHS[val('e_tech')],h=document.getElementById('e_tech_hint');if(h)h.innerHTML=techEdHint(t,techParRead(t));}
   if(el.dataset&&el.dataset.bind&&WDRAFT){
     const s=WDRAFT.sets[el.dataset.ex][parseInt(el.dataset.idx,10)];
