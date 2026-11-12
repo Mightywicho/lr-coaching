@@ -1387,7 +1387,8 @@ input.meta-in.old{border-style:dashed}
 .ft-slot:focus-within{outline:2px solid var(--volt);outline-offset:2px}
 .ft-ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin-bottom:12px}
 .ft-ctl .fld{margin:0;min-width:150px;flex:1 1 150px}
-.ft-sbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+/* en pantalla ancha las dos fotos se limitan para que quepan enteras a la vez (alto ~72vh), sin tener que bajar para comparar */
+.ft-sbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-width:min(100%,108vh)}
 .ft-uno{max-width:320px}
 .ft-fig{margin:0;min-width:0}
 .ft-fig figcaption{font-size:var(--fs-3);color:var(--tx2);margin-top:6px}
@@ -1411,7 +1412,7 @@ input.meta-in.old{border-style:dashed}
 .ft-th.vac{background:var(--bg2);border-style:dashed;cursor:default}
 .ft-big{position:relative;min-height:200px;background:#000;border-radius:var(--r-s);overflow:hidden}
 .ft-big img{display:block;width:100%;max-height:75vh;object-fit:contain}
-@media (max-width:420px){.ft-row{flex-wrap:wrap}.ft-rd{flex:1 1 100%}}
+@media (max-width:420px){.ft-row{flex-wrap:wrap}.ft-rd{flex:1 1 100%}.ft-ctl .fld{flex-basis:100%}}
 </style>
 </head>
 <body>
