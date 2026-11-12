@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-11.1">
+<meta name="lr-build" content="2026-11-11.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -204,24 +204,44 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .volbig-state{font-size:var(--fs-3);font-weight:600;margin-top:8px;color:var(--tx2)}
 .volbig-state.up{color:var(--green)}.volbig-state.down{color:var(--red)}
 
-/* ---------- athlete cards ---------- */
-.ath-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s;cursor:pointer}
-.ath-card:hover{border-color:var(--volt)}
-.ath-head{display:flex;align-items:center;gap:12px}
-.ath-head .nm b{display:block;font-family:var(--font-d);font-size:var(--fs-5)}
-.ath-head .nm span{font-size:var(--fs-2);color:var(--tx2)}
-.ath-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.ath-meta .m b small{display:block;font-weight:500;font-size:var(--fs-2)}
-@media(max-width:560px){.ath-meta{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.ath-alert{display:flex;gap:6px;align-items:flex-start;font-size:var(--fs-3);color:var(--red);color:color-mix(in srgb,var(--red) 62%,var(--tx3));line-height:1.35}
-.ath-alert.grave{color:var(--red);font-weight:600}
-.ath-alert svg{flex-shrink:0;margin-top:2px}
-/* indicador que manda en el Panel: cuántos atletas toca revisar (lleva al filtro «Atención») */
-.stat.atn{background:var(--danger-10);border-color:var(--danger-35);cursor:pointer;text-align:left;color:var(--tx);font:inherit;width:100%}
-.stat.atn .k{color:var(--red)}.stat.atn .sub b{color:var(--red);font-weight:600}
-.stat.atn:hover{border-color:var(--red)}
-.ath-meta .m{font-size:var(--fs-2);color:var(--tx2)}
-.ath-meta .m b{display:block;color:var(--tx);font-size:var(--fs-4);font-weight:600}
+/* ---------- Panel del coach en filas (2026-11-11; antes «athlete cards») ----------
+   Una fila = un atleta. Las columnas tienen ancho fijo para que el ojo baje en línea recta;
+   el motivo es la única que estira. Avatar gris a propósito: el color queda para lo que avisa. */
+.pn-bar{margin-bottom:16px;max-width:280px}
+.pn-g{margin-bottom:12px}
+.pn-g>summary{padding:14px 16px;gap:4px 10px;flex-wrap:wrap}
+.pn-g .pn-c{font-family:var(--font-b);font-weight:600;color:var(--tx2)}
+.pn-g .pn-h{font-family:var(--font-b);font-weight:400;font-size:var(--fs-3);color:var(--tx3)}
+.pn-g.rg .pn-t,.pn-g.rg .pn-c{color:var(--red)}
+.pn-row{display:flex;align-items:center;gap:8px 16px;min-height:56px;padding:8px 16px;border-top:1px solid var(--line);cursor:pointer}
+.pn-row:hover{background:var(--card2)}
+.pn-av{flex:none;width:32px;height:32px;border-radius:var(--r-s);background:var(--bg2);border:1px solid var(--line2);color:var(--tx2);font-size:var(--fs-2);font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.pn-nm{flex:0 0 176px;min-width:0;display:flex;align-items:center;gap:8px;text-align:left;font-size:var(--fs-4);font-weight:600;color:var(--tx)}
+.pn-nm b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-nm .badge{flex:none}
+.pn-why{flex:1 1 0;min-width:0;font-size:var(--fs-3);color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-why b{font-weight:500;color:var(--tx)}
+.pn-why b.rg{font-weight:600;color:var(--red)}
+.pn-ent{flex:0 0 116px;display:inline-flex;align-items:center;justify-content:flex-end;gap:8px;font-size:var(--fs-3);color:var(--tx2);white-space:nowrap}
+.pn-seg{display:inline-flex;gap:3px}
+.pn-seg i{width:10px;height:6px;border-radius:2px;background:var(--line2)}
+.pn-seg i.on{background:var(--tx)}
+.pn-seg i.no{background:var(--red)}
+.pn-ult{flex:0 0 124px;font-size:var(--fs-3);color:var(--tx3);white-space:nowrap}
+.pn-acts{flex:0 0 132px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.pn-go{display:none;flex:none;color:var(--tx3)}
+.pn-vacio{border:0;border-radius:0}
+@media(max-width:1400px){.pn-ult{display:none}}
+@media(max-width:700px){
+  .pn-bar{max-width:none}
+  .pn-g .pn-h,.pn-acts,.pn-seg{display:none}
+  .pn-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto 16px;gap:0 12px;padding:10px 14px}
+  .pn-av{grid-row:1/span 2}
+  .pn-nm{grid-column:2}
+  .pn-why{grid-column:2;grid-row:2;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .pn-ent{grid-column:3;grid-row:1/span 2;flex:none}
+  .pn-go{display:block;grid-column:4;grid-row:1/span 2}
+}
 
 /* ---------- badges / pills ---------- */
 .badge{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-2);font-weight:600;padding:3px 9px;border-radius:var(--r-pill);border:1px solid var(--line2);color:var(--tx2)}
@@ -467,13 +487,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 
 /* ---------- logs feed ---------- */
 .revrow{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
-.revrow.urgente{border-left:3px solid var(--red)}.revrow.toca{border-left:3px solid var(--orange)}.revrow.novedades{border-left:3px solid var(--blue)}
+.revrow.riesgo{border-left:3px solid var(--red)}.revrow.decision{border-left:3px solid var(--tx2)}.revrow.novedades{border-left:3px solid var(--blue)}
 .revrow-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .revrow-h .nm{display:flex;flex-direction:column;min-width:0;flex:1}
 select.revsel{width:auto;flex:none;padding:6px 10px;font-size:var(--fs-3)}
 .revchips{display:flex;gap:6px;flex-wrap:wrap}
 .revbtns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.revurg{font-size:var(--fs-3);color:var(--red)}
+.revurg{font-size:var(--fs-3);color:var(--red)}.revurg.dec{color:var(--tx2)}
 .revit{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:var(--fs-3);border-bottom:1px solid var(--line)}
 .revit .badge{flex:none}
 .revnota{font-size:var(--fs-3);color:var(--tx2);background:var(--card2);border-radius:var(--r-s);padding:7px 10px}
@@ -4995,15 +5015,20 @@ function drCard(aid){
    «vistos» son las claves de lo registrado EL MISMO día de la revisión. Sin eso, lo que el atleta
    subiera esa tarde quedaría tapado (su fecha no es > ult) y no saldría nunca como novedad.
    Niveles, de más a menos:
-   - urgente: algo NUEVO que pide actuar (falta, fatiga alta, dato raro, cambio de ejercicio
-     permanente, o ≥4 días sin registrar sin que lo hayas visto desde entonces);
+   - riesgo: algo NUEVO que pide escribirle al atleta (falta, fatiga alta, o ≥4 días sin
+     registrar sin que lo hayas visto desde entonces). Es lo único que va en ámbar;
+   - decision: algo NUEVO que espera una decisión del coach (dato raro, cambio de ejercicio
+     permanente). Hasta el 2026-11-11 estos dos eran un solo nivel «urgente / Revisar ya» y,
+     como los datos raros salen casi cada semana, 9 de 15 atletas vivían ahí: Luis pidió que
+     los datos a revisar dejaran de mandar al atleta al grupo que avisa;
    - toca: venció su cadencia;
    - novedades: hay algo nuevo pero aún no le toca;
    - aldia.
    Lo pendiente de antes (datos raros viejos, cambios sin decidir) sale como chip, pero no deja al
-   atleta atorado en «Revisar ya» después de marcarlo revisado: ahí ya no hay nada nuevo que mirar. */
+   atleta atorado arriba después de marcarlo revisado: ahí ya no hay nada nuevo que mirar. */
 const REV_CADAS=[[1,'Cada día'],[2,'Cada 2 días'],[3,'Cada 3 días'],[7,'Cada semana'],[14,'Cada 2 semanas']];
-const REV_NIVELES={urgente:{lbl:'Revisar ya',cls:'red'},toca:{lbl:'Toca revisión',cls:'orange'},novedades:{lbl:'Con novedades',cls:'blue'},aldia:{lbl:'Al día',cls:'green'}};
+/* lbl = título del grupo (Panel y Monitoreo); uno = etiqueta de UN atleta; bd = color de su borde */
+const REV_NIVELES={riesgo:{lbl:'Necesitan atención',uno:'Necesita atención',cls:'red',bd:'--red'},decision:{lbl:'Esperan una decisión tuya',uno:'Espera tu decisión',cls:'',bd:'--tx2'},toca:{lbl:'Toca revisión de rutina',uno:'Toca revisión',cls:'',bd:'--line2'},novedades:{lbl:'Con novedades',uno:'Con novedades',cls:'blue',bd:'--blue'},aldia:{lbl:'Al día',uno:'Al día',cls:'green',bd:'--green'}};
 function revOf(aid){const r=athData(aid).profile.revision||{};return{cada:+r.cada||7,ult:r.ult||null,vistos:Array.isArray(r.vistos)?r.vistos:[],notas:Array.isArray(r.notas)?r.notas:[]};}
 /* La barra lateral (contador), el Panel y Monitoreo piden lo mismo en cada pintada, y datosRaros
    recorre todo el historial: se calcula una vez por atleta. La memoria solo existe mientras
@@ -5023,7 +5048,7 @@ function revNovedadesCalc(aid){
   const d=athData(aid),p=d.profile,rv=revOf(aid),t=todayISO(),nuevo=revNuevoFn(aid),items=[],chips=[];
   d.logs.workouts.forEach(w=>{
     const key='w:'+w.id;if(!nuevo(w.date,key))return;
-    if(isMissed(w))items.push({key,date:w.date,k:'falta',cls:'red',urg:1,txt:'No entrenó '+(w.dayName||'')+' · '+missLbl(w.reason)});
+    if(isMissed(w))items.push({key,date:w.date,k:'falta',cls:'red',urg:1,rg:1,txt:'No entrenó '+(w.dayName||'')+' · '+missLbl(w.reason)});
     else{const sc=skipCounts(w);items.push({key,date:w.date,k:'entreno',cls:w.status==='partial'?'orange':'volt',
       txt:(w.dayName||'Entreno')+(w.status==='partial'?' · incompleta':'')+(sc.ex+sc.sets?' · '+(sc.ex?sc.ex+' ej. ':'')+(sc.sets?sc.sets+' series ':'')+'sin hacer':'')+(w.rpe?' · RPE '+w.rpe:'')+(w.comment?' · «'+w.comment+'»':'')});}
   });
@@ -5038,14 +5063,14 @@ function revNovedadesCalc(aid){
     const baja=n.adherence!=null&&n.adherence<=2.5;
     items.push({key,date:n.date,k:'nutri',cls:baja?'orange':'',txt:'Nutrición'+(n.adherence!=null?' · adherencia '+n.adherence+'/5':'')+(n.comment?' · «'+n.comment+'»':'')});});
   fatigueLogs(aid).forEach(f=>{const key='q:'+f.date;if(!nuevo(f.date,key))return;const alta=f.total>=13;
-    items.push({key,date:f.date,k:'fatiga',cls:alta?'red':fqDecision(f.total).cls,urg:alta?1:0,txt:'Check-in de fatiga · '+f.total+'/15 · '+fqDecision(f.total).short});});
+    items.push({key,date:f.date,k:'fatiga',cls:alta?'red':fqDecision(f.total).cls,urg:alta?1:0,rg:alta?1:0,txt:'Check-in de fatiga · '+f.total+'/15 · '+fqDecision(f.total).short});});
   let swNew=0;const swPerm=swapsOf(aid).filter(s=>s.scope==='always');
   swPerm.forEach(s=>{const date=String(s.ts||'').slice(0,10)||s.date,key='s:'+s.id;if(nuevo(date,key)){swNew++;items.push({key,date,k:'cambio',cls:'orange',urg:1,txt:'Cambió '+s.fromName+' → '+s.toName+' (permanente)'});}});
   /* ≥4 días sin registrar: urgente solo si no lo has revisado desde que se puso en rojo */
   const sm=semaforo(aid);let sinReg=false;
   if(sm&&sm.k==='red'&&!(fatigueLast(aid)&&fatigueLast(aid).total>=13)){
     const base=lastLogISO(aid)||p.memStart||t,rojo=addDaysISO(base,4);
-    if(!rv.ult||rv.ult<rojo){sinReg=true;items.push({key:'x:'+rojo,date:t,k:'sinreg',cls:'red',urg:1,txt:sm.hint});}
+    if(!rv.ult||rv.ult<rojo){sinReg=true;items.push({key:'x:'+rojo,date:t,k:'sinreg',cls:'red',urg:1,rg:1,txt:sm.hint});}
   }
   items.sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
   /* resumen en fichas: lo nuevo y lo que sigue pendiente de antes */
@@ -5065,7 +5090,7 @@ function revNovedadesCalc(aid){
   const wst=weightWeeksStatus(aid).cur;if(wst&&!wst.recomp)chips.push({cls:'orange',txt:'Peso estancado · '+wst.n+' sem'});
   const unread=chatUnread(aid,'coach');if(unread)chips.push({cls:'',txt:plural(unread,'mensaje','mensajes')});
   const dias=rv.ult?Math.max(0,daysBetweenISO(rv.ult,t)):null;
-  const nivel=items.some(x=>x.urg)?'urgente':(dias==null||dias>=rv.cada)?'toca':(items.length||unread)?'novedades':'aldia';
+  const nivel=items.some(x=>x.rg)?'riesgo':items.some(x=>x.urg)?'decision':(dias==null||dias>=rv.cada)?'toca':(items.length||unread)?'novedades':'aldia';
   return{aid,rv,items,chips,dias,nivel,sm};
 }
 function revUltTxt(nv){
@@ -5080,7 +5105,7 @@ function revChipsHTML(nv){return nv.chips.map(c=>c.act?'<button type="button" cl
 function revCadaSel(aid,nv){return '<select class="revsel" data-change="rev-cada" data-aid="'+aid+'" title="Cada cuánto revisas a este atleta">'+REV_CADAS.map(o=>'<option value="'+o[0]+'"'+(nv.rv.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';}
 function revFilaHTML(a,nv){
   /* «sin registrar» ya sale como ficha: aquí no se repite */
-  const urg=nv.items.filter(x=>x.urg&&x.k!=='sinreg').slice(0,3).map(x=>'<div class="revurg">• '+esc(x.txt)+' <span class="tiny">'+fmtDate(x.date)+'</span></div>').join('');
+  const urg=nv.items.filter(x=>x.urg&&x.k!=='sinreg').slice(0,3).map(x=>'<div class="revurg'+(x.rg?'':' dec')+'">• '+esc(x.txt)+' <span class="tiny">'+fmtDate(x.date)+'</span></div>').join('');
   return '<div class="revrow '+nv.nivel+'"><div class="revrow-h">'+semaDot(nv.sm)+ava(a)+'<span class="nm"><b>'+esc(a.name)+'</b><span class="tiny">'+revUltTxt(nv)+'</span></span>'+revCadaSel(a.id,nv)+'</div>'+
     (nv.chips.length?'<div class="revchips">'+revChipsHTML(nv)+'</div>':'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+urg+revNotaHTML(nv)+
     '<div class="revbtns"><button class="btn btn-g btn-sm" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"historial"}\'>Abrir</button><button class="btn btn-g btn-sm" data-act="rev-nota-modal" data-aid="'+a.id+'" title="Marcar revisado y apuntar qué decidiste">'+icx('nota')+'Con nota</button><button class="btn btn-g btn-sm" data-act="rev-ok" data-aid="'+a.id+'">'+I.check+' Revisado</button></div></div>';
@@ -5089,7 +5114,7 @@ function revFilaHTML(a,nv){
 function revCard(aid){
   const nv=revNovedades(aid),n=nv.items.length,niv=REV_NIVELES[nv.nivel];
   const list=nv.items.slice(0,12).map(x=>'<div class="revit"><span class="badge '+x.cls+'">'+(x.k==='sinreg'?'hoy':fmtDate(x.date))+'</span><span>'+esc(x.txt)+'</span></div>').join('');
-  return '<div class="card mb16" style="border-left:3px solid var(--'+(niv.cls==='blue'?'blue':niv.cls)+')"><div class="revrow-h u-mb12"><h3 class="u-m0 u-f1">Desde tu última revisión <span class="hint">'+revUltTxt(nv)+'</span></h3><span class="badge '+niv.cls+'">'+niv.lbl+'</span></div>'+
+  return '<div class="card mb16" style="border-left:3px solid var('+niv.bd+')"><div class="revrow-h u-mb12"><h3 class="u-m0 u-f1">Desde tu última revisión <span class="hint">'+revUltTxt(nv)+'</span></h3><span class="badge '+niv.cls+'">'+niv.uno+'</span></div>'+
     (nv.chips.length?'<div class="revchips mb8">'+revChipsHTML(nv)+'</div>':'')+
     revNotaHTML(nv)+
     (n?list+(n>12?'<p class="tiny mt8">… y '+(n-12)+' más abajo, marcadas «nuevo».</p>':''):'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+
@@ -5097,7 +5122,16 @@ function revCard(aid){
     '<div class="revbtns u-mt8 u-aic"><span class="tiny">Revisar</span>'+revCadaSel(aid,nv)+'<button class="btn btn-p btn-sm" data-act="rev-ok" data-aid="'+aid+'" data-nota="rev_nota_h">'+I.check+' Marcar revisado</button></div>'+
     (nv.rv.notas.length>1?'<details class="revhist"><summary class="tiny">Revisiones anteriores con nota ('+(nv.rv.notas.length-1)+')</summary>'+nv.rv.notas.slice(1).map(x=>'<div class="revit"><span class="badge">'+fmtDate(x.date)+'</span><span>'+esc(x.txt)+'</span></div>').join('')+'</details>':'')+'</div>';
 }
-function revBadgeTotal(){let n=0;athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const lv=revNovedades(a.id).nivel;if(lv==='urgente'||lv==='toca')n++;});return n;}
+function revBadgeTotal(){let n=0;athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const lv=revNovedades(a.id).nivel;if(lv==='riesgo'||lv==='decision'||lv==='toca')n++;});return n;}
+/* Atletas activos por nivel, cada grupo con el que lleva más sin revisar primero (nunca revisado = el
+   que más). Lo usan el Panel y Monitoreo: una sola cuenta, para que las dos pantallas digan lo mismo. */
+function revGrupos(){
+  const G={riesgo:[],decision:[],toca:[],novedades:[],aldia:[]};
+  athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const nv=revNovedades(a.id);G[nv.nivel].push({a,nv});});
+  const ord=x=>x.nv.dias==null?1e6:x.nv.dias;
+  Object.values(G).forEach(L=>L.sort((x,y)=>ord(y)-ord(x)||x.a.name.localeCompare(y.a.name)));
+  return G;
+}
 /* check-in de fatiga más cercano a una fecha (±6 días) */
 function fatigueForDate(aid,iso){let best=null,bd=7;fatigueLogs(aid).forEach(e=>{const dd=Math.abs(daysBetweenISO(e.date,iso));if(dd<=6&&dd<bd){bd=dd;best=e;}});return best;}
 /* bloque y semana-dentro-del-bloque a los que pertenece una fecha (para comparar entre bloques) */
@@ -6235,8 +6269,84 @@ const adhBadge=v=>{if(v==null)return'<span class="badge">sin datos</span>';const
 const SERVICES={ambos:{lbl:'Entrenamiento y nutrición',short:'Entreno + nutrición',cls:'volt',tr:true,nu:true},entrenamiento:{lbl:'Solo entrenamiento',short:'Solo entreno',cls:'blue',tr:true,nu:false},nutricion:{lbl:'Solo nutrición',short:'Solo nutrición',cls:'orange',tr:false,nu:true}};
 const svcOf=aid=>{const p=athData(aid)&&athData(aid).profile;return SERVICES[(p&&p.service)||'ambos']||SERVICES.ambos;};
 
+/* ===== PANEL en filas (2026-11-11, pedido de Luis: «es mucha información al inicio y se pierde
+   la atención muy fácil») =====
+   Antes: una tarjeta por atleta con ~18 datos, cuatro cifras arriba y siete filtros. Medido con
+   sus 15 atletas: 14 traían etiqueta de revisión, los 15 «faltan N entrenos» en ámbar y la
+   Adherencia salía «—» en 13. Cuando todo avisa nada destaca, y en pantalla solo cabían 6.
+   Ahora: una fila por atleta, agrupadas por LO QUE LE TOCA HACER AL COACH. Los grupos son los
+   niveles de revNovedades, los mismos de Monitoreo (revGrupos), para que las dos pantallas
+   cuenten igual; aquí «Con novedades» y «Al día» van juntos porque ninguno pide nada.
+   Solo «Necesitan atención» va en ámbar. Lo que describe la configuración del atleta (modo de
+   asesoría, nombre del programa, tipo de plan, fechas) ya no sale aquí: vive en su ficha.
+   Renovaciones, mensajes e inactivos aparecen solo cuando hay alguno. Los entrenos de la semana
+   van en gris: a media semana «faltan N» es lo normal, no un aviso; ámbar solo lo que el atleta
+   marcó como «no cumplí». */
+const PN_GO='<svg class="pn-go" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+function pnUltTxt(aid){
+  const l=lastLogISO(aid);if(!l)return 'Sin registros';
+  const d=Math.max(0,daysBetweenISO(l,todayISO()));
+  return d===0?'Registró hoy':d===1?'Registró ayer':'Registró el '+fmtDate(l);
+}
+function pnEntrenos(aid){
+  if(!svcOf(aid).tr)return '<span class="pn-ent"></span>';
+  const w=weekWorkouts(aid);if(!w.total)return '<span class="pn-ent">Sin rutina</span>';
+  let s='';for(let i=0;i<w.total;i++)s+='<i class="'+(i<w.done?'on':i<w.done+w.missed?'no':'')+'"></i>';
+  return '<span class="pn-ent" title="Entrenos de esta semana: '+w.done+' de '+w.total+(w.missed?' · '+w.missed+' sin cumplir':'')+'"><span class="pn-seg" aria-hidden="true">'+s+'</span>'+w.done+' / '+w.total+'</span>';
+}
+/* El motivo de la fila sale de las fichas de revNovedades: primero lo que la puso en su grupo
+   (ámbar solo en «Necesitan atención»), luego lo demás en gris. Lo pendiente de antes (datos a
+   revisar viejos, peso estancado) se sigue viendo, pero ya no cambia de grupo al atleta. */
+function pnMotivo(nv,g){
+  const tx=c=>esc(String(c.txt).replace(/^✕ /,''));
+  const fuerte=nv.chips.filter(c=>g==='riesgo'?c.cls==='red':g==='decision'?(c.cls==='orange'||c.cls==='red'):false);
+  const resto=nv.chips.filter(c=>fuerte.indexOf(c)<0).map(tx);
+  if(nv.sm&&nv.sm.k==='yellow')resto.unshift(esc(nv.sm.hint));
+  /* Semáforo en rojo que YA marcaste revisado: el atleta sale del grupo de arriba (si no, la lista
+     nunca se vaciaría), pero el aviso se queda en su fila, en ámbar, hasta que vuelva a registrar. */
+  const visto=g!=='riesgo'&&nv.sm&&nv.sm.k==='red'?esc(nv.sm.hint):'';
+  const a=fuerte.map(tx).join(' · '),b=resto.join(' · ');
+  if(!visto&&!a&&!b)return '<span class="pn-why">Nada nuevo desde tu última revisión</span>';
+  return '<span class="pn-why" title="'+[visto,a,b].filter(Boolean).join(' · ')+'">'+[visto?'<b class="rg">'+visto+'</b>':'',a?'<b'+(g==='riesgo'?' class="rg"':'')+'>'+a+'</b>':'',b].filter(Boolean).join(' · ')+'</span>';
+}
+function pnFila(a,nv,g){
+  const aid=a.id,st=athStatus(aid),un=chatUnread(aid,'coach');
+  const ir='data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"resumen"}\'';
+  const btn=g==='riesgo'?'<button class="btn btn-o btn-sm" data-act="nav" data-view="coach-chat" data-params=\'{"aid":"'+aid+'"}\'>Escribirle</button>'
+    :g==='decision'?'<button class="btn btn-g btn-sm" '+ir+'>Abrir</button>'
+    :g==='toca'?'<button class="btn btn-g btn-sm" data-act="rev-ok" data-aid="'+aid+'">Revisado</button>':'';
+  const ok=(g==='riesgo'||g==='decision')?'<button class="btn btn-g btn-ic" data-act="rev-ok" data-aid="'+aid+'" title="Marcar revisado" aria-label="Marcar revisado a '+esc(a.name)+'">'+I.check+'</button>':'';
+  const tag=(st.k==='renovar'||st.k==='finalizando')?'<span class="badge '+st.cls+'" title="'+esc(st.hint)+'">'+st.lbl+'</span>':st.k==='empezando'?'<span class="badge" title="'+esc(st.hint)+'">'+st.lbl+'</span>':'';
+  return '<div class="pn-row" data-n="'+esc(normTxt(a.name))+'" '+ir+'>'+
+    '<span class="pn-av" aria-hidden="true">'+esc(a.initials)+'</span>'+
+    '<button type="button" class="pn-nm" '+ir+'><b>'+esc(a.name)+'</b>'+(un?'<span class="cdot" title="Mensajes sin leer">'+un+'</span>':'')+tag+'</button>'+
+    (g==='inact'?'<span class="pn-why">Marcado como inactivo</span><span class="pn-ent"></span>':pnMotivo(nv,g)+pnEntrenos(aid))+
+    '<span class="pn-ult">'+pnUltTxt(aid)+'</span><span class="pn-acts">'+btn+ok+'</span>'+PN_GO+'</div>';
+}
+/* Cada grupo es un plegable de los que ya recuerdan su estado (clase pleg + id fijo). «cerrado»
+   decide cómo nace: en teléfono los grupos que no piden nada nacen plegados, y por eso llevan
+   otro id (plc-): así cada tamaño de pantalla recuerda lo suyo. */
+function pnGrupo(g,titulo,hint,filas,cerrado){
+  if(!filas.length)return '';
+  const id=(cerrado?'plc-pn-':'pn-')+g,st=plegadoSet(),abierta=cerrado?st.has(id):!st.has(id);
+  return '<details class="acc pleg pn-g'+(g==='riesgo'?' rg':'')+'" id="'+id+'"'+(abierta?' open':'')+'><summary><span class="pn-t">'+titulo+'</span><span class="pn-c">'+filas.length+'</span>'+(hint?'<span class="pn-h">'+hint+'</span>':'')+WK_CHEV+'</summary><div class="pn-rows">'+filas.join('')+'</div></details>';
+}
+/* El buscador no repinta ni abre grupos (abrirlos dejaría guardado un estado que el coach no
+   eligió): copia las filas que coinciden a una lista aparte y esconde los grupos mientras tanto. */
+function pnBuscar(q){
+  const res=document.getElementById('pn_res'),gr=document.getElementById('pn_grupos');if(!res||!gr)return;
+  const n=normTxt(q).trim();
+  if(!n){res.hidden=true;res.innerHTML='';gr.hidden=false;return;}
+  const hits=Array.from(gr.querySelectorAll('.pn-row')).filter(r=>(r.dataset.n||'').indexOf(n)>=0);
+  res.innerHTML=hits.length?'<div class="pn-rows">'+hits.map(r=>r.outerHTML).join('')+'</div>':'<div class="empty pn-vacio"><b>Nadie con ese nombre</b>Revisa cómo lo escribiste o borra la búsqueda.</div>';
+  res.hidden=false;gr.hidden=true;
+}
 VIEWS['coach-dash']=function(u){
-  const aths=athleteUsers();
+  const aths=athleteUsers(),G=revGrupos();
+  const sts={};aths.forEach(a=>{sts[a.id]=athStatus(a.id);});
+  const inact=aths.filter(a=>sts[a.id].k==='inactivo').sort((a,b)=>a.name.localeCompare(b.name));
+  const nAct=aths.length-inact.length;
+  let w7=0;aths.forEach(a=>{if(sts[a.id].k!=='inactivo')w7+=weekWorkouts(a.id).done;});
   const unreadByAth={};let unreadTotal=0;aths.forEach(a=>{const nn=chatUnread(a.id,'coach');unreadByAth[a.id]=nn;unreadTotal+=nn;});
   let msgNotice='';
   if(unreadTotal>0){
@@ -6244,75 +6354,42 @@ VIEWS['coach-dash']=function(u){
     let chips='';withMsg.forEach(a=>{chips+='<button class="planchip" data-act="nav" data-view="coach-chat" data-params=\'{"aid":"'+a.id+'"}\'>'+esc(a.name)+'<span class="cdot">'+unreadByAth[a.id]+'</span></button>';});
     msgNotice='<div class="card mb16" style="border-color:var(--volt-40)"><div class="u-dflex u-aic u-gap12 u-wrap"><span class="u-c-volt u-dflex">'+ICON_CHAT+'</span><b>'+unreadTotal+' mensaje'+(unreadTotal===1?'':'s')+' sin leer</b><span class="tiny">de '+withMsg.length+' atleta'+(withMsg.length===1?'':'s')+'</span><button class="btn btn-g btn-sm u-mlauto" data-act="nav" data-view="coach-chats">Ver todos</button></div><div class="planchips u-mt12">'+chips+'</div></div>';
   }
-  const sts={};aths.forEach(a=>{sts[a.id]=athStatus(a.id);});
-  /* estancamiento de peso actual de cada atleta activo (el mismo cálculo del semáforo del Resumen) */
-  const stalls={};let nStall=0;aths.forEach(a=>{if(sts[a.id].k==='inactivo')return;const ws=weightWeeksStatus(a.id);if(ws.cur){stalls[a.id]=ws.cur;if(!ws.cur.recomp)nStall++;}});
-  const semas={};let semaAtn=0;aths.forEach(a=>{semas[a.id]=semaforo(a.id);if(semas[a.id]&&semas[a.id].k!=='green')semaAtn++;});
-  let totalW7=0,totalPend=0,adhs=[];
-  aths.forEach(a=>{if(sts[a.id].k!=='inactivo'){const ww=weekWorkouts(a.id);totalW7+=ww.done;totalPend+=ww.pending;const ad=adherenceWeek(a.id);if(ad!=null)adhs.push(ad);}});
-  const adhMean=adhs.length?(adhs.reduce((x,y)=>x+y,0)/adhs.length).toFixed(1):'—';
-  const counts={empezando:0,activo:0,finalizando:0,renovar:0,inactivo:0};
-  aths.forEach(a=>{counts[sts[a.id].k]++;});
-  const atn=counts.renovar+counts.finalizando;
-  const f=route.params.f||'';
-  const ord={renovar:0,finalizando:1,empezando:2,activo:3,inactivo:4};
-  const smOrd={red:0,yellow:1,green:2};
-  const smRank=id=>semas[id]?smOrd[semas[id].k]:3;
-  const list=aths.filter(a=>!f||(f==='atencion'?(semas[a.id]&&semas[a.id].k!=='green'):f==='estancados'?!!stalls[a.id]:sts[a.id].k===f)).sort((a,b)=>(ord[sts[a.id].k]-ord[sts[b.id].k])||(smRank(a.id)-smRank(b.id))||a.name.localeCompare(b.name));
-  let seg='<div class="seg mb16" style="flex-wrap:wrap;max-width:100%">';
-  [['atencion','Atención · '+semaAtn],['','Todos · '+aths.length],['estancados','Peso estancado · '+nStall],['empezando','Empezando · '+counts.empezando],['finalizando','Por finalizar · '+counts.finalizando],['renovar','Renovar · '+counts.renovar],['inactivo','Inactivos · '+counts.inactivo]].forEach(o=>{
-    seg+='<button class="'+(f===o[0]?'on':'')+'" data-act="dash-f" data-f="'+o[0]+'">'+o[1]+'</button>';});
-  seg+='</div>';
-  let cards='';
-  list.forEach(a=>{
-    const d=athData(a.id),st=sts[a.id],sm=semas[a.id],lw=lastWeight(a.id),delta=weightDelta(a.id,30),ww=weekWorkouts(a.id),pend=weekPendInfo(a.id,ww),adh=adherenceWeek(a.id);
-    const lastWk=d.logs.workouts.length?d.logs.workouts[d.logs.workouts.length-1]:null;
-    const plan=d.profile.memStart?(fmtDate(d.profile.memStart)+(d.profile.memEnd?' → '+fmtDate(d.profile.memEnd):' → sin fecha de fin')):'sin plan definido';
-    cards+='<div class="ath-card'+(st.k==='inactivo'?'" style="opacity:.55':'')+'" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"resumen"}\'>'+
-      '<div class="ath-head">'+ava(a,1)+'<span class="nm"><b>'+esc(a.name)+'</b><span>'+esc(d.profile.goal)+'</span></span>'+(unreadByAth[a.id]?'<span class="cdot" title="mensajes sin leer">'+icx('chat')+unreadByAth[a.id]+'</span>':'')+
-      (function(){const lv=st.k==='inactivo'?null:revNovedades(a.id).nivel;if(lv==='urgente'||lv==='toca')return '<span class="badge '+(lv==='toca'?'volt':REV_NIVELES[lv].cls)+' u-mlauto" title="Ver Monitoreo">'+REV_NIVELES[lv].lbl+'</span>';return st.k==='activo'?'':'<span class="badge '+st.cls+' u-mlauto" title="'+esc(st.hint)+'">'+st.lbl+'</span>';})()+'</div>'+
-      (function(){const al=[];if(sm&&sm.k!=='green')al.push(esc(sm.hint));const z=stalls[a.id];if(z&&!z.recomp)al.push('peso estancado '+z.n+' sem');const nd=drPendientes(a.id).length;if(nd)al.push(nd+' dato'+(nd===1?'':'s')+' a revisar');
-        const gr=sm&&sm.k==='red';return al.length?'<div class="ath-alert'+(gr?' grave':'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '+(gr?'role="img" aria-label="Grave"':'aria-hidden="true"')+'>'+(gr?'<path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5M12 18h.01"/>':'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>')+'</svg><span>'+al.join(' · ')+'</span></div>':'';})()+
-      '<div class="ath-meta">'+
-      '<span class="m">Peso<b>'+(lw?lw.kg+' kg':'—')+(delta!=null?' <small class="'+(delta>0?'up':delta<0?'down':'flat')+'">('+(delta>0?'+':'')+delta+')</small>':'')+'</b></span>'+
-      '<span class="m">Entrenos<b>'+ww.done+' / '+ww.total+' <small class="'+pend.cls+'">'+pend.txt+'</small></b></span>'+
-      '<span class="m">Adherencia<b>'+(adh!=null?adh+' / 5':'—')+'</b></span>'+
-      '<span class="m">Último<b>'+(lastWk?fmtDate(lastWk.date):'—')+'</b></span></div>'+
-      '<div class="u-dflex u-gap8 u-wrap"><span class="badge" title="Modo de asesoría">'+svcOf(a.id).short+'</span>'+(svcOf(a.id).tr?'<span class="badge">'+esc(d.routine.name)+'</span>':'')+(svcOf(a.id).nu?(function(){const ap=activePlanOf(a.id),np=nutriOf(a.id);return '<span class="badge">'+(ap.mode==='macros'?'Macros flexibles':ap.mode==='eqv'?'Equivalentes':'Menú cerrado')+'</span>'+(np.plans.length>1?'<span class="badge">'+np.plans.length+' planes/día</span>':'');})():'')+
-      (function(){const z=stalls[a.id];if(!z)return'';return z.recomp?'<span class="badge" title="Peso estancado pero la cintura bajó '+Math.abs(z.waist.delta)+' cm">Recomposición · '+z.n+' sem</span>':'';})()+
-            (function(){const fl=fatigueLast(a.id);if(!fl||daysBetweenISO(fl.date,todayISO())>10)return'';const dec=fqDecision(fl.total);return'<span class="badge '+dec.cls+'" title="Último check-in de fatiga: '+fl.total+'/15 (S'+fl.week+')">Check-in: '+dec.short+'</span>';})()+'</div>'+
-      '<div class="tiny">Plan: '+plan+(st.hint?' · '+esc(st.hint):'')+'</div></div>';
-  });
-  if(!cards)cards='<div class="empty u-span"><b>Nadie en este estado</b>Cambia el filtro para ver al resto de atletas.</div>';
-  return{title:'Panel',crumb:fmtDateFull(todayISO())+' · '+(aths.length-counts.inactivo)+' atleta'+((aths.length-counts.inactivo)===1?'':'s')+' activo'+((aths.length-counts.inactivo)===1?'':'s'),
-    actions:'<button class="btn btn-p" data-act="ath-new-modal">'+I.plus+' Nuevo atleta</button>',
-    body:'<div class="grid g4 mb16">'+
-      (semaAtn?'<button class="stat atn" data-act="dash-f" data-f="atencion"><div class="k">Por revisar hoy</div><div class="v">'+semaAtn+'<small> atleta'+(semaAtn===1?'':'s')+'</small></div><div class="sub">los del filtro «Atención» <b>Ver →</b></div></button>'
-        :'<div class="stat"><div class="k">Por revisar hoy</div><div class="v">0</div><div class="sub">todos al día</div></div>')+
-      '<div class="stat"><div class="k">Entrenos esta semana</div><div class="v">'+totalW7+'</div><div class="sub">'+(totalPend?'<span class="pend">'+totalPend+' pendiente'+(totalPend===1?'':'s')+' de aquí al domingo</span>':'sin entrenos pendientes')+'</div></div>'+
-      '<div class="stat"><div class="k">Adherencia media · semana</div><div class="v">'+adhMean+'<small> / 5</small></div><div class="sub">nutrición · desde el lunes</div></div>'+
-      '<div class="stat"><div class="k">Renovaciones</div><div class="v '+(atn?'down':'')+'">'+atn+'</div><div class="sub">'+(atn?'planes por renovar o por terminar':'ningún plan por vencer')+'</div></div></div>'+
-      msgNotice+
-      '<div class="sect-h"><h2>Tus atletas</h2></div>'+seg+'<div class="grid g2">'+cards+'</div>'};
+  /* planes vencidos o por terminar: ya no es una cifra fija arriba (casi siempre 0), sale solo si hay */
+  const ren=aths.filter(a=>sts[a.id].k==='renovar'||sts[a.id].k==='finalizando');
+  const renNotice=ren.length?'<div class="card mb16"><b>'+plural(ren.length,'plan','planes')+' por renovar o por terminar</b><div class="planchips u-mt12">'+ren.map(a=>'<button class="planchip" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"resumen"}\'>'+esc(a.name)+' · '+esc(sts[a.id].hint)+'</button>').join('')+'</div></div>':'';
+  const tel=window.innerWidth<=700;
+  const filas=(L,g)=>L.map(x=>pnFila(x.a,x.nv,g));
+  const grupos=pnGrupo('riesgo',REV_NIVELES.riesgo.lbl,'No registran, faltaron o reportaron fatiga alta. Escríbeles hoy.',filas(G.riesgo,'riesgo'),false)+
+    pnGrupo('decision',REV_NIVELES.decision.lbl,'Hay cambios de ejercicio o datos dudosos nuevos.',filas(G.decision,'decision'),false)+
+    pnGrupo('toca',REV_NIVELES.toca.lbl,'Van bien; solo venció su frecuencia de revisión.',filas(G.toca,'toca'),tel)+
+    pnGrupo('aldia',REV_NIVELES.aldia.lbl,'Sin pendientes desde tu última revisión.',filas(G.novedades.concat(G.aldia),'aldia'),tel)+
+    pnGrupo('inact','Inactivos','',inact.map(a=>pnFila(a,null,'inact')),true);
+  let body;
+  if(!aths.length)body='<div class="empty"><b>Aún no tienes atletas</b>Crea el primero con «Nuevo atleta».</div>';
+  else body=renNotice+msgNotice+
+    '<div class="pn-bar"><input type="search" id="pn_q" placeholder="Buscar atleta" aria-label="Buscar atleta" autocomplete="off"></div>'+
+    '<div class="acc pleg pn-g" id="pn_res" hidden></div>'+
+    '<div id="pn_grupos">'+(nAct&&!G.riesgo.length&&!G.decision.length?'<div class="notebox mb16 u-bl-green">Nadie necesita atención ni espera una decisión tuya.</div>':'')+grupos+'</div>';
+  return{title:'Panel',crumb:fmtDateFull(todayISO())+' · '+plural(nAct,'atleta activo','atletas activos')+(w7?' · '+plural(w7,'entreno hecho','entrenos hechos')+' esta semana':''),
+    actions:'<button class="btn btn-p" data-act="ath-new-modal">'+I.plus+' Nuevo atleta</button>',body};
 };
 
 /* Bandeja «Monitoreo» (ver revNovedades). Va aquí y no junto a revNovedades porque VIEWS se
    declara más abajo que aquella: asignarla antes rompe el arranque. */
 VIEWS['coach-mon']=function(u){
-  const G={urgente:[],toca:[],novedades:[],aldia:[]};
-  athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const nv=revNovedades(a.id);G[nv.nivel].push({a,nv});});
-  /* dentro de cada grupo: primero el que lleva más tiempo sin revisar (nunca revisado = el que más) */
-  const ord=x=>x.nv.dias==null?1e6:x.nv.dias;
-  Object.values(G).forEach(L=>L.sort((x,y)=>ord(y)-ord(x)||x.a.name.localeCompare(y.a.name)));
+  const G=revGrupos();
   const sect=(k,hint)=>G[k].length?'<div class="sect-h"><h2>'+REV_NIVELES[k].lbl+'</h2><span class="tiny">'+hint+'</span></div>'+G[k].map(x=>revFilaHTML(x.a,x.nv)).join(''):'';
-  const stat=(k,sub)=>'<div class="stat"><div class="k">'+REV_NIVELES[k].lbl+'</div><div class="v'+(k==='urgente'&&G[k].length?' down':'')+'">'+G[k].length+'</div><div class="sub">'+sub+'</div></div>';
-  let body='<div class="grid g4 mb16">'+stat('urgente','algo nuevo que pide actuar')+stat('toca','venció su frecuencia')+stat('novedades','registró, aún no le toca')+stat('aldia','nada nuevo')+'</div>'+
-    sect('urgente','faltas, fatiga alta, datos raros, cambios de ejercicio o días sin registrar')+
+  const stat=(k,n,sub,cls)=>'<div class="stat"><div class="k">'+REV_NIVELES[k].lbl+'</div><div class="v'+(cls&&n?' '+cls:'')+'">'+n+'</div><div class="sub">'+sub+'</div></div>';
+  /* las cuatro cifras son los cuatro grupos del Panel: «Al día» suma a los que traen novedades sin que les toque */
+  const nAl=G.novedades.length+G.aldia.length,pend=G.riesgo.length+G.decision.length+G.toca.length;
+  let body='<div class="grid g4 mb16">'+stat('riesgo',G.riesgo.length,'no registran, faltas o fatiga alta','down')+stat('decision',G.decision.length,'cambios de ejercicio o datos dudosos')+stat('toca',G.toca.length,'venció su frecuencia')+stat('aldia',nAl,G.novedades.length?G.novedades.length+' con registros nuevos':'nada nuevo')+'</div>'+
+    sect('riesgo','no registran, faltaron o reportaron fatiga alta')+
+    sect('decision','cambios de ejercicio o datos dudosos nuevos')+
     sect('toca','ya pasó su frecuencia de revisión')+
     sect('novedades','hay registros nuevos, pero todavía no le toca');
   if(G.aldia.length)body+='<div class="mt16"></div>'+secPleg('plc-mon-aldia','Al día','',plural(G.aldia.length,'atleta','atletas'),G.aldia.map(x=>revFilaHTML(x.a,x.nv)).join(''));
-  if(!G.urgente.length&&!G.toca.length&&!G.novedades.length&&!G.aldia.length)body+='<div class="empty"><b>Sin atletas activos</b>Cuando tengas atletas activos, aquí verás a quién te toca revisar.</div>';
-  else if(!G.urgente.length&&!G.toca.length)body='<div class="notebox mb16 u-bl-green">Nadie pendiente de revisión.</div>'+body;
+  if(!pend&&!nAl)body+='<div class="empty"><b>Sin atletas activos</b>Cuando tengas atletas activos, aquí verás a quién te toca revisar.</div>';
+  else if(!pend)body='<div class="notebox mb16 u-bl-green">Nadie pendiente de revisión.</div>'+body;
   return{title:'Monitoreo',crumb:'A quién revisar y qué cambió desde tu última revisión',body};
 };
 /* pestañas visibles según el modo de asesoría del atleta */
@@ -8285,7 +8362,6 @@ Object.assign(ACTIONS,{
     if(!p.memStart)p.memStart=t;
     saveState();toast('Plan renovado hasta el '+fmtDateFull(p.memEnd));render();
   },
-  'dash-f':el=>{route.params.f=el.dataset.f;render();},
   'pg-level':el=>{route.params.pgLevel=el.dataset.v;render();},
   'pg-ex-pick':el=>{route.params.pgEx=el.dataset.v;render();const det=document.getElementById('pg-ex-det');if(det&&det.scrollIntoView)det.scrollIntoView({behavior:'smooth',block:'start'});},
   'pg-pairscope':el=>{route.params.pgPairAll=el.dataset.v;route.params.pgCmpDay=null;route.params.pgA=null;route.params.pgB=null;render();},
@@ -10959,6 +11035,7 @@ function fextResHTML(){
 /* binding de inputs del registro de entreno y selects */
 document.addEventListener('input',e=>{
   const el=e.target;
+  if(el.id==='pn_q')pnBuscar(el.value);
   if(el.dataset&&el.dataset.exvol){renderExVol();}
   if(el.dataset&&el.dataset.suppq){_suppQ=el.value;suppPickRefresh(el.dataset.suppq);}
   if(el.dataset&&el.dataset.micq)foMicBuscar(el.value);
