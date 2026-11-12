@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-11.2">
+<meta name="lr-build" content="2026-11-11.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -5087,7 +5087,7 @@ function revNovedadesCalc(aid){
     chips.push({cls:'',txt:plural(wNew.length,'pesaje','pesajes')+(dl!=null?' · '+(dl>0?'+':dl<0?'−':'')+String(Math.abs(dl))+' kg':'')});}
   if(nN)chips.push({cls:'',txt:plural(nN,'día','días')+' de nutrición'});
   const fqs=items.filter(x=>x.k==='fatiga'),fqAlta=fqs.find(x=>x.urg);if(fqs.length)chips.push({cls:fqAlta?'red':fqs[0].cls,txt:fqAlta?'Fatiga alta en un check-in':plural(fqs.length,'check-in','check-ins')+' de fatiga'});
-  const wst=weightWeeksStatus(aid).cur;if(wst&&!wst.recomp)chips.push({cls:'orange',txt:'Peso estancado · '+wst.n+' sem'});
+  const wst=weightWeeksStatus(aid).cur;if(wst&&!wst.recomp)chips.push({cls:'orange',k:'est',n:wst.n,txt:'Peso estancado · '+wst.n+' sem'});
   const unread=chatUnread(aid,'coach');if(unread)chips.push({cls:'',txt:plural(unread,'mensaje','mensajes')});
   const dias=rv.ult?Math.max(0,daysBetweenISO(rv.ult,t)):null;
   const nivel=items.some(x=>x.rg)?'riesgo':items.some(x=>x.urg)?'decision':(dias==null||dias>=rv.cada)?'toca':(items.length||unread)?'novedades':'aldia';
@@ -6279,7 +6279,7 @@ const svcOf=aid=>{const p=athData(aid)&&athData(aid).profile;return SERVICES[(p&
    cuenten igual; aquí «Con novedades» y «Al día» van juntos porque ninguno pide nada.
    Solo «Necesitan atención» va en ámbar. Lo que describe la configuración del atleta (modo de
    asesoría, nombre del programa, tipo de plan, fechas) ya no sale aquí: vive en su ficha.
-   Renovaciones, mensajes e inactivos aparecen solo cuando hay alguno. Los entrenos de la semana
+   Renovaciones, peso estancado, mensajes e inactivos aparecen solo cuando hay alguno. Los entrenos de la semana
    van en gris: a media semana «faltan N» es lo normal, no un aviso; ámbar solo lo que el atleta
    marcó como «no cumplí». */
 const PN_GO='<svg class="pn-go" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
@@ -6296,10 +6296,11 @@ function pnEntrenos(aid){
 }
 /* El motivo de la fila sale de las fichas de revNovedades: primero lo que la puso en su grupo
    (ámbar solo en «Necesitan atención»), luego lo demás en gris. Lo pendiente de antes (datos a
-   revisar viejos, peso estancado) se sigue viendo, pero ya no cambia de grupo al atleta. */
+   revisar viejos) se sigue viendo, pero ya no cambia de grupo al atleta. El peso estancado
+   tampoco lo cambia de grupo, pero resalta en su fila esté donde esté (ficha k:'est'). */
 function pnMotivo(nv,g){
   const tx=c=>esc(String(c.txt).replace(/^✕ /,''));
-  const fuerte=nv.chips.filter(c=>g==='riesgo'?c.cls==='red':g==='decision'?(c.cls==='orange'||c.cls==='red'):false);
+  const fuerte=nv.chips.filter(c=>g==='riesgo'?c.cls==='red':g==='decision'?(c.cls==='orange'||c.cls==='red'):c.k==='est');
   const resto=nv.chips.filter(c=>fuerte.indexOf(c)<0).map(tx);
   if(nv.sm&&nv.sm.k==='yellow')resto.unshift(esc(nv.sm.hint));
   /* Semáforo en rojo que YA marcaste revisado: el atleta sale del grupo de arriba (si no, la lista
@@ -6357,6 +6358,11 @@ VIEWS['coach-dash']=function(u){
   /* planes vencidos o por terminar: ya no es una cifra fija arriba (casi siempre 0), sale solo si hay */
   const ren=aths.filter(a=>sts[a.id].k==='renovar'||sts[a.id].k==='finalizando');
   const renNotice=ren.length?'<div class="card mb16"><b>'+plural(ren.length,'plan','planes')+' por renovar o por terminar</b><div class="planchips u-mt12">'+ren.map(a=>'<button class="planchip" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"resumen"}\'>'+esc(a.name)+' · '+esc(sts[a.id].hint)+'</button>').join('')+'</div></div>':'';
+  /* Peso estancado: antes era un filtro y un aviso en la tarjeta. Sin filtros, un atleta estancado
+     podía quedar en un grupo plegado sin que nada lo dijera; por eso sale arriba cuando hay alguno. */
+  const est=[];Object.values(G).forEach(L=>L.forEach(x=>{const c=x.nv.chips.find(c=>c.k==='est');if(c)est.push({a:x.a,n:c.n});}));
+  est.sort((x,y)=>y.n-x.n||x.a.name.localeCompare(y.a.name));
+  const estNotice=est.length?'<div class="card mb16"><b>'+plural(est.length,'atleta','atletas')+' con peso estancado</b><div class="planchips u-mt12">'+est.map(x=>'<button class="planchip" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+x.a.id+'","tab":"resumen"}\'>'+esc(x.a.name)+' · '+x.n+' sem</button>').join('')+'</div></div>':'';
   const tel=window.innerWidth<=700;
   const filas=(L,g)=>L.map(x=>pnFila(x.a,x.nv,g));
   const grupos=pnGrupo('riesgo',REV_NIVELES.riesgo.lbl,'No registran, faltaron o reportaron fatiga alta. Escríbeles hoy.',filas(G.riesgo,'riesgo'),false)+
@@ -6366,7 +6372,7 @@ VIEWS['coach-dash']=function(u){
     pnGrupo('inact','Inactivos','',inact.map(a=>pnFila(a,null,'inact')),true);
   let body;
   if(!aths.length)body='<div class="empty"><b>Aún no tienes atletas</b>Crea el primero con «Nuevo atleta».</div>';
-  else body=renNotice+msgNotice+
+  else body=renNotice+estNotice+msgNotice+
     '<div class="pn-bar"><input type="search" id="pn_q" placeholder="Buscar atleta" aria-label="Buscar atleta" autocomplete="off"></div>'+
     '<div class="acc pleg pn-g" id="pn_res" hidden></div>'+
     '<div id="pn_grupos">'+(nAct&&!G.riesgo.length&&!G.decision.length?'<div class="notebox mb16 u-bl-green">Nadie necesita atención ni espera una decisión tuya.</div>':'')+grupos+'</div>';
