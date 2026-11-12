@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-09.1">
+<meta name="lr-build" content="2026-11-11.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1375,6 +1375,43 @@ input.meta-in.old{border-style:dashed}
 .miclk-o{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 .miclk-o:hover,.miclk-o:focus-visible{border-color:var(--tx3)}
 .micd-sl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+/* Fotos de progreso (2026-11-08): hoja de subida, comparador lado a lado / con barra, lista de tomas */
+.ft-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ft-slot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:3/4;border:1px dashed var(--line2);border-radius:var(--r-s);background:var(--bg2);color:var(--tx2);cursor:pointer;overflow:hidden;text-align:center;padding:6px}
+.ft-slot input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.ft-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ft-slot .ft-lbl{position:relative;font-weight:600;font-size:var(--fs-3);color:var(--tx)}
+.ft-slot.has{border-style:solid;border-color:var(--volt-40)}
+.ft-slot.has .ft-lbl{position:absolute;left:0;right:0;bottom:0;padding:4px;background:rgba(0,0,0,.65)}
+.ft-slot.busy{opacity:.55;pointer-events:none}
+.ft-slot:focus-within{outline:2px solid var(--volt);outline-offset:2px}
+.ft-ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin-bottom:12px}
+.ft-ctl .fld{margin:0;min-width:150px;flex:1 1 150px}
+.ft-sbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ft-uno{max-width:320px}
+.ft-fig{margin:0;min-width:0}
+.ft-fig figcaption{font-size:var(--fs-3);color:var(--tx2);margin-top:6px}
+.ft-box{position:relative;display:block;width:100%;aspect-ratio:3/4;padding:0;background:#000;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;cursor:zoom-in}
+.ft-box img,.ft-wipe img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;-webkit-user-drag:none;user-select:none}
+.ft-box.ft-sin::after,.ft-th.ft-sin::after{content:'No disponible';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--tx3)}
+.ft-wipe{--x:50%;position:relative;aspect-ratio:3/4;max-width:460px;margin:0 auto;background:#000;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:ew-resize}
+.ft-wipe img{pointer-events:none}
+.ft-wa{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--x)) 0 0)}
+.ft-wipe-h{position:absolute;top:0;bottom:0;left:var(--x);width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.35);outline:none}
+.ft-knob{position:absolute;top:50%;left:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.ft-wipe-h:focus-visible .ft-knob{outline:2px solid var(--volt);outline-offset:3px}
+.ft-tag{position:absolute;top:8px;font-size:12px;font-weight:600;line-height:1.3;background:rgba(0,0,0,.7);color:#fff;padding:3px 8px;border-radius:var(--r-pill);pointer-events:none;max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft-tag.l{left:8px}.ft-tag.r{right:8px}
+.ft-lista{margin-top:20px}
+.ft-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.ft-rd{display:flex;flex-direction:column;gap:2px;min-width:0;flex:0 1 auto}
+.ft-thumbs{display:flex;gap:6px;flex:none}
+.ft-th{position:relative;display:block;width:44px;aspect-ratio:3/4;padding:0;border-radius:var(--r-xs);overflow:hidden;background:#000;border:1px solid var(--line);cursor:zoom-in}
+.ft-th img{width:100%;height:100%;object-fit:cover;display:block}
+.ft-th.vac{background:var(--bg2);border-style:dashed;cursor:default}
+.ft-big{position:relative;min-height:200px;background:#000;border-radius:var(--r-s);overflow:hidden}
+.ft-big img{display:block;width:100%;max-height:75vh;object-fit:contain}
+@media (max-width:420px){.ft-row{flex-wrap:wrap}.ft-rd{flex:1 1 100%}}
 </style>
 </head>
 <body>
@@ -2016,7 +2053,7 @@ function ensureAthleteEntry(aid){
       profile:{category:'',goal:'',service:'ambos',training:{injuries:'',dislikes:'',likes:''},memStart:todayISO(),memEnd:null,inactive:false},
       routine:{name:'Programa',weekNote:'',startDate:todayISO(),days:[]},
       nutrition:{activePlan:pid,plans:[{id:pid,name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''}],supplements:[]},
-      logs:{weight:[],workouts:[],nutrition:[],meals:[],steps:[],fatigue:[],measures:[]},
+      logs:{weight:[],workouts:[],nutrition:[],meals:[],steps:[],fatigue:[],measures:[],photos:[]},
       chat:[]
     };
     try{ensureAthletesShape(S);}catch(e){}
@@ -2181,8 +2218,9 @@ async function purgeAthleteCloud(aid){
   try{await supa.from('athlete_access').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   try{await supa.from('athlete_invites').delete().match({coach_uid:_coachUid,athlete_id:aid});}catch(e){}
   if(auid){
-    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps','form_logs'];
+    const tabs=['chat_logs','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps','form_logs','photo_logs'];
     for(let i=0;i<tabs.length;i++){try{await supa.from(tabs[i]).delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}}
+    await purgeAthletePhotos(auid);
     try{await supa.from('athlete_settings').delete().match({coach_uid:_coachUid,athlete_uid:auid});}catch(e){}
     delete _weightUnitByAthUid[auid];
     delete _athleteUidByAppId[aid];delete _appIdByAthleteUid[auid];delete SWAPS[aid];
@@ -3133,6 +3171,7 @@ const _HYDRATORS={
   push_subscriptions:()=>hydratePushSubs(),
   form_logs:()=>hydrateFormLogs(),
   measurement_logs:()=>hydrateMeasureLogs(),
+  photo_logs:()=>hydratePhotoLogs(),
   chat_logs:()=>hydrateChat(),
   athlete_swaps:()=>hydrateSwaps(),
   athlete_settings:()=>hydrateWeightUnit(),
@@ -3193,7 +3232,7 @@ function subscribeData(){
   try{if(_dataChannel){supa.removeChannel(_dataChannel);_dataChannel=null;}}catch(e){}
   /* `app_state` NO se suscribe a propósito: solo el coach la escribe, así que escucharla
      devolvía el eco de su propio saveState y disparaba una recarga completa por cada clic. */
-  const tables=['athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps','athlete_settings','form_logs'];
+  const tables=['athlete_plans','athlete_profiles','weight_logs','workout_logs','nutrition_logs','meal_logs','steps_logs','fatigue_logs','measurement_logs','athlete_swaps','athlete_settings','form_logs','photo_logs'];
   let ch=supa.channel('data_rt_'+_supabaseUser.id);
   const flt=_coachUid?'coach_uid=eq.'+_coachUid:null;
   tables.forEach(t=>{
@@ -4990,6 +5029,8 @@ function revNovedadesCalc(aid){
   const dr=drPendientes(aid);let drNew=0;
   dr.forEach(x=>{const key='d:'+x.key;if(nuevo(x.date,key)){drNew++;items.push({key,date:x.date,k:'dato',cls:'orange',urg:1,txt:'Dato a revisar · '+x.name});}});
   (d.logs.forms||[]).forEach(r=>{const key='f:'+(r.k||r.date+'|'+r.title);if(nuevo(r.date,key))items.push({key,date:r.date,k:'form',cls:'blue',txt:'Respondió «'+(r.title||'Cuestionario')+'»'});});
+  fotoTomas(aid).forEach(t=>{const sub=String(t.at||'').slice(0,10)||t.date,key='ft:'+t.date+'|'+(t.at||'');if(!nuevo(sub,key))return;
+    items.push({key,date:sub,k:'fotos',cls:'blue',txt:'Subió fotos de progreso · '+FOTO_POSES.filter(p=>t.poses[p[0]]).map(p=>p[1].toLowerCase()).join(', ')+(t.date!==sub?' (del '+fmtDate(t.date)+')':'')});});
   const ws=d.logs.weight.slice().sort((a,b)=>a.date<b.date?-1:1),wNew=ws.filter(w=>nuevo(w.date,'p:'+w.date));
   wNew.forEach(w=>items.push({key:'p:'+w.date,date:w.date,k:'peso',cls:'',txt:'Pesaje · '+w.kg+' kg'}));
   d.logs.nutrition.forEach(n=>{const key='n:'+n.date;if(!nutriHasData(n)||!nuevo(n.date,key))return;
@@ -5015,6 +5056,7 @@ function revNovedadesCalc(aid){
   if(dr.length)chips.push({cls:'orange',act:'rev-ir-dr',txt:plural(dr.length,'dato','datos')+' a revisar'+(drNew&&drNew<dr.length?' ('+drNew+' nuevo'+(drNew===1?'':'s')+')':'')});
   if(swPerm.length)chips.push({cls:'orange',txt:plural(swPerm.length,'cambio','cambios')+' de ejercicio por decidir'});
   if(nQ)chips.push({cls:'blue',txt:plural(nQ,'cuestionario','cuestionarios')});
+  const nFt=cnt('fotos');if(nFt)chips.push({cls:'blue',act:'rev-ir-fotos',tt:'Abrir su pestaña «Fotos» para compararlas',txt:nFt===1?'Fotos nuevas':plural(nFt,'toma','tomas')+' de fotos'});
   if(wNew.length){const prev=ws.filter(w=>w.date<wNew[0].date).pop(),last=wNew[wNew.length-1];const dl=prev?+(last.kg-prev.kg).toFixed(1):null;
     chips.push({cls:'',txt:plural(wNew.length,'pesaje','pesajes')+(dl!=null?' · '+(dl>0?'+':dl<0?'−':'')+String(Math.abs(dl))+' kg':'')});}
   if(nN)chips.push({cls:'',txt:plural(nN,'día','días')+' de nutrición'});
@@ -5033,7 +5075,7 @@ function revUltTxt(nv){
 function revNotaHTML(nv){const n=nv.rv.notas[0];return n?'<div class="revnota">'+icx('nota')+'<b>'+fmtDate(n.date)+':</b> '+esc(n.txt)+'</div>':'';}
 /* La ficha de datos raros lleva a la tarjeta «Datos a revisar» del Resumen: «Revisado» NO los da
    por buenos (cada uno se confirma ahí, y eso es lo que quita el «dudoso» de récords y estados). */
-function revChipsHTML(nv){return nv.chips.map(c=>c.act?'<button type="button" class="badge '+c.cls+' revchip-btn" data-act="'+c.act+'" data-aid="'+nv.aid+'" title="Ir a «Datos a revisar» en su Resumen: ahí se confirma cada uno">'+esc(c.txt)+' →</button>':'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
+function revChipsHTML(nv){return nv.chips.map(c=>c.act?'<button type="button" class="badge '+c.cls+' revchip-btn" data-act="'+c.act+'" data-aid="'+nv.aid+'" title="'+esc(c.tt||'Ir a «Datos a revisar» en su Resumen: ahí se confirma cada uno')+'">'+esc(c.txt)+' →</button>':'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
 function revCadaSel(aid,nv){return '<select class="revsel" data-change="rev-cada" data-aid="'+aid+'" title="Cada cuánto revisas a este atleta">'+REV_CADAS.map(o=>'<option value="'+o[0]+'"'+(nv.rv.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';}
 function revFilaHTML(a,nv){
   /* «sin registrar» ya sale como ficha: aquí no se repite */
@@ -5692,6 +5734,7 @@ function renderUnsafe(){
   }
   keepApply(); /* devuelve a los campos [data-keep] lo escrito y aún no guardado */
   dxAnimar(); /* barras y anillo de «Comidas»/«Hoy» del valor anterior al nuevo */
+  fotosFill(); /* fotos de progreso: piden su URL firmada después de pintar */
   _lastRenderView=route.view;
 }
 
@@ -6272,7 +6315,7 @@ VIEWS['coach-mon']=function(u){
   return{title:'Monitoreo',crumb:'A quién revisar y qué cambió desde tu última revisión',body};
 };
 /* pestañas visibles según el modo de asesoría del atleta */
-const COACH_TABS_ALL=[['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Ajustes semanales','tr'],['nutricion','Nutrición','nu'],['cuestionarios','Cuestionarios',1],['historial','Historial',1],['progreso','Progreso','tr'],['reporte','Reporte',1]];
+const COACH_TABS_ALL=[['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Ajustes semanales','tr'],['nutricion','Nutrición','nu'],['cuestionarios','Cuestionarios',1],['historial','Historial',1],['progreso','Progreso','tr'],['fotos','Fotos',1],['reporte','Reporte',1]];
 const COACH_TAB_IDS=COACH_TABS_ALL.map(t=>t[0]);
 function coachTabList(aid){
   const sv=svcOf(aid);
@@ -6302,6 +6345,7 @@ VIEWS['coach-ath']=function(u){
   else if(tab==='reporte')body+=coachTabReporte(aid);
   else if(tab==='cuestionarios')body+=coachTabForms(aid);
   else if(tab==='progreso')body+=coachTabProgreso(aid);
+  else if(tab==='fotos')body+=coachTabFotos(aid);
   else body+=coachTabHistorial(aid);
   /* Aviso discreto: este atleta captura y ve sus cargas en libras. El panel del coach SIEMPRE va en kg
      (decisión 20-ago: con varios atletas, cada uno en su unidad, comparar sería inmanejable). */
@@ -9575,6 +9619,7 @@ VIEWS['ath-hoy']=function(u){
   if(sv.nu){const sc=suppAthCard(aid);if(sc&&sc.tot)tiles.push(tile('data-act="nav" data-view="ath-nutri" data-params=\'{}\'','Suplementos',sc.n+' <small>de '+sc.tot+'</small>',sc.n<sc.tot?'toca para marcarlos':'todos tomados',''));}
   if(sv.tr&&fatiguePending(aid))tiles.push(tile('data-act="acc-open" data-acc="acc-fatiga"','Pendiente','Check-in de fatiga','1 min · tu coach ajusta tus series con él','pend'));
   formsPending(aid).forEach(f=>tiles.push(tile('data-act="form-open" data-fid="'+esc(f.id)+'"','Pendiente',esc(f.title),'cuestionario de tu coach','pend')));
+  if(fotoPend(aid))tiles.push(tile('data-act="foto-subir" data-aid="'+aid+'"','Pendiente','Fotos de progreso','frente, lado y espalda · te las pide tu coach','pend'));
   const tilesUI='<div class="hx-sec">Registro rápido</div><div class="hx-tiles">'+tiles.join('')+'</div>';
 
   /* TU SEMANA */
@@ -9906,6 +9951,365 @@ VIEWS['ath-nutri']=function(u){
 
 /* Antes solo existía con entrenamiento y un atleta de solo nutrición no tenía dónde ver su peso
    en el tiempo — justo su indicador principal. Ahora es para todos; lo de entrenos va con sv.tr. */
+/* ===== Fotos de progreso (2026-11-08, pedido de Luis) =====
+   El atleta sube «tomas» de tres poses fijas (frente, lado, espalda) y el coach las recibe y compara
+   la primera con la más reciente, lado a lado o con una barra que se arrastra encima (cortina
+   antes/después). Decisiones de Luis: poses fijas para que siempre se compare frente con frente;
+   la frecuencia la elige el coach por atleta (pendiente en «Hoy» + aviso push, como los cuestionarios);
+   el coach se entera por Monitoreo, sin mensaje en el chat.
+   Dónde vive cada cosa:
+   - Archivos: bucket PRIVADO `progress-photos`, ruta <athlete_uid>/<fecha>_<pose>_<id>.jpg. Nada es
+     público: se pintan con URLs firmadas (6 h) que se piden en lote después de cada pintada (fotosFill).
+     RLS de storage: el atleta solo dentro de su carpeta; el coach lee y borra las de sus atletas.
+   - Metadatos: tabla `photo_logs`, una fila por atleta y fecha; data.poses.{pose}.p = ruta.
+   - Frecuencia: profile.fotos {cada (semanas, 0 = no pedir), dow (1 = lunes), remind 'HH:MM', start}.
+     Es parte de lo compartido del perfil (el atleta la lee) y la lee también la Edge Function
+     `form-reminders` para el aviso push: si cambia fotoPeriodo aquí, cambia allá.
+   Las fotos se reducen en el teléfono antes de subirlas (lado mayor 1280 px, JPEG 0,8: ~150-250 KB)
+   porque el espacio de archivos de Supabase es limitado y una toma son tres fotos.
+   No pasan por la cola sin conexión (outbox): son binarios de cientos de KB y la cola vive en
+   localStorage. Sin conexión se avisa y no se guarda nada a medias. */
+const FOTO_BUCKET='progress-photos';
+const FOTO_POSES=[['frente','Frente'],['lado','Lado'],['espalda','Espalda']];
+const FOTO_CADAS=[[0,'No pedir fotos'],[1,'Cada semana'],[2,'Cada 2 semanas'],[4,'Cada 4 semanas']];
+const FOTO_DIAS=[[1,'lunes'],[2,'martes'],[3,'miércoles'],[4,'jueves'],[5,'viernes'],[6,'sábado'],[7,'domingo']];
+/* una toma subida hasta 2 días antes del día que toca cuenta para ese periodo (sábado para el lunes) */
+const FOTO_GRACIA=2;
+function fotoLogs(aid){const lg=athData(aid).logs;lg.photos=lg.photos||[];return lg.photos;}
+function fotoPoseLbl(k){return(FOTO_POSES.find(p=>p[0]===k)||[k,k])[1];}
+function fotoTomas(aid){
+  return fotoLogs(aid).filter(t=>t&&t.date&&t.poses&&FOTO_POSES.some(p=>t.poses[p[0]]&&t.poses[p[0]].p))
+    .slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+function fotoCfg(aid){const f=(athData(aid).profile||{}).fotos||{};return{cada:+f.cada||0,dow:+f.dow||1,remind:f.remind||'09:00',start:f.start||null};}
+function fotoDow(iso){return(new Date(iso+'T12:00:00').getDay()+6)%7+1;}
+/* Periodo vigente: el primer día de la semana elegida desde `start` y luego cada `cada` semanas.
+   Misma cuenta que la Edge Function (copia ahí). null = aún no llega el primero. */
+function fotoPeriodo(cfg,t){
+  if(!cfg.cada)return null;
+  const s=cfg.start||t,first=addDaysISO(s,(cfg.dow-fotoDow(s)+7)%7);
+  if(first>t)return{date:null,next:first};
+  const step=7*cfg.cada,n=Math.floor(daysBetweenISO(first,t)/step),d=addDaysISO(first,n*step);
+  return{date:d,next:addDaysISO(d,step)};
+}
+/* Pendiente = el coach las pide y (no hay ninguna toma, o no hay toma desde el periodo vigente) */
+function fotoPend(aid){
+  const cfg=fotoCfg(aid);if(!cfg.cada)return false;
+  const tomas=fotoTomas(aid);if(!tomas.length)return true;
+  const p=fotoPeriodo(cfg,todayISO());if(!p||!p.date)return false;
+  const desde=addDaysISO(p.date,-FOTO_GRACIA);
+  return !tomas.some(x=>x.date>=desde);
+}
+function fotoCfgTxt(cfg){
+  if(!cfg.cada)return'';
+  const dia=(FOTO_DIAS.find(x=>x[0]===cfg.dow)||[1,'lunes'])[1];
+  return(cfg.cada===1?'cada semana':'cada '+cfg.cada+' semanas')+', los '+dia+(dia.slice(-1)==='s'?'':'s');
+}
+/* peso del día de la foto (o el más cercano en ±3 días): da contexto a la comparación */
+function fotoPeso(aid,date){
+  let best=null,bd=99;
+  (athData(aid).logs.weight||[]).forEach(w=>{const dd=Math.abs(daysBetweenISO(w.date,date));if(dd<=3&&dd<bd){bd=dd;best=w;}});
+  return best;
+}
+const fmtKg=kg=>String(+(+kg).toFixed(1)).replace('.',',')+' kg';
+
+/* ---- URLs firmadas: se pintan <img data-fp="ruta"> y fotosFill les pone el src al terminar render() ---- */
+const _fotoUrl={};      /* ruta → {u, exp} */
+const _fotoFail=new Set();
+let _fotoPidiendo=false;
+function fotoSrc(p){const c=_fotoUrl[p];return c&&c.exp>Date.now()?c.u:'';}
+function fotoImg(p,alt){const s=fotoSrc(p);return'<img data-fp="'+esc(p)+'" alt="'+esc(alt||'')+'"'+(s?' src="'+esc(s)+'"':'')+' decoding="async" draggable="false">';}
+async function fotosFill(){
+  if(_fotoPidiendo||!_supabaseUser)return;
+  const imgs=Array.from(document.querySelectorAll('img[data-fp]')).filter(i=>!i.getAttribute('src'));
+  if(!imgs.length)return;
+  const faltan=Array.from(new Set(imgs.map(i=>i.dataset.fp))).filter(p=>!fotoSrc(p)&&!_fotoFail.has(p));
+  if(faltan.length){
+    _fotoPidiendo=true;
+    try{
+      const{data,error}=await supa.storage.from(FOTO_BUCKET).createSignedUrls(faltan,21600);
+      if(!error&&data)data.forEach(r=>{if(r&&r.signedUrl&&!r.error)_fotoUrl[r.path]={u:r.signedUrl,exp:Date.now()+21000*1000};else if(r&&r.path)_fotoFail.add(r.path);});
+    }catch(e){}
+    finally{_fotoPidiendo=false;}
+  }
+  let otra=false;
+  document.querySelectorAll('img[data-fp]').forEach(i=>{
+    if(i.getAttribute('src'))return;
+    const s=fotoSrc(i.dataset.fp);
+    if(s)i.src=s;else if(_fotoFail.has(i.dataset.fp))i.closest('.ft-box,.ft-th')&&i.closest('.ft-box,.ft-th').classList.add('ft-sin');
+    else otra=true; /* llegó con otra pintada mientras se pedían las anteriores */
+  });
+  if(otra)setTimeout(fotosFill,0);
+}
+
+/* ---- reducir la foto en el teléfono antes de subirla ---- */
+function fotoComprimir(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{
+      const M=1280;let w=img.naturalWidth,h=img.naturalHeight;const k=Math.min(1,M/Math.max(w,h));
+      w=Math.max(1,Math.round(w*k));h=Math.max(1,Math.round(h*k));
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);URL.revokeObjectURL(url);
+      c.toBlob(b=>b?res(b):rej(new Error('blob')),'image/jpeg',0.8);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('formato'));};
+    img.src=url;
+  });
+}
+
+/* ---- hoja «Subir fotos» del atleta ---- */
+let FOTO_UP=null; /* {aid, files:{pose:Blob}, prev:{pose:objectURL}} */
+function fotoSlotHTML(k){
+  const pv=FOTO_UP&&FOTO_UP.prev[k];
+  return'<label class="ft-slot'+(pv?' has':'')+'" id="ft_slot_'+k+'">'+(pv?'<img src="'+pv+'" alt="">':icx('camara'))+
+    '<span class="ft-lbl">'+fotoPoseLbl(k)+'</span>'+(pv?'':'<span class="tiny">Toca para elegir</span>')+
+    '<input type="file" accept="image/*" data-ftpose="'+k+'" aria-label="Foto de '+fotoPoseLbl(k).toLowerCase()+'"></label>';
+}
+function fotoSubirModal(aid){
+  if(FOTO_UP)Object.values(FOTO_UP.prev).forEach(u=>{try{URL.revokeObjectURL(u);}catch(e){}});
+  FOTO_UP={aid,files:{},prev:{}};
+  const t=todayISO();
+  openModal('Subir fotos de progreso',
+    '<div class="notebox mb16">Para que se puedan comparar: mismo lugar, misma luz y misma distancia cada vez. De pie, relajado y con ropa ajustada. Mejor si alguien te la toma a la altura del ombligo, o usa el temporizador.</div>'+
+    '<div class="ft-slots mb16">'+FOTO_POSES.map(p=>fotoSlotHTML(p[0])).join('')+'</div>'+
+    '<div class="fld"><label for="ft_fecha">Fecha de las fotos</label><input type="date" id="ft_fecha" value="'+t+'" max="'+t+'" data-change="ft-fecha"></div>'+
+    '<p class="tiny u-m0" id="ft_fecha_hint">Si son fotos de antes (por ejemplo, las de tu inicio), pon el día en que te las tomaste.</p>'+
+    '<p class="tiny mt8 u-m0">Solo tú y tu coach pueden verlas.</p>',
+    '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" id="ft_guardar" data-act="foto-guardar">Guardar fotos</button>',
+    {persistent:true,nofocus:true});
+}
+async function fotoElegida(inp){
+  const k=inp.dataset.ftpose,f=inp.files&&inp.files[0];if(!FOTO_UP||!f)return;
+  const slot=document.getElementById('ft_slot_'+k);
+  if(slot)slot.classList.add('busy');
+  try{
+    const b=await fotoComprimir(f);
+    if(FOTO_UP.prev[k])try{URL.revokeObjectURL(FOTO_UP.prev[k]);}catch(e){}
+    FOTO_UP.files[k]=b;FOTO_UP.prev[k]=URL.createObjectURL(b);
+    if(slot)slot.outerHTML=fotoSlotHTML(k);
+  }catch(e){
+    if(slot)slot.classList.remove('busy');
+    toast('No pude abrir esa foto. Prueba con otra, o tómala con la cámara','err');
+  }
+}
+function fotoFechaHint(){
+  const h=document.getElementById('ft_fecha_hint');if(!h||!FOTO_UP)return;
+  const dt=val('ft_fecha'),prev=fotoTomas(FOTO_UP.aid).find(x=>x.date===dt);
+  h.textContent=prev?'Ya tienes fotos del '+fmtDateFull(dt)+': las poses que elijas ahora reemplazan a las de ese día; las demás se quedan.':'Si son fotos de antes (por ejemplo, las de tu inicio), pon el día en que te las tomaste.';
+}
+async function fotoGuardar(){
+  const st=FOTO_UP;if(!st)return;
+  const aid=st.aid,auid=_athleteUidByAppId[aid],t=todayISO();
+  const date=val('ft_fecha')||t;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date>t||date<'2000-01-01'){toast('Revisa la fecha: no puede ser futura','err','ft_fecha');return;}
+  const poses=FOTO_POSES.map(p=>p[0]).filter(k=>st.files[k]);
+  if(!poses.length){toast('Elige al menos una foto','err');return;}
+  if(!auid||!_supabaseUser||!_coachUid){toast('Para subir fotos necesitas haber entrado con tu cuenta','err');return;}
+  if(navigator.onLine===false){toast('Sin conexión: las fotos se suben cuando tengas internet. No se guardó nada','err');return;}
+  const btn=document.getElementById('ft_guardar');if(btn){btn.disabled=true;}
+  const prev=fotoLogs(aid).find(x=>x.date===date);
+  const toma={date,poses:Object.assign({},prev&&prev.poses),at:new Date().toISOString()};
+  const subidas=[];
+  const deshacer=()=>{if(subidas.length)supa.storage.from(FOTO_BUCKET).remove(subidas).catch(()=>{});if(btn){btn.disabled=false;btn.textContent='Guardar fotos';}};
+  for(let i=0;i<poses.length;i++){
+    const k=poses[i];if(btn)btn.textContent='Subiendo '+(i+1)+' de '+poses.length+'…';
+    const path=auid+'/'+date+'_'+k+'_'+uid()+'.jpg';
+    let error=null;
+    try{({error}=await supa.storage.from(FOTO_BUCKET).upload(path,st.files[k],{contentType:'image/jpeg',upsert:false,cacheControl:'31536000'}));}catch(e){error=e;}
+    if(error){deshacer();toast('No se pudo subir la foto de '+fotoPoseLbl(k).toLowerCase()+'. Revisa tu conexión y vuelve a intentarlo','err');return;}
+    subidas.push(path);toma.poses[k]={p:path,at:toma.at};
+  }
+  let error=null;
+  try{({error}=await supa.from('photo_logs').upsert({athlete_uid:auid,coach_uid:_coachUid,date,data:toma,updated_at:toma.at},{onConflict:'athlete_uid,date'}));}catch(e){error=e;}
+  if(error){deshacer();toast('Las fotos no se guardaron. Vuelve a intentarlo en un momento','err');return;}
+  /* las de la misma pose y día que se reemplazaron ya no las usa nadie */
+  const viejas=poses.map(k=>prev&&prev.poses&&prev.poses[k]&&prev.poses[k].p).filter(Boolean);
+  if(viejas.length)supa.storage.from(FOTO_BUCKET).remove(viejas).catch(()=>{});
+  /* se ven al instante con la copia local, sin esperar a la URL firmada */
+  poses.forEach(k=>{_fotoUrl[toma.poses[k].p]={u:st.prev[k],exp:Date.now()+6*3600*1000};});
+  st.prev={};
+  const lg=fotoLogs(aid),i=lg.findIndex(x=>x.date===date);if(i>=0)lg[i]=toma;else lg.push(toma);
+  lg.sort((a,b)=>a.date<b.date?-1:1);
+  FOTO_UP=null;saveStateCola();closeModal();
+  toast('Fotos guardadas. Tu coach ya las puede ver');
+  if(route.view!=='ath-prog')nav('ath-prog');else render();
+}
+async function fotoBorrar(aid,date){
+  const toma=fotoLogs(aid).find(x=>x.date===date),auid=_athleteUidByAppId[aid];
+  if(!toma||!auid||!_supabaseUser){closeModal();return;}
+  let error=null;
+  try{({error}=await supa.from('photo_logs').delete().match({athlete_uid:auid,date}));}catch(e){error=e;}
+  if(error){toast('No se pudo borrar. Revisa tu conexión y vuelve a intentarlo','err');return;}
+  const paths=FOTO_POSES.map(p=>toma.poses&&toma.poses[p[0]]&&toma.poses[p[0]].p).filter(Boolean);
+  if(paths.length)supa.storage.from(FOTO_BUCKET).remove(paths).catch(()=>{});
+  const lg=fotoLogs(aid);lg.splice(lg.indexOf(toma),1);
+  ['ftA','ftB'].forEach(k=>{if(route.params[k]===date)delete route.params[k];});
+  saveStateCola();closeModal();toast('Fotos del '+fmtDate(date)+' borradas');render();
+}
+
+/* ---- comparador (lo usan el atleta en «Mi progreso» y el coach en su pestaña «Fotos») ---- */
+let _ftX=50; /* posición de la barra: se conserva entre pintadas */
+const FT_KNOB='<span class="ft-knob" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg></span>';
+function fotoCapt(aid,t,lbl){
+  const w=fotoPeso(aid,t.date);
+  return'<b>'+lbl+'</b> · '+fmtDate(t.date)+(w?' · '+fmtKg(w.kg):'');
+}
+function fotoComparador(aid){
+  const tomas=fotoTomas(aid);
+  if(!tomas.length)return'';
+  const pose=FOTO_POSES.some(p=>p[0]===route.params.ftPose)?route.params.ftPose:'frente';
+  const mode=route.params.ftMode==='barra'?'barra':'lado';
+  const poseBtns=FOTO_POSES.map(p=>{const n=tomas.filter(t=>t.poses[p[0]]&&t.poses[p[0]].p).length;
+    return'<button class="'+(pose===p[0]?'on':'')+'" data-act="ft-pose" data-v="'+p[0]+'"'+(n?'':' disabled title="Aún no hay fotos de esta pose"')+'>'+p[1]+'</button>';}).join('');
+  const modeBtns=[['lado','Lado a lado'],['barra','Con barra']].map(o=>'<button class="'+(mode===o[0]?'on':'')+'" data-act="ft-mode" data-v="'+o[0]+'">'+o[1]+'</button>').join('');
+  const cp=tomas.filter(t=>t.poses[pose]&&t.poses[pose].p);
+  let h='<div class="ft-ctl"><div class="seg">'+poseBtns+'</div>'+(cp.length>=2?'<div class="seg">'+modeBtns+'</div>':'')+'</div>';
+  if(!cp.length)return h+'<div class="empty"><b>Sin fotos de '+fotoPoseLbl(pose).toLowerCase()+'</b>Elige otra pose.</div>';
+  if(cp.length===1){
+    const t=cp[0];
+    return h+'<div class="ft-uno"><figure class="ft-fig"><button type="button" class="ft-box" data-act="ft-ver" data-aid="'+aid+'" data-date="'+t.date+'" data-pose="'+pose+'" aria-label="Ver en grande">'+fotoImg(t.poses[pose].p,fotoPoseLbl(pose)+' '+fmtDate(t.date))+'</button><figcaption>'+fotoCapt(aid,t,'Inicio')+'</figcaption></figure>'+
+      '<p class="tiny">Con la siguiente toma podrás compararlas aquí, lado a lado o con la barra.</p></div>';
+  }
+  const has=d=>cp.some(t=>t.date===d);
+  const dA=has(route.params.ftA)?route.params.ftA:cp[0].date;
+  let dB=has(route.params.ftB)?route.params.ftB:cp[cp.length-1].date;
+  if(dB===dA)dB=(cp.find(t=>t.date!==dA)||cp[cp.length-1]).date;
+  const tA=cp.find(t=>t.date===dA),tB=cp.find(t=>t.date===dB);
+  const [ta,tb]=tA.date<tB.date?[tA,tB]:[tB,tA]; /* «antes» siempre a la izquierda */
+  const opts=sel=>cp.map(t=>{const w=fotoPeso(aid,t.date);return'<option value="'+t.date+'"'+(t.date===sel?' selected':'')+'>'+fmtDateFull(t.date)+(w?' · '+fmtKg(w.kg):'')+'</option>';}).join('');
+  const lblA=ta===cp[0]?'Inicio':'Antes',lblB=tb===cp[cp.length-1]?'Más reciente':'Después';
+  h+='<div class="ft-ctl"><div class="fld"><label>Antes</label><select data-change="ft-a">'+opts(ta.date)+'</select></div><div class="fld"><label>Después</label><select data-change="ft-b">'+opts(tb.date)+'</select></div></div>';
+  /* resumen del tramo: tiempo y peso entre las dos tomas */
+  const dias=daysBetweenISO(ta.date,tb.date),wa=fotoPeso(aid,ta.date),wb=fotoPeso(aid,tb.date);
+  const sem=dias>=14?plural(Math.round(dias/7),'semana','semanas'):plural(dias,'día','días');
+  let dw='';if(wa&&wb){const x=+(wb.kg-wa.kg).toFixed(1);dw=' · '+(x>0?'+':x<0?'−':'')+fmtKg(Math.abs(x));}
+  h+='<p class="tiny u-mb8">Entre las dos: <b>'+sem+dw+'</b></p>';
+  const pA=ta.poses[pose].p,pB=tb.poses[pose].p,alt=fotoPoseLbl(pose);
+  if(mode==='barra'){
+    h+='<div class="ft-wipe" style="--x:'+_ftX+'%">'+fotoImg(pB,alt+' '+fmtDate(tb.date))+'<div class="ft-wa">'+fotoImg(pA,alt+' '+fmtDate(ta.date))+'</div>'+
+      '<span class="ft-tag l">'+lblA+' · '+fmtDate(ta.date)+'</span><span class="ft-tag r">'+lblB+' · '+fmtDate(tb.date)+'</span>'+
+      '<div class="ft-wipe-h" role="slider" tabindex="0" aria-label="Barra de comparación: izquierda '+fmtDate(ta.date)+', derecha '+fmtDate(tb.date)+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(_ftX)+'">'+FT_KNOB+'</div></div>'+
+      '<p class="tiny mt8 u-tc">Arrastra la barra para pasar de una foto a la otra.</p>';
+  }else{
+    const fig=(t,p,lbl)=>'<figure class="ft-fig"><button type="button" class="ft-box" data-act="ft-ver" data-aid="'+aid+'" data-date="'+t.date+'" data-pose="'+pose+'" aria-label="Ver en grande">'+fotoImg(p,alt+' '+fmtDate(t.date))+'</button><figcaption>'+fotoCapt(aid,t,lbl)+'</figcaption></figure>';
+    h+='<div class="ft-sbs">'+fig(ta,pA,lblA)+fig(tb,pB,lblB)+'</div>';
+  }
+  return h;
+}
+function fotoListaHTML(aid,quien){
+  const tomas=fotoTomas(aid).slice().reverse();if(!tomas.length)return'';
+  const fila=t=>{const w=fotoPeso(aid,t.date);
+    return'<div class="ft-row"><div class="ft-rd"><b>'+fmtDateFull(t.date)+'</b><span class="tiny">'+(w?fmtKg(w.kg):'sin pesaje cerca')+'</span></div><div class="ft-thumbs">'+
+      FOTO_POSES.map(p=>t.poses[p[0]]&&t.poses[p[0]].p?'<button type="button" class="ft-th" data-act="ft-ver" data-aid="'+aid+'" data-date="'+t.date+'" data-pose="'+p[0]+'" title="'+p[1]+'" aria-label="Ver '+p[1].toLowerCase()+' del '+fmtDate(t.date)+'">'+fotoImg(t.poses[p[0]].p,p[1])+'</button>':'<span class="ft-th vac" title="Sin foto de '+p[1].toLowerCase()+'"></span>').join('')+
+      '</div><button type="button" class="btn btn-g btn-ic btn-sm u-mlauto" data-act="ft-borrar-modal" data-aid="'+aid+'" data-date="'+t.date+'" title="Borrar las fotos de este día" aria-label="Borrar las fotos del '+fmtDate(t.date)+'">'+I.trash+'</button></div>';};
+  const vis=tomas.slice(0,6),rest=tomas.slice(6);
+  return'<div class="ft-lista"><div class="hx-sec">Todas las tomas · '+tomas.length+'</div>'+vis.map(fila).join('')+
+    (rest.length?'<details class="acc" id="ft_mas_'+quien+'"><summary class="tiny">Ver '+plural(rest.length,'toma más','tomas más')+'</summary>'+rest.map(fila).join('')+'</details>':'')+'</div>';
+}
+/* tarjeta del atleta en «Mi progreso» */
+function fotoCardAth(aid){
+  const cfg=fotoCfg(aid),tomas=fotoTomas(aid),pend=fotoPend(aid),t=todayISO();
+  let estado='';
+  if(cfg.cada){
+    const p=fotoPeriodo(cfg,t);
+    estado=pend?'<div class="notebox u-mb16 u-bl-orange"><b>'+(tomas.length?'Te toca tomarte tus fotos.':'Tu coach te pide tus fotos de inicio.')+'</b> Frente, lado y espalda; te las pide '+fotoCfgTxt(cfg)+'.</div>'
+      :'<p class="tiny mb16">Tu coach te pide fotos '+fotoCfgTxt(cfg)+(p&&p.next?' · las próximas: <b>'+fmtDate(p.next)+'</b>':'')+'.</p>';
+  }
+  const push=cfg.cada&&typeof athPushBox==='function'?athPushBox(aid,true):'';
+  return'<div class="card"><div class="sect-h u-m0 u-mb12"><h3 class="u-m0">Fotos de progreso <span class="hint">solo tú y tu coach las ven</span></h3><button class="btn btn-p btn-sm u-mlauto" data-act="foto-subir" data-aid="'+aid+'">'+icx('camara')+'Subir fotos</button></div>'+
+    estado+push+
+    (tomas.length?fotoComparador(aid)+fotoListaHTML(aid,'a'):'<div class="empty"><b>Aún no tienes fotos</b>Sube tus fotos de frente, lado y espalda. Con la siguiente toma podrás comparar tu inicio con cómo vas.</div>')+'</div>';
+}
+/* pestaña «Fotos» del coach */
+function coachTabFotos(aid){
+  const cfg=fotoCfg(aid),tomas=fotoTomas(aid),auid=_athleteUidByAppId[aid],nDev=(_pushDev&&auid&&_pushDev[auid])||0;
+  const p=fotoPeriodo(cfg,todayISO()),pend=fotoPend(aid);
+  const cadas=FOTO_CADAS.map(o=>'<option value="'+o[0]+'"'+(cfg.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('');
+  const dias=FOTO_DIAS.map(o=>'<option value="'+o[0]+'"'+(cfg.dow===o[0]?' selected':'')+'>'+o[1].charAt(0).toUpperCase()+o[1].slice(1)+'</option>').join('');
+  let est='';
+  if(cfg.cada){
+    est='<p class="tiny mt8 u-m0">'+(pend?'<span class="u-c-orange">Le toca subirlas'+(tomas.length?'':' (aún no sube las de inicio)')+'.</span> ':'')+
+      (p&&p.next?'Próxima toma: <b>'+fmtDate(p.next)+'</b>. ':'')+
+      (nDev?icx('movil')+'Tiene los avisos activados en '+plural(nDev,'dispositivo','dispositivos')+'.':icx('movilNo')+'Aún no activa los avisos en su teléfono: se le piden en «Mi progreso». Mientras, lo ve como pendiente en «Hoy».')+'</p>';
+  }
+  const cfgUI='<div class="card mb16"><h3>Pedir fotos <span class="hint">frente, lado y espalda</span></h3><div class="ctx-bar">'+
+    '<div class="fld"><label for="ft_cada">Frecuencia</label><select id="ft_cada" data-change="ft-cfg" data-aid="'+aid+'">'+cadas+'</select></div>'+
+    (cfg.cada?'<div class="fld"><label for="ft_dow">Día</label><select id="ft_dow" data-change="ft-cfg" data-aid="'+aid+'">'+dias+'</select></div>'+
+      '<div class="fld"><label for="ft_hora">Hora del aviso</label><input type="time" id="ft_hora" value="'+esc(cfg.remind)+'" data-change="ft-cfg" data-aid="'+aid+'"></div>':'')+
+    '</div>'+(cfg.cada?est:'<p class="tiny mt8 u-m0">Sin frecuencia, el atleta puede subirlas cuando quiera desde «Mi progreso», pero no se le recuerda.</p>')+'</div>';
+  return cfgUI+'<div class="card"><h3>Comparar <span class="hint">'+(tomas.length?plural(tomas.length,'toma','tomas'):'sin fotos')+'</span></h3>'+
+    (tomas.length?fotoComparador(aid)+fotoListaHTML(aid,'c'):'<div class="empty"><b>Todavía no ha subido fotos</b>'+(cfg.cada?'Se le piden '+fotoCfgTxt(cfg)+'; en cuanto suba las primeras salen aquí y en Monitoreo.':'Elige arriba cada cuánto pedírselas, o espera a que las suba desde «Mi progreso».')+'</div>')+'</div>';
+}
+async function hydratePhotoLogs(){
+  if(!_supabaseUser||!S)return;
+  try{
+    const{data,error}=await supa.from('photo_logs').select('athlete_uid,date,data').order('date',{ascending:true});
+    if(error||!data)return;
+    const byUid={};
+    data.forEach(r=>{const t=Object.assign({},r.data||{});t.date=r.date;(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push(t);});
+    /* a todos, también a quien ya no tiene ninguna (borró la última): si no, quedaría la copia vieja */
+    Object.keys(S.athletes||{}).forEach(aid=>{const u2=_athleteUidByAppId[aid],a=S.athletes[aid];if(u2&&a&&a.logs)a.logs.photos=byUid[u2]||[];});
+  }catch(e){}
+}
+async function purgeAthletePhotos(auid){
+  /* borrar a un atleta: también sus archivos (la fila se va con el resto de tablas) */
+  try{const{data}=await supa.storage.from(FOTO_BUCKET).list(auid,{limit:1000});if(data&&data.length)await supa.storage.from(FOTO_BUCKET).remove(data.map(f=>auid+'/'+f.name));}catch(e){}
+}
+/* barra del comparador: punteros (ratón y dedo) + teclado. touch-action:pan-y deja hacer scroll
+   vertical encima; un arrastre horizontal mueve la barra. */
+let _ftDrag=null;
+function ftWipeSet(w,p){_ftX=Math.max(0,Math.min(100,p));w.style.setProperty('--x',_ftX+'%');const h=w.querySelector('.ft-wipe-h');if(h)h.setAttribute('aria-valuenow',String(Math.round(_ftX)));}
+function ftWipeMove(w,cx){const r=w.getBoundingClientRect();if(r.width)ftWipeSet(w,(cx-r.left)/r.width*100);}
+document.addEventListener('pointerdown',e=>{const w=e.target&&e.target.closest&&e.target.closest('.ft-wipe');if(!w)return;_ftDrag=w;try{w.setPointerCapture(e.pointerId);}catch(_){}ftWipeMove(w,e.clientX);});
+document.addEventListener('pointermove',e=>{if(_ftDrag)ftWipeMove(_ftDrag,e.clientX);});
+['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev,()=>{_ftDrag=null;}));
+document.addEventListener('keydown',e=>{
+  const h=e.target&&e.target.classList&&e.target.classList.contains('ft-wipe-h')?e.target:null;if(!h)return;
+  const w=h.closest('.ft-wipe'),st={ArrowLeft:-5,ArrowDown:-5,ArrowRight:5,ArrowUp:5}[e.key];
+  if(st){e.preventDefault();ftWipeSet(w,_ftX+st);}else if(e.key==='Home'){e.preventDefault();ftWipeSet(w,0);}else if(e.key==='End'){e.preventDefault();ftWipeSet(w,100);}
+});
+document.addEventListener('change',e=>{
+  const el=e.target;if(!el||!el.dataset)return;
+  if(el.dataset.ftpose){fotoElegida(el);return;}
+  const c=el.dataset.change;
+  if(c==='ft-fecha')fotoFechaHint();
+  else if(c==='ft-a'){route.params.ftA=el.value;render();}
+  else if(c==='ft-b'){route.params.ftB=el.value;render();}
+  else if(c==='ft-cfg'){
+    const aid=el.dataset.aid,p=athData(aid).profile,old=fotoCfg(aid);
+    const cada=+val('ft_cada')||0;
+    if(!cada){delete p.fotos;}
+    else{
+      const hora=/^\d{2}:\d{2}$/.test(val('ft_hora')||'')?val('ft_hora'):old.remind;
+      const dow=old.cada?(+val('ft_dow')||old.dow):fotoDow(todayISO());
+      /* el ancla del ciclo se reinicia al cambiar frecuencia o día: si no, «cada 2 semanas» podría
+         caer en la semana equivocada respecto a lo que el coach acaba de elegir */
+      const start=(old.cada===cada&&old.dow===dow&&old.start)?old.start:todayISO();
+      p.fotos={cada,dow,remind:hora,start};
+    }
+    saveState();render();toast(cada?'Listo: se le pedirán '+fotoCfgTxt(fotoCfg(aid)):'Ya no se le piden fotos');
+  }
+});
+Object.assign(ACTIONS,{
+  'foto-subir':el=>{const aid=el.dataset.aid||getSession().userId;fotoSubirModal(aid);},
+  'foto-guardar':()=>fotoGuardar(),
+  'ft-pose':el=>{route.params.ftPose=el.dataset.v;render();},
+  'ft-mode':el=>{route.params.ftMode=el.dataset.v;render();},
+  'ft-ver':el=>{
+    const aid=el.dataset.aid,t=fotoTomas(aid).find(x=>x.date===el.dataset.date),k=el.dataset.pose;
+    if(!t||!t.poses[k])return;const w=fotoPeso(aid,t.date);
+    openModal(fotoPoseLbl(k)+' · '+fmtDateFull(t.date),'<div class="ft-big">'+fotoImg(t.poses[k].p,fotoPoseLbl(k))+'</div>'+(w?'<p class="tiny mt8 u-m0">Peso de esos días: '+fmtKg(w.kg)+'</p>':''),'',{cls:'ft-modal'});
+    fotosFill();
+  },
+  'ft-borrar-modal':el=>{
+    const aid=el.dataset.aid,dt=el.dataset.date,yo=getSession().userId===aid;
+    openModal('Borrar las fotos del '+fmtDate(dt),'<p class="u-m0">Se borran las fotos de '+fmtDateFull(dt)+' de '+(yo?'tu':'su')+' historial'+(yo?' y tu coach':' y el atleta')+' ya no podrá verlas. No se puede deshacer.</p>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-d" data-act="ft-borrar" data-aid="'+aid+'" data-date="'+dt+'">Borrar fotos del '+fmtDate(dt)+'</button>');
+  },
+  'ft-borrar':el=>fotoBorrar(el.dataset.aid,el.dataset.date),
+  'rev-ir-fotos':el=>nav('coach-ath',{aid:el.dataset.aid,tab:'fotos'})
+});
 VIEWS['ath-prog']=function(u){
   const aid=u.id,d=athData(aid),tr=svcOf(aid).tr;
   const wpts=d.logs.weight.map(w=>({x:w.date,y:w.kg}));
@@ -9958,6 +10362,7 @@ VIEWS['ath-prog']=function(u){
     (tr?'<div class="stat"><div class="k">Entrenos · semana actual</div><div class="v">'+wkw.done+'<small> / '+wkw.total+'</small></div><div class="sub"><span class="'+pend.cls+'">'+pend.txt+'</span></div></div>':'')+
     '<div class="stat"><div class="k">Adherencia · semana actual</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">desde el lunes</div></div></div>'+
     progressCard(aid,true)+
+    fotoCardAth(aid)+
     '<div class="card"><h3>Peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(wpts)+wwTable+'</div>'+
     (function(){const wm=measureLogs(aid).filter(m=>m&&m.waist!=null).slice().sort((a,b)=>a.date<b.date?-1:1);
       return wm.length>=2?'<div class="card"><h3>Cintura <span class="hint">'+wm.length+' medidas</span></h3>'+svgLine(wm.map(m=>({x:m.date,y:+m.waist})),{color:'#b69cff',unit:'cm'})+'</div>':'';})()+
@@ -14079,15 +14484,15 @@ async function pushRefresh(){
     else _pushSt='off';
   }catch(e){_pushSt='off';}
 }
-function athPushBox(aid){
-  if(!formsOf(aid).some(f=>f&&f.active!==false&&f.remind))return'';
+function athPushBox(aid,force){
+  if(!force&&!formsOf(aid).some(f=>f&&f.active!==false&&f.remind)&&!fotoCfg(aid).cada)return'';
   if(_pushSt===null&&!_pushKick){_pushKick=true;pushRefresh().then(()=>liveRender());}
   const st=_pushSt;
-  if(st==='on')return'<div class="notebox mb8 u-bl-green">'+icx('campana')+'<b>Avisos activados en este teléfono.</b> Te llegará una notificación el día que te toque responder. <button class="btn btn-g btn-sm u-mt8" data-act="push-test">Mandarme un aviso de prueba</button></div>';
+  if(st==='on')return'<div class="notebox mb8 u-bl-green">'+icx('campana')+'<b>Avisos activados en este teléfono.</b> Te llegará una notificación el día que te toque responder o tomarte tus fotos. <button class="btn btn-g btn-sm u-mt8" data-act="push-test">Mandarme un aviso de prueba</button></div>';
   if(st==='ios-install')return'<div class="notebox mb8 u-bl-orange"><b>Para recibir avisos en iPhone</b> primero instala la app en tu pantalla de inicio y ábrela desde ahí. <button class="btn btn-g btn-sm u-mt8" data-act="push-enable">Cómo instalarla</button></div>';
   if(st==='denied')return'<div class="notebox mb8 u-bl-red"><b>Bloqueaste las notificaciones de esta app.</b> Para recibir los avisos de tu coach, permítelas en los ajustes del navegador o del teléfono.</div>';
   if(st==='nosupport')return'<div class="notebox mb8">Este navegador no admite avisos. Revisa aquí si tienes cuestionarios pendientes.</div>';
-  if(st==='off')return'<div class="notebox mb8 u-bl-orange"><b>Activa los avisos</b> para que te llegue una notificación cuando tu coach te pida responder. <button class="btn btn-p btn-sm u-mt8" data-act="push-enable">'+icx('campana')+'Activar avisos en este teléfono</button></div>';
+  if(st==='off')return'<div class="notebox mb8 u-bl-orange"><b>Activa los avisos</b> para que te llegue una notificación cuando tu coach te pida responder o tomarte tus fotos. <button class="btn btn-p btn-sm u-mt8" data-act="push-enable">'+icx('campana')+'Activar avisos en este teléfono</button></div>';
   return'';
 }
 async function hydratePushSubs(){
