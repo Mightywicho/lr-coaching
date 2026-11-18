@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-11.3">
+<meta name="lr-build" content="2026-11-17.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1433,6 +1433,83 @@ input.meta-in.old{border-style:dashed}
 .ft-big{position:relative;min-height:200px;background:#000;border-radius:var(--r-s);overflow:hidden}
 .ft-big img{display:block;width:100%;max-height:75vh;object-fit:contain}
 @media (max-width:420px){.ft-row{flex-wrap:wrap}.ft-rd{flex:1 1 100%}.ft-ctl .fld{flex-basis:100%}}
+/* ---------- Bloques de calentamiento / cardio / HIIT (2026-11-17) ----------
+   Solo tokens de la escala (fase 2). Etiqueta de tipo en gris: es una categoría, no un aviso. */
+.bq-sec{padding:var(--sp-3) 14px var(--sp-1);font-size:var(--fs-1);font-weight:600;color:var(--tx3)}
+.bq-card{display:flex;gap:var(--sp-2);align-items:flex-start;margin:0 var(--sp-2) var(--sp-2);padding:var(--sp-2) var(--sp-3);border:1px solid var(--line);border-radius:var(--r-s);background:var(--card2)}
+.bq-top{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+.bq-tag{font-size:var(--fs-1);font-weight:600;color:var(--tx3);border:1px solid var(--line2);border-radius:var(--r-pill);padding:1px var(--sp-2)}
+.bq-nom{font-size:var(--fs-3);font-weight:600;margin-top:var(--sp-1)}
+.bq-res{font-size:var(--fs-2);color:var(--tx2);margin-top:2px}
+.bq-btns{display:grid;grid-template-columns:auto auto;gap:2px}
+.bq-btns button{padding:var(--sp-2);border-radius:var(--r-xs);color:var(--tx3);line-height:0}
+.bq-btns button:hover{color:var(--tx);background:var(--card)}
+.exadd.bq-add{border-top-style:dashed}
+.modal.bq-modal{max-width:880px}
+.bq-modal .modal-f{position:sticky;bottom:0;z-index:1;background:var(--card);border-top:1px solid var(--line2);padding-top:var(--sp-3);align-items:center}
+.bq-sum{flex:1 1 240px;min-width:0;margin-right:auto}
+.bq-sum-k{font-size:var(--fs-2);color:var(--tx3)}
+.bq-sum-v{font-family:var(--font-d);font-size:var(--fs-8);font-weight:700;line-height:1.2}
+.bq-sum-d{font-size:var(--fs-2);color:var(--tx2)}
+.bq-lbl{display:block;font-size:var(--fs-2);font-weight:600;color:var(--tx2);margin:0 0 5px}
+.bq-segs{display:flex;gap:var(--sp-2);flex-wrap:wrap}
+.bq-seg{flex:1 1 140px;min-height:44px;padding:0 var(--sp-3);border:1px solid var(--line2);border-radius:var(--r-s);background:var(--card2);color:var(--tx2);font-size:var(--fs-3);font-weight:600}
+.bq-seg.on{background:var(--volt-16);border-color:var(--volt);color:var(--volt)}
+.bq-g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3);align-items:end;margin-bottom:var(--sp-4)}
+.bq-g4.bq-g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.bq-tbl{border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;margin-bottom:var(--sp-4)}
+.bq-est{display:grid;grid-template-columns:24px minmax(0,1.5fr) minmax(0,1fr) 150px minmax(0,1.3fr) 64px;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-top:1px solid var(--line);align-items:start}
+.bq-est.bq-cal{grid-template-columns:24px minmax(0,2fr) minmax(0,1fr) 40px;align-items:center}
+.bq-est-h{border-top:0;background:var(--card2);font-size:var(--fs-1);font-weight:600;color:var(--tx3)}
+.bq-n{font-size:var(--fs-3);font-weight:600;color:var(--tx3);padding-top:10px}
+.bq-cal .bq-n,.bq-est-h .bq-n{padding-top:0}
+.c-int{display:flex;flex-direction:column;gap:var(--sp-1)}
+.bq-intr{display:flex;gap:var(--sp-1)}
+.bq-intr select{width:68px;flex:0 0 68px;padding-left:6px;padding-right:6px}
+.bq-hint{font-size:var(--fs-1);color:var(--tx3)}
+.c-act{display:flex;justify-content:flex-end}
+.c-act button{padding:var(--sp-3) var(--sp-2);color:var(--tx3);line-height:0;border-radius:var(--r-xs)}
+.c-act button:hover{color:var(--tx);background:var(--card2)}
+.bq-addrow{display:flex;align-items:center;gap:var(--sp-2);width:100%;min-height:44px;padding:0 var(--sp-4);border-top:1px dashed var(--line2);color:var(--volt);font-size:var(--fs-3);font-weight:600}
+.bq-chk{display:flex;align-items:center;gap:var(--sp-2);min-height:44px;margin:var(--sp-2) 0 0;font-size:var(--fs-3);font-weight:500;color:var(--tx2)}
+.bq-chk input{width:18px;height:18px;min-height:0;flex:0 0 auto;accent-color:var(--volt)}
+@media(max-width:700px){
+  .bq-g4,.bq-g4.bq-g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bq-est-h{display:none}
+  .bq-est{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr)}
+  .bq-est .c-ej,.bq-est .c-ind,.bq-est .c-act{grid-column:2/-1}
+  .bq-est .c-imp{grid-column:2}
+  .bq-est .c-int{grid-column:3}
+  .bq-est.bq-cal{grid-template-columns:24px minmax(0,1fr) 96px 40px}
+  .bq-intr select{width:56px;flex-basis:56px}
+  .bq-intr input,.c-int>input{min-width:0;padding-left:var(--sp-2);padding-right:var(--sp-2)}
+}
+/* Atleta */
+.bq-nom-a{font-family:var(--font-d);font-size:var(--fs-5);font-weight:600;margin-top:2px}
+.bq-body{padding:var(--sp-3) var(--sp-4) 0}
+.bq-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:var(--sp-1)}
+.bq-stats div{background:var(--card2);border-radius:var(--r-xs);padding:6px;text-align:center;min-width:0}
+.bq-stats b{display:block;font-family:var(--font-d);font-size:var(--fs-5);overflow-wrap:anywhere}
+.bq-stats span{font-size:var(--fs-1);color:var(--tx3)}
+.bq-lista{list-style:none;margin:var(--sp-2) 0 0;padding:0}
+.bq-lista li{display:flex;gap:var(--sp-3);padding:var(--sp-2) 0;border-top:1px solid var(--line)}
+.bq-lista li:first-child{border-top:0}
+.bq-lista .bq-n{flex:0 0 24px;height:24px;padding:0;border-radius:var(--r-pill);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:var(--fs-2);color:var(--tx)}
+.bq-li-t{display:flex;justify-content:space-between;gap:var(--sp-2)}
+.bq-li-t b{font-weight:600}
+.bq-li-t span{font-weight:600;white-space:nowrap}
+.bq-reg{padding:var(--sp-3) var(--sp-4) var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-3)}
+.bq-reg-r{display:flex;align-items:center;gap:var(--sp-3)}
+.bq-reg-r>span:first-child,.bq-reg-r label{flex:1 1 auto;margin:0;font-size:var(--fs-3);font-weight:600;color:var(--tx2)}
+.bq-reg-r input{width:88px;flex:0 0 88px;text-align:center}
+.bq-stp{width:44px;height:44px;flex:0 0 44px;border-radius:var(--r-s);border:1px solid var(--line2);background:var(--card2);font-size:var(--fs-6);font-weight:600}
+.bq-stp-v{min-width:64px;text-align:center;font-family:var(--font-d);font-size:var(--fs-6);font-weight:700}
+.bq-stp-v small{font-family:var(--font-b);font-size:var(--fs-2);font-weight:400;color:var(--tx3)}
+.bq-reg .skipbtn,.bq-reg .skipbadge{align-self:flex-start;margin:0}
+.bq-rut{padding:0 var(--sp-4);border-top:1px solid var(--line)}
+.bq-rut-i{padding:var(--sp-3) 0}
+.bq-rut-i+.bq-rut-i{border-top:1px solid var(--line)}
+.bq-rut-i b{display:block;margin-top:var(--sp-1);font-size:var(--fs-3)}
 </style>
 </head>
 <body>
@@ -2460,7 +2537,7 @@ async function backfillWorkoutLogs(){
   Object.keys(_athleteUidByAppId).forEach(appId=>{
     const ath=S.athletes[appId];if(!ath||!ath.logs||!Array.isArray(ath.logs.workouts))return;
     const auid=_athleteUidByAppId[appId];
-    ath.logs.workouts.forEach(w=>{if(w&&w.id&&w.date)rows.push({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId||null,day_name:w.dayName||null,entries:w.entries||{},done:w.done||[],rpe:(w.rpe!=null?w.rpe:null),dur:(w.dur!=null?w.dur:null),comment:w.comment||null,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}});});
+    ath.logs.workouts.forEach(w=>{if(w&&w.id&&w.date)rows.push({id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId||null,day_name:w.dayName||null,entries:w.entries||{},done:w.done||[],rpe:(w.rpe!=null?w.rpe:null),dur:(w.dur!=null?w.dur:null),comment:w.comment||null,status:w.status||'done',reason:w.reason||null,skips:w.skips||{},bloques:w.bloques||{}});});
   });
   if(!rows.length)return;
   try{await supa.from('workout_logs').upsert(rows,{onConflict:'id'});}catch(e){}
@@ -2468,11 +2545,11 @@ async function backfillWorkoutLogs(){
 async function hydrateWorkoutLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   try{
-    const{data,error}=await supa.from('workout_logs').select('id,athlete_uid,date,day_id,day_name,entries,done,rpe,dur,comment,status,reason,skips').order('date',{ascending:true}).order('created_at',{ascending:true});
+    const{data,error}=await supa.from('workout_logs').select('id,athlete_uid,date,day_id,day_name,entries,done,rpe,dur,comment,status,reason,skips,bloques').order('date',{ascending:true}).order('created_at',{ascending:true});
     if(error||!data)return;
     const byUid={};
     /* status null = fila anterior a la s62: era siempre una sesión realizada. */
-    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,dayId:r.day_id,dayName:r.day_name,entries:r.entries||{},done:r.done||[],rpe:r.rpe,dur:r.dur,comment:r.comment||'',status:r.status||'done',reason:r.reason||null,skips:r.skips||{}});});
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({id:r.id,date:r.date,dayId:r.day_id,dayName:r.day_name,entries:r.entries||{},done:r.done||[],rpe:r.rpe,dur:r.dur,comment:r.comment||'',status:r.status||'done',reason:r.reason||null,skips:r.skips||{},bloques:r.bloques||{}});});
     Object.keys(byUid).forEach(uid=>{
       const appId=_appIdByAthleteUid[uid];
       if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.workouts=byUid[uid];
@@ -4677,7 +4754,7 @@ function seedFoods(){
 }
 function ensureFoods(st){if(!st.foods||!st.foods.length)st.foods=seedFoods();}
 /* plantillas de rutinas y nutrición: herramienta del coach, viven en app_state */
-function ensureTemplates(st){if(!st.templates)st.templates={routines:[],nutris:[]};if(!Array.isArray(st.templates.routines))st.templates.routines=[];if(!Array.isArray(st.templates.nutris))st.templates.nutris=[];}
+function ensureTemplates(st){if(!st.templates)st.templates={routines:[],nutris:[]};if(!Array.isArray(st.templates.routines))st.templates.routines=[];if(!Array.isArray(st.templates.nutris))st.templates.nutris=[];if(!Array.isArray(st.templates.bloques))st.templates.bloques=[];}
 /* ejercicios "clave" por atleta para el reporte (coach-only, en app_state; sin migración). Mapa aid -> [ident] */
 function ensureKeyEx(st){if(!st.keyEx||typeof st.keyEx!=='object'||Array.isArray(st.keyEx))st.keyEx={};}
 function foodKcal100(f){return Math.round((f.p||0)*4+(f.c||0)*4+(f.f||0)*9);}
@@ -4779,7 +4856,7 @@ function weekProgress(aid){
       if(!missDay[w.dayId]||w.date>missDay[w.dayId].date)missDay[w.dayId]={date:w.date,reason:w.reason||'',comment:w.comment||''};
       return;
     }
-    const real=(w.entries&&Object.keys(w.entries).length)||(w.done&&w.done.length)||Object.keys(skipsOfLog(w)).length;
+    const real=(w.entries&&Object.keys(w.entries).length)||(w.done&&w.done.length)||Object.keys(skipsOfLog(w)).length||Object.keys(w.bloques||{}).length;
     if(!real)return;
     if(!byDay[w.dayId]||w.date>byDay[w.dayId].date)byDay[w.dayId]={date:w.date,partial:w.status==='partial'};
   });
@@ -6565,7 +6642,7 @@ function coachTabRutina(aid){
       rows+='<div class="exrow"><div class="exrow-t"><span class="exn">'+(ei+1)+'</span><div class="exrow-name">'+(e.grp?'<span class="grpchip">'+esc(e.grp)+'</span>':'')+nameCell+techChip(e)+(e.revLink?' <a href="'+esc(e.revLink)+'" target="_blank" rel="noopener" title="Link de revisión enviado al atleta" style="color:var(--blue);font-size:var(--fs-2);font-weight:600;text-decoration:none;white-space:nowrap">'+icx('video')+'Revisión</a>':'')+exFlagChips(exFlags(aid,e.name))+exSwapChip(swPerm,e)+(e.notes?'<span class="exnote">'+esc(e.notes)+'</span>':'')+'</div></div><div class="exrow-b"><span class="u-nowrap"><button class="setpm" title="Quitar una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="-1">−</button> <b>'+esc(e.sets)+'</b> <button class="setpm" title="Añadir una serie" data-act="ex-sets" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-d="1">+</button><span class="sl"> series</span></span>'+(e.reps?'<span>× <b>'+esc(e.reps)+'</b></span>':'')+(e.rir!==''&&e.rir!=null?'<span>RIR <b>'+esc(e.rir)+'</b></span>':'')+(e.rest?'<span>⏱ <b>'+esc(e.rest)+'</b></span>':'')+
       '<div class="rowbtns"><button title="Subir" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="-1">'+I.up+'</button><button title="Bajar" data-act="ex-move" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'" data-dir="1">'+I.down+'</button><button title="Editar" data-act="ex-edit-modal" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.edit+'</button><button title="Eliminar" data-act="ex-del" data-aid="'+aid+'" data-day="'+day.id+'" data-ex="'+e.id+'">'+I.trash+'</button></div></div></div>';
     });
-    if(!rows)rows='<div class="exrow exrow-empty tiny">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</div>';
+    if(!rows)rows=bqDe(day).length?'<div class="exrow exrow-empty tiny">Sin ejercicios de fuerza en este día.</div>':'<div class="exrow exrow-empty tiny">Sin ejercicios todavía — añade el primero'+(Object.keys(day.plan||{}).length?' siguiendo el plan de la sesión':'')+'.</div>';
     /* cobertura del plan de la sesión: programado vs planificado por grupo */
     const progG={};day.exercises.forEach(e=>{const l=e.libId?libById(e.libId):null;if(l)progG[l.group]=(progG[l.group]||0)+(parseInt(e.sets,10)||0);});
     const planG=day.plan||{};
@@ -6586,8 +6663,9 @@ function coachTabRutina(aid){
     /* En computadora se ven todas las columnas; .off solo esconde en pantalla angosta. */
     const off=selDay!=='all'&&selDay!==day.id;
     const nSer=day.exercises.reduce((t,e)=>t+(parseInt(e.sets,10)||0),0);
-    days+='<div class="dayblk daycol'+(off?' off':'')+'"><div class="dayblk-h"><h4>D'+(di+1)+' · '+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ej. · '+nSer+' series</span><span class="sp rowbtns dayacts"><button title="Renombrar día" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button title="Eliminar día" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button></span></div>'+pchips+
-    '<div class="exlist">'+rows+'</div><button class="exadd" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Añadir ejercicio</button></div>';
+    days+='<div class="dayblk daycol'+(off?' off':'')+'"><div class="dayblk-h"><h4>D'+(di+1)+' · '+esc(day.name)+'</h4><span class="cnt">'+day.exercises.length+' ej. · '+nSer+' series'+(bqDe(day).length?' · '+bqDe(day).length+(bqDe(day).length===1?' bloque':' bloques'):'')+'</span><span class="sp rowbtns dayacts"><button title="Renombrar día" data-act="day-ren-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.edit+'</button><button title="Eliminar día" data-act="day-del-ask" data-aid="'+aid+'" data-day="'+day.id+'">'+I.trash+'</button></span></div>'+pchips+
+    bqCoachSec(aid,day,'antes')+(bqDe(day).length?'<div class="bq-sec">Fuerza</div>':'')+'<div class="exlist">'+rows+'</div><button class="exadd" data-act="ex-add-modal" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Añadir ejercicio</button>'+
+      bqCoachSec(aid,day,'despues')+'<button class="exadd bq-add" data-act="bq-new" data-aid="'+aid+'" data-day="'+day.id+'">'+I.plus+' Añadir bloque (calentamiento, cardio, HIIT)</button></div>';
   });
   const vol=muscleVolume(aid),cov=catCoverage(aid);
   const pr=d.profile;
@@ -7854,8 +7932,8 @@ function coachTabRegistros(aid){
     const skBadge=(!miss&&sc.ex+sc.sets)?'<span class="badge orange" title="Reportado por el atleta">'+(sc.ex?sc.ex+' ej.':'')+(sc.ex&&sc.sets?' · ':'')+(sc.sets?sc.sets+' series':'')+' sin hacer</span>':'';
     const pct=planDay&&planDay.exercises.length?Math.round((keys.length/planDay.exercises.length)*100):null;
     const meta=miss?'<span class="tiny">no se registró trabajo</span>'
-      :'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':'<span class="tiny">sin detalle de series</span>');
-    wCards.push({date:w.date,log:w,html:'<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+(esNuevo(w.date,'w:'+w.id)?nuevoB:'')+stBadge+stWhy+edBadge+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+skHTML+detail+'</div>'});
+      :'<b>RPE '+(w.rpe||'—')+'</b>'+(w.dur?'<span class="tiny">'+w.dur+' min</span>':'')+(keys.length?'<span class="tiny">'+keys.length+' ejercicios'+(pct!=null?' · '+pct+'% del día':'')+' · clic para ver detalle</span>':(Object.keys(w.bloques||{}).length?'':'<span class="tiny">sin detalle de series</span>'));
+    wCards.push({date:w.date,log:w,html:'<div class="logitem"'+(miss?'':' data-act="log-toggle"')+'><div class="lh"><span class="badge volt">'+esc(w.dayName)+'</span>'+(esNuevo(w.date,'w:'+w.id)?nuevoB:'')+stBadge+stWhy+edBadge+skBadge+(doneN?'<span class="badge green" title="Ejercicios marcados como hechos">✓ '+doneN+'</span>':'')+meta+'<span class="dt">'+fmtDateFull(w.date)+'</span></div>'+(w.comment?'<div class="cm">'+esc(w.comment)+'</div>':'')+bqLogHTML(w)+skHTML+detail+'</div>'});
   });
   /* El bloque en curso se abre solo, y dentro de él sus dos semanas más recientes: es lo que el
      coach viene a mirar al entrar. Los bloques archivados quedan plegados enteros — se abren
@@ -9037,6 +9115,7 @@ function wdraftLoad(aid){
     const w=JSON.parse(raw);
     if(!w||!w.dayId||!w.sets||w.aid!==aid)return null;
     if(!w.skips)w.skips={}; /* borradores guardados antes de la s62 */
+    if(!w.bq)w.bq={};     /* borradores anteriores a los bloques de cardio (2026-11-17) */
     return w;
   }catch(e){return null;}
 }
@@ -9086,7 +9165,7 @@ function wdraftFresh(aid,day){
      wdraftSyncPlan distingue «el coach movió las series» de «el atleta añadió o quitó una». */
   /* `dayName` es una copia, no una referencia: si el día desaparece de la rutina con la sesión
      abierta, es lo único que queda para poder guardar el entreno con nombre. */
-  return{aid,dayId:day.id,dayName:day.name,date:todayISO(),sets,tgt,done:{},skips:{},rpe:'',dur:'',comment:'',touched:false};
+  return{aid,dayId:day.id,dayName:day.name,date:todayISO(),sets,tgt,done:{},skips:{},bq:{},rpe:'',dur:'',comment:'',touched:false};
 }
 /* ¿Fila sin nada escrito? Solo estas se pueden quitar al cuadrar con el plan. */
 function wdraftRowEmpty(s){
@@ -9209,6 +9288,11 @@ function wdraftFromLog(aid,day,log){
   /* La marca de correcciones anteriores se arrastra: si se pierde aquí, al volver a guardar
      el contador arrancaría de cero y el coach vería «1ª corrección» en la tercera. */
   w.editMark=editMarkOf(log);
+  /* Bloques de cardio ya registrados: vuelven al borrador para poder corregirlos. `bqPrev`
+     guarda lo original para no perder un bloque que el coach quitó del día después. */
+  const _lb=(log&&log.bloques)||{};
+  w.bq={};Object.keys(_lb).forEach(k=>{const x=_lb[k]||{};w.bq[k]={h:!!x.h,sk:!!x.sk,v:x.v==null?null:x.v,vt:x.v!=null,min:x.min==null?'':String(x.min),rpe:x.rpe==null?'':String(x.rpe)};});
+  w.bqPrev=_lb;
   return w;
 }
 /* La última sesión REAL de un día registrada hoy (la que se puede corregir). Una falta no
@@ -9234,8 +9318,10 @@ function logById(aid,id){return (athData(aid).logs.workouts||[]).find(w=>w&&w.id
 function logSummaryTxt(w){
   const nEx=Object.keys(w.entries||{}).length;
   const nSe=Object.values(w.entries||{}).reduce((a,b)=>a+((b&&b.length)||0),0);
-  if(nSe)return nEx+(nEx===1?' ejercicio':' ejercicios')+' · '+nSe+(nSe===1?' serie anotada':' series anotadas');
-  return ((w.done||[]).length)+' ejercicios marcados como hechos';
+  const nb=bqHechosN(w),tb=nb?' · '+nb+(nb===1?' bloque':' bloques'):'';
+  if(nSe)return nEx+(nEx===1?' ejercicio':' ejercicios')+' · '+nSe+(nSe===1?' serie anotada':' series anotadas')+tb;
+  if(!(w.done||[]).length&&nb)return nb+(nb===1?' bloque hecho':' bloques hechos');
+  return ((w.done||[]).length)+' ejercicios marcados como hechos'+tb;
 }
 /* ---------- Cola de envíos (2026-09) ----------
    Guardar ya no espera al servidor. Lo que registra el atleta (entreno, peso) entra primero
@@ -9390,7 +9476,7 @@ async function pushWorkoutLog(u,w,silent){
     /* A la cola, no al servidor: queda a salvo en el teléfono al instante y sube por detrás
        (ver outboxAdd). Si la sesión estuviera muerta, el rechazo lo avisa la pastilla y la
        fila espera ahí hasta que vuelva a entrar — antes se perdía con un error. */
-    outboxAdd('workout','workout_logs',w.id,'id',{id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{}},w);
+    outboxAdd('workout','workout_logs',w.id,'id',{id:w.id,athlete_uid:auid,coach_uid:_coachUid,date:w.date,day_id:w.dayId,day_name:w.dayName,entries:w.entries,done:w.done,rpe:w.rpe,dur:w.dur,comment:w.comment,status:w.status||'done',reason:w.reason||null,skips:w.skips||{},bloques:w.bloques||{}},w);
   }else if(_supabaseUser){if(!silent)toast('No sincronizó: sin athlete_uid (mapa vacío)','err');saveState();return{ok:false,msg:'No se pudo identificar tu cuenta de atleta.'};}
   else{saveState();return{ok:false,msg:'No hay sesión activa. Vuelve a entrar a tu cuenta.'};}
   saveStateCola();
@@ -9485,10 +9571,11 @@ async function saveWorkoutDraft(status,reason,extraCm,repsOk){
   const doneSet=new Set(Object.keys(WDRAFT.done||{}).filter(k=>WDRAFT.done[k]&&!(skDraft[k]&&skDraft[k].k==='none')));
   Object.keys(entries).forEach(id=>doneSet.add(id));
   const doneIds=[...doneSet];
-  if(!Object.keys(entries).length&&!doneIds.length&&!Object.keys(skips).length){toast('Marca algún ejercicio como hecho o registra una serie','err');return;}
+  const _bqR=bqRegistro(day);
+  if(!Object.keys(entries).length&&!doneIds.length&&!Object.keys(skips).length&&!_bqR.h&&!_bqR.sk){toast('Marca algún ejercicio o bloque como hecho, o registra una serie','err');return;}
   let st=status||'done';
-  if(st==='done'&&Object.keys(skips).length)st='partial';       /* quedó algo sin hacer */
-  if(!Object.keys(entries).length&&!doneIds.length)st='missed';  /* no hubo trabajo: es falta */
+  if(st==='done'&&(Object.keys(skips).length||_bqR.sk))st='partial';       /* quedó algo sin hacer */
+  if(!Object.keys(entries).length&&!doneIds.length&&!_bqR.h)st='missed';  /* no hubo trabajo: es falta */
   const _rpe=parseFloat(WDRAFT.rpe),_dur=parseFloat(WDRAFT.dur);
   const cm=[(WDRAFT.comment||'').trim(),(extraCm||'').trim()].filter(Boolean).join(' · ');
   /* id estable por borrador: si el primer intento falla, el reintento hace upsert sobre la
@@ -9504,7 +9591,7 @@ async function saveWorkoutDraft(status,reason,extraCm,repsOk){
   if(_wasEdit&&_wasPast)skips.__edit={at:todayISO(),n:((_prevMark&&_prevMark.n)||0)+1};
   else if(_prevMark)skips.__edit=_prevMark;
   const w={id:WDRAFT.wid,date:WDRAFT.date||todayISO(),dayId:dayIdSave,dayName:dayNm,entries,done:doneIds,
-    rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips};
+    rpe:isNaN(_rpe)?null:_rpe,dur:isNaN(_dur)?null:_dur,comment:cm,status:st,reason:reason||null,skips,bloques:_bqR.bloques};
   /* El borrador NO se borra hasta que el servidor confirma. Al revés (s67) costó un
      entrenamiento completo: si el guardado fallaba, ya no quedaba de dónde recuperarlo. */
   const _res=await pushWorkoutLog(u,w,true);
@@ -9654,9 +9741,9 @@ VIEWS['ath-hoy']=function(u){
     const wd=wp.byDay[day.id],md=wp.missDay[day.id],hoy=trainedToday.some(w=>w.dayId===day.id);
     const enCurso=wdraftDirty(WDRAFT)&&WDRAFT.aid===aid&&WDRAFT.dayId===day.id;
     const sub=enCurso?'sin guardar · continúa donde ibas'
-      :day.exercises.length+' ejercicios'+(wd?' · hecho '+(hoy?'hoy':'el '+fmtDow(wd.date))+(wd.partial?' (incompleta)':''):md?' · no la hiciste · '+missLbl(md.reason).toLowerCase():'');
+      :diaContTxt(day)+(wd?' · hecho '+(hoy?'hoy':'el '+fmtDow(wd.date))+(wd.partial?' (incompleta)':''):md?' · no la hiciste · '+missLbl(md.reason).toLowerCase():'');
     dias.push({id:day.id,enCurso,hecho:!!wd,falta:!!md,ult:wd?wd.date+'|'+day.name+'|'+(hoy?'hoy':'el '+fmtDow(wd.date)):null,html:'<button class="userbtn u-mb8" data-act="wlog-start" data-day="'+day.id+'">'+
-      '<span class="ava" style="background:'+(enCurso?'var(--blue)':wd?'var(--green)':md?'var(--danger-08)':'var(--card2)')+';color:'+(enCurso||wd?'#0d1015':md?'var(--red)':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':wd?'✓':md?'✕':day.exercises.length)+'</span>'+
+      '<span class="ava" style="background:'+(enCurso?'var(--blue)':wd?'var(--green)':md?'var(--danger-08)':'var(--card2)')+';color:'+(enCurso||wd?'#0d1015':md?'var(--red)':'var(--tx2)')+';border:1px solid var(--line2)">'+(enCurso?'▶':wd?'✓':md?'✕':(day.exercises.length||bqDe(day).length))+'</span>'+
       '<span class="who"><b>'+esc(day.name)+'</b><span>'+sub+'</span></span><span class="arr">→</span></button>'});
   });
   /* El día que toca = el que está a medias o el primero de la rutina sin hacer esta semana (ver «Entreno de hoy»
@@ -9682,7 +9769,7 @@ VIEWS['ath-hoy']=function(u){
     const pips=wp.total?'<div class="wkp-pips mb12">'+d.routine.days.map(day=>{const b=wp.byDay[day.id];return '<i class="'+(b?(b.partial?'on half':'on'):wp.missDay[day.id]?'miss':'')+'"></i>';}).join('')+'</div>':'';
     let main='';
     if(sug){const day=d.routine.days.find(x=>x.id===sug.id);
-      main='<div class="hx-tr"><div><b>'+esc(day.name)+'</b><span>'+(sug.enCurso?'sin guardar · sigue donde ibas':day.exercises.length+' ejercicios · la toca hoy según tu semana')+'</span></div>'+
+      main='<div class="hx-tr"><div><b>'+esc(day.name)+'</b><span>'+(sug.enCurso?'sin guardar · sigue donde ibas':diaContTxt(day)+' · la toca hoy según tu semana')+'</span></div>'+
         '<button class="btn '+((sv.nu&&dxSigue(aid))?'btn-o':'btn-p')+'" data-act="wlog-start" data-day="'+day.id+'">'+(sug.enCurso?'Continuar':'Empezar')+'</button></div>';}
     else if(wp.complete)main='<div class="wkp-msg mb12">'+I.check+' ¡Semana completa! Ya hiciste todas tus sesiones.</div>';
     const ult=otros.filter(x=>x.hecho).map(x=>x.ult).sort().pop();
@@ -9776,6 +9863,439 @@ function swapRowUI(e,dayId){
   }
   return '<button class="swapbtn" data-act="swap-ask" data-ex="'+e.id+'" data-day="'+dayId+'">'+I.swap+' No puedo hacerlo</button>';
 }
+/* ---------- Bloques de calentamiento, cardio LISS y HIIT (2026-11-17) ----------
+   Pedido de Luis: programar calentamiento, cardio continuo y HIIT (ergómetro o circuito
+   funcional por estaciones) dentro de un día, sin tocar lo de fuerza. Por eso viven en una
+   lista APARTE, `day.bloques`, y no en `day.exercises`: todo lo que cuenta series, volumen por
+   músculo, tonelaje, e1RM, Progreso, cambios de ejercicio y el reparto del paso 2 recorre
+   `day.exercises`, y meter ahí un «Battle ropes 40 s» lo habría ensuciado todo.
+   Lo que el atleta anota de cada bloque va en `w.bloques` (columna propia de workout_logs),
+   nunca en `entries`: sessTonnage/exTonnage no ven ni un kilo de cardio.
+   Decisiones de Luis (maqueta aprobada el 2026-11-17):
+   · se repiten cada semana igual que el resto del día (la rutina no tiene semanas propias);
+   · el atleta anota lo mínimo: hecho/no + vueltas, intervalos o minutos reales + RPE;
+   · un día solo de cardio (sin fuerza) cuenta como entreno (weekProgress mira bqHechosN);
+   · los bloques se pueden guardar como plantilla (S.templates.bloques) y reusar con otros.
+   Forma de un bloque:
+     {id, tipo:'cal'|'liss'|'hiit', fmt:'circ'|'erg' (solo hiit), pos:'antes'|'despues', nombre,
+      cal:  items:[{ej,dosis}], min (estimado, opcional)
+      liss: mod, min, zona, ind
+      erg:  maq, n, w, d, ind      (n intervalos de w s con d s de descanso)
+      circ: R, W, T, D, est:[{id, ej, libId?, imp, modo:'s'|'reps', int?, reps?, aprox?, ind}]}
+   En la estación, sin `int` hereda el trabajo general W; `modo:'reps'` va por repeticiones y
+   `aprox` (s) es lo que tarda, solo para estimar la duración. Sin `aprox` el total es un mínimo. */
+const BQ_TIPOS={cal:'Calentamiento',liss:'Cardio LISS',hiit:'HIIT / intervalos'};
+const BQ_MAQ=['Remo','Assault bike','SkiErg','Caminadora','Caminadora inclinada','Bici estática','Elíptica','Escaladora','Caminar fuera','Correr fuera'];
+const bqN=(v,def)=>{const n=parseFloat(v);return isNaN(n)?def:n;};
+function bqDe(day){return (day&&Array.isArray(day.bloques))?day.bloques:[];}
+function bqPos(b){return b&&b.pos==='antes'?'antes':'despues';}
+function bqOrdenar(L){return L.filter(b=>bqPos(b)==='antes').concat(L.filter(b=>bqPos(b)!=='antes'));}
+function bqTipoLbl(b){return b.tipo==='hiit'?(b.fmt==='erg'?'HIIT · Ergómetro':'HIIT · Circuito'):(BQ_TIPOS[b.tipo]||'Bloque');}
+function bqNombreDef(tipo,fmt){return tipo==='cal'?'Calentamiento':tipo==='liss'?'Cardio continuo':fmt==='erg'?'Intervalos':'Circuito';}
+function bqNombre(b){return (b.nombre||'').trim()||bqNombreDef(b.tipo,b.fmt);}
+const bqVacio=v=>v===''||v==null;
+/* Segundos de una estación, o null si va por reps sin tiempo aproximado. */
+function bqEstSeg(b,e){
+  if(e.modo==='reps'){const a=bqN(e.aprox,NaN);return isNaN(a)?null:Math.max(0,a);}
+  const W=bqN(b.W,0);
+  return Math.max(0,bqVacio(e.int)?W:bqN(e.int,W));
+}
+/* Duración estimada en segundos (null si no hay con qué calcularla).
+   Circuito = vueltas × (Σ trabajo + transiciones entre estaciones) + descansos entre vueltas.
+   Tras la última estación de cada vuelta no hay transición: ahí manda el descanso entre vueltas. */
+function bqDur(b){
+  if(b.tipo==='liss'||b.tipo==='cal'){const m=bqN(b.min,0);return m>0?{s:m*60}:null;}
+  if(b.fmt==='erg'){const n=Math.max(0,Math.round(bqN(b.n,0)));if(!n)return null;return{s:n*Math.max(0,bqN(b.w,0))+Math.max(0,n-1)*Math.max(0,bqN(b.d,0))};}
+  const est=b.est||[],n=est.length;if(!n)return null;
+  const R=Math.max(1,Math.round(bqN(b.R,1))),T=Math.max(0,bqN(b.T,0)),D=Math.max(0,bqN(b.D,0));
+  let trab=0,sin=0;est.forEach(e=>{const s=bqEstSeg(b,e);if(s==null)sin++;else trab+=s;});
+  const trans=Math.max(0,n-1)*T,desc=(R-1)*D;
+  return{s:R*(trab+trans)+desc,sin:sin,R:R,n:n,trab:R*trab,trans:R*trans,desc:desc};
+}
+function bqMMSS(s){s=Math.round(s);const m=Math.floor(s/60),r=s%60;return m+':'+(r<10?'0':'')+r+' min';}
+function bqDurTxt(b){
+  const d=bqDur(b);if(!d||!d.s)return '';
+  if(b.tipo==='liss'||b.tipo==='cal')return Math.round(d.s/60)+' min';
+  return (d.sin?'al menos ':'≈ ')+bqMMSS(d.s);
+}
+function bqResumen(b){
+  if(b.tipo==='cal')return (b.items||[]).map(x=>x.ej).filter(Boolean).join(' · ');
+  if(b.tipo==='liss')return [b.mod,b.zona].filter(Boolean).join(' · ');
+  if(b.fmt==='erg')return (b.n||0)+' × '+(b.w||0)+' s con '+(b.d||0)+' s de descanso'+(b.maq?' · '+b.maq:'');
+  const R=Math.max(1,Math.round(bqN(b.R,1))),n=(b.est||[]).length;
+  return R+(R===1?' vuelta':' vueltas')+' × '+n+(n===1?' estación':' estaciones')+' · '+(b.W||0)+' s / '+(b.T||0)+' s'+(R>1?' · '+(b.D||0)+' s entre vueltas':'');
+}
+/* Intervalo de una estación tal como lo lee el atleta. */
+function bqEstInt(b,e){return e.modo==='reps'?((e.reps||'?')+' reps'):((bqVacio(e.int)?(b.W||0):e.int)+' s');}
+/* Tope del contador del atleta: vueltas del circuito o intervalos del ergómetro. */
+function bqTope(b){return b.fmt==='erg'?Math.max(0,Math.round(bqN(b.n,0))):Math.max(1,Math.round(bqN(b.R,1)));}
+/* «5 ejercicios», «5 ejercicios + 2 bloques» o «1 bloque»: un día solo de cardio no es «0 ejercicios». */
+function diaContTxt(day){
+  const ne=(day.exercises||[]).length,nb=bqDe(day).length;
+  if(!nb)return ne+' ejercicios';
+  const tb=nb+(nb===1?' bloque':' bloques');
+  return ne?ne+' ejercicios + '+tb:tb;
+}
+/* Bloques hechos en una sesión guardada. */
+function bqHechosN(w){const B=(w&&w.bloques)||{};return Object.keys(B).filter(k=>B[k]&&B[k].h).length;}
+
+/* ===== Coach · columna del día en Rutina ===== */
+function bqCoachSec(aid,day,pos){
+  const L=bqDe(day).filter(b=>bqPos(b)===pos);if(!L.length)return '';
+  const ex=(day.exercises||[]).length;
+  let h='<div class="bq-sec">'+(pos==='antes'?'Antes de la fuerza':ex?'Después de la fuerza':'Bloques')+'</div>';
+  L.forEach(b=>{
+    const dur=bqDurTxt(b),res=bqResumen(b);
+    const est=(b.tipo==='hiit'&&b.fmt!=='erg')?(b.est||[]).map(e=>e.ej).filter(Boolean).join(' · '):'';
+    const a=' data-aid="'+aid+'" data-day="'+day.id+'" data-bq="'+b.id+'"';
+    h+='<div class="bq-card"><div class="u-f1 u-minw0"><div class="bq-top"><span class="bq-tag">'+esc(bqTipoLbl(b))+'</span>'+(dur?'<span class="tiny">'+esc(dur)+'</span>':'')+'</div>'+
+      '<div class="bq-nom">'+esc(bqNombre(b))+'</div>'+(res?'<div class="bq-res">'+esc(res)+'</div>':'')+(est?'<div class="bq-res u-c-tx3">'+esc(est)+'</div>':'')+'</div>'+
+      '<div class="bq-btns"><button title="Editar bloque" aria-label="Editar '+esc(bqNombre(b))+'" data-act="bq-edit"'+a+'>'+I.edit+'</button>'+
+      '<button title="Quitar bloque" aria-label="Quitar '+esc(bqNombre(b))+'" data-act="bq-del-ask"'+a+'>'+I.trash+'</button>'+
+      '<button title="Subir" aria-label="Subir '+esc(bqNombre(b))+'" data-act="bq-move" data-dir="-1"'+a+'>'+I.up+'</button>'+
+      '<button title="Bajar" aria-label="Bajar '+esc(bqNombre(b))+'" data-act="bq-move" data-dir="1"'+a+'>'+I.down+'</button></div></div>';
+  });
+  return h;
+}
+
+/* ===== Coach · editor del bloque (ventana) =====
+   `_bq` es el borrador mientras la ventana está abierta. Los campos lo actualizan en cada
+   tecla (listener de abajo) y solo el resumen de duración se repinta: así no se pierde el foco
+   ni el cursor. Cambiar de tipo, de formato o añadir/quitar estaciones sí repinta el formulario,
+   y como el borrador ya lleva lo escrito, no se pierde nada. */
+let _bq=null;
+function bqEstNueva(){return{id:uid(),ej:'',imp:'',modo:'s',int:'',reps:'',aprox:'',ind:''};}
+function bqNuevo(tipo,fmt){
+  return{id:uid(),tipo:tipo,fmt:fmt||'circ',pos:tipo==='cal'?'antes':'despues',nombre:'',
+    items:[{ej:'',dosis:''}],min:'',mod:'',zona:'',ind:'',maq:'',n:'8',w:'30',d:'90',
+    R:'4',W:'40',T:'15',D:'90',est:[bqEstNueva()]};
+}
+function bqLibList(){
+  const L=(S.library||[]).slice().sort((a,b)=>{const x=XGROUPS.indexOf(a.group)>=0?0:1,y=XGROUPS.indexOf(b.group)>=0?0:1;return (x-y)||a.name.localeCompare(b.name);});
+  return '<datalist id="bq-lib">'+L.map(l=>'<option value="'+esc(l.name)+'"></option>').join('')+'</datalist>'+
+    '<datalist id="bq-maq">'+BQ_MAQ.map(m=>'<option value="'+esc(m)+'"></option>').join('')+'</datalist>';
+}
+function bqNi(id,k,lbl,v,min){return '<div><label for="'+id+'">'+lbl+'</label><input id="'+id+'" type="number" inputmode="numeric" min="'+(min||0)+'" data-bq="'+k+'" value="'+esc(v)+'"></div>';}
+function bqEstHint(b,e){
+  if(e.modo==='reps')return bqVacio(e.aprox)?'<span class="u-c-red">Sin tiempo: no entra al total</span>':'Cuenta ≈ '+esc(e.aprox)+' s';
+  return bqVacio(e.int)?'General: '+esc(b.W||0)+' s':'Propio de esta estación';
+}
+function bqEdCirc(b){
+  let h='<div class="bq-g4">'+bqNi('bq_R','R','Vueltas',b.R,1)+bqNi('bq_W','W','Trabajo por estación (s)',b.W,0)+bqNi('bq_T','T','Transición (s)',b.T,0)+bqNi('bq_D','D','Descanso entre vueltas (s)',b.D,0)+'</div>';
+  h+='<div class="bq-tbl"><div class="bq-est bq-est-h" aria-hidden="true"><span>#</span><span>Ejercicio</span><span>Implemento / carga</span><span>Intervalo</span><span>Indicación / RPE</span><span></span></div>';
+  (b.est||[]).forEach((e,i)=>{
+    const n=i+1,isR=e.modo==='reps',a=k=>' data-bqe="'+k+'" data-i="'+i+'"';
+    h+='<div class="bq-est"><span class="bq-n">'+n+'</span>'+
+      '<input class="c-ej" list="bq-lib" aria-label="Ejercicio de la estación '+n+'" placeholder="Ejercicio"'+a('ej')+' value="'+esc(e.ej)+'">'+
+      '<input class="c-imp" aria-label="Implemento o carga de la estación '+n+'" placeholder="Implemento / carga"'+a('imp')+' value="'+esc(e.imp)+'">'+
+      '<div class="c-int"><div class="bq-intr">'+(isR
+        ?'<input type="number" inputmode="numeric" min="1" aria-label="Repeticiones de la estación '+n+'" placeholder="reps"'+a('reps')+' value="'+esc(e.reps)+'">'
+        :'<input type="number" inputmode="numeric" min="1" aria-label="Segundos de la estación '+n+'" placeholder="'+esc(b.W)+'"'+a('int')+' value="'+esc(e.int)+'">')+
+        '<select aria-label="Unidad del intervalo de la estación '+n+'"'+a('modo')+'><option value="s"'+(isR?'':' selected')+'>s</option><option value="reps"'+(isR?' selected':'')+'>reps</option></select></div>'+
+        (isR?'<input type="number" inputmode="numeric" min="1" aria-label="Segundos aproximados de la estación '+n+'" placeholder="≈ s que tarda"'+a('aprox')+' value="'+esc(e.aprox)+'">':'')+
+        '<span class="bq-hint" id="bq-h-'+i+'">'+bqEstHint(b,e)+'</span></div>'+
+      '<input class="c-ind" aria-label="Indicación de la estación '+n+'" placeholder="Indicación / RPE"'+a('ind')+' value="'+esc(e.ind)+'">'+
+      '<div class="c-act"><button type="button" title="Subir" aria-label="Subir estación '+n+'" data-act="bq-est-up" data-i="'+i+'">'+I.up+'</button>'+
+      '<button type="button" title="Quitar" aria-label="Quitar estación '+n+'" data-act="bq-est-del" data-i="'+i+'">'+I.trash+'</button></div></div>';
+  });
+  return h+'<button type="button" class="bq-addrow" data-act="bq-est-add">'+I.plus+' Añadir ejercicio al circuito</button></div>';
+}
+function bqEdErg(b){
+  return '<div class="bq-g4"><div><label for="bq_maq">Máquina</label><input id="bq_maq" list="bq-maq" data-bq="maq" value="'+esc(b.maq)+'" placeholder="Remo, assault bike…"></div>'+
+    bqNi('bq_n','n','Intervalos',b.n,1)+bqNi('bq_w','w','Trabajo (s)',b.w,1)+bqNi('bq_d','d','Descanso (s)',b.d,0)+'</div>'+
+    '<div class="frow"><label for="bq_ind">Intensidad / indicación</label><input id="bq_ind" data-bq="ind" value="'+esc(b.ind)+'" placeholder="Ej. RPE 9 · máxima potencia en cada intervalo"></div>';
+}
+function bqEdLiss(b){
+  return '<div class="bq-g4 bq-g3"><div><label for="bq_mod">Modalidad</label><input id="bq_mod" list="bq-maq" data-bq="mod" value="'+esc(b.mod)+'" placeholder="Bici, caminadora…"></div>'+
+    bqNi('bq_min','min','Duración (min)',b.min,1)+
+    '<div><label for="bq_zona">Zona / FC objetivo</label><input id="bq_zona" data-bq="zona" value="'+esc(b.zona)+'" placeholder="Ej. Zona 2 · 120-135 lpm"></div></div>'+
+    '<div class="frow"><label for="bq_ind">Indicación</label><input id="bq_ind" data-bq="ind" value="'+esc(b.ind)+'" placeholder="Ej. ritmo en el que puedas hablar en frases cortas"></div>';
+}
+function bqEdCal(b){
+  let h='<div class="bq-tbl"><div class="bq-est bq-cal bq-est-h" aria-hidden="true"><span>#</span><span>Ejercicio</span><span>Tiempo o reps</span><span></span></div>';
+  (b.items||[]).forEach((x,i)=>{
+    const n=i+1,a=k=>' data-bqc="'+k+'" data-i="'+i+'"';
+    h+='<div class="bq-est bq-cal"><span class="bq-n">'+n+'</span>'+
+      '<input list="bq-lib" aria-label="Ejercicio de calentamiento '+n+'" placeholder="Ejercicio"'+a('ej')+' value="'+esc(x.ej)+'">'+
+      '<input aria-label="Tiempo o repeticiones del ejercicio '+n+'" placeholder="3 min, 10 reps…"'+a('dosis')+' value="'+esc(x.dosis)+'">'+
+      '<div class="c-act"><button type="button" title="Quitar" aria-label="Quitar ejercicio '+n+'" data-act="bq-cal-del" data-i="'+i+'">'+I.trash+'</button></div></div>';
+  });
+  h+='<button type="button" class="bq-addrow" data-act="bq-cal-add">'+I.plus+' Añadir ejercicio</button></div>';
+  return h+'<div class="bq-g4">'+bqNi('bq_min','min','Duración estimada (min, opcional)',b.min,1)+'</div>';
+}
+function bqEdBody(){
+  const b=_bq.b;
+  const seg=(act,v,lbl,sel)=>'<button type="button" class="bq-seg'+(sel?' on':'')+'" aria-pressed="'+(sel?'true':'false')+'" data-act="'+act+'" data-v="'+v+'">'+lbl+'</button>';
+  const tpls=((S.templates&&S.templates.bloques)||[]).filter(t=>t.b&&t.b.tipo===b.tipo);
+  let h='<div class="frow"><span class="bq-lbl" id="bq-tipo-l">Tipo de bloque</span><div class="bq-segs" role="group" aria-labelledby="bq-tipo-l">'+
+    seg('bq-tipo','cal','Calentamiento',b.tipo==='cal')+seg('bq-tipo','liss','Cardio LISS',b.tipo==='liss')+seg('bq-tipo','hiit','HIIT / intervalos',b.tipo==='hiit')+'</div>'+
+    '<p class="tiny u-mt8">Los ejercicios de fuerza siguen en la lista normal del día. Esto no suma tonelaje ni series.</p></div>';
+  if(tpls.length)h+='<div class="frow"><label for="bq_tpl">Usar una plantilla</label><select id="bq_tpl" data-bqtpl="1"><option value="">Elegir plantilla…</option>'+tpls.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('')+'</select></div>';
+  h+='<div class="frow2"><div><label for="bq_nombre">Nombre del bloque</label><input id="bq_nombre" data-bq="nombre" value="'+esc(b.nombre)+'" placeholder="'+esc(bqNombreDef(b.tipo,b.fmt))+'"></div>'+
+    '<div><label for="bq_pos">Va</label><select id="bq_pos" data-bq="pos"><option value="antes"'+(b.pos==='antes'?' selected':'')+'>Antes de la fuerza</option><option value="despues"'+(b.pos!=='antes'?' selected':'')+'>Después de la fuerza</option></select></div></div>';
+  if(b.tipo==='hiit'){
+    h+='<div class="frow"><span class="bq-lbl" id="bq-fmt-l">Formato</span><div class="bq-segs" role="group" aria-labelledby="bq-fmt-l">'+
+      seg('bq-fmt','erg','Ergómetro / máquina única',b.fmt==='erg')+seg('bq-fmt','circ','Circuito funcional (estaciones)',b.fmt!=='erg')+'</div></div>';
+    h+=b.fmt==='erg'?bqEdErg(b):bqEdCirc(b);
+  }else h+=b.tipo==='liss'?bqEdLiss(b):bqEdCal(b);
+  h+='<label class="bq-chk"><input type="checkbox" data-bqtplsave="1"'+(_bq.tplSave?' checked':'')+'> Guardar también en mis plantillas de bloques</label>';
+  return h+bqLibList();
+}
+function bqSumHTML(){
+  const b=_bq.b,d=bqDur(b),tot=bqDurTxt(b)||'—';
+  let des='',av='';
+  if(b.tipo==='hiit'&&b.fmt!=='erg'){
+    if(d){des=d.R+(d.R===1?' vuelta':' vueltas')+' × '+d.n+(d.n===1?' estación':' estaciones')+' · trabajo '+bqMMSS(d.trab)+' · transiciones '+bqMMSS(d.trans)+' · descansos '+bqMMSS(d.desc);
+      if(d.sin)av=d.sin+(d.sin===1?' estación va':' estaciones van')+' por reps sin tiempo aproximado.';}
+  }else if(b.tipo==='hiit')des=d?bqResumen(b):'';
+  else if(b.tipo==='liss')des=d?'Continuo, sin pausas':'Escribe la duración';
+  else des=d?'Estimado que escribiste':'Escribe un estimado si quieres que se vea';
+  return '<div class="bq-sum-k">Duración estimada</div><div class="bq-sum-v">'+esc(tot)+'</div>'+(des?'<div class="bq-sum-d">'+esc(des)+'</div>':'')+(av?'<div class="bq-sum-d u-c-red">'+esc(av)+'</div>':'');
+}
+function bqRedraw(){const el=document.getElementById('bq-ed');if(el)el.innerHTML=bqEdBody();bqSumRefresh();}
+function bqSumRefresh(){const s=document.getElementById('bq-sum');if(s)s.innerHTML=bqSumHTML();}
+function bqAbrir(aid,dayId,bid){
+  const day=athData(aid).routine.days.find(x=>x.id===dayId);if(!day)return;
+  const ex=bid?bqDe(day).find(x=>x.id===bid):null;
+  if(bid&&!ex){toast('Ese bloque ya no está en el día','err');return;}
+  const b=ex?Object.assign(bqNuevo(ex.tipo,ex.fmt),dcopy(ex)):bqNuevo('hiit','circ');
+  if(!b.est||!b.est.length)b.est=[bqEstNueva()];
+  if(!b.items||!b.items.length)b.items=[{ej:'',dosis:''}];
+  _bq={aid:aid,dayId:dayId,bid:bid||null,b:b,tplSave:false};
+  openModal((bid?'Editar bloque':'Añadir bloque')+' · '+esc(day.name),'<div id="bq-ed">'+bqEdBody()+'</div>',
+    '<div class="bq-sum" id="bq-sum" aria-live="polite">'+bqSumHTML()+'</div><button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="bq-save">Guardar bloque</button>',
+    {cls:'bq-modal',persistent:true});
+}
+/* Lo que se guarda: solo los campos del tipo elegido, con números de verdad. El borrador lleva
+   los de todos los tipos para que cambiar de pestaña y volver no borre lo escrito. */
+function bqLimpio(b){
+  const s=v=>(v==null?'':String(v)).trim(),num=v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
+  const o={id:b.id||uid(),tipo:b.tipo,pos:bqPos(b),nombre:s(b.nombre)||bqNombreDef(b.tipo,b.fmt)};
+  if(b.tipo==='cal'){o.items=(b.items||[]).map(x=>({ej:s(x.ej),dosis:s(x.dosis)})).filter(x=>x.ej);const m=num(b.min);if(m>0)o.min=m;}
+  else if(b.tipo==='liss'){o.mod=s(b.mod);o.min=num(b.min)||0;o.zona=s(b.zona);o.ind=s(b.ind);}
+  else{
+    o.fmt=b.fmt==='erg'?'erg':'circ';
+    if(o.fmt==='erg'){o.maq=s(b.maq);o.n=Math.max(0,Math.round(num(b.n)||0));o.w=Math.max(0,num(b.w)||0);o.d=Math.max(0,num(b.d)||0);o.ind=s(b.ind);}
+    else{
+      o.R=Math.max(1,Math.round(num(b.R)||1));o.W=Math.max(0,num(b.W)||0);o.T=Math.max(0,num(b.T)||0);o.D=Math.max(0,num(b.D)||0);
+      o.est=(b.est||[]).filter(e=>s(e.ej)).map(e=>{
+        const lib=libByName(s(e.ej)),x={id:e.id||uid(),ej:lib?lib.name:s(e.ej),imp:s(e.imp),modo:e.modo==='reps'?'reps':'s',ind:s(e.ind)};
+        if(lib)x.libId=lib.id;
+        if(x.modo==='reps'){x.reps=s(e.reps);const a=num(e.aprox);if(a>0)x.aprox=a;}
+        else{const t=num(e.int);if(t>0)x.int=t;}
+        return x;
+      });
+    }
+  }
+  return o;
+}
+function bqGuardar(){
+  if(!_bq)return;
+  const o=bqLimpio(_bq.b);
+  if(o.tipo==='cal'&&!o.items.length){toast('Escribe al menos un ejercicio del calentamiento','err');return;}
+  if(o.tipo==='liss'&&!(o.min>0)){toast('Escribe la duración en minutos','err','bq_min');return;}
+  if(o.fmt==='erg'&&(!o.n||!o.w)){toast('Escribe cuántos intervalos y cuánto dura el trabajo','err',o.n?'bq_w':'bq_n');return;}
+  if(o.fmt==='circ'&&!o.est.length){toast('Añade al menos una estación con su ejercicio','err');return;}
+  const day=athData(_bq.aid).routine.days.find(x=>x.id===_bq.dayId);
+  if(!day){toast('Ese día ya no está en la rutina','err');return;}
+  const L=bqDe(day).slice(),i=L.findIndex(x=>x.id===o.id);
+  if(i>=0)L[i]=o;else L.push(o);
+  day.bloques=bqOrdenar(L);
+  let tg='';
+  if(_bq.tplSave){
+    ensureTemplates(S);
+    const T=S.templates.bloques,t={id:uid(),name:o.nombre,created:todayISO(),b:Object.assign(dcopy(o),{id:''})};
+    /* Mismo nombre y tipo = se actualiza esa plantilla, no se duplica. */
+    const j=T.findIndex(x=>x&&x.b&&x.b.tipo===o.tipo&&(x.name||'').toLowerCase()===o.nombre.toLowerCase());
+    if(j>=0){t.id=T[j].id;T[j]=t;}else T.push(t);
+    tg=' y en tus plantillas';
+  }
+  _bq=null;saveState();closeModal();render();toast('Bloque guardado'+tg);
+}
+document.addEventListener('input',e=>{
+  const el=e.target;if(!el||!el.dataset)return;
+  if(_bq&&el.closest&&el.closest('#bq-ed')){
+    const b=_bq.b,ds=el.dataset;
+    if(ds.bq)b[ds.bq]=el.value;
+    else if(ds.bqe&&ds.bqe!=='modo'){const x=(b.est||[])[+ds.i];if(x)x[ds.bqe]=el.value;}
+    else if(ds.bqc){const x=(b.items||[])[+ds.i];if(x)x[ds.bqc]=el.value;}
+    else return;
+    bqSumRefresh();
+    if(ds.bq==='W'||ds.bqe)(b.est||[]).forEach((x,i)=>{const h=document.getElementById('bq-h-'+i);if(h)h.innerHTML=bqEstHint(b,x);});
+    return;
+  }
+  /* Atleta: minutos y RPE de un bloque. Igual que una serie, escribir algo ya cuenta como hecho.
+     El contador de vueltas arranca vacío («– de 4»): el primer toque parte de lo pautado. */
+  if(el.dataset.wbq&&WDRAFT){
+    WDRAFT.bq=WDRAFT.bq||{};const r=WDRAFT.bq[el.dataset.bq]=WDRAFT.bq[el.dataset.bq]||{};
+    r[el.dataset.wbq]=el.value;wdraftTouch();
+  }
+});
+document.addEventListener('change',e=>{
+  const el=e.target;if(!_bq||!el||!el.dataset||!el.closest||!el.closest('#bq-ed'))return;
+  const b=_bq.b,ds=el.dataset;
+  if(ds.bqe==='modo'){const x=(b.est||[])[+ds.i];if(x){x.modo=el.value==='reps'?'reps':'s';bqRedraw();bqFoco('[data-bqe="modo"][data-i="'+ds.i+'"]');}}
+  else if(ds.bqtplsave)_bq.tplSave=!!el.checked;
+  else if(ds.bqtpl){
+    const t=((S.templates&&S.templates.bloques)||[]).find(x=>x.id===el.value);if(!t||!t.b)return;
+    const nb=Object.assign(bqNuevo(t.b.tipo,t.b.fmt),dcopy(t.b),{id:b.id});
+    if(!nb.est||!nb.est.length)nb.est=[bqEstNueva()];else nb.est.forEach(x=>{x.id=uid();});
+    if(!nb.items||!nb.items.length)nb.items=[{ej:'',dosis:''}];
+    _bq.b=nb;bqRedraw();toast('Plantilla «'+t.name+'» cargada: ajústala si hace falta');
+  }
+});
+function bqFoco(sel){const f=document.querySelector('#bq-ed '+sel);if(f)try{f.focus();}catch(e){}}
+
+/* ===== Atleta · sesión (ath-wlog) y «Mi rutina» ===== */
+function bqRegHecho(r){
+  if(!r||r.sk)return false;
+  return !!(r.h||r.vt||!bqVacio(r.min)||!bqVacio(r.rpe));
+}
+function bqLibBtn(e){
+  const lib=e.libId?libById(e.libId):null;
+  return lib?'<button class="exlink" data-act="lib-open" data-lib="'+lib.id+'">'+esc(e.ej)+'</button>':esc(e.ej);
+}
+function bqCuerpoAtleta(b){
+  const st=(v,l)=>'<div><b>'+esc(v)+'</b><span>'+l+'</span></div>';
+  if(b.tipo==='hiit'&&b.fmt!=='erg'){
+    const R=Math.max(1,Math.round(bqN(b.R,1)));
+    let h='<div class="bq-stats">'+st(R,R===1?'vuelta':'vueltas')+st((b.W||0)+' s','trabajo')+st((b.T||0)+' s','cambio')+(R>1?st((b.D||0)+' s','entre vueltas'):'')+'</div><ol class="bq-lista">';
+    (b.est||[]).forEach((e,i)=>{
+      const sub=[e.imp,e.ind].filter(Boolean).join(' · ');
+      h+='<li><span class="bq-n">'+(i+1)+'</span><div class="u-f1 u-minw0"><div class="bq-li-t"><b>'+bqLibBtn(e)+'</b><span>'+esc(bqEstInt(b,e))+'</span></div>'+(sub?'<div class="tiny">'+esc(sub)+'</div>':'')+'</div></li>';
+    });
+    return h+'</ol>';
+  }
+  if(b.tipo==='hiit')return '<div class="bq-stats">'+st(b.n||0,'intervalos')+st((b.w||0)+' s','trabajo')+st((b.d||0)+' s','descanso')+'</div>'+
+    ([b.maq,b.ind].filter(Boolean).length?'<p class="tiny u-mt8">'+esc([b.maq,b.ind].filter(Boolean).join(' · '))+'</p>':'');
+  if(b.tipo==='liss')return '<div class="bq-stats">'+st((b.min||0)+' min','continuo')+(b.mod?st(b.mod,'modalidad'):'')+'</div>'+
+    ([b.zona,b.ind].filter(Boolean).length?'<p class="tiny u-mt8">'+esc([b.zona,b.ind].filter(Boolean).join(' · '))+'</p>':'');
+  let h='<ol class="bq-lista">';
+  (b.items||[]).forEach((x,i)=>{h+='<li><span class="bq-n">'+(i+1)+'</span><div class="u-f1 u-minw0"><div class="bq-li-t"><b>'+esc(x.ej)+'</b><span>'+esc(x.dosis||'')+'</span></div></div></li>';});
+  return h+'</ol>';
+}
+function bqAtletaCard(b){
+  const r=((WDRAFT&&WDRAFT.bq)||{})[b.id]||{},sk=!!r.sk,hecho=bqRegHecho(r),dur=bqDurTxt(b);
+  let reg='';
+  if(!sk){
+    if(b.tipo==='hiit'){
+      const tope=bqTope(b),v=r.v!=null?r.v:'–',lid='wbq-l-'+b.id;
+      reg+='<div class="bq-reg-r"><span id="'+lid+'">'+(b.fmt==='erg'?'Intervalos completados':'Vueltas completadas')+'</span>'+
+        '<button class="bq-stp" aria-label="Una menos" data-act="wbq-v" data-bq="'+b.id+'" data-d="-1">−</button>'+
+        '<span class="bq-stp-v" role="status" aria-labelledby="'+lid+'">'+v+' <small>de '+tope+'</small></span>'+
+        '<button class="bq-stp" aria-label="Una más" data-act="wbq-v" data-bq="'+b.id+'" data-d="1">+</button></div>';
+    }
+    if(b.tipo==='liss')reg+='<div class="bq-reg-r"><label for="wbq-min-'+b.id+'">Minutos que hiciste</label><input id="wbq-min-'+b.id+'" type="number" inputmode="numeric" min="0" placeholder="'+esc(b.min||'')+'" value="'+esc(r.min==null?'':r.min)+'" data-wbq="min" data-bq="'+b.id+'"></div>';
+    if(b.tipo!=='cal')reg+='<div class="bq-reg-r"><label for="wbq-rpe-'+b.id+'">RPE del bloque (1-10)</label><input id="wbq-rpe-'+b.id+'" type="number" inputmode="numeric" min="1" max="10" placeholder="8" value="'+esc(r.rpe==null?'':r.rpe)+'" data-wbq="rpe" data-bq="'+b.id+'"></div>';
+  }
+  const head='<div class="wlog-ex-h"><div class="wlog-top"><div class="u-minw0"><div class="bq-top"><span class="bq-tag">'+esc(bqTipoLbl(b))+'</span>'+(dur?'<span class="tiny">'+esc(dur)+'</span>':'')+'</div>'+
+    '<div class="bq-nom-a">'+esc(bqNombre(b))+'</div></div>'+
+    (sk?'':'<button class="exdone'+(hecho?' on':'')+'" data-act="wbq-hecho" data-bq="'+b.id+'">'+(hecho?I.check+'Hecho':'Marcar hecho')+'</button>')+'</div></div>';
+  const skUI=sk?'<div class="skipbadge">✕<span>No lo hiciste</span><button class="u" data-act="wbq-sk" data-bq="'+b.id+'">Deshacer</button></div>'
+    :'<button class="skipbtn" data-act="wbq-sk" data-bq="'+b.id+'">✕ No lo hice</button>';
+  return '<div class="wlog-ex bq-a'+(sk?' skipped':hecho?' done':'')+'">'+head+(sk?'':'<div class="bq-body">'+bqCuerpoAtleta(b)+'</div>')+'<div class="bq-reg">'+reg+skUI+'</div></div>';
+}
+function bqAtletaSec(day,pos){return bqDe(day).filter(b=>bqPos(b)===pos).map(bqAtletaCard).join('');}
+/* «Mi rutina»: lo que toca en cada bloque, sin registro. */
+function bqRutinaAtleta(day,pos){
+  const L=bqDe(day).filter(b=>bqPos(b)===pos);if(!L.length)return '';
+  return '<div class="bq-rut">'+L.map(b=>{
+    const dur=bqDurTxt(b),res=bqResumen(b);
+    const est=(b.tipo==='hiit'&&b.fmt!=='erg')?(b.est||[]).map(e=>e.ej+' '+bqEstInt(b,e)).join(' · '):'';
+    return '<div class="bq-rut-i"><div class="bq-top"><span class="bq-tag">'+esc(bqTipoLbl(b))+'</span>'+(dur?'<span class="tiny">'+esc(dur)+'</span>':'')+'</div>'+
+      '<b>'+esc(bqNombre(b))+'</b>'+(res?'<div class="tiny">'+esc(res)+'</div>':'')+(est?'<div class="tiny u-c-tx3">'+esc(est)+'</div>':'')+'</div>';
+  }).join('')+'</div>';
+}
+/* Registro de bloques para guardar en workout_logs.bloques. Lleva copia del nombre y del tipo
+   (`n`, `t`): si el coach borra o renombra el bloque después, el Historial sigue diciendo qué se hizo. */
+function bqRegistro(day){
+  const out={};let h=0,sk=0;
+  if(day)bqDe(day).forEach(b=>{
+    const r=((WDRAFT&&WDRAFT.bq)||{})[b.id];if(!r)return;
+    const o={n:bqNombre(b),t:bqTipoLbl(b)};
+    if(r.sk){o.sk=1;out[b.id]=o;sk++;return;}
+    if(!bqRegHecho(r))return;
+    /* Solo se guarda la cifra que el atleta anotó (Luis, 2026-11-17). «Hecho» sin tocar el
+       contador NO se convierte en «4 de 4»: igual que las series de fuerza, que arrancan vacías
+       para no registrar trabajo que no ocurrió. El Historial lo dice: «no anotó vueltas». */
+    o.h=1;o.k=b.tipo;
+    if(b.tipo==='hiit'){o.de=bqTope(b);o.u=b.fmt==='erg'?'intervalos':'vueltas';if(r.v!=null)o.v=r.v;}
+    if(b.tipo==='liss'){const m=parseFloat(r.min);if(!isNaN(m))o.min=m;}
+    const rp=parseFloat(r.rpe);if(!isNaN(rp))o.rpe=rp;
+    out[b.id]=o;h++;
+  });
+  /* Corrigiendo una sesión: un bloque que ya no está en el día se conserva tal cual. Corregir
+     no puede borrar trabajo por el camino (mismo criterio que wdraftFromLog con los ejercicios). */
+  const prev=(WDRAFT&&WDRAFT.bqPrev)||{};
+  Object.keys(prev).forEach(k=>{if(!out[k]&&!(day&&bqDe(day).some(b=>b.id===k))){out[k]=prev[k];if(prev[k].h)h++;else if(prev[k].sk)sk++;}});
+  return{bloques:out,h:h,sk:sk};
+}
+/* Historial del coach: una línea por bloque, siempre visible (no dentro del detalle plegable). */
+function bqLogHTML(w){
+  const B=(w&&w.bloques)||{},ks=Object.keys(B);if(!ks.length)return '';
+  let li='';
+  ks.forEach(k=>{
+    const x=B[k]||{};
+    const cab=x.sk?'<span class="badge red">✕ no lo hizo</span>':'<span class="badge green">✓ hecho</span>';
+    const nada=x.h&&((x.de&&x.v==null)?'no anotó '+(x.u||'vueltas'):(x.k==='liss'&&x.min==null)?'no anotó minutos':'');
+    const dd=[x.t||'',x.v!=null&&x.de?x.v+' de '+x.de+' '+(x.u||'vueltas'):'',x.min!=null?x.min+' min':'',nada||'',x.rpe!=null?'RPE '+x.rpe:''].filter(Boolean).join(' · ');
+    li+='<div class="logitem u-m0 u-mb8"><div class="lh">'+cab+'<b>'+esc(x.n||'Bloque')+'</b><span class="tiny">'+esc(dd)+'</span></div></div>';
+  });
+  return '<div class="u-mt8"><div class="tiny u-mb4 u-fw7 u-c-tx2">Calentamiento y cardio</div>'+li+'</div>';
+}
+Object.assign(ACTIONS,{
+  'bq-new':el=>bqAbrir(el.dataset.aid,el.dataset.day,null),
+  'bq-edit':el=>bqAbrir(el.dataset.aid,el.dataset.day,el.dataset.bq),
+  'bq-tipo':el=>{if(!_bq)return;const b=_bq.b,v=el.dataset.v;if(!BQ_TIPOS[v]||b.tipo===v)return;b.tipo=v;b.pos=v==='cal'?'antes':'despues';bqRedraw();bqFoco('[data-act="bq-tipo"][data-v="'+v+'"]');},
+  'bq-fmt':el=>{if(!_bq)return;const v=el.dataset.v==='erg'?'erg':'circ';_bq.b.fmt=v;bqRedraw();bqFoco('[data-act="bq-fmt"][data-v="'+v+'"]');},
+  'bq-est-add':()=>{if(!_bq)return;const L=_bq.b.est;L.push(bqEstNueva());bqRedraw();bqFoco('[data-bqe="ej"][data-i="'+(L.length-1)+'"]');},
+  'bq-est-del':el=>{if(!_bq)return;const L=_bq.b.est;L.splice(+el.dataset.i,1);if(!L.length)L.push(bqEstNueva());bqRedraw();},
+  'bq-est-up':el=>{if(!_bq)return;const L=_bq.b.est,i=+el.dataset.i;if(i<=0)return;const t=L[i-1];L[i-1]=L[i];L[i]=t;bqRedraw();bqFoco('[data-act="bq-est-up"][data-i="'+(i-1)+'"]');},
+  'bq-cal-add':()=>{if(!_bq)return;const L=_bq.b.items;L.push({ej:'',dosis:''});bqRedraw();bqFoco('[data-bqc="ej"][data-i="'+(L.length-1)+'"]');},
+  'bq-cal-del':el=>{if(!_bq)return;const L=_bq.b.items;L.splice(+el.dataset.i,1);if(!L.length)L.push({ej:'',dosis:''});bqRedraw();},
+  'bq-save':()=>bqGuardar(),
+  /* Subir/bajar recorre la secuencia completa del día: subir el primer bloque de «después»
+     lo pasa a «antes» (al final) y bajar el último de «antes» lo pasa a «después» (al principio). */
+  'bq-move':el=>{
+    const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const L=bqOrdenar(bqDe(day)),i=L.findIndex(x=>x.id===el.dataset.bq);if(i<0)return;
+    const b=L[i],dir=parseInt(el.dataset.dir,10),j=i+dir;
+    if(j>=0&&j<L.length&&bqPos(L[j])===bqPos(b)){L[i]=L[j];L[j]=b;}
+    else if(dir<0&&bqPos(b)==='despues')b.pos='antes';
+    else if(dir>0&&bqPos(b)==='antes')b.pos='despues';
+    else return;
+    day.bloques=bqOrdenar(L);saveState();render();
+  },
+  'bq-del-ask':el=>{
+    const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    const b=bqDe(day).find(x=>x.id===el.dataset.bq);if(!b)return;
+    openModal('Quitar bloque','<p class="muted">Se quita «<b>'+esc(bqNombre(b))+'</b>» de <b>'+esc(day.name)+'</b>. Los entrenos ya registrados conservan lo que anotó el atleta.</p>',
+      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-d" data-act="bq-del-do" data-aid="'+el.dataset.aid+'" data-day="'+day.id+'" data-bq="'+b.id+'">Quitar «'+esc(bqNombre(b))+'»</button>');
+  },
+  'bq-del-do':el=>{
+    const day=athData(el.dataset.aid).routine.days.find(x=>x.id===el.dataset.day);if(!day)return;
+    day.bloques=bqDe(day).filter(x=>x.id!==el.dataset.bq);saveState();closeModal();render();toast('Bloque quitado');
+  },
+  'wbq-hecho':el=>{
+    if(!WDRAFT)return;WDRAFT.bq=WDRAFT.bq||{};const r=WDRAFT.bq[el.dataset.bq]=WDRAFT.bq[el.dataset.bq]||{};
+    const on=!bqRegHecho(r);
+    if(on){r.h=true;r.sk=false;}else{r.h=false;r.vt=false;r.v=null;r.min='';r.rpe='';}
+    wdraftTouch();if(on)toast('Hecho ✓ · guardado en este dispositivo');render();
+  },
+  'wbq-sk':el=>{
+    if(!WDRAFT)return;WDRAFT.bq=WDRAFT.bq||{};const r=WDRAFT.bq[el.dataset.bq]=WDRAFT.bq[el.dataset.bq]||{};
+    r.sk=!r.sk;if(r.sk)r.h=false;wdraftTouch();render();
+  },
+  'wbq-v':el=>{
+    if(!WDRAFT)return;const aid=WDRAFT.aid,rt=routineForAthlete(aid),day=rt&&(rt.days||[]).find(x=>x.id===WDRAFT.dayId);
+    const b=bqDe(day).find(x=>x.id===el.dataset.bq);if(!b)return;
+    WDRAFT.bq=WDRAFT.bq||{};const r=WDRAFT.bq[b.id]=WDRAFT.bq[b.id]||{};
+    const tope=bqTope(b),cur=r.v!=null?r.v:tope;
+    r.v=Math.min(tope,Math.max(0,cur+parseInt(el.dataset.d,10)));r.vt=true;
+    wdraftTouch();render();
+  }
+});
+
 VIEWS['ath-wlog']=function(u){
   if(!svcOf(u.id).tr)return VIEWS['ath-hoy'](u);
   const aid=u.id,d=athData(aid),rt=routineForAthlete(aid);
@@ -9883,6 +10403,8 @@ VIEWS['ath-wlog']=function(u){
     if((WDRAFT.skips||{})[e.id]){nSkip++;return;}
     if((WDRAFT.done&&WDRAFT.done[e.id])||((WDRAFT.sets[e.id]||[]).some(s=>s.w||s.r)))nDone++;
   });
+  /* Los bloques cuentan igual que un ejercicio: hechos, o «no lo hice». */
+  bqDe(day).forEach(b=>{const r=(WDRAFT.bq||{})[b.id];if(r&&r.sk)nSkip++;else if(bqRegHecho(r))nDone++;});
   const legend='<p class="sklegend" style="padding:0 0 12px">En cada serie, el botón <b>○</b> marca lo que no hiciste: <b>1 toque</b> = no la hice · <b>2 toques</b> = no la terminé. No hace falta explicar nada ahí; el motivo se pregunta una sola vez por ejercicio.</p>';
   /* Unidad de peso: la elige el atleta, vive en athlete_settings (no en el blob) y aplica
      a todo lo que ve de sus cargas de entreno. Un toque re-pinta con la conversión ya aplicada. */
@@ -9895,12 +10417,12 @@ VIEWS['ath-wlog']=function(u){
   const planUI=(WDRAFT&&WDRAFT.planNote)?'<div id="planNoteBox" class="coachnote" style="margin-bottom:14px;display:flex;align-items:flex-start;gap:6px"><div class="u-f1"><b>Tu plan cambió</b>'+esc(WDRAFT.planNote)+'. Lo que tenías anotado sigue donde estaba.</div><button class="notex" data-act="wlog-plannote-ok" aria-label="Cerrar aviso">&times;</button></div>':'';
   const editUI=(WDRAFT&&WDRAFT.editing)?'<div class="coachnote u-bl-blue u-mb16"><b class="u-c-blue">Estás corrigiendo tu registro '+(_edPast?'del '+fmtDateFull(WDRAFT.date):'de hoy')+'</b>Estos son los datos que ya guardaste. Cambia lo que haga falta y pulsa «Guardar cambios»: se actualiza esta misma sesión, no se crea otra'+(_edPast?', y se queda con su fecha original ('+fmtDate(WDRAFT.date)+'). Tu coach verá que la corregiste.':'.')+'</div>':'';
   return{title:esc(day.name),crumb:esc(d.routine.name)+(d.routine.weekNote?' · '+esc(d.routine.weekNote):''),back:{v:'ath-hoy'},
-    body:planUI+editUI+unitToggle+legend+blocks+
+    body:planUI+editUI+(day.exercises.length?unitToggle+legend:'')+bqAtletaSec(day,'antes')+blocks+bqAtletaSec(day,'despues')+
     '<div class="card"><h3>Cierre de la sesión</h3><div class="frow2"><div><label>RPE de la sesión (1-10)</label><input id="wl_rpe" type="number" min="1" max="10" placeholder="8" data-wl="rpe" value="'+esc(WDRAFT.rpe||'')+'"></div><div><label>Duración (min)</label><input id="wl_min" type="number" min="10" max="300" placeholder="75" data-wl="dur" value="'+esc(WDRAFT.dur||'')+'"></div></div><div class="frow"><label>Comentario para tu coach</label><textarea id="wl_comment" rows="4" placeholder="Sensaciones, molestias, PRs…" data-wl="comment">'+esc(WDRAFT.comment||'')+'</textarea></div>'+
     '<p class="tiny u-m0 u-mt4">Puedes guardar marcando «Hecho» aunque no anotes las series.</p></div>'+
     /* El contador y el botón salen de la tarjeta a una barra pegada al fondo: así el atleta
        ve cuántos lleva y puede cerrar la sesión sin recorrer toda la lista hasta abajo. */
-    '<div class="wlbar"><div class="wlb-c">Ejercicios hechos: <b>'+nDone+' / '+day.exercises.length+'</b>'+(nSkip?' · <b class="u-c-red">'+nSkip+' sin hacer</b>':'')+'<br>'+((WDRAFT&&WDRAFT.editing)?'Los cambios no llegan a tu coach hasta que pulses «Guardar cambios».':'Lo que anotas se guarda en este dispositivo mientras entrenas.')+'</div>'+
+    '<div class="wlbar"><div class="wlb-c">'+(bqDe(day).length?'Hechos':'Ejercicios hechos')+': <b>'+nDone+' / '+(day.exercises.length+bqDe(day).length)+'</b>'+(nSkip?' · <b class="u-c-red">'+nSkip+' sin hacer</b>':'')+'<br>'+((WDRAFT&&WDRAFT.editing)?'Los cambios no llegan a tu coach hasta que pulses «Guardar cambios».':'Lo que anotas se guarda en este dispositivo mientras entrenas.')+'</div>'+
     '<button class="btn btn-g" data-act="wlog-partial-ask">Terminar incompleta</button>'+
     '<button class="btn btn-p" data-act="wlog-save">'+I.check+' '+((WDRAFT&&WDRAFT.editing)?'Guardar cambios':'Guardar entrenamiento')+'</button></div>'};
 };
@@ -9924,8 +10446,8 @@ VIEWS['ath-rutina']=function(u){
     const wd=wp.byDay[day.id],md=wp.missDay[day.id];
     const tag=wd?'<span class="daydone">'+I.check+'hecho '+fmtDow(wd.date)+(wd.partial?' · incompleta':'')+'</span>'
       :md?'<span class="daydone" style="background:var(--danger-08);color:var(--red)">✕ no la hiciste</span>':'';
-    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+day.exercises.length+' ejercicios'+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+pastBtn+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn '+(wd&&!enCurso?'btn-g':'btn-p')+' btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
-    '<div class="tblwrap"><table class="tbl rtbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th class="u-w60">Series</th><th class="u-w70">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    days+='<div class="dayblk"><div class="dayblk-h"><h4>'+esc(day.name)+tag+'</h4><span class="cnt">'+diaContTxt(day)+(enCurso?' · sin guardar':'')+'</span><span class="sp">'+pastBtn+(wd||md?'':'<button class="btn btn-g btn-sm" data-act="miss-why" data-day="'+day.id+'">No pude</button> ')+'<button class="btn '+(wd&&!enCurso?'btn-g':'btn-p')+' btn-sm" data-act="wlog-start" data-day="'+day.id+'">'+(enCurso?'Continuar':wd?'Repetir':'Registrar')+'</button></span></div>'+
+    bqRutinaAtleta(day,'antes')+(day.exercises.length?'<div class="tblwrap"><table class="tbl rtbl"><thead><tr><th style="width:30px">#</th><th>Ejercicio</th><th class="u-w60">Series</th><th class="u-w70">Reps</th><th style="width:55px">RIR</th><th style="width:85px">Descanso</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')+bqRutinaAtleta(day,'despues')+'</div>';
   });
   /* Mismo resumen de semana que en «Hoy»: es la vista donde el atleta decide qué toca,
      así que la cifra tiene que estar aquí también y no obligarle a volver al inicio. */
@@ -10460,7 +10982,7 @@ Object.assign(ACTIONS,{
   'wlog-start':el=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const day=d.routine.days.find(x=>x.id===el.dataset.day);
-    if(!day||!day.exercises.length){toast('Este día no tiene ejercicios','err');return;}
+    if(!day||(!day.exercises.length&&!bqDe(day).length)){toast('Este día no tiene ejercicios','err');return;}
     if(el.dataset.force!=='1'&&wdraftDirty(WDRAFT)&&WDRAFT.aid===u.id){
       /* El mismo día de rutina se continúa sin preguntar SOLO si el borrador es de hoy (o es una corrección
          de una sesión guardada, que conserva a propósito su fecha original). Un borrador de hace días
@@ -10734,7 +11256,7 @@ Object.assign(ACTIONS,{
     let btns='';
     (rt.days||[]).forEach(day=>{
       const hecho=wp.byDay[day.id],falt=wp.missDay[day.id];
-      const sub=hecho?'ya la hiciste el '+fmtDow(hecho.date):falt?'ya la marcaste como no hecha':day.exercises.length+' ejercicios';
+      const sub=hecho?'ya la hiciste el '+fmtDow(hecho.date):falt?'ya la marcaste como no hecha':diaContTxt(day);
       btns+='<button class="userbtn u-mb8" data-act="miss-why" data-day="'+day.id+'"><span class="who"><b>'+esc(day.name)+'</b><span>'+esc(sub)+'</span></span><span class="arr">→</span></button>';
     });
     openModal('¿Qué sesión no pudiste hacer?','<p class="muted mb8">Registrarla no cuenta como entrenamiento: le sirve a tu coach para ajustar tu semana en vez de adivinar por qué no apareciste.</p>'+btns,'<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
@@ -11406,7 +11928,7 @@ function applyTplNutri(aid,t){
   if(cl)d.nutrition.clinico=cl;/* las consideraciones clínicas (suplementación) también son del atleta */
   if(ea)d.nutrition.eqvAllow=ea;smaeSyncHideN(d.nutrition);/* qué equivalentes ve pese a su perfil: decisión sobre ESTE atleta */
 }
-function tplList(kind){return kind==='routine'?S.templates.routines:S.templates.nutris;}
+function tplList(kind){if(kind==='bloque'){ensureTemplates(S);return S.templates.bloques;}return kind==='routine'?S.templates.routines:S.templates.nutris;}
 function tplById(kind,id){return tplList(kind).find(x=>x.id===id);}
 function showTplAssignModal(kind,t){
   if(!t)return;
@@ -11416,7 +11938,7 @@ function showTplAssignModal(kind,t){
   openModal('Asignar «'+esc(t.name)+'»',rows,'<button class="btn btn-g" data-act="modal-close">Cerrar</button>');
 }
 function tplSummary(kind,t){
-  if(kind==='routine'){let ex=0;(t.days||[]).forEach(d=>ex+=d.exercises.length);return t.days.length+(t.days.length===1?' día':' días')+' · '+ex+' ejercicios';}
+  if(kind==='routine'){let ex=0,nb=0;(t.days||[]).forEach(d=>{ex+=d.exercises.length;nb+=bqDe(d).length;});return t.days.length+(t.days.length===1?' día':' días')+' · '+ex+' ejercicios'+(nb?' · '+nb+(nb===1?' bloque':' bloques'):'');}
   const act=(t.plans||[]).find(p=>p.id===t.activePlan)||t.plans[0];const k=act?(act.kcal||kcalFromMacros(act)):0;
   return t.plans.length+(t.plans.length===1?' plan':' planes')+(k?' · '+k+' kcal en «'+esc(act.name)+'»':'')+((t.supplements||[]).length?' · '+t.supplements.length+' supl.':'');
 }
@@ -11935,7 +12457,7 @@ VIEWS['tpl']=function(u){
   const T=S.templates||{routines:[],nutris:[]};
   const card=(kind,t)=>{
     let det='';
-    if(kind==='routine'){(t.days||[]).forEach(d=>{det+='<li><span>'+esc(d.name)+'</span><span class="q">'+d.exercises.length+' ej.</span></li>';});}
+    if(kind==='routine'){(t.days||[]).forEach(d=>{det+='<li><span>'+esc(d.name)+'</span><span class="q">'+diaContTxt(d)+'</span></li>';});}
     else{(t.plans||[]).forEach(p=>{const k=p.kcal||kcalFromMacros(p);det+='<li><span>'+esc(p.name)+(p.id===t.activePlan?' <span class="badge">activo</span>':'')+'</span><span class="q">'+(k?k+' kcal · ':'')+(p.mode==='menu'?'menú cerrado':p.mode==='eqv'?'equivalentes':'macros')+'</span></li>';});
       if((t.supplements||[]).length)det+='<li><span>Suplementos</span><span class="q">'+t.supplements.map(s=>esc(s.name)).join(', ')+'</span></li>';}
     return '<div class="meal"><div class="meal-h"><span>'+esc(t.name)+(t.source==='ai-import'?' <span class="badge">IA</span>':'')+'</span><span class="tm">'+tplSummary(kind,t)+(t.created?' · guardada '+fmtDate(t.created):'')+'</span><span class="sp">'+
@@ -11946,12 +12468,19 @@ VIEWS['tpl']=function(u){
   const empty=txt=>'<div class="empty"><b>Sin plantillas todavía</b>'+txt+'</div>';
   let rH='';T.routines.forEach(t=>{rH+=card('routine',t);});
   let nH='';T.nutris.forEach(t=>{nH+=card('nutrition',t);});
+  /* Plantillas de bloques (2026-11-17): se guardan desde el editor del bloque y se cargan ahí mismo. */
+  let bqH='';(T.bloques||[]).forEach(t=>{const b=t.b||{},dt=bqDurTxt(b),rs=bqResumen(b);
+    bqH+='<div class="meal"><div class="meal-h"><span>'+esc(t.name)+'</span><span class="tm">'+esc(bqTipoLbl(b))+(dt?' · '+esc(dt):'')+(t.created?' · guardada '+fmtDate(t.created):'')+'</span><span class="sp">'+
+      '<button class="btn btn-g btn-sm" aria-label="Renombrar plantilla" data-act="tpl-ren-modal" data-kind="bloque" data-tpl="'+t.id+'">'+I.edit+'</button>'+
+      '<button class="btn btn-g btn-sm" aria-label="Eliminar plantilla" data-act="tpl-del-ask" data-kind="bloque" data-tpl="'+t.id+'">'+I.trash+'</button></span></div>'+(rs?'<ul><li><span>'+esc(rs)+'</span></li></ul>':'')+'</div>';});
+  const bqTplCard='<div class="card mb16"><h3>'+I.dumbbell+' Bloques de calentamiento y cardio <span class="hint">se guardan desde el editor de un bloque</span></h3>'+
+    (bqH||empty('Abre un atleta → Entrenamiento → «Añadir bloque» y marca «Guardar también en mis plantillas de bloques». Después lo eliges en el mismo editor, en cualquier día de cualquier atleta.'))+'</div>';
   return{title:'Plantillas',crumb:T.routines.length+' de rutina · '+T.nutris.length+' de nutrición',back:{v:'apoyo'},
     actions:'<button class="btn btn-p" data-act="aiimport-pick">'+I.copy+' Importar archivo (IA)</button>',
     body:(_aiImport&&(_aiImport.routine||_aiImport.nutri)?'<div class="notebox mb16 u-bl-red">Tienes un análisis de IA sin guardar (de un archivo subido antes). <button class="btn btn-p btn-sm" data-act="aiimport-resume">Continuar con ese análisis</button></div>':'')+
     '<div class="notebox mb16 u-bl-volt">Sube un archivo (Excel, PDF de texto o Word) con una rutina o un plan de alimentación y la IA lo convierte en plantilla. Botón <b>Importar archivo (IA)</b> arriba a la derecha.</div>'+
     '<div class="card mb16"><h3>'+I.dumbbell+' Rutinas <span class="hint">guárdalas desde la pestaña Entrenamiento de un atleta</span> <button class="btn btn-g btn-sm" data-act="rtimport-pick">'+I.copy+' Importar desde CSV</button></h3>'+(rH||empty('Abre un atleta → Entrenamiento → «Guardar como plantilla», o importa una rutina desde un CSV de Google Sheets con el botón de arriba. Luego asígnala a un atleta.'))+'</div>'+
-    '<div class="card mb16"><h3>'+I.food+' Nutrición <span class="hint">conjunto completo: planes por tipo de día + suplementos</span></h3>'+(nH||empty('Abre un atleta → Nutrición → «Guardar como plantilla». El perfil de alimentación (alergias/gustos) nunca viaja con la plantilla.'))+'</div>'};
+    bqTplCard+'<div class="card mb16"><h3>'+I.food+' Nutrición <span class="hint">conjunto completo: planes por tipo de día + suplementos</span></h3>'+(nH||empty('Abre un atleta → Nutrición → «Guardar como plantilla». El perfil de alimentación (alergias/gustos) nunca viaja con la plantilla.'))+'</div>'};
 };
 
 VIEWS['lib']=function(u){
