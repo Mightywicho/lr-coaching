@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-17.1">
+<meta name="lr-build" content="2026-11-18.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -432,7 +432,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 /* ---------- charts ---------- */
 .chart-wrap{width:100%}
 .chart-wrap svg{display:block;width:100%;height:auto}
-.wch-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.wch-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}
 .wch-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:var(--fs-2);color:var(--tx3);margin-bottom:4px}
 .wch-top .wch-leg{margin:0}
 .wch-leg span{display:inline-flex;align-items:center;gap:6px}
@@ -476,8 +476,31 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 @media(max-width:560px){.wrec{gap:6px}.wrec b{font-size:var(--fs-5)}.pg .pg-big{font-size:var(--fs-5)}}
 .wch-box{position:relative}
 .wch-box svg{display:block;width:100%;height:auto;touch-action:pan-y}
-.wch[data-r] .wch-box[data-rg]{display:none}
-.wch[data-r="30"] .wch-box[data-rg="30"],.wch[data-r="90"] .wch-box[data-rg="90"],.wch[data-r="all"] .wch-box[data-rg="all"]{display:block}
+.wch[data-r="30"] [data-rg]:not([data-rg="30"]),.wch[data-r="90"] [data-rg]:not([data-rg="90"]),.wch[data-r="all"] [data-rg]:not([data-rg="all"]){display:none}
+.wch-hero .l{font-size:var(--fs-2);color:var(--tx3)}
+.wch-hero .n{font-family:var(--font-d);font-size:30px;font-weight:600;line-height:1.1;margin-top:2px}
+.wch-hero .n small{font-size:var(--fs-5);color:var(--tx2);font-weight:500;margin-left:4px}
+.wch-hero .dl{font-size:var(--fs-3);color:var(--tx2);margin-top:3px}
+.wch-hero .dl b{color:var(--tx);font-weight:600}
+.wch-cap{margin:8px 0 0}
+.wch-leg i.d{background:#8e8e95}
+.wch-leg i.ln{width:16px;height:4px;border-radius:2px;background:var(--orange)}
+.wch-leg i.ln.r{background:var(--purple)}
+.wch-leg i.sq{width:10px;height:10px;border-radius:3px}
+.wch-leg i.bz{width:12px;height:10px;border-radius:2px;background:rgba(82,217,138,.2)}
+.rch-box{position:relative;margin-top:4px}
+.rch-box svg,.rt-rule svg{display:block;width:100%;height:auto;touch-action:pan-y}
+.rt-rule{margin-top:14px}
+.rt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.rt-head>div{min-width:0;flex:1 1 260px}
+.rt-say{font-size:var(--fs-5);color:var(--tx2);margin:0 0 4px}
+.rt-say b{color:var(--tx);font-weight:600}
+.rt-pill{--c:var(--green);display:inline-flex;align-items:center;gap:6px;flex:none;font-size:var(--fs-2);font-weight:600;padding:3px 10px 3px 4px;border-radius:var(--r-pill);border:1px solid var(--c);color:var(--tx)}
+.rt-pill i{font-style:normal;width:16px;height:16px;border-radius:50%;display:inline-grid;place-items:center;background:var(--c);color:#0c0c0d;font-size:10px;font-weight:800}
+.rt-how{margin-top:12px}
+.rt-how summary{cursor:pointer;color:var(--tx3);font-size:var(--fs-2);width:max-content}
+.rt-how p{margin-top:6px}
+.pg-path{margin-top:6px}
 .wch-tip{display:none;position:absolute;top:-6px;pointer-events:none;background:var(--card2);border:1px solid var(--line2);border-radius:var(--r-s);padding:7px 10px;font-size:var(--fs-2);line-height:1.45;box-shadow:var(--shadow);white-space:nowrap;z-index:3}
 .wch-tip b{display:block;font-weight:600;color:var(--tx);margin-bottom:2px}
 .wch-tip span{display:flex;justify-content:space-between;gap:14px;color:var(--tx3)}
@@ -5392,87 +5415,91 @@ function svgLine(points,opts){
 /* ---------- gráfica de peso corporal (eje de tiempo real + media móvil 7 días) ----------
    svgLine reparte los puntos a la misma distancia aunque entre dos pesajes haya un día o un
    mes: un hueco sin pesarse parecía un cambio brusco. Aquí el eje X es tiempo real, los
-   pesajes sueltos van tenues (son ruido de agua/glucógeno) y la línea principal es la media
-   de los últimos 7 días. Lleva 30 d / 90 d / Todo y un cursor con el dato de cada día.
+   pesajes sueltos van como puntitos grises (son ruido de agua/glucógeno) y lo único con color
+   es la media de los últimos 7 días. Rediseño 2026-11-18 (propuesta «A»): el número grande
+   arriba sustituye a la leyenda, la meta va como línea punteada si cabe en el rango y el
+   estancamiento como franja fina bajo el eje (antes era un rectángulo encima de los datos).
    opts: color, h, ranges (false = sin botones; el reporte se exporta como imagen),
-         band {kgLo,kgHi,start,cur} = banda del ritmo objetivo (kg/sem) desde el primer punto,
-         fit {start,cur} = recta de regresión. */
+         hero (false = sin el número grande), goal (peso meta), stalls (solo la vista del coach).
+   Colores en hex (WCOL), no var(--x): html2canvas convierte el SVG a imagen fuera del
+   documento y ahí las variables CSS no existen. */
 const WCH_DAY=86400000;
-function wchNiceStep(span){const raw=span/4;for(const s of[.1,.2,.25,.5,1,2,2.5,5,10,20])if(s>=raw)return s;return 50;}
+const WCOL={blue:'#7cd0fb',grid:'#1e1e22',zero:'#3a3a40',tx:'#ededed',tx2:'#b3b3b3',tx3:'#8e8e95',card:'#0c0c0d',green:'#52d98a',orange:'#ffb45c',red:'#f2557a',purple:'#b69cff'};
+function wchNiceStep(span){const raw=span/4;for(const s of[.1,.2,.5,1,2,5,10,20])if(s>=raw)return s;return 50;}
+const wchT=(x,y,s,a)=>'<text x="'+(+x).toFixed(1)+'" y="'+(+y).toFixed(1)+'" '+(a||'')+'>'+s+'</text>';
 function wchSvg(pts,opts){
   /* en teléfono el lienzo es más estrecho: con 560 de ancho escalado a ~340 px el texto de los ejes quedaba en ~6 px */
-  const nar=window.innerWidth<600,color=opts.color||'#7cd0fb',H=opts.h||(nar?230:200),W=nar?360:560,padL=40,padR=14,padT=16,padB=26,iw=W-padL-padR,ih=H-padT-padB;
+  const nar=window.innerWidth<600,color=opts.color||WCOL.blue,H=opts.h||(nar?230:210),W=nar?360:560;
   const t=pts.map(p=>Date.parse(p.x)),t0=t[0],t1=Math.max(t[t.length-1],t0+WCH_DAY);
   /* media de los pesajes de los 7 días que terminan en cada uno */
   const avg=pts.map((p,i)=>{let s=0,n=0;for(let j=i;j>=0&&t[i]-t[j]<7*WCH_DAY;j--){s+=pts[j].y;n++;}return s/n;});
-  const extra=[];const b=opts.band,f=opts.fit;
-  const wks=(t1-t0)/(7*WCH_DAY);
-  if(b)extra.push(b.start,b.start+b.kgLo*wks,b.start+b.kgHi*wks);
-  if(f)extra.push(f.start,f.cur);
-  const all=pts.map(p=>p.y).concat(extra);
-  let min=Math.min(...all),max=Math.max(...all);if(max-min<.6){const m=(max+min)/2;min=m-.3;max=m+.3;}
-  const step=wchNiceStep(max-min);min=Math.floor(min/step)*step;max=Math.ceil(max/step)*step;
+  const stl=(opts.stalls||[]).map(z=>({z,a:Math.max(t0,Date.parse(z.from)),e:Math.min(t1,Date.parse(z.to)+WCH_DAY)})).filter(s=>s.e>s.a);
+  const padL=6,padR=46,padT=14,padB=stl.length?42:28,iw=W-padL-padR,ih=H-padT-padB,bot=padT+ih;
+  let min=Math.min(...pts.map(p=>p.y)),max=Math.max(...pts.map(p=>p.y));
+  /* la meta entra en la escala solo si está cerca; si no, aplastaría los datos (va en el número de arriba) */
+  const gw=+opts.goal>0?+opts.goal:null,sp=Math.max(max-min,.6),goalIn=gw!=null&&gw>=min-sp*.45&&gw<=max+sp*.45;
+  if(goalIn){min=Math.min(min,gw);max=Math.max(max,gw);}
+  if(max-min<.6){const m=(max+min)/2;min=m-.3;max=m+.3;}
+  const step=wchNiceStep(max-min);min=Math.floor(min/step+1e-9)*step;max=Math.ceil(max/step-1e-9)*step;
   const X=ms=>padL+(ms-t0)/(t1-t0)*iw,Y=v=>padT+ih-(v-min)/(max-min)*ih;
-  const dec=step<1?1:0,fx=v=>v.toFixed(dec);
+  const dec=step<1?1:0,ax='font-size="10.5" fill="'+WCOL.tx3+'"';
   let grid='';
-  for(let v=min;v<=max+step/2;v+=step){const y=Y(v).toFixed(1);grid+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#232a36"/><text x="'+(padL-8)+'" y="'+(+y+3.5)+'" text-anchor="end" font-size="10.5" fill="#8a96a8">'+fx(v)+'</text>';}
-  /* fechas del eje: ~5 marcas repartidas en el tiempo, no en el número de pesajes */
-  let xl='';const nx=Math.min(nar?4:5,Math.max(2,Math.round((t1-t0)/WCH_DAY)+1));
-  for(let k=0;k<nx;k++){const ms=t0+(t1-t0)*k/(nx-1),iso=new Date(ms).toISOString().slice(0,10);xl+='<text x="'+X(ms).toFixed(1)+'" y="'+(H-7)+'" text-anchor="'+(k===0?'start':k===nx-1?'end':'middle')+'" font-size="10.5" fill="#8a96a8">'+fmtDate(iso)+'</text>';}
-  let band='';
-  if(b){const xe=X(t1).toFixed(1),xs=X(t0).toFixed(1);
-    band='<path d="M'+xs+','+Y(b.start).toFixed(1)+'L'+xe+','+Y(b.start+b.kgLo*wks).toFixed(1)+'L'+xe+','+Y(b.start+b.kgHi*wks).toFixed(1)+'Z" fill="#52d98a" fill-opacity=".13"/>'+
-      '<path d="M'+xs+','+Y(b.start).toFixed(1)+'L'+xe+','+Y(b.start+b.kgLo*wks).toFixed(1)+'M'+xs+','+Y(b.start).toFixed(1)+'L'+xe+','+Y(b.start+b.kgHi*wks).toFixed(1)+'" stroke="#52d98a" stroke-opacity=".45" stroke-width="1" stroke-dasharray="3 3" fill="none"/>';}
+  for(let v=min;v<=max+step/2;v+=step){const y=Y(v).toFixed(1);grid+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="'+WCOL.grid+'"/>'+wchT(W-padR+8,+y+3.5,v.toFixed(dec),ax);}
+  /* tres fechas: inicio, mitad y fin */
+  let xl='';[0,.5,1].forEach((k,i)=>{const ms=t0+(t1-t0)*k;xl+=wchT(X(ms),H-6,fmtDate(new Date(ms).toISOString().slice(0,10)),'text-anchor="'+(i===0?'start':i===2?'end':'middle')+'" '+ax);});
+  let goal='';
+  if(goalIn){const y=Y(gw),ly=y-6<padT+8?y+14:y-6;goal='<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="'+WCOL.tx2+'" stroke-opacity=".55" stroke-width="1.2" stroke-dasharray="4 4"/>'+
+    wchT(padL+2,ly,'Meta '+fx2(gw)+' kg','font-size="10.5" font-weight="600" fill="'+WCOL.tx2+'" paint-order="stroke" stroke="'+WCOL.card+'" stroke-width="3"');}
   /* la media se corta (tramo punteado) donde hubo más de 14 días sin pesarse */
-  let line='',gap='',area='';
+  let line='',gap='';
   pts.forEach((p,i)=>{const x=X(t[i]).toFixed(1),y=Y(avg[i]).toFixed(1);
     if(i&&t[i]-t[i-1]>14*WCH_DAY){gap+='M'+X(t[i-1]).toFixed(1)+','+Y(avg[i-1]).toFixed(1)+'L'+x+','+y;line+='M'+x+','+y;}
     else line+=(i?'L':'M')+x+','+y;});
-  if(!f){area='M'+X(t0).toFixed(1)+','+(padT+ih);pts.forEach((p,i)=>{area+='L'+X(t[i]).toFixed(1)+','+Y(avg[i]).toFixed(1);});area+='L'+X(t[t.length-1]).toFixed(1)+','+(padT+ih)+'Z';}
-  const gid='wg'+uid();
-  const r=pts.length>60?1.8:2.4;
-  let dots='';pts.forEach((p,i)=>{dots+='<circle cx="'+X(t[i]).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="'+r+'" fill="'+color+'" fill-opacity=".42"/>';});
-  const fit=f?'<path d="M'+X(t0).toFixed(1)+','+Y(f.start).toFixed(1)+'L'+X(t1).toFixed(1)+','+Y(f.cur).toFixed(1)+'" stroke="#e9edf4" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="6 4" fill="none"/>':'';
-  /* tramos estancados (solo los pasa la vista del coach) */
-  let stl='';(opts.stalls||[]).forEach(z=>{const a=Math.max(t0,Date.parse(z.from)),e=Math.min(t1,Date.parse(z.to)+WCH_DAY);if(e<=a)return;
-    const xa=X(a),xe=X(e),zc=z.recomp?'#b69cff':'#ffb45c';stl+='<rect x="'+xa.toFixed(1)+'" y="'+padT+'" width="'+(xe-xa).toFixed(1)+'" height="'+ih+'" fill="'+zc+'" fill-opacity=".09"/><line x1="'+xa.toFixed(1)+'" x2="'+xe.toFixed(1)+'" y1="'+(padT+1)+'" y2="'+(padT+1)+'" stroke="'+zc+'" stroke-width="2"/>'+
-      (function(){const full=(z.recomp?'Recomposición':'Estancado')+' · '+z.n+' sem',tx=(xe-xa)>full.length*5.6+10?full:(xe-xa)>40?z.n+' sem':'';
-        return tx?'<text x="'+(xa+5).toFixed(1)+'" y="'+(padT+13)+'" font-size="10" font-weight="600" fill="'+zc+'">'+tx+'</text>':'';})();});
-  /* más bajo y más alto del rango visible (en «Todo» = histórico) */
-  let ext='';
-  if(opts.extremes!==false){let a=0,z=0;pts.forEach((p,i)=>{if(p.y<pts[a].y)a=i;if(p.y>pts[z].y)z=i;});
-    if(pts[z].y-pts[a].y>=.3)[[a,'Mín',1],[z,'Máx',-1]].forEach(([i,tx,dir])=>{const x=X(t[i]),y=Y(pts[i].y),lb=tx+' '+fx2(pts[i].y);
-      const ty=Math.max(padT+10,Math.min(padT+ih-3,y+(dir>0?15:-8))),anc=x<padL+40?'start':x>W-padR-40?'end':'middle',tx0=anc==='start'?x+7:anc==='end'?x-7:x;
-      ext+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3.6" fill="none" stroke="#e9edf4" stroke-width="1.4"/><text x="'+tx0.toFixed(1)+'" y="'+ty.toFixed(1)+'" text-anchor="'+anc+'" font-size="10" font-weight="600" fill="#9aa5b6" paint-order="stroke" stroke="#151921" stroke-width="3">'+lb+'</text>';});}
-  const li=pts.length-1,lx=X(t[li]),ly=Y(avg[li]);
-  const lbl=fx2(avg[li])+' kg',lw=lbl.length*7+12,lbx=Math.min(W-padR-lw,Math.max(padL,lx-lw/2)),lby=ly-28<padT-6?ly+12:ly-28;
-  const last='<circle cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="4.5" fill="'+color+'" stroke="#151921" stroke-width="2"/>'+
-    '<rect x="'+lbx.toFixed(1)+'" y="'+lby.toFixed(1)+'" width="'+lw+'" height="18" rx="5" fill="#1a202b" stroke="#2f3845"/><text x="'+(lbx+lw/2).toFixed(1)+'" y="'+(lby+12.5).toFixed(1)+'" text-anchor="middle" font-size="11" font-weight="700" fill="#e9edf4">'+lbl+'</text>';
-  /* datos para el cursor: x en unidades del viewBox | fecha | pesaje | media */
-  const dp=pts.map((p,i)=>X(t[i]).toFixed(1)+'|'+Y(p.y).toFixed(1)+'|'+Y(avg[i]).toFixed(1)+'|'+p.x+'|'+p.y+'|'+avg[i].toFixed(2)).join(';');
-  const top=padT,bot=padT+ih;
-  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" data-p="'+dp+'" data-top="'+top+'" data-bot="'+bot+'" role="img" aria-label="Peso corporal: '+pts.length+' pesajes, media de 7 días actual '+lbl+'">'+
-    '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+color+'" stop-opacity=".16"/><stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient></defs>'+
-    grid+stl+band+(area?'<path d="'+area+'" fill="url(#'+gid+')"/>':'')+dots+fit+
+  const r=pts.length>60?1.7:2.1;
+  let dots='';pts.forEach((p,i)=>{dots+='<circle cx="'+X(t[i]).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="'+r+'" fill="'+WCOL.tx3+'" fill-opacity=".4"/>';});
+  /* estancamientos: franja fina bajo el área de datos (naranja; morada si la cintura bajó = recomposición) */
+  let lane='';stl.forEach(s=>{lane+='<rect x="'+X(s.a).toFixed(1)+'" y="'+(bot+8)+'" width="'+Math.max(4,X(s.e)-X(s.a)).toFixed(1)+'" height="4" rx="2" fill="'+(s.z.recomp?WCOL.purple:WCOL.orange)+'"/>';});
+  const li=pts.length-1,lx=X(t[li]),ly=Y(avg[li]),lbl=fx2(avg[li])+' kg';
+  const last='<circle cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="4.5" fill="'+color+'" stroke="'+WCOL.card+'" stroke-width="2.5"/>'+
+    wchT(lx-8,ly-10<padT+4?ly+18:ly-10,fx2(avg[li]),'text-anchor="end" font-size="12" font-weight="600" fill="'+WCOL.tx+'" paint-order="stroke" stroke="'+WCOL.card+'" stroke-width="4"');
+  /* datos para el cursor: x en unidades del viewBox | y de la media | y de la media | fecha | pesaje | media */
+  const dp=pts.map((p,i)=>X(t[i]).toFixed(1)+'|'+Y(avg[i]).toFixed(1)+'|'+Y(avg[i]).toFixed(1)+'|'+p.x+'|'+p.y+'|'+avg[i].toFixed(2)).join(';');
+  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" data-p="'+dp+'" role="img" aria-label="Peso corporal: '+pts.length+' pesajes, media de 7 días actual '+lbl+'">'+
+    grid+goal+dots+
     (gap?'<path d="'+gap+'" stroke="'+color+'" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="2 4" fill="none"/>':'')+
-    '<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>'+ext+last+xl+
-    '<g class="wch-cur" style="display:none"><line y1="'+top+'" y2="'+bot+'" stroke="#9aa5b6" stroke-width="1" stroke-dasharray="2 3"/><circle r="5" fill="'+color+'" stroke="#151921" stroke-width="2"/></g></svg>';
+    '<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+lane+last+xl+
+    '<g class="wch-cur" style="display:none"><line y1="'+padT+'" y2="'+bot+'" stroke="'+WCOL.tx3+'" stroke-width="1"/><circle r="5" fill="'+color+'" stroke="'+WCOL.card+'" stroke-width="2.5"/></g></svg>';
 }
 const fx2=v=>(+v).toFixed(1);
+/* número grande de arriba: media de 7 días al final del rango y cuánto cambió dentro de él */
+function wchHero(pts,lbl,gw){
+  const t=pts.map(p=>Date.parse(p.x)),a7=i=>{let s=0,n=0;for(let j=i;j>=0&&t[i]-t[j]<7*WCH_DAY;j--){s+=pts[j].y;n++;}return s/n;};
+  const now=a7(pts.length-1),d=now-a7(0),k=v=>Math.abs(v).toFixed(1);
+  const falta=gw>0&&Math.abs(now-gw)>=0.3?' · faltan <b>'+k(now-gw)+' kg</b> para la meta':gw>0?' · en la meta':'';
+  return '<div class="l">Media de 7 días</div><div class="n">'+fx2(now)+'<small>kg</small></div><div class="dl"><b>'+(Math.abs(d)<0.05?'Sin cambio':(d>0?'+':'−')+k(d)+' kg')+'</b> '+lbl+falta+'</div>';
+}
+function wchCap(pts,opts){
+  const t0=pts[0].x,t1=pts[pts.length-1].x;
+  const st=(opts.stalls||[]).filter(z=>z.to>=t0&&z.from<=t1),z=st[st.length-1];
+  return '<div class="wch-leg wch-cap"><span><i class="l" style="background:'+(opts.color||WCOL.blue)+'"></i>Media 7 días</span><span><i class="d"></i>Pesaje del día</span>'+
+    (z?'<span><i class="ln'+(z.recomp?' r':'')+'"></i>'+(z.recomp?'Recomposición':'Estancado')+' '+z.n+' sem ('+fmtDate(z.from)+' – '+fmtDate(z.to)+')'+(st.length>1?' y '+(st.length-1)+' más':'')+'</span>':'')+'</div>';
+}
 function svgWeight(points,opts){
   opts=opts||{};
   const pts=(points||[]).filter(p=>p&&p.x&&p.y!=null&&!isNaN(+p.y)).map(p=>({x:p.x,y:+p.y})).sort((a,b)=>a.x<b.x?-1:a.x>b.x?1:0);
   if(pts.length<2)return'<div class="empty"><b>Aún no hay suficientes datos</b>Se necesitan al menos 2 pesajes para la gráfica.</div>';
-  const legend='<div class="wch-leg"><span><i class="d" style="background:'+(opts.color||'#7cd0fb')+'"></i>Pesaje</span><span><i class="l" style="background:'+(opts.color||'#7cd0fb')+'"></i>Media 7 días</span>'+
-    (opts.fit?'<span><i class="l f"></i>Tendencia</span>':'')+(opts.band?'<span><i class="b"></i>Ritmo objetivo</span>':'')+((opts.stalls||[]).some(z=>!z.recomp)?'<span><i class="s"></i>Estancamiento</span>':'')+((opts.stalls||[]).some(z=>z.recomp)?'<span><i class="s r"></i>Recomposición</span>':'')+'</div>';
+  const gw=+opts.goal>0?+opts.goal:0,hero=opts.hero!==false;
   const spanD=(Date.parse(pts[pts.length-1].x)-Date.parse(pts[0].x))/WCH_DAY;
-  if(opts.ranges===false||spanD<=35)return'<div class="wch">'+legend+'<div class="wch-box">'+wchSvg(pts,opts)+'<div class="wch-tip"></div></div></div>';
+  const desde='desde el '+fmtDate(pts[0].x);
+  const box=(p,rg)=>'<div class="wch-box"'+(rg?' data-rg="'+rg+'"':'')+'>'+wchSvg(p,opts)+'<div class="wch-tip"></div>'+wchCap(p,opts)+'</div>';
+  if(opts.ranges===false||spanD<=35)return'<div class="wch">'+(hero?'<div class="wch-top"><div class="wch-hero">'+wchHero(pts,desde,gw)+'</div></div>':'')+box(pts)+'</div>';
   /* se pintan los tres rangos de una vez (son SVG ligeros) y los botones solo cambian cuál se ve */
   const cut=d=>{const c=new Date(Date.parse(pts[pts.length-1].x)-d*WCH_DAY).toISOString().slice(0,10);const s=pts.filter(p=>p.x>=c);return s.length>=2?s:pts.slice(-2);};
-  const rs=[['30','30 d',cut(30)],['90','90 d',cut(90)],['all','Todo',pts]].filter(r=>r[0]!=='90'||spanD>95);
+  const rs=[['30','30 d',cut(30),'en 30 días'],['90','90 d',cut(90),'en 90 días'],['all','Todo',pts,desde]].filter(r=>r[0]!=='90'||spanD>95);
   const def=spanD>95?'90':'all';
-  return '<div class="wch" data-r="'+def+'"><div class="wch-top">'+legend+'<div class="seg wch-seg">'+rs.map(r=>'<button class="'+(r[0]===def?'on':'')+'" data-act="wch-range" data-r="'+r[0]+'">'+r[1]+'</button>').join('')+'</div></div>'+
-    rs.map(r=>'<div class="wch-box" data-rg="'+r[0]+'">'+wchSvg(r[2],opts)+'<div class="wch-tip"></div></div>').join('')+'</div>';
+  return '<div class="wch" data-r="'+def+'"><div class="wch-top">'+(hero?rs.map(r=>'<div class="wch-hero" data-rg="'+r[0]+'">'+wchHero(r[2],r[3],gw)+'</div>').join(''):'<div></div>')+
+    '<div class="seg wch-seg">'+rs.map(r=>'<button class="'+(r[0]===def?'on':'')+'" data-act="wch-range" data-r="'+r[0]+'">'+r[1]+'</button>').join('')+'</div></div>'+
+    rs.map(r=>box(r[2],r[0])).join('')+'</div>';
 }
 /* cursor: un solo listener para todas las gráficas de peso, lee los datos del propio <svg> */
 (function(){
@@ -6571,7 +6598,7 @@ function coachTabResumen(aid){
     vacios+drCard(aid)+(sv.tr?coachSwapsCard(aid):'')+
     (feed?'<div class="sect-h"><h2>Comentarios recientes del atleta</h2></div>'+feed+'<div class="mb16"></div>':'')+
     progressCard(aid,false)+((_sinTasa&&_sinGraf)?'':weightTrendCard(aid)+
-    '<div class="card mb16"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(pts,{stalls:weightWeeksStatus(aid).stalls})+'</div>')+
+    '<div class="card mb16"><h3>Evolución del peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(pts,{stalls:weightWeeksStatus(aid).stalls,goal:d.profile.goalWeight})+'</div>')+
     secPleg('plc-perfil','Perfil y notas del coach','','categoría, objetivo, plan, acceso y notas internas','<div>'+
     '<div class="frow2"><div><label>Categoría</label><input id="f_cat" value="'+esc(d.profile.category)+'"></div><div><label>Altura (cm)</label><input id="f_h" type="number" value="'+esc(d.profile.heightCm)+'"></div></div>'+
     '<div class="frow4"><div><label>Peso actual (kg)</label><input id="f_w" type="number" step="0.1" value="'+esc(lw?lw.kg:'')+'"></div><div><label>Sexo</label><select id="f_sex"><option value="M"'+(d.profile.sex!=='F'?' selected':'')+'>Hombre</option><option value="F"'+(d.profile.sex==='F'?' selected':'')+'>Mujer</option></select></div><div><label>Edad (años)</label><input id="f_age" type="number" value="'+esc(d.profile.age||'')+'"></div><div><label>% grasa (opcional)</label><input id="f_bf" type="number" step="0.1" value="'+esc(d.profile.bodyFat||'')+'"></div></div>'+
@@ -10968,7 +10995,7 @@ VIEWS['ath-prog']=function(u){
     '<div class="stat"><div class="k">Adherencia · semana actual</div><div class="v">'+(adh!=null?adh+'<small> / 5</small>':'—')+'</div><div class="sub">desde el lunes</div></div></div>'+
     progressCard(aid,true)+
     fotoCardAth(aid)+
-    '<div class="card"><h3>Peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(wpts)+wwTable+'</div>'+
+    '<div class="card"><h3>Peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(wpts,{goal:d.profile.goalWeight})+wwTable+'</div>'+
     (function(){const wm=measureLogs(aid).filter(m=>m&&m.waist!=null).slice().sort((a,b)=>a.date<b.date?-1:1);
       return wm.length>=2?'<div class="card"><h3>Cintura <span class="hint">'+wm.length+' medidas</span></h3>'+svgLine(wm.map(m=>({x:m.date,y:+m.waist})),{color:'#b69cff',unit:'cm'})+'</div>':'';})()+
     '<div class="card"><h3>Pasos diarios <span class="hint">'+spts.length+' registros</span></h3>'+(spts.length>=2?svgLine(spts,{color:'#ffb45c'}):'<div class="empty"><b>Sin datos de pasos suficientes</b>Registra tus pasos cada día desde «Hoy» para ver la gráfica.</div>')+swTable+'</div>'+
@@ -13438,12 +13465,96 @@ function rateVerdict(tgt,pctWk,kgWk){
   else { v = pctWk<tgt.lo ? {cls:'orange',txt:'Por debajo del objetivo — poca ganancia'} : {cls:'red',txt:'Demasiado rápido — exceso de ganancia de grasa'}; }
   v.tgt=tgt;return v;
 }
-function svgWeightTrend(st,tgt,cur){
-  /* banda = ritmo objetivo (%/sem → kg/sem) arrancando del inicio de la recta: si la recta
-     cae dentro de la franja verde, va al ritmo que pide el plan */
-  const band=tgt?{start:st.fitStart,kgLo:cur*tgt.lo/100,kgHi:cur*tgt.hi/100}:null;
-  return svgWeight(st.pts.map(p=>({x:p.date,y:p.kg})),{fit:{start:st.fitStart,cur:st.fitCur},band,ranges:false});
+/* ===== TASA DE CAMBIO (rediseño 2026-11-18, propuestas «E» + «D») =====
+   Antes la tarjeta volvía a dibujar el peso con un cono verde; ahora grafica la tasa misma:
+   una regla con la zona objetivo y el ritmo actual (E) y una barra por semana con el %
+   frente a la anterior, coloreada por su veredicto (D). Colores en hex: ver WCOL. */
+const RT_COL={ok:WCOL.green,slow:WCOL.orange,off:WCOL.orange,rev:WCOL.red,fast:WCOL.red};
+const rtPct=v=>(v>0.004?'+':v<-0.004?'−':'')+Math.abs(v).toFixed(2);
+function rtStep(span,n,steps){return (steps||[.1,.2,.25,.5,1,2,5]).find(s=>s>=span/n)||10;}
+function svgRateRule(tgt,pct,weeks,col){
+  const nar=window.innerWidth<600,W=nar?360:560,H=96,pl=18,pr=18,ty=48;
+  const prev=weeks.filter(w=>w.pct!=null).slice(-4);
+  const vals=[tgt.lo,tgt.hi,0,pct].concat(prev.map(w=>w.pct));
+  let lo=Math.min(...vals),hi=Math.max(...vals);const pad=Math.max(.2,(hi-lo)*.12);lo-=pad;hi+=pad;
+  const s=rtStep(hi-lo,5,[.1,.2,.25,.5,1,2]),X=v=>pl+(v-lo)/(hi-lo)*(W-pl-pr),ax='font-size="10.5" fill="'+WCOL.tx3+'"';
+  let g='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+ty+'" y2="'+ty+'" stroke="'+WCOL.zero+'" stroke-width="2" stroke-linecap="round"/>'+
+    '<rect x="'+X(tgt.lo).toFixed(1)+'" y="'+(ty-9)+'" width="'+(X(tgt.hi)-X(tgt.lo)).toFixed(1)+'" height="18" rx="6" fill="'+WCOL.green+'" fill-opacity=".2"/>';
+  for(let v=Math.ceil(lo/s-1e-9)*s;v<=hi+1e-9;v+=s){const x=X(v),z=Math.abs(v)<1e-9;
+    g+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+(ty-(z?12:4))+'" y2="'+(ty+(z?12:4))+'" stroke="'+(z?WCOL.tx3:WCOL.zero)+'" stroke-width="'+(z?1.5:1)+'"/>'+
+      wchT(x,ty+27,z?'0 %':(v>0?'+':'−')+(+Math.abs(v).toFixed(2)),'text-anchor="middle" '+ax);}
+  const izq=tgt.dir<0?'← baja más rápido':'← baja',der=tgt.dir>0?'sube más rápido →':'sube →';
+  g+=wchT(pl,ty+44,izq,ax)+wchT(W-pr,ty+44,der,'text-anchor="end" '+ax);
+  prev.forEach(w=>{g+='<circle cx="'+X(w.pct).toFixed(1)+'" cy="'+ty+'" r="4" fill="'+WCOL.tx3+'" fill-opacity=".45"><title>Sem. '+fmtDate(w.week)+': '+rtPct(w.pct)+' %</title></circle>';});
+  const cx=X(pct),lx=Math.max(pl+30,Math.min(W-pr-30,cx));
+  g+='<circle cx="'+cx.toFixed(1)+'" cy="'+ty+'" r="8" fill="'+col+'" stroke="'+WCOL.card+'" stroke-width="3"/>'+
+    wchT(lx,ty-17,rtPct(pct)+' %/sem','text-anchor="middle" font-size="12.5" font-weight="700" fill="'+WCOL.tx+'"');
+  return '<div class="rt-rule"><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Ritmo actual '+rtPct(pct)+' % por semana; objetivo entre '+rtPct(tgt.lo)+' y '+rtPct(tgt.hi)+'">'+g+'</svg></div>'+
+    '<div class="wch-leg wch-cap"><span><i class="bz"></i>Zona objetivo</span><span><i class="d" style="background:'+col+';opacity:1"></i>Ahora</span>'+(prev.length?'<span><i class="d"></i>Últimas '+prev.length+' semanas</span>':'')+'</div>';
 }
+function svgRateBars(ws,max){
+  const nar=window.innerWidth<600,wk=ws.weeks.slice(-(nar?Math.min(12,max||16):(max||16)));
+  if(!wk.some(w=>w.pct!=null))return'';
+  const hasAdh=wk.some(w=>w.adh!=null),hasLane=wk.some(w=>w.inStall);
+  const W=nar?360:560,pl=4,pr=46,pt=16,pb=(hasLane?16:0)+(hasAdh?22:0)+24,H=(nar?190:180)+pb,bot=H-pb;
+  const vals=[0];wk.forEach(w=>{if(w.pct!=null)vals.push(w.pct);if(w.tgt){vals.push(w.tgt.lo,w.tgt.hi);}});
+  let lo=Math.min(...vals),hi=Math.max(...vals);
+  const s=rtStep(hi-lo,4,[.1,.2,.25,.5,1,2,5]);lo=Math.floor(lo/s+1e-9)*s;hi=Math.ceil(hi/s-1e-9)*s;if(hi-lo<s)hi=lo+s;
+  const Y=v=>bot-(v-lo)/(hi-lo)*(bot-pt),cw=(W-pl-pr)/wk.length,bw=Math.min(22,cw*.62),X=i=>pl+cw*(i+.5);
+  const ax='font-size="10.5" fill="'+WCOL.tx3+'"',dec=s===.25||s<.1?2:1;
+  let g='';
+  for(let v=lo;v<=hi+s/2;v+=s){const y=Y(v).toFixed(1),z=Math.abs(v)<1e-9;g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y+'" y2="'+y+'" stroke="'+(z?WCOL.zero:WCOL.grid)+'"/>'+wchT(W-pr+8,+y+3.5,z?'0 %':(v>0?'+':'−')+Math.abs(v).toFixed(dec),ax);}
+  /* franja objetivo por semana: cada semana se mide con el objetivo que tenía entonces */
+  wk.forEach((w,i)=>{if(!w.tgt)return;g+='<rect x="'+(X(i)-cw/2).toFixed(1)+'" y="'+Y(w.tgt.hi).toFixed(1)+'" width="'+cw.toFixed(1)+'" height="'+Math.max(1,Y(w.tgt.lo)-Y(w.tgt.hi)).toFixed(1)+'" fill="'+WCOL.green+'" fill-opacity=".1"/>';});
+  const bar=(x,w,y0,y1,r)=>{if(Math.abs(y1-y0)<2)y1=y0+(y1<y0?-2:2);r=Math.min(r,Math.abs(y1-y0),w/2);const e=y1<y0?r:-r;
+    return 'M'+x+','+y0+'V'+(y1+e)+'Q'+x+','+y1+' '+(x+r)+','+y1+'H'+(x+w-r)+'Q'+(x+w)+','+y1+' '+(x+w)+','+(y1+e)+'V'+y0+'Z';};
+  let bars='',lab='';const y0=Y(0);
+  wk.forEach((w,i)=>{if(w.pct==null)return;const c=RT_COL[w.st]||WCOL.tx3,y1=Y(w.pct),x=+(X(i)-bw/2).toFixed(1);
+    bars+='<path d="'+bar(x,+bw.toFixed(1),+y0.toFixed(1),+y1.toFixed(1),4)+'" fill="'+c+'"'+(w.n!=null&&w.n<3?' fill-opacity=".45"':'')+'/>';
+    if(w.st!=='ok'&&WK_ST[w.st])bars+=wchT(X(i),y1<y0?y1-5:y1+12,WK_ST[w.st][0],'text-anchor="middle" font-size="10.5" font-weight="700" fill="'+WCOL.tx2+'"');});
+  const li=wk.length-1,lw=wk[li];
+  if(lw.pct!=null)lab=wchT(X(li)-bw/2-4,Y(lw.pct)+(lw.pct<0?-2:10),rtPct(lw.pct)+' %','text-anchor="end" font-size="11.5" font-weight="600" fill="'+WCOL.tx+'" paint-order="stroke" stroke="'+WCOL.card+'" stroke-width="4"');
+  /* estancamiento: franja bajo las barras de esas semanas (morada si fue recomposición) */
+  let lane='';const ly=bot+8;
+  for(let i=0;i<wk.length;i++){if(!wk[i].inStall)continue;let j=i;while(j+1<wk.length&&wk[j+1].inStall&&!!wk[j+1].recomp===!!wk[i].recomp)j++;
+    lane+='<rect x="'+(X(i)-cw/2+2).toFixed(1)+'" y="'+ly+'" width="'+(cw*(j-i+1)-4).toFixed(1)+'" height="4" rx="2" fill="'+(wk[i].recomp?WCOL.purple:WCOL.orange)+'"/>';i=j;}
+  let adh='';const ay=bot+(hasLane?16:0)+16;
+  if(hasAdh)wk.forEach((w,i)=>{if(w.adh==null)return;const low=w.adh<3.5;adh+=wchT(X(i),ay,w.adh.toFixed(1),'text-anchor="middle" font-size="'+(nar?10:10.5)+'" fill="'+(low?WCOL.tx:WCOL.tx3)+'"'+(low?' font-weight="700"':''));});
+  const mid=Math.floor(wk.length/2);
+  const xl=wchT(X(0),H-6,fmtDate(wk[0].week),'text-anchor="middle" '+ax)+wchT(X(mid),H-6,fmtDate(wk[mid].week),'text-anchor="middle" '+ax)+wchT(X(li),H-6,'esta sem.','text-anchor="middle" '+ax);
+  /* datos para el cursor: x | izquierda de la columna | ancho | semana | Δkg | % | estado | adherencia | pesajes | estancada | objetivo */
+  const dc=wk.map((w,i)=>[X(i).toFixed(1),(X(i)-cw/2+1).toFixed(1),(cw-2).toFixed(1),w.week,w.delta!=null?w.delta:'',w.pct!=null?w.pct:'',w.st,w.adh!=null?w.adh.toFixed(1):'',w.n!=null?w.n:'',w.inStall?(w.recomp?'r':'1'):'',w.tgt?rtPct(w.tgt.lo)+' a '+rtPct(w.tgt.hi):''].join('|')).join(';');
+  const hay=k=>wk.some(w=>k.includes(w.st));
+  return '<div class="rch-box"><svg viewBox="0 0 '+W+' '+H+'" data-c="'+dc+'" role="img" aria-label="Cambio semanal del peso frente al objetivo de cada semana">'+g+
+    '<g class="rch-cur" style="display:none"><rect y="'+pt+'" height="'+(bot-pt)+'" rx="6" fill="'+WCOL.tx+'" fill-opacity=".05"/></g>'+bars+lab+lane+adh+xl+'</svg><div class="wch-tip"></div></div>'+
+    '<div class="wch-leg wch-cap"><span><i class="sq" style="background:'+WCOL.green+'"></i>En ritmo</span>'+(hay(['slow','off'])?'<span><i class="sq" style="background:'+WCOL.orange+'"></i>≈ Lento</span>':'')+(hay(['rev','fast'])?'<span><i class="sq" style="background:'+WCOL.red+'"></i>↺ En contra · ! Muy rápido</span>':'')+
+    '<span><i class="bz"></i>Objetivo de cada semana</span>'+(hasLane?'<span><i class="ln"></i>Estancamiento</span>'+(wk.some(w=>w.recomp)?'<span><i class="ln r"></i>Recomposición (bajó la cintura)</span>':''):'')+(hasAdh?'<span>Números de abajo: adherencia de la semana (1–5)</span>':'')+'</div>';
+}
+/* cursor de las barras: mismo patrón que el de la gráfica de peso, datos leídos del propio <svg> */
+(function(){
+  const hide=box=>{const g=box.querySelector('.rch-cur'),tp=box.querySelector('.wch-tip');if(g)g.style.display='none';if(tp)tp.style.display='none';};
+  const move=e=>{
+    const box=e.target.closest&&e.target.closest('.rch-box');
+    document.querySelectorAll('.rch-box.hov').forEach(b=>{if(b!==box){b.classList.remove('hov');hide(b);}});
+    if(!box)return;
+    const svg=box.querySelector('svg');if(!svg||!svg.dataset.c)return;
+    const vw=svg.viewBox.baseVal.width,rc=svg.getBoundingClientRect(),vx=(e.clientX-rc.left)/rc.width*vw;
+    const C=svg.dataset.c.split(';').map(s=>s.split('|'));
+    let k=0;C.forEach((c,i)=>{if(Math.abs(+c[0]-vx)<Math.abs(+C[k][0]-vx))k=i;});
+    const c=C[k],g=svg.querySelector('.rch-cur'),tp=box.querySelector('.wch-tip'),r=g.querySelector('rect');
+    box.classList.add('hov');g.style.display='';r.setAttribute('x',c[1]);r.setAttribute('width',c[2]);
+    const sg=v=>(+v>0?'+':+v<0?'−':'')+Math.abs(+v).toFixed(2);
+    tp.innerHTML='<b>Semana del '+fmtDate(c[3])+'</b>'+(c[5]===''?'<span>'+(WK_ST[c[6]]||['',''])[1]+'</span>':
+      '<span>Cambio <em>'+sg(c[4])+' kg ('+sg(c[5])+' %)</em></span><span>Veredicto <em>'+(WK_ST[c[6]]||['',''])[1]+'</em></span>'+(c[10]?'<span>Objetivo <em>'+c[10]+' %</em></span>':''))+
+      (c[7]?'<span>Adherencia <em>'+c[7]+' / 5</em></span>':'')+(c[8]!==''?'<span>Pesajes <em>'+c[8]+(+c[8]<3?' (pocos)':'')+'</em></span>':'')+(c[9]?'<span>'+(c[9]==='r'?'Recomposición':'Estancamiento')+' <em>sí</em></span>':'');
+    tp.style.display='block';
+    const px=+c[0]/vw*rc.width,tw=tp.offsetWidth;
+    tp.style.left=Math.min(rc.width-tw,Math.max(0,px-tw/2))+'px';
+  };
+  document.addEventListener('pointermove',move,{passive:true});
+  document.addEventListener('pointerdown',move,{passive:true});
+  document.addEventListener('pointerleave',e=>{if(e.target.classList&&e.target.classList.contains('rch-box')){e.target.classList.remove('hov');hide(e.target);}},true);
+})();
 /* ===== PROGRESO DEL PESO: ritmo objetivo por fecha, semáforo semanal, estancamientos y récords =====
    Juzgar una semana vieja con la fase de HOY pintaba de «mal» todo un volumen ya terminado en
    cuanto el atleta pasaba a definición. Por eso cada semana se mide con el objetivo que tenía
@@ -13549,17 +13660,10 @@ function stallAdvice(z){
   return ' Adherencia media ('+a+'/5): conviene revisar ambas cosas.';
 }
 const WK_ST={ok:['✓','En ritmo'],slow:['≈','Lento'],rev:['↺','En contra del objetivo'],fast:['!','Demasiado rápido'],off:['≈','Fuera de mantenimiento'],none:['·','Sin pesajes'],start:['·','Primera semana']};
-/* OJO: no llamarla weekStrip — ese nombre es la tira de entrenos de «Hoy» y la pisaba. */
-function weightWeekStrip(aid,max){
-  const ws=weightWeeksStatus(aid),wk=ws.weeks.slice(-(max||16));
-  if(wk.length<2)return'';
-  const sign=n=>(n>0?'+':'')+String(n);
-  const cells=wk.map(w=>{const m=WK_ST[w.st];
-    const tip='Sem. '+fmtDate(w.week)+' · '+(w.pct!=null?sign(w.delta)+' kg ('+sign(w.pct)+' %) · ':'')+m[1]+(w.n!=null&&w.n<3?' · solo '+w.n+' pesaje'+(w.n===1?'':'s'):'');
-    return '<span class="wks '+w.st+(w.inStall?(w.recomp?' stall recomp':' stall'):'')+(w.n!=null&&w.n<3?' few':'')+'" title="'+esc(tip+(w.adh!=null?' · adherencia '+w.adh.toFixed(1)+'/5':''))+'" aria-label="'+esc(tip)+'">'+m[0]+'</span>';}).join('');
-  const hasAdh=wk.some(w=>w.adh!=null);
-  const adhRow=hasAdh?'<div class="wk-row wk-adh" aria-label="Adherencia media de cada semana">'+wk.map(w=>'<span class="'+(w.adh==null?'':w.adh>=4?'hi':w.adh<3.5?'lo':'')+'">'+(w.adh==null?'–':w.adh.toFixed(1))+'</span>').join('')+'</div>':'';
-  /* diagnóstico en una frase, lo primero que el coach debe leer */
+/* Diagnóstico de estancamiento en una frase, lo primero que el coach debe leer.
+   (Antes vivía dentro de weightWeekStrip, la tira de cuadritos ✓ ≈ ↺ que sustituyeron las barras.) */
+function weightDiag(ws,max){
+  const wk=ws.weeks.slice(-(max||16));
   let diag;
   const ok=wk.filter(w=>w.st==='ok').length,judged=wk.filter(w=>w.st!=='none'&&w.st!=='start').length;
   if(ws.cur)diag='<b class="wk-warn">Estancado '+ws.cur.n+' semanas</b> desde el '+fmtDate(ws.cur.from)+': avanza menos de 0,2 %/sem hacia el objetivo.'+stallAdvice(ws.cur);
@@ -13568,9 +13672,7 @@ function weightWeekStrip(aid,max){
   const prevSt=ws.stalls.filter(x=>x!==ws.cur);
   const pl=prevSt[prevSt.length-1];
   const hist=prevSt.length?' Estancamientos anteriores: '+prevSt.length+' (el último del '+fmtDate(pl.from)+' al '+fmtDate(pl.to)+', '+pl.n+' sem'+(pl.recomp?'; la cintura bajó, fue recomposición':'')+').':' Ningún estancamiento anterior.';
-  return '<div class="wk-box"><div class="wk-diag">'+diag+hist+(judged?' En ritmo '+ok+' de las últimas '+judged+' semanas.':'')+'</div>'+
-    '<div class="wk-row">'+cells+'</div>'+adhRow+'<div class="wk-axis"><span>'+fmtDate(wk[0].week)+'</span><span>esta semana</span></div>'+
-    '<div class="wk-leg">'+['ok','slow','rev','fast','none'].map(k=>'<span><i class="wks '+k+'">'+WK_ST[k][0]+'</i>'+WK_ST[k][1]+'</span>').join('')+'<span><i class="wks ok stall">✓</i>Subrayado: estancamiento (tendencia de 3+ sem)</span><span><i class="wks ok stall recomp">✓</i>Subrayado azul: la cintura bajó (recomposición)</span>'+(hasAdh?'<span>Número de abajo: adherencia media de la semana (1–5)</span>':'')+'</div></div>';
+  return '<div class="wk-diag">'+diag+hist+(judged?' En ritmo '+ok+' de las últimas '+judged+' semanas.':'')+'</div>';
 }
 /* Récords y cambio total. «Inicio» y «ahora» usan la media de 7 días, no un pesaje suelto:
    un día de retención no debe cambiar la frase que lee el atleta. */
@@ -13590,6 +13692,34 @@ function weightRecordsRow(aid){
   return '<div class="wrec"><div><span>Peso más bajo</span><b>'+k(r.min.kg)+' kg</b><small>'+fmtDate(r.min.date)+'</small></div>'+
     '<div><span>Peso más alto</span><b>'+k(r.max.kg)+' kg</b><small>'+fmtDate(r.max.date)+'</small></div>'+
     '<div><span>Primer pesaje</span><b>'+k(r.first.kg)+' kg</b><small>'+fmtDate(r.first.date)+'</small></div></div>';
+}
+/* «Camino a la meta» (rediseño 2026-11-18, propuesta «C», solo atleta): lo recorrido en media de
+   7 días, la meta y la proyección punteada al ritmo actual hasta la fecha estimada. Solo se pinta
+   cuando hay fecha estimada (el ritmo va hacia la meta y llega en menos de 2 años). */
+function svgGoalPath(aid,gw,now,etaISO){
+  const w=(athData(aid).logs.weight||[]).filter(x=>x&&x.date&&x.kg!=null).slice().sort((a,b)=>a.date<b.date?-1:1);
+  if(w.length<2)return'';
+  const t=w.map(x=>Date.parse(x.date)),avg=w.map((x,i)=>{let s=0,n=0;for(let j=i;j>=0&&t[i]-t[j]<7*WCH_DAY;j--){s+=+w[j].kg;n++;}return s/n;});
+  const nar=window.innerWidth<600,W=nar?360:560,H=nar?210:200,pl=8,pr=16,pt=30,pb=28,bot=H-pb;
+  const te=Date.parse(etaISO),t0=t[0],t1=te+Math.max(4,(te-t0)/WCH_DAY*.03)*WCH_DAY,tn=t[t.length-1];
+  const lo=Math.min(gw,...avg)-.6,hi=Math.max(gw,...avg)+.5;
+  const X=ms=>pl+(ms-t0)/(t1-t0)*(W-pl-pr),Y=v=>bot-(v-lo)/(hi-lo)*(bot-pt),ax='font-size="10.5" fill="'+WCOL.tx3+'"';
+  let line='',area='M'+X(t0).toFixed(1)+','+bot;avg.forEach((v,i)=>{const x=X(t[i]).toFixed(1),y=Y(v).toFixed(1);line+=(i?'L':'M')+x+','+y;area+='L'+x+','+y;});
+  area+='L'+X(tn).toFixed(1)+','+bot+'Z';
+  const gy=Y(gw),cx=X(tn),cy=Y(now),ex=X(te),sy=Y(avg[0]),bajo=gw<now;
+  const lab=(x,y,s,a)=>wchT(x,y,s,(a||'')+' paint-order="stroke" stroke="'+WCOL.card+'" stroke-width="4"');
+  const dp=w.map((x,i)=>X(t[i]).toFixed(1)+'|'+Y(avg[i]).toFixed(1)+'|'+Y(avg[i]).toFixed(1)+'|'+x.date+'|'+x.kg+'|'+avg[i].toFixed(2)).join(';');
+  return '<div class="wch-box pg-path"><svg viewBox="0 0 '+W+' '+H+'" data-p="'+dp+'" role="img" aria-label="Camino a la meta de '+fx2(gw)+' kg: llegada estimada '+fmtDate(etaISO)+'">'+
+    '<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+gy.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="'+WCOL.tx3+'" stroke-opacity=".6" stroke-dasharray="4 4"/>'+
+    lab(pl+2,bajo?gy+16:gy-7,'Meta '+fx2(gw)+' kg','font-size="11" font-weight="600" fill="'+WCOL.tx2+'"')+
+    '<path d="'+area+'" fill="'+WCOL.blue+'" fill-opacity=".08"/><path d="'+line+'" fill="none" stroke="'+WCOL.blue+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<path d="M'+cx.toFixed(1)+','+cy.toFixed(1)+'L'+ex.toFixed(1)+','+gy.toFixed(1)+'" stroke="'+WCOL.blue+'" stroke-opacity=".75" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round" fill="none"/>'+
+    '<circle cx="'+X(t0).toFixed(1)+'" cy="'+sy.toFixed(1)+'" r="4" fill="'+WCOL.card+'" stroke="'+WCOL.tx3+'" stroke-width="2"/>'+lab(X(t0)+8,bajo?sy-8:sy+16,fx2(avg[0])+' kg','font-size="11" fill="'+WCOL.tx3+'"')+
+    '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="5" fill="'+WCOL.blue+'" stroke="'+WCOL.card+'" stroke-width="2.5"/>'+lab(cx,bajo?cy-12:cy+20,'Hoy '+fx2(now),'text-anchor="middle" font-size="12" font-weight="600" fill="'+WCOL.tx+'"')+
+    '<circle cx="'+ex.toFixed(1)+'" cy="'+gy.toFixed(1)+'" r="5" fill="'+WCOL.card+'" stroke="'+WCOL.blue+'" stroke-width="2.5"/>'+lab(ex,bajo?gy+20:gy-12,'≈ '+fmtDate(etaISO),'text-anchor="end" font-size="12" font-weight="600" fill="'+WCOL.tx+'"')+
+    wchT(pl,H-6,fmtDate(w[0].date),ax)+(cx-X(t0)>70&&ex-cx>50?wchT(cx,H-6,'hoy','text-anchor="middle" '+ax):'')+
+    '<g class="wch-cur" style="display:none"><line y1="'+pt+'" y2="'+bot+'" stroke="'+WCOL.tx3+'" stroke-width="1"/><circle r="5" fill="'+WCOL.blue+'" stroke="'+WCOL.card+'" stroke-width="2.5"/></g></svg><div class="wch-tip"></div>'+
+    '<div class="wch-leg wch-cap"><span><i class="l" style="background:'+WCOL.blue+'"></i>Tu peso (media de 7 días)</span><span><i class="l f"></i>Si sigues a este ritmo</span></div></div>';
 }
 /* Tarjeta «Tu progreso»: lo que el atleta entiende sin saber leer una gráfica.
    Para el atleta va en positivo y sin diagnóstico (el estancamiento es cosa del coach). */
@@ -13614,15 +13744,17 @@ function progressCard(aid,forAth){
   if(gw>0){
     const span=r.start-gw,done=r.start-r.now,falta=r.now-gw;
     const prog=Math.abs(span)<0.05?100:Math.max(0,Math.min(100,done/span*100));
-    const st=weightStats(aid,28);let eta='';
+    const st=weightStats(aid,28);let eta='',etaISO=null;
     if(Math.abs(falta)<0.3)eta=forAth?'¡Estás en tu meta!':'En la meta.';
     else if(st&&Math.abs(st.kgWk)>=0.05&&Math.sign(st.kgWk)===-Math.sign(falta)){
-      const wks=Math.abs(falta/st.kgWk);
+      const wks=Math.abs(falta/st.kgWk);if(wks<=104)etaISO=addDaysISO(todayISO(),Math.round(wks*7));
       eta=wks>104?'A este ritmo aún queda lejos.':'A este ritmo, '+(forAth?'llegarías':'llegaría')+' hacia el <b>'+fmtDate(addDaysISO(todayISO(),Math.round(wks*7)))+'</b> ('+Math.round(wks)+' sem).';
     }else eta=forAth?'Cuando el ritmo vaya hacia la meta te diremos una fecha estimada.':'El ritmo actual no va hacia la meta: sin fecha estimada.';
     goal='<div class="pg-goal"><div class="pg-gl"><span>Meta: <b>'+k(gw)+' kg</b></span><span>'+(Math.abs(falta)<0.3?'':'faltan <b>'+k(falta)+' kg</b>')+'</span></div>'+
       '<div class="pg-bar" role="progressbar" aria-valuenow="'+Math.round(prog)+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+prog.toFixed(1)+'%"></i></div>'+
       '<div class="pg-gl tiny"><span>'+k(r.start)+' kg al empezar</span><span>'+Math.round(prog)+' % del camino</span></div><p class="pg-sub">'+eta+'</p></div>';
+    /* atleta con fecha estimada: «Camino a la meta» en lugar de la barra */
+    if(forAth&&etaISO)goal='<div class="pg-goal">'+svgGoalPath(aid,gw,r.now,etaISO)+'<p class="pg-sub">Llevas el <b>'+Math.round(prog)+' %</b> del camino y faltan <b>'+k(falta)+' kg</b>. '+eta+'</p></div>';
   }
   return '<div class="card mb16 pg"><h3>'+(forAth?'Tu progreso':'Progreso del peso')+'</h3>'+lines+goal+weightRecordsRow(aid)+'</div>';
 }
@@ -13630,23 +13762,25 @@ function weightTrendCard(aid){
   const d=athData(aid),p=d.profile,lw=lastWeight(aid);
   const st=weightStats(aid,28);
   if(!st||!lw)return '<div class="card mb16"><h3>Tasa de cambio de peso</h3><div class="empty"><b>Faltan pesajes</b>Se necesitan al menos 2 registros de peso para calcular la tasa.</div></div>';
-  const cur=lw.kg, tgt=targetRateFor(aid), v=rateVerdict(tgt,st.pctWk,st.kgWk);
+  const cur=lw.kg, tgt=targetRateFor(aid), v=rateVerdict(tgt,st.pctWk,st.kgWk), ws=weightWeeksStatus(aid);
   const tkgLo=+(cur*tgt.lo/100).toFixed(2), tkgHi=+(cur*tgt.hi/100).toFixed(2);
-  const arrow=st.kgWk>0?'up':st.kgWk<0?'down':'flat';
   const sign=n=>(n>0?'+':'')+n;
-  const bandTxt=tgt.dir===0?'estable (±0,25%/sem)':(sign(tgt.lo)+' a '+sign(tgt.hi)+' %/sem  ·  '+sign(tkgLo)+' a '+sign(tkgHi)+' kg/sem');
+  const bandTxt=tgt.dir===0?'estable (±0,25 %/sem)':(sign(tgt.lo)+' a '+sign(tgt.hi)+' %/sem ('+sign(tkgLo)+' a '+sign(tkgHi)+' kg/sem)');
   const fuenteTxt=tgt.src==='plan'?'el déficit/superávit fijado en el plan de nutrición':'la fase «'+phaseName(p.phase)+'» (fija un objetivo en Nutrición para afinarlo)';
+  /* el veredicto va con ícono y texto, nunca solo con color */
+  const pill={green:['✓','En objetivo',WCOL.green],orange:['≈','Ajustar',WCOL.orange],red:['!','Atención',WCOL.red]}[v.cls]||['·','Sin datos',WCOL.tx3];
+  const verbo=Math.abs(st.kgWk)<0.05?'Peso estable':(st.kgWk<0?'Bajando ':'Subiendo ')+Math.abs(st.kgWk).toFixed(2)+' kg/sem';
+  const sug=v.cls!=='green'?'<p class="tiny mt8"><b style="color:var(--'+(v.cls==='red'?'red':'orange')+')">Sugerencia:</b> '+(tgt.dir<0?(v.cls==='red'?'sube ~100-150 kcal para frenar la bajada y proteger la masa magra.':'baja ~100-150 kcal o sube pasos para reactivar la pérdida.'):(v.cls==='red'?'recorta ~100-150 kcal para limitar la grasa ganada.':'añade ~100-150 kcal para asegurar el estímulo de crecimiento.'))+'</p>':'';
   return '<div class="card mb16"><div class="sect-h u-m0 u-mb12"><h3 class="u-m0">Tasa de cambio de peso <span class="hint">tendencia de los últimos '+st.spanDays+' días · '+st.nPts+' pesajes</span></h3></div>'+
-    '<div class="grid g4 mb16">'+
-    '<div class="stat"><div class="k">Ritmo actual</div><div class="v '+(arrow==='up'?'up':arrow==='down'?'down':'')+'">'+sign(st.kgWk)+'<small> kg/sem</small></div><div class="sub">'+sign(st.pctWk)+' %/sem del peso</div></div>'+
-    '<div class="stat"><div class="k">'+(tgt.src==='plan'?'Objetivo del plan':'Objetivo de la fase')+'</div><div class="v u-fs5">'+esc(tgt.lbl)+'</div><div class="sub">'+bandTxt+'</div></div>'+
-    '<div class="stat"><div class="k">Proyección 4 sem</div><div class="v">'+sign(+(st.kgWk*4).toFixed(1))+'<small> kg</small></div><div class="sub">si mantiene el ritmo</div></div>'+
-    '<div class="stat"><div class="k">Estado</div><div class="v u-fs5"><span class="badge '+v.cls+'">'+(v.cls==='green'?'En objetivo':v.cls==='orange'?'Ajustar':'Atención')+'</span></div><div class="sub">'+esc(v.txt)+'</div></div></div>'+
-    svgWeightTrend(st,tgt,cur)+
-    '<h4 class="mg-h u-mt16">¿Va bien semana a semana? <span class="hint">media semanal vs la anterior, con el objetivo que tenía cada semana</span></h4>'+weightWeekStrip(aid,16)+
-    '<p class="tiny mt8">La tasa se calcula por regresión lineal (no por el último pesaje suelto), así filtra el ruido diario de agua/glucógeno. La banda objetivo deriva de '+esc(fuenteTxt)+'. '+(v.cls!=='green'?'<b style="color:var(--'+(v.cls==='red'?'red':'orange')+')">Sugerencia:</b> '+(tgt.dir<0?(v.cls==='red'?'sube ~100-150 kcal para frenar la bajada y proteger la masa magra.':'baja ~100-150 kcal o sube pasos para reactivar la pérdida.'):(v.cls==='red'?'recorta ~100-150 kcal para limitar la grasa ganada.':'añade ~100-150 kcal para asegurar el estímulo de crecimiento.')):'Mantén el plan; el ritmo es adecuado.')+'</p></div>';
+    '<div class="rt-head"><div><p class="rt-say"><b>'+verbo+'</b> ('+sign(st.pctWk)+' %/sem). '+esc(v.txt)+'.</p>'+
+    '<p class="tiny">'+(tgt.src==='plan'?'Objetivo del plan':'Objetivo de la fase')+': '+bandTxt+' · si sigue así, '+sign(+(st.kgWk*4).toFixed(1))+' kg en 4 semanas</p></div>'+
+    '<span class="rt-pill" style="--c:'+pill[2]+'"><i>'+pill[0]+'</i>'+pill[1]+'</span></div>'+
+    svgRateRule(tgt,st.pctWk,ws.weeks,pill[2])+sug+
+    '<h4 class="mg-h u-mt16">¿Va bien semana a semana? <span class="hint">media semanal vs la anterior, con el objetivo que tenía cada semana</span></h4>'+
+    weightDiag(ws,16)+svgRateBars(ws,16)+
+    '<details class="rt-how"><summary>Cómo se calcula</summary><p class="tiny">El ritmo actual sale de una regresión lineal de los pesajes de los últimos 28 días (no del último pesaje suelto), así filtra el ruido diario de agua y glucógeno. La zona objetivo deriva de '+esc(fuenteTxt)+'. Cada barra compara la media de esa semana con la de la anterior; las barras tenues son semanas con menos de 3 pesajes. Estancamiento: 3 o más semanas seguidas avanzando menos de 0,2 %/sem hacia el objetivo.</p></details>'+
+    '</div>';
 }
-
 /* ===== RESUMEN DE BLOQUE (para cerrar fase/bloque y comparar) ===== */
 function blockSummary(aid,startISO,endISO){
   const d=athData(aid),r=d.routine;
@@ -14642,7 +14776,7 @@ function reportSheet(aid,rw,readOnly){
       '<div class="stat u-m0"><div class="k">Peso inicial</div><div class="v">'+start.toFixed(1)+'<small> kg</small></div><div class="sub">'+fmtDate(ws.pts[0].date)+'</div></div>'+
       '<div class="stat u-m0"><div class="k">Peso actual</div><div class="v">'+cur.toFixed(1)+'<small> kg</small></div><div class="sub">'+ws.nPts+' pesajes</div></div>'+
       '<div class="stat u-m0"><div class="k">Cambio</div><div class="v">'+(delta>0?'+':'')+delta+'<small> kg</small></div><div class="sub">'+(ws.kgWk>0?'+':'')+ws.kgWk+' kg/sem · '+(ws.pctWk>0?'+':'')+ws.pctWk+'%/sem</div></div>'+
-      '</div>'+svgWeight(wpts,{h:180,ranges:false});
+      '</div>'+svgWeight(wpts,{h:180,ranges:false,hero:false});
   }else pesoBody='<div class="empty"><b>Sin pesajes en el periodo</b>Se necesitan al menos 2 registros de peso para la tendencia.</div>';
   /* ---- MEDIDAS + %GRASA ---- */
   const ml=measureLogs(aid).filter(m=>m.date>=cutoff);
