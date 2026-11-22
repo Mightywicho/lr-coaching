@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-18.1">
+<meta name="lr-build" content="2026-11-22.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1287,6 +1287,17 @@ input.meta-in.old{border-style:dashed}
 .dx-tag{font-size:var(--fs-1);font-weight:600;color:var(--orange);border:1px solid var(--orange-50);border-radius:var(--r-xs);padding:0 6px;margin-left:6px;white-space:nowrap}
 .dx-obj{padding:10px 14px;font-size:var(--fs-3);color:var(--tx2);border-bottom:1px solid var(--line)}
 .dx-rec{padding:10px 14px;border-bottom:1px solid var(--line)}
+.dx-opts{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.dx-opts .planchip{min-height:44px}
+.mopt{padding:10px 14px 0}
+.mopt .planchips{margin-bottom:8px}
+.mopt-t{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.mopt-t .tiny{margin-right:auto}
+.rsw-list{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+.rsw-r{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:8px;border:1px solid var(--line2);border-radius:var(--r-s);background:var(--card2);color:var(--tx);min-height:72px}
+.rsw-r .rec-img{width:56px;height:56px;aspect-ratio:1;margin:0;flex:none;border-radius:var(--r-xs);max-height:none}
+.rsw-r .rec-noimg svg{width:20px;height:20px}
+.rsw-t{display:flex;flex-direction:column;gap:2px;min-width:0}
 .dx-rec summary{cursor:pointer;font-size:var(--fs-3);color:var(--tx2);display:flex;align-items:center;gap:6px}
 .dx-ft{display:flex;gap:8px;padding:10px 14px;flex-wrap:wrap}
 .dx-ft .btn{flex:1;justify-content:center;min-height:42px}
@@ -3497,7 +3508,7 @@ function foodMacros(name,qty){const fo=eqvFood(name);if(!fo)return null;const k=
    ("2 piezas"), así que ahí hay que leerla del texto. Sin esto, editar un alimento por
    pieza arrancaría siempre en 0 y el coach tendría que recapturarla a ciegas. */
 function piQty(it){const g=+(it&&it.grams)||0;if(g>0)return g;const mm=/(\d+(?:[.,]\d+)?)/.exec((it&&it.qty)||'');return mm?(parseFloat(mm[1].replace(',','.'))||0):0;}
-function normMeal(m){m.items=(m.items||[]).map(it=>{let p=+it.p||0,c=+it.c||0,f=+it.f||0,grams=+it.grams||0;if(!p&&!c&&!f){const gm=/([\d.]+)\s*g/i.exec(it.qty||'');if(gm){const g=parseFloat(gm[1]);const mac=foodMacros(it.food,g);if(mac){p=mac.p;c=mac.c;f=mac.f;grams=g;}}}const o={food:it.food,qty:it.qty||'',grams,p,c,f};if(it.supp)o.supp=it.supp;return o;});return m;}
+function normMeal(m){m.items=(m.items||[]).map(it=>{let p=+it.p||0,c=+it.c||0,f=+it.f||0,grams=+it.grams||0;if(!p&&!c&&!f){const gm=/([\d.]+)\s*g/i.exec(it.qty||'');if(gm){const g=parseFloat(gm[1]);const mac=foodMacros(it.food,g);if(mac){p=mac.p;c=mac.c;f=mac.f;grams=g;}}}const o={food:it.food,qty:it.qty||'',grams,p,c,f};if(it.supp)o.supp=it.supp;return o;});if(Array.isArray(m.opts))m.opts=m.opts.map(normMeal);return m;}
 function migrateNutrition(n){
   if(!n)return{plans:[],activePlan:null,supplements:[]};
   if(!n.plans){
@@ -4215,7 +4226,7 @@ function pmrSetQty(i,q){
   q=Math.max(0,+q||0);x.grams=q;const m=pmrIngMac(x,q);x.p=m.p;x.c=m.c;x.f=m.f;
 }
 function mealRecipeBox(m){const r=m.recipe||{};let ing='';(r.ingredients||[]).forEach(x=>{ing+='<li>'+esc(ingLine(x))+'</li>';});let st='';(r.steps||[]).forEach(x=>{st+='<li>'+esc(x)+'</li>';});if(!ing&&!st)return '';const scaleNote=(r.scaleFactor&&r.scaleFactor!==1)?'<p class="tiny" style="margin:0 14px 8px">Receta adaptada ×'+r.scaleFactor+' a lo que le faltaba al plan.</p>':'';return scaleNote+'<div style="padding:2px 14px 12px">'+recFotoHTML(r.rid)+(ing?'<h4 class="mg-h">Ingredientes</h4><ul class="rec-ing">'+ing+'</ul>':'')+(st?'<h4 class="mg-h">Preparación</h4><ol class="rec-steps">'+st+'</ol>':'')+'</div>';}
-function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const ap=activePlanOf(aid),tg=mealTargetFor(ap,null),hasT=tg.p>0||tg.c>0||tg.f>0;
+function recPickList(aid,q){q=(q||'').toLowerCase().trim();let list=RECIPES.slice();if(q)list=list.filter(r=>String(r.name||'').toLowerCase().includes(q)||(r.ingredients||[]).some(i=>String(typeof i==='string'?i:(i.food||'')).toLowerCase().includes(q))||(r.tags||[]).some(t=>String(t).toLowerCase().includes(q)));const ap=activePlanOf(aid),tg=recPickTgt(aid,ap),hasT=tg.p>0||tg.c>0||tg.f>0;
   /* encaje de cada receta tal como entraría (adaptada si es escalable) con lo que toca en esta comida;
      con objetivo, primero las que mejor encajan. Las que no traen macros van al final, sin etiqueta. */
   const fits=new Map();
@@ -4482,7 +4493,78 @@ function eqvOpts(aid,it){
   return out.slice(0,12);
 }
 /* la comida tal como toca HOY: el menú del coach con los cambios del día encima (copia, nunca muta el plan) */
-function mealHoy(m,sw){if(!sw||m.recipe||!(m.items||[]).length)return m;let ch=false;const items=m.items.map((it,i)=>{const x=sw[m.id+'|'+i];if(x&&x.from===it.food){ch=true;return{food:x.food,qty:x.qty,grams:x.grams,p:x.p,c:x.c,f:x.f,swapped:true,orig:it};}return it;});return ch?Object.assign({},m,{items}):m;}
+/* ===== Opciones por comida y cambio de receta (pedido de Luis, 2026-11-22) =====
+   OPCIONES: el coach puede dar 2 o 3 versiones de una comida del menú («Cena: opción 1, 2, 3») y el atleta
+   elige cada día cuál come. Viven DENTRO de la comida (`m.opts`, cada una con su id, items o receta), no como
+   comidas sueltas de `p.meals`: así todo lo que recorre p.meals (totales del plan, reparto, lista del súper,
+   micros, adherencia por comida) sigue viendo una sola comida por tiempo, y la opción 1 (la comida misma) es la
+   de referencia. La sección del diario y `mealsDone` siguen usando el id de la comida, elija la opción que elija.
+   La elección vale SOLO ese día (decisión de Luis): `e.swaps[id+'|opt']`, en la misma columna que los
+   equivalentes. Una opción elegida que el coach borró se ignora y vuelve la opción 1.
+   CAMBIO DE RECETA: si lo que toca es una receta, el atleta puede cambiarla por otra del recetario base con
+   macros parecidos, ya ajustada en gramos a las kcal de la suya (Luis eligió recetario completo + ajuste). Solo
+   ese día: `e.swaps[id+'|rec']` guarda la receta ya escalada y `from` (la receta del plan): si el coach la cambia,
+   el cambio del atleta se ignora en vez de pisar algo que él no eligió. Las claves de equivalentes de una opción
+   usan el id de la opción, así no chocan con los de la opción 1. */
+function mealConAlgo(m){return !!(m&&(((m.items||[]).length)||m.recipe));}
+function mealOpts(m){return ((m&&m.opts)||[]).filter(mealConAlgo);}
+function mealById(p,id){for(const m of ((p&&p.meals)||[])){if(m.id===id)return m;for(const o of (m.opts||[]))if(o.id===id)return o;}return null;}
+function recKey(r){return String((r&&(r.rid||r.name))||'');}
+function mealOptPick(m,sw){const os=mealOpts(m);if(!os.length)return m;const x=sw&&sw[m.id+'|opt'];
+  let o=x&&os.find(o=>o.id===x.opt);if(!o&&!mealConAlgo(m))o=os[0];if(!o)return m;
+  return Object.assign({},o,{name:m.name,time:m.time,snack:m.snack,optOf:m.id,opts:undefined});}
+function mealOptN(m,id){return id===m.id?1:((m.opts||[]).findIndex(o=>o.id===id)+2);}
+function mealHoy(m,sw){if(!m)return m;let b=mealOptPick(m,sw);if(!sw)return b;
+  const rs=b.recipe&&sw[b.id+'|rec'];
+  if(rs&&rs.recipe&&rs.from===recKey(b.recipe))b=Object.assign({},b,{recipe:rs.recipe,items:[],p:rs.p,c:rs.c,f:rs.f,recSwapped:true,recOrigName:rs.fromName||(b.recipe.name||b.name||'')});
+  if(b.recipe||!(b.items||[]).length)return b;
+  let ch=false;const items=b.items.map((it,i)=>{const x=sw[b.id+'|'+i];if(x&&x.from===it.food){ch=true;return{food:x.food,qty:x.qty,grams:x.grams,p:x.p,c:x.c,f:x.f,swapped:true,orig:it};}return it;});return ch?Object.assign({},b,{items}):b;}
+/* Lado atleta: botones de opción de la comida y fila de la receta con «cambiar». */
+function dxOptChips(m,mh,esHoy){
+  const L=(mealConAlgo(m)?[m]:[]).concat(mealOpts(m)),cur=mh.optOf?mh.id:m.id;
+  if(!esHoy){const n=mealOptN(m,cur);return n>1?'<div class="dx-obj">Elegiste la opción '+n+'</div>':'';}
+  return '<div class="dx-opts" role="group" aria-label="Opciones de '+esc(m.name||'esta comida')+'">'+L.map(o=>{const on=o.id===cur,n=mealOptN(m,o.id);
+    return '<button class="planchip'+(on?' on':'')+'" data-act="dx-opt" data-mid="'+m.id+'" data-opt="'+o.id+'" aria-pressed="'+on+'">Opción '+n+' <span class="tiny">'+mealMacros(o).kcal+' kcal</span></button>';}).join('')+'</div>';}
+function dxOptHint(m,mh){const os=mealOpts(m);if(!os.length)return '';return '<div class="tiny">Opción '+mealOptN(m,mh.optOf?mh.id:m.id)+' · tienes '+(os.length+(mealConAlgo(m)?1:0))+' para elegir en Comidas</div>';}
+function dxRecRow(mh,pm,esHoy){const nm=(mh.recipe&&mh.recipe.name)||mh.name||'';
+  const top=mh.recSwapped
+    ?'<div class="dx-it"><div class="nm"><span>'+esc(nm)+'</span><span class="q sw">hoy en lugar de '+esc(mh.recOrigName||'tu receta')+'</span></div>'+(esHoy?'<button class="dx-ib" data-act="rsw-undo" data-mid="'+mh.id+'" aria-label="Volver a la receta de tu plan" title="Volver a la receta de tu plan">↺</button>':'')+'</div>'
+    :(esHoy?'<div class="dx-it"><div class="nm"><span>'+esc(nm)+'</span><span class="q">Puedes cambiarla por otra con macros parecidos</span></div><button class="dx-ib" data-act="rsw-open" data-mid="'+mh.id+'" aria-label="Cambiar '+esc(nm)+' por otra receta" title="Cambiar por otra receta (solo hoy)">⇄</button></div>':'');
+  return top+'<details class="dx-rec"><summary>'+I.recipe+' Receta · P '+dxN(pm.p)+' · C '+dxN(pm.c)+' · G '+dxN(pm.f)+'</summary>'+mealRecipeBox(mh)+'</details>';}
+/* Recetario base (recetario-base.json, público): el atleta no puede leer la tabla `recipes` del coach. */
+let _recBase=null,_rsw=null;
+function recBaseLoad(){if(_recBase)return Promise.resolve(_recBase);
+  return fetch('recetario-base.json').then(r=>r.ok?r.json():null).then(j=>{if(Array.isArray(j)&&j.length)_recBase=j;return _recBase||[];}).catch(()=>[]);}
+/* ¿La receta lleva algo que el perfil marca como alergia, intolerancia o «no le gusta»? Mismo criterio que los
+   equivalentes (palabra sin acentos; «lactosa»/«gluten» se traducen con SMAE_INTOL). Se revisan el nombre y cada
+   ingrediente, ligado o de texto. */
+function recChoca(aid,r){const dp=nutriOf(aid).dietProfile||{},A=termList(dp.allergies),I2=termList(dp.intolerances),D=termList(dp.dislikes),IX=SMAE_INTOL.filter(x=>normTxt(dp.intolerances).includes(x[0]));
+  if(!A.length&&!I2.length&&!D.length&&!IX.length)return false;
+  return [r.name].concat((r.ingredients||[]).map(i=>typeof i==='string'?i:((i&&i.food)||''))).some(t=>{const nm=normTxt(t);
+    return A.some(x=>nm.includes(x))||I2.some(x=>nm.includes(x))||D.some(x=>nm.includes(x))||IX.some(x=>x[1].test(nm)&&!x[2].test(nm));});}
+/* Recetas parecidas a `b` (la receta del plan, sin cambios del día). Las escalables se ajustan a sus kcal
+   (×0.5 a ×2, para no dar porciones absurdas); luego deben quedar cerca en kcal y en cada macro. */
+function rswOpts(aid,b){const T=mealMacros(b),key=recKey(b.recipe),out=[];if(!(T.kcal>0)||!_recBase)return out;
+  _recBase.forEach(r=>{if(!r||!r.macros||r.id===key||r.name===(b.recipe.name||b.name))return;const k0=recKcal(r);if(!(k0>0)||recChoca(aid,r))return;
+    let f=1,mac={p:+r.macros.p||0,c:+r.macros.c||0,f:+r.macros.g||0},ings=r.ingredients||[];
+    if(recIsScalable(r)){const ff=Math.round(Math.max(0.5,Math.min(2,T.kcal/k0))*100)/100;if(Math.abs(ff-1)>=0.03){f=ff;const sc=scaleRecipeIngredients(r,f);mac={p:sc.macros.p,c:sc.macros.c,f:sc.macros.f};ings=sc.ingredients;}}
+    mac.kcal=Math.round(mac.p*4+mac.c*4+mac.f*9);
+    const dk=mac.kcal-T.kcal,dp=mac.p-T.p,dc=mac.c-T.c,dg=mac.f-T.f;
+    if(Math.abs(dk)>Math.max(60,T.kcal*0.12))return;
+    if(Math.abs(dp)>Math.max(8,T.p*0.25)||Math.abs(dc)>Math.max(12,T.c*0.3)||Math.abs(dg)>Math.max(6,T.f*0.35))return;
+    out.push({r,f,mac,ings,dk,score:Math.abs(dp)*4+Math.abs(dc)*4+Math.abs(dg)*9});});
+  out.sort((a,b)=>a.score-b.score);return out;}
+function rswPaint(){const box=document.getElementById('rsw_body');if(!box||!_rsw)return;
+  const aid=getSession().userId,b=mealById(athPlanOf(aid),_rsw.mid);if(!b||!b.recipe){box.innerHTML='<div class="empty"><b>Esa comida ya no está en tu plan</b>Tu coach la cambió.</div>';return;}
+  if(!_recBase){box.innerHTML='<div class="empty"><b>No pude cargar el recetario</b>Revisa tu conexión y vuelve a intentarlo.</div>';return;}
+  if(!_rsw.list)_rsw.list=rswOpts(aid,b);
+  const T=mealMacros(b),all=_rsw.list,src=_recBase.find(x=>x.id===recKey(b.recipe)),cat=(src&&src.category)||b.recipe.category||'';
+  const mismas=cat?all.filter(o=>o.r.category===cat):[],usa=(!_rsw.todas&&mismas.length)?mismas:all;
+  const seg=(mismas.length&&mismas.length<all.length)?'<div class="seg mb8"><button class="'+(usa===mismas?'on':'')+'" data-act="rsw-cat" data-v="0">'+esc(cat)+' ('+mismas.length+')</button><button class="'+(usa===mismas?'':'on')+'" data-act="rsw-cat" data-v="1">Todas ('+all.length+')</button></div>':'';
+  let rows='';usa.slice(0,30).forEach(o=>{rows+='<button class="rsw-r" data-act="rsw-pick" data-rid="'+esc(o.r.id)+'">'+recFotoHTML(o.r.id,'card')+'<span class="rsw-t"><b>'+esc(o.r.name)+'</b><span class="tiny">'+o.mac.kcal+' kcal ('+(o.dk>0?'+':'')+o.dk+') · P'+dxN(o.mac.p)+' C'+dxN(o.mac.c)+' G'+dxN(o.mac.f)+(o.f!==1?' · gramos ajustados':'')+'</span></span></button>';});
+  box.innerHTML='<p class="tiny mb8">La de tu plan: <b>'+esc(b.recipe.name||b.name||'')+'</b> · '+T.kcal+' kcal · P'+dxN(T.p)+' C'+dxN(T.c)+' G'+dxN(T.f)+'</p>'+seg+
+    (rows?'<div class="rsw-list">'+rows+'</div>':'<div class="empty"><b>Sin recetas parecidas</b>Ninguna receta del recetario queda cerca de los macros de esta comida sin lo que marcaste que no comes. Puedes cambiar ingredientes sueltos o pedirle otra opción a tu coach.</div>')+
+    '<p class="tiny mt8">Solo salen recetas con calorías y macros parecidos, con los gramos ya ajustados, y sin lo que marcaste como alergia, intolerancia o que no te gusta. Vale solo hoy y tu coach ve el cambio.</p>';}
 /* ===== Lista del súper (pedido de Luis, 2026-10-15) =====
    El atleta elige para cuántos días compra (SUPER.n) y la lista suma su menú esos días. Como la app no
    guarda qué tipo de día usó cada fecha (nutriPick es solo la elección actual), el reparto entreno/descanso
@@ -4567,7 +4649,7 @@ function dxPlanFor(aid,iso){
 function dxSlots(p){
   if((p.meals||[]).length)return p.meals.map(m=>({id:m.id,name:m.name||'Comida',time:m.time||'',meal:m}));
   const N=Math.max(1,p.mealsPerDay||1),out=[];for(let i=0;i<N;i++)out.push({id:'slot'+i,name:'Comida '+(i+1),time:'',meal:null});return out;}
-function dxFijo(s){return !!(s&&s.meal&&(((s.meal.items||[]).length)||s.meal.recipe||smaeHas(s.meal)));}
+function dxFijo(s){return !!(s&&s.meal&&(((s.meal.items||[]).length)||s.meal.recipe||smaeHas(s.meal)||mealOpts(s.meal).length));}
 /* Objetivo de una sección sin contenido: sus macros (modo macros por comida) o el reparto del día. */
 function dxTarget(p,s){
   if(s.meal)return mealMacros(s.meal);
@@ -7006,8 +7088,8 @@ function mealGapHTML(t,mt){
   return '<div class="mgap"><span class="tiny">Le toca ≈ '+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span>'+ch('P','Proteína',mt.p,t.p)+ch('C','Carbohidratos',mt.c,t.c)+ch('G','Grasas',mt.f,t.f)+'</div>';
 }
 function mqSuggest(aid,mid,fo){
-  const ap=activePlanOf(aid),ms=ap.meals||[],i=ms.findIndex(x=>x.id===mid);if(i<0||!fo)return null;
-  const t=mealTargetsOf(ap)[i],mt=mealMacros(ms[i]);if(!t)return null;
+  const ap=activePlanOf(aid),ms=ap.meals||[],i=ms.findIndex(x=>x.id===mid||(x.opts||[]).some(o=>o.id===mid));if(i<0||!fo)return null;
+  const t=mealTargetsOf(ap)[i],mt=mealMacros(mealById(ap,mid));if(!t)return null;
   const e={p:(+fo.p||0)*4,c:(+fo.c||0)*4,f:(+fo.f||0)*9},k=e.p>=e.c&&e.p>=e.f?'p':e.c>=e.f?'c':'f';
   const rem=t[k]-mt[k];if(!(rem>1))return null;
   const isU=fo.unit==='u';let q=gramsFor(fo,k,rem);if(isU)q=Math.min(q,20);else q=Math.min(q,600);
@@ -7023,7 +7105,7 @@ function mqHint(el){
   if(sg)sg.textContent=s?s.txt:'';
 }
 function miQtySet(el){
-  const ap=activePlanOf(el.dataset.aid),m=(ap.meals||[]).find(x=>x.id===el.dataset.meal);if(!m)return;
+  const ap=activePlanOf(el.dataset.aid),m=mealById(ap,el.dataset.meal);if(!m)return;
   const i=parseInt(el.dataset.idx,10),it=(m.items||[])[i];if(!it)return;
   const q=parseFloat(String(el.value).replace(',','.'));
   if(!(q>0)){el.value=piQty(it);toast('La cantidad tiene que ser mayor que 0','err');return;}
@@ -7032,7 +7114,7 @@ function miQtySet(el){
   m.items[i]=Object.assign({},it,{qty:isU?(q+' '+(fo.unitLabel||'unidades')):(q+' g'),grams:isU?0:q,p:mac.p,c:mac.c,f:mac.f});
   saveState();render();
 }
-function mealCopy(m){const c=JSON.parse(JSON.stringify(m));c.id=uid();return c;}
+function mealCopy(m){const c=JSON.parse(JSON.stringify(m));c.id=uid();(c.opts||[]).forEach(o=>{o.id=uid();});return c;}
 /* ===== Plan por equivalentes SMAE (2026-11-07) =====
    Luis pidió armar el plan «por equivalentes como en Avena». Es un TERCER modo del plan (ap.mode='eqv'),
    junto a «Macros flexibles» y «Menú cerrado»:
@@ -7370,6 +7452,51 @@ Object.assign(ACTIONS,{
     if(!gr&&k!=='libre')toast('Añadido: pon los gramos de 1 equivalente');}
 });
 let _smaePend=null;
+/* Opciones por comida: pestaña visible de cada comida en el editor (solo memoria) y destino de «Usar una receta». */
+const _moptTab={};let _recPickTo=null;
+function moptBase(el){return ((activePlanOf(el.dataset.aid).meals)||[]).find(x=>x.id===el.dataset.meal)||null;}
+/* «Asignar receta» añade una comida nueva; desde una opción vacía («Usar una receta») la pone ahí. */
+function recPickPut(aid,p,nm){const t=_recPickTo&&_recPickTo.aid===aid?mealById(p,_recPickTo.mid):null;_recPickTo=null;
+  if(!t){p.meals.push(nm);return;}
+  const base=(p.meals||[]).find(m=>m.id===t.id);t.items=[];t.recipe=nm.recipe;t.p=nm.p;t.c=nm.c;t.f=nm.f;if(!base)t.name=nm.name;}
+/* Lo que toca a la receta: para una opción, parecerse a la opción 1; si no hay, la parte del día de esa comida. */
+function recPickTgt(aid,ap){const t=_recPickTo&&_recPickTo.aid===aid?_recPickTo.mid:null;if(!t)return mealTargetFor(ap,null);
+  const ms=ap.meals||[],i=ms.findIndex(m=>m.id===t||(m.opts||[]).some(o=>o.id===t));if(i<0)return mealTargetFor(ap,null);
+  if(ms[i].id!==t&&mealConAlgo(ms[i]))return mealMacros(ms[i]);
+  return mealTargetsOf(ap)[i]||mealTargetFor(ap,null);}
+Object.assign(ACTIONS,{
+  'mopt-tab':el=>{_moptTab[el.dataset.meal]=+el.dataset.k||0;render();},
+  'mopt-add':el=>{const m=moptBase(el);if(!m)return;m.opts=m.opts||[];const o={id:uid(),items:[]};m.opts.push(o);_moptTab[m.id]=m.opts.length;saveState();render();
+    const q=document.getElementById('mq_'+o.id);if(q)q.focus();toast('Opción '+(m.opts.length+1)+' de «'+m.name+'»: añade sus alimentos o usa una receta');},
+  'mopt-dup':el=>{const m=moptBase(el);if(!m)return;const k=+el.dataset.k||0,x=k?(m.opts||[])[k-1]:m;if(!x)return;
+    const o={id:uid(),items:JSON.parse(JSON.stringify(x.items||[]))};
+    if(x.recipe){o.recipe=JSON.parse(JSON.stringify(x.recipe));o.p=x.p;o.c=x.c;o.f=x.f;o.name=x.recipe.name||x.name||'';}
+    m.opts=m.opts||[];m.opts.push(o);_moptTab[m.id]=m.opts.length;saveState();render();toast('Copia lista como opción '+(m.opts.length+1)+': cámbiale lo que quieras');},
+  'mopt-del':el=>{const m=moptBase(el);if(!m)return;const k=+el.dataset.k||0;
+    confirmModal('Quitar opción','Se quitará la opción '+(k+1)+' de «'+m.name+'».'+(k===0?' La opción 2 pasa a ser la 1.':''),'mopt-del-do','data-aid="'+el.dataset.aid+'" data-meal="'+m.id+'" data-k="'+k+'"');},
+  'mopt-del-do':el=>{const m=moptBase(el);if(!m||!(m.opts||[]).length){closeModal();return;}const k=+el.dataset.k||0;
+    if(k===0){const o=m.opts.shift();delete m.recipe;delete m.p;delete m.c;delete m.f;m.items=o.items||[];if(o.recipe){m.recipe=o.recipe;m.p=o.p;m.c=o.c;m.f=o.f;}}
+    else m.opts.splice(k-1,1);
+    if(!m.opts.length)delete m.opts;_moptTab[m.id]=Math.max(0,k-1);saveState();closeModal();render();},
+  /* atleta: elegir la opción de hoy */
+  'dx-opt':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid);if(!m)return;
+    const e=todayNutriEntry(aid),key=m.id+'|opt';e.swaps=Object.assign({},e.swaps||{});
+    if(el.dataset.opt===m.id)delete e.swaps[key];
+    else{const o=mealOpts(m).find(o=>o.id===el.dataset.opt);if(!o)return;e.swaps[key]={kind:'opt',opt:o.id,from:m.name||'Comida',food:'opción '+mealOptN(m,o.id)};}
+    syncNutriRow(aid);saveStateCola();render();},
+  /* atleta: cambiar la receta de hoy por otra parecida */
+  'rsw-open':el=>{const aid=getSession().userId,b=mealById(athPlanOf(aid),el.dataset.mid);if(!b||!b.recipe)return;
+    _rsw={mid:b.id,todas:false,list:null};
+    openModal('Cambiar receta','<div id="rsw_body"><p class="tiny">Buscando recetas parecidas…</p></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button>');
+    recBaseLoad().then(()=>rswPaint());},
+  'rsw-cat':el=>{if(!_rsw)return;_rsw.todas=el.dataset.v==='1';rswPaint();},
+  'rsw-pick':el=>{const aid=getSession().userId,b=_rsw&&mealById(athPlanOf(aid),_rsw.mid);if(!b||!b.recipe)return;
+    const o=(_rsw.list||rswOpts(aid,b)).find(x=>x.r.id===el.dataset.rid);if(!o)return;const r=o.r,e=todayNutriEntry(aid);e.swaps=Object.assign({},e.swaps||{});
+    e.swaps[b.id+'|rec']={kind:'rec',from:recKey(b.recipe),fromName:b.recipe.name||b.name||'',food:r.name,
+      recipe:{rid:r.id,name:r.name,category:r.category||'',kcal:o.mac.kcal,time:r.time||'',ingredients:o.ings,steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null,scaleFactor:null},p:o.mac.p,c:o.mac.c,f:o.mac.f};
+    _rsw=null;syncNutriRow(aid);saveStateCola();closeModal();render();toast('Hoy: '+r.name);},
+  'rsw-undo':el=>{const aid=getSession().userId,e=todayNutriEntry(aid);if(!e.swaps)return;e.swaps=Object.assign({},e.swaps);delete e.swaps[el.dataset.mid+'|rec'];syncNutriRow(aid);saveStateCola();render();}
+});
 function coachTabNutri(aid){
   const n=nutriOf(aid),ap=activePlanOf(aid),ty=planType(ap.type);
   /* barra de planes por tipo de día */
@@ -7394,31 +7521,40 @@ function coachTabNutri(aid){
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     const MT=mealTargetsOf(ap),nM=(ap.meals||[]).length,dp0=n.dietProfile||{};
     const bt=(act,m,ic,tl,extra)=>'<button class="btn btn-g btn-sm btn-mi" data-act="'+act+'" data-aid="'+aid+'" data-meal="'+m.id+'"'+(extra||'')+' title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';
-    const mHead=(m,i)=>{const mt=mealMacros(m);
-      return '<div class="meal-h"><span>'+(m.recipe?I.recipe+' ':'')+esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'')+(m.snack?' <span class="badge">colación</span>':'')+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp">'+
+    const mHead=(m,i,x)=>{x=x||m;const mt=mealMacros(x);
+      return '<div class="meal-h"><span>'+(x.recipe?I.recipe+' ':'')+esc(m.name)+(x.recipe?' <span class="badge">receta</span>':'')+(m.snack?' <span class="badge">colación</span>':'')+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp">'+
         (i>0?bt('pmeal-move',m,I.up,'Subir',' data-dir="-1"'):'')+(i<nM-1?bt('pmeal-move',m,I.down,'Bajar',' data-dir="1"'):'')+
+        ((m.opts||[]).length?'':'<button class="btn btn-g btn-sm" data-act="mopt-add" data-aid="'+aid+'" data-meal="'+m.id+'" title="Otra versión de esta comida con macros parecidos: el atleta elige cada día cuál come">'+I.plus+' Opción</button>')+
         bt('pmeal-dup',m,I.copy,'Duplicar o copiar a otro plan')+
-        bt(m.recipe?'pmeal-recipe-edit':'pmeal-edit',m,I.edit,m.recipe?'Editar ingredientes, cantidades y pasos solo para este plan':'Nombre, hora y colación')+
+        bt(x.recipe?'pmeal-recipe-edit':'pmeal-edit',x.recipe?{id:x.id,name:m.name}:m,I.edit,x.recipe?'Editar ingredientes, cantidades y pasos solo para este plan':'Nombre, hora y colación')+
         bt('pmeal-del',m,I.trash,'Eliminar comida')+'</span></div>'+mealGapHTML(MT[i],mt);};
+    /* opciones de la comida (ver «Opciones por comida» junto a mealHoy): pestaña por opción, la que se ve es la que se edita */
+    const optStrip=(m,k,x)=>{const os=m.opts||[];if(!os.length)return '';
+      const tabs=[m].concat(os).map((o,j)=>'<button class="planchip'+(j===k?' on':'')+'" data-act="mopt-tab" data-meal="'+m.id+'" data-k="'+j+'" aria-pressed="'+(j===k)+'">Opción '+(j+1)+' <span class="tiny">'+(mealConAlgo(o)?mealMacros(o).kcal+' kcal':'vacía')+'</span></button>').join('');
+      return '<div class="mopt"><div class="planchips">'+tabs+'<button class="planchip" data-act="mopt-add" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.plus+' Opción</button></div><div class="mopt-t"><span class="tiny">El atleta elige cada día cuál come. El total del día cuenta la opción 1.</span>'+
+        (mealConAlgo(x)?'':'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'" data-to="'+x.id+'">'+I.recipe+' Usar una receta</button>')+
+        (mealConAlgo(x)?'<button class="btn btn-g btn-sm" data-act="mopt-dup" data-aid="'+aid+'" data-meal="'+m.id+'" data-k="'+k+'">'+I.copy+' Duplicar esta</button>':'')+
+        '<button class="btn btn-g btn-sm" data-act="mopt-del" data-aid="'+aid+'" data-meal="'+m.id+'" data-k="'+k+'">'+I.trash+' Quitar opción '+(k+1)+'</button></div></div>';};
     let ms='';
     (ap.meals||[]).forEach((m,i)=>{
-      if(m.recipe){ms+='<div class="meal">'+mHead(m,i)+mealRecipeBox(m)+'</div>';return;}
-      let items='';(m.items||[]).forEach((it,ii)=>{
+      const os=m.opts||[],k=Math.min(+_moptTab[m.id]||0,os.length),x=k?os[k-1]:m,st=optStrip(m,k,x);
+      if(x.recipe){ms+='<div class="meal">'+mHead(m,i,x)+st+mealRecipeBox(x)+'</div>';return;}
+      let items='';(x.items||[]).forEach((it,ii)=>{
         if(it.supp&&(n.supplements||[]).some(x=>x.id===it.supp)){items+='<li class="mi"><span class="mi-n">'+esc(it.food)+' <span class="badge">'+icx('pastilla')+'suplemento</span></span><span class="mi-q tiny">'+esc(it.qty||'')+'</span><span class="q">P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+' <span class="tiny">se ajusta en Suplementación</span></span></li>';return;}
         const fo=_foodFind(it.food),isU=!!fo&&fo.unit==='u',q=piQty(it);
         const lbl=(+it.grams>0&&it.qty&&!/^\s*[\d.,]+\s*g\s*$/i.test(it.qty))?'<span class="tiny mi-lbl">'+esc(it.qty)+'</span>':'';
         items+='<li class="mi"><span class="mi-n">'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+lbl+'</span>'+
-          (fo?'<span class="mi-q"><input class="mi-in" type="number" inputmode="decimal" min="0.5" step="'+(isU?'0.5':'5')+'" value="'+q+'" data-change="mi-qty" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'" aria-label="Cantidad de '+esc(it.food)+'"><span class="tiny">'+(isU?esc(fo.unitLabel||'u'):'g')+'</span></span>'
+          (fo?'<span class="mi-q"><input class="mi-in" type="number" inputmode="decimal" min="0.5" step="'+(isU?'0.5':'5')+'" value="'+q+'" data-change="mi-qty" data-aid="'+aid+'" data-meal="'+x.id+'" data-idx="'+ii+'" aria-label="Cantidad de '+esc(it.food)+'"><span class="tiny">'+(isU?esc(fo.unitLabel||'u'):'g')+'</span></span>'
              :'<span class="mi-q tiny">'+esc(it.qty||'')+'</span>')+
           '<span class="q">P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+
-          (fo?'':' <button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Editar nombre, cantidad y macros" data-act="pitem-edit" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'">'+I.edit+'</button>')+
-          '<button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Quitar" aria-label="Quitar '+esc(it.food)+'" data-act="pitem-del" data-aid="'+aid+'" data-meal="'+m.id+'" data-idx="'+ii+'">'+I.x+'</button></span></li>';});
-      const qid='mq_'+m.id;
-      const add='<div class="mq"><input id="'+qid+'" list="mqfoods" placeholder="Añadir alimento a '+esc(m.name)+'…" autocomplete="off" data-live="food-hint" data-hint-target="'+qid+'_g" data-mq-aid="'+aid+'" data-mq-meal="'+m.id+'" aria-label="Añadir alimento a '+esc(m.name)+'">'+
-        '<input id="'+qid+'_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad" data-mq-aid="'+aid+'" data-mq-go="'+m.id+'">'+
-        '<button class="btn btn-p btn-sm" data-act="mq-add" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.plus+' Añadir</button>'+
-        '</div>'+fpmHTML(qid+'_g')+'<div class="mq-foot"><p class="tiny mq-sug" id="'+qid+'_sug"></p><button class="mq-man" data-act="pitem-add" data-aid="'+aid+'" data-meal="'+m.id+'" title="Para algo que no está en la base: nombre y macros a mano">¿No está? Escríbelo a mano</button></div>';
-      ms+='<div class="meal">'+mHead(m,i)+'<ul>'+(items||'<li class="tiny">Sin alimentos aún: escribe uno abajo y te sugiero la cantidad.</li>')+'</ul>'+add+'</div>';
+          (fo?'':' <button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Editar nombre, cantidad y macros" data-act="pitem-edit" data-aid="'+aid+'" data-meal="'+x.id+'" data-idx="'+ii+'">'+I.edit+'</button>')+
+          '<button style="color:var(--tx3);padding:2px 4px;line-height:0;vertical-align:-2px" title="Quitar" aria-label="Quitar '+esc(it.food)+'" data-act="pitem-del" data-aid="'+aid+'" data-meal="'+x.id+'" data-idx="'+ii+'">'+I.x+'</button></span></li>';});
+      const qid='mq_'+x.id;
+      const add='<div class="mq"><input id="'+qid+'" list="mqfoods" placeholder="Añadir alimento a '+esc(m.name)+'…" autocomplete="off" data-live="food-hint" data-hint-target="'+qid+'_g" data-mq-aid="'+aid+'" data-mq-meal="'+x.id+'" aria-label="Añadir alimento a '+esc(m.name)+'">'+
+        '<input id="'+qid+'_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad" data-mq-aid="'+aid+'" data-mq-go="'+x.id+'">'+
+        '<button class="btn btn-p btn-sm" data-act="mq-add" data-aid="'+aid+'" data-meal="'+x.id+'">'+I.plus+' Añadir</button>'+
+        '</div>'+fpmHTML(qid+'_g')+'<div class="mq-foot"><p class="tiny mq-sug" id="'+qid+'_sug"></p><button class="mq-man" data-act="pitem-add" data-aid="'+aid+'" data-meal="'+x.id+'" title="Para algo que no está en la base: nombre y macros a mano">¿No está? Escríbelo a mano</button></div>';
+      ms+='<div class="meal">'+mHead(m,i,x)+st+'<ul>'+(items||'<li class="tiny">Sin alimentos aún: escribe uno abajo y te sugiero la cantidad.</li>')+'</ul>'+add+'</div>';
     });
     const shSel='<label class="mshape">Reparto <select data-change="pday-shape" data-aid="'+aid+'" aria-label="Cómo se reparte el objetivo del día entre las comidas">'+DAY_SHAPES.map(x=>'<option value="'+x[0]+'"'+((ap.shape||'igual')===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')+'</select></label>';
     const warn=(dp0.allergies||dp0.dislikes)?'<div class="notebox u-bl-orange u-m0 u-mb12 nbi">'+I.alerta+' Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+'</div>':'';
@@ -7993,7 +8129,7 @@ function coachTabRegistros(aid){
      deshacerlo la deja con swaps {}. Sin este filtro salía en el Historial como «sin datos · Adherencia», un día
      que parecía registrado. Se muestra solo si tiene datos (nutriHasData) o cambios vivos, y la de solo cambios
      va rotulada como tal, sin la etiqueta de adherencia (2026-10-27). */
-  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(!soloSw&&esNuevo(n.date,'n:'+n.date)?nuevoB:'')+(soloSw?'<b>Cambio de alimento</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
+  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>x.kind==='opt'?esc(x.from)+': eligió la '+esc(x.food):x.kind==='rec'?esc(x.fromName||'')+' → '+esc(x.food):esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(!soloSw&&esNuevo(n.date,'n:'+n.date)?nuevoB:'')+(soloSw?'<b>Cambio en su menú</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
   let nut='';
   blockGroupsOf(aid,nCards).forEach((b,bi)=>{
     const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
@@ -8637,22 +8773,22 @@ Object.assign(ACTIONS,{
     if(ap.mode==='menu'||ap.mode==='eqv'){ap.meals=ap.meals||[];const m={id:uid(),name:'Comida '+(ap.meals.length+1),time:'',items:[]};if(ap.mode==='eqv')m.eqv={};ap.meals.push(m);saveState();render();const q=document.getElementById('mq_'+m.id);if(q){q.scrollIntoView({block:'center'});q.focus();}return;}
     openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>');},
   'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida','err','m_name');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
-  'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input class="u-w100 u-mb12" id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
-  'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada','err');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};p.meals.push({id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
+  'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;_recPickTo=el.dataset.to?{aid:aid,mid:el.dataset.to}:null;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input class="u-w100 u-mb12" id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
+  'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada','err');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};recPickPut(aid,p,{id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,name:r.name,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
   'pmeal-recipe-adapt':el=>{
     const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada','err');return;}
     if(!recIsScalable(r)){toast('Esta receta es de texto libre; no se puede adaptar automáticamente. Recréala con el formulario de ingredientes para poder escalarla.');return;}
-    const p=activePlanOf(aid),rem=mealTargetFor(p,null);
+    const p=activePlanOf(aid),rem=recPickTgt(aid,p);
     const factor=recScaleFactor(r,rem),scaled=scaleRecipeIngredients(r,factor);
     p.meals=p.meals||[];
-    p.meals.push({id:uid(),name:r.name+' · ×'+factor,time:r.time||'',p:scaled.macros.p,c:scaled.macros.c,f:scaled.macros.f,
-      recipe:{rid:r.id,kcal:scaled.macros.kcal,time:r.time||'',ingredients:scaled.ingredients,steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null,scaleFactor:factor}});
+    recPickPut(aid,p,{id:uid(),name:r.name+' · ×'+factor,time:r.time||'',p:scaled.macros.p,c:scaled.macros.c,f:scaled.macros.f,
+      recipe:{rid:r.id,name:r.name,kcal:scaled.macros.kcal,time:r.time||'',ingredients:scaled.ingredients,steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null,scaleFactor:factor}});
     saveState();closeModal();render();
     toast('«'+r.name+'» adaptada ×'+factor+' · P'+scaled.macros.p+' C'+scaled.macros.c+' G'+scaled.macros.f);
   },
   /* editor de la receta asignada: ver el bloque «Editar una receta ya asignada al menú» (pmrBody) */
   'pmeal-recipe-edit':el=>{
-    const aid=el.dataset.aid,m=(activePlanOf(aid).meals||[]).find(x=>x.id===el.dataset.meal);if(!m||!m.recipe)return;
+    const aid=el.dataset.aid,m=mealById(activePlanOf(aid),el.dataset.meal);if(!m||!m.recipe)return;
     const ings=pmrFromIngs(m.recipe.ingredients),tm=m.recipe.txtMac||{},conLig=ings.some(x=>x.txt==null);
     _pmr={aid,mid:m.id,rid:m.recipe.rid||'',name:m.name||'',ings,steps:(m.recipe.steps||[]).join('\n'),manual:conLig?{p:+tm.p||0,c:+tm.c||0,f:+tm.f||0}:{p:+m.p||0,c:+m.c||0,f:+m.f||0},eqv:-1,toRec:false};
     openModal('Editar receta del plan',pmrBody(),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmr-save">Guardar</button>',{nofocus:true,persistent:true});
@@ -8691,7 +8827,7 @@ Object.assign(ACTIONS,{
   },
   'pmr-save':async el=>{
     if(!_pmr)return;const d=_pmr,name=(d.name||'').trim();if(!name){toast('Escribe el nombre de la receta','err');return;}
-    const p=activePlanOf(d.aid),m=(p.meals||[]).find(x=>x.id===d.mid);if(!m){toast('Esa comida ya no está en el plan','err');return;}
+    const p=activePlanOf(d.aid),m=mealById(p,d.mid);if(!m){toast('Esa comida ya no está en el plan','err');return;}
     const ings=[];d.ings.forEach(x=>{if(x.txt!=null){const s=x.txt.trim();if(s)ings.push(s);return;}if(x.grams>0)ings.push({food:x.food,grams:x.grams,unit:x.unit,p:x.p,c:x.c,f:x.f});});
     const steps=d.steps.split('\n').map(s=>s.trim()).filter(Boolean),t=pmrTot(),tx=pmrTxtMac(),txtMac=(tx.p||tx.c||tx.f)?tx:null;
     if(d.toRec){
@@ -8708,9 +8844,9 @@ Object.assign(ACTIONS,{
     m.recipe=Object.assign({},m.recipe,{rid:d.rid,kcal:t.kcal,ingredients:ings,steps,txtMac,scaleFactor:null,edited:true});
     _pmr=null;saveState();closeModal();render();toast('Receta del plan actualizada'+(d.toRec?' y guardada en tu recetario':''));
   },
-  'pmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);openModal('Editar comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div><label>Hora</label><input id="m_time" value="'+esc(m.time||'')+'"></div></div><label class="chkl"><input type="checkbox" id="m_snack"'+(m.snack?' checked':'')+'> Es colación: lleva la mitad que una comida al repartir el objetivo</label>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
-  'pmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);m.name=val('m_name')||m.name;m.time=val('m_time');const sn=document.getElementById('m_snack');if(sn)m.snack=sn.checked;saveState();closeModal();render();},
-  'pmeal-del':el=>{const m=(activePlanOf(el.dataset.aid).meals||[]).find(x=>x.id===el.dataset.meal);if(!m)return;confirmModal('Eliminar comida','Se quitará «'+m.name+'»'+((m.items||[]).length===1?' con su alimento':(m.items||[]).length?' con sus '+m.items.length+' alimentos':'')+' de este plan.','pmeal-del-do','data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'"');},
+  'pmeal-edit':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);openModal('Editar comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div><label>Hora</label><input id="m_time" value="'+esc(m.time||'')+'"></div></div><label class="chkl"><input type="checkbox" id="m_snack"'+(m.snack?' checked':'')+'> Es colación: lleva la mitad que una comida al repartir el objetivo</label>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
+  'pmeal-edit-save':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);m.name=val('m_name')||m.name;m.time=val('m_time');const sn=document.getElementById('m_snack');if(sn)m.snack=sn.checked;saveState();closeModal();render();},
+  'pmeal-del':el=>{const m=(activePlanOf(el.dataset.aid).meals||[]).find(x=>x.id===el.dataset.meal);if(!m)return;confirmModal('Eliminar comida','Se quitará «'+m.name+'»'+((m.items||[]).length===1?' con su alimento':(m.items||[]).length?' con sus '+m.items.length+' alimentos':'')+((m.opts||[]).length?' (y '+(m.opts.length===1?'su otra opción':'sus otras '+m.opts.length+' opciones')+')':'')+' de este plan.','pmeal-del-do','data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'"');},
   'pmeal-del-do':el=>{const p=activePlanOf(el.dataset.aid);p.meals=p.meals.filter(x=>x.id!==el.dataset.meal);saveState();closeModal();render();},
   'pmeal-move':el=>{const p=activePlanOf(el.dataset.aid),ms=p.meals||[],i=ms.findIndex(x=>x.id===el.dataset.meal),j=i+(+el.dataset.dir||0);if(i<0||j<0||j>=ms.length)return;const t=ms[i];ms[i]=ms[j];ms[j]=t;saveState();render();},
   'pmeal-dup':el=>{const aid=el.dataset.aid,n=nutriOf(aid),ap=activePlanOf(aid);
@@ -8721,7 +8857,7 @@ Object.assign(ACTIONS,{
     const to=n.plans.find(p=>p.id===el.dataset.to)||ap,c=mealCopy(ms[i]);
     if(to===ap){c.name=c.name+' (copia)';ms.splice(i+1,0,c);}else{to.meals=to.meals||[];to.meals.push(c);toast('Copiada a «'+to.name+'»');}
     saveState();closeModal();render();},
-  'mq-add':el=>{const aid=el.dataset.aid,mid=el.dataset.meal,ap=activePlanOf(aid),m=(ap.meals||[]).find(x=>x.id===mid);if(!m)return;
+  'mq-add':el=>{const aid=el.dataset.aid,mid=el.dataset.meal,ap=activePlanOf(aid),m=mealById(ap,mid);if(!m)return;
     const qid='mq_'+mid,fname=val(qid),qty=medGrams(qid+'_g'),inp=document.getElementById(qid);
     if(!fname){toast('Escribe un alimento','err');if(inp)inp.focus();return;}
     const fo=eqvFood(fname);if(!fo){toast('Elige un alimento de la lista o usa «Manual»','err');if(inp)inp.focus();return;}
@@ -8732,10 +8868,10 @@ Object.assign(ACTIONS,{
   'pmacmeal-add':el=>{const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];const N=Math.max(1,p.mealsPerDay||4);p.meals.push({id:uid(),name:'Comida '+(p.meals.length+1),p:Math.round((p.protein||0)/N),c:Math.round((p.carbs||0)/N),f:Math.round((p.fat||0)/N),items:[]});saveState();render();},
   'pmacmeal-autosplit':el=>{const N=Math.max(1,activePlanOf(el.dataset.aid).mealsPerDay||4);confirmModal('Repartir objetivo','Se reemplazarán las comidas actuales por '+N+' comidas iguales (objetivo ÷ '+N+'). ¿Continuar?','pmacmeal-autosplit-do','data-aid="'+el.dataset.aid+'"');},
   'pmacmeal-autosplit-do':el=>{const p=activePlanOf(el.dataset.aid),N=Math.max(1,p.mealsPerDay||4),P=p.protein||0,C=p.carbs||0,F=p.fat||0;p.meals=[];for(let i=0;i<N;i++)p.meals.push({id:uid(),name:'Comida '+(i+1),p:+(P/N).toFixed(1),c:+(C/N).toFixed(1),f:+(F/N).toFixed(1),items:[]});saveState();closeModal();render();},
-  'pmacmeal-edit':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;openModal('Editar comida','<div class="frow"><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div class="frow3"><div><label>Prot (g)</label><input id="mm_p" type="number" min="0" step="1" value="'+(m.p||0)+'"></div><div><label>Carb (g)</label><input id="mm_c" type="number" min="0" step="1" value="'+(m.c||0)+'"></div><div><label>Gras (g)</label><input id="mm_f" type="number" min="0" step="1" value="'+(m.f||0)+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmacmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
-  'pmacmeal-edit-save':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;m.name=val('m_name')||m.name;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
+  'pmacmeal-edit':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;openModal('Editar comida','<div class="frow"><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div class="frow3"><div><label>Prot (g)</label><input id="mm_p" type="number" min="0" step="1" value="'+(m.p||0)+'"></div><div><label>Carb (g)</label><input id="mm_c" type="number" min="0" step="1" value="'+(m.c||0)+'"></div><div><label>Gras (g)</label><input id="mm_f" type="number" min="0" step="1" value="'+(m.f||0)+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmacmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
+  'pmacmeal-edit-save':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;m.name=val('m_name')||m.name;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
   'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base ('+(S.foods||[]).length+') o el catálogo de 15 mil alimentos</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="pi_g" aria-label="Alimento"></div><div><input id="pi_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"></div></div>'+fpxHTML('pi_food')+fpmHTML('pi_g')+'<p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
-  'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=p.meals.find(x=>x.id===el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=medGrams('pi_g');let it=null;
+  'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=mealById(p,el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=medGrams('pi_g');let it=null;
     if(fname&&qty>0){const fo=eqvFood(fname);const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual','err','pi_food');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('pi_g')||(qty+' g'));it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};fpUsed(fo);}
     else{const nm=val('pi_name'),pp=num('pi_p'),cc=num('pi_c'),ff=num('pi_f');if(!nm){toast('Elige un alimento o pon un nombre manual','err','pi_name');return;}if(pp+cc+ff<=0){toast('Indica al menos un macro (P, C o G)','err','pi_p');return;}it={food:nm,qty:val('pi_qty'),grams:0,p:pp,c:cc,f:ff};}
     m.items.push(it);saveState();closeModal();render();},
@@ -8744,7 +8880,7 @@ Object.assign(ACTIONS,{
      Si el alimento está en la base, se pide SOLO la cantidad y los macros se recalculan
      con `foodMacros` — nunca se editan a mano macros que la base ya sabe calcular. */
   'pitem-edit':el=>{
-    const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;
+    const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;
     const it=(m.items||[])[parseInt(el.dataset.idx,10)];if(!it)return;
     const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===(it.food||'').toLowerCase());
     const q=piQty(it),isU=!!fo&&fo.unit==='u';
@@ -8754,7 +8890,7 @@ Object.assign(ACTIONS,{
     openModal('Cambiar cantidad',body,'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'" data-idx="'+el.dataset.idx+'">Guardar</button>');
   },
   'pitem-edit-save':el=>{
-    const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);if(!m)return;
+    const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;
     const i=parseInt(el.dataset.idx,10),it=(m.items||[])[i];if(!it)return;
     const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===(it.food||'').toLowerCase());
     if(fo){
@@ -8769,7 +8905,7 @@ Object.assign(ACTIONS,{
     }
     saveState();closeModal();render();
   },
-  'pitem-del':el=>{const m=activePlanOf(el.dataset.aid).meals.find(x=>x.id===el.dataset.meal);m.items.splice(parseInt(el.dataset.idx,10),1);saveState();render();},
+  'pitem-del':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);m.items.splice(parseInt(el.dataset.idx,10),1);saveState();render();},
   /* ---- suplementación ---- */
   /* Suplementación con base propia (2026-11-02): ver el bloque de suppCoachCard */
   'supp-add':el=>{_suppQ='';_suppCat='';suppPickOpen(el.dataset.aid);},
@@ -9748,7 +9884,7 @@ function hxNutriCard(aid){
   const s=dxSigue(aid),iso=todayISO();
   if(!s)return card+'<div class="hx-next"><div class="h"><span class="dx-k">Comidas de hoy</span></div><div>Ya marcaste todas tus comidas. Cierra el día con tu calificación y un comentario para tu coach.</div><div class="hx-btns"><button class="btn btn-g" data-act="nav" data-view="ath-nutri" data-params=\'{}\'>Cerrar el día</button></div></div>';
   const fijo=dxFijo(s),e=nutriEntryFor(aid,iso);let que='',kc=0;
-  if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=s.meal.recipe?esc((s.meal.recipe&&s.meal.recipe.name)||s.name):(smaeHas(s.meal)?'<div>'+esc(smaeSummary(s.meal))+'</div>':'')+'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';}
+  if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=mh.recipe?esc((mh.recipe&&mh.recipe.name)||s.name):(smaeHas(s.meal)?'<div>'+esc(smaeSummary(s.meal))+'</div>':'')+'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';que=dxOptHint(s.meal,mh)+que;}
   else{const tt=dxTarget(n,s);kc=tt.kcal;que='Objetivo ≈ P '+dxN(tt.p)+' · C '+dxN(tt.c)+' · G '+dxN(tt.f)+'. Registra lo que comas.';}
   const pr=dxProyeccion(aid);
   return card+'<div class="hx-next"><div class="h"><span class="dx-k">Sigue · '+esc(s.name)+(s.time?' · '+esc(s.time):'')+'</span><span class="tiny">'+(fijo?'':'≈ ')+kc+' kcal</span></div><div>'+que+'</div>'+
@@ -10533,11 +10669,13 @@ VIEWS['ath-nutri']=function(u){
     let rows='',kc;
     if(fijo){
       const mh=mealHoy(s.meal,sw),pm=mealMacros(mh);kc=pm.kcal+extraK;rows=smaeAthRows(s.meal,np);
-      if(s.meal.recipe)rows='<details class="dx-rec"><summary>'+I.recipe+' Receta · P '+dxN(pm.p)+' · C '+dxN(pm.c)+' · G '+dxN(pm.f)+'</summary>'+mealRecipeBox(s.meal)+'</details>';
+      const ochips=mealOpts(s.meal).length?dxOptChips(s.meal,mh,esHoy):'';
+      if(mh.recipe)rows=dxRecRow(mh,pm,esHoy);
       else (mh.items||[]).forEach((it,ii)=>{const k=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);let bt='';
-        if(esHoy)bt=it.swapped?'<button class="dx-ib" data-act="eqv-undo" data-mid="'+s.meal.id+'" data-idx="'+ii+'" aria-label="Volver a '+esc(it.orig.food)+'" title="Volver a lo de tu menú">↺</button>'
-          :(eqvOpts(aid,it).length?'<button class="dx-ib" data-act="eqv-open" data-mid="'+s.meal.id+'" data-idx="'+ii+'" aria-label="Cambiar '+esc(it.food)+' por un equivalente" title="Cambiar por un equivalente (solo hoy)">⇄</button>':'');
+        if(esHoy)bt=it.swapped?'<button class="dx-ib" data-act="eqv-undo" data-mid="'+mh.id+'" data-idx="'+ii+'" aria-label="Volver a '+esc(it.orig.food)+'" title="Volver a lo de tu menú">↺</button>'
+          :(eqvOpts(aid,it).length?'<button class="dx-ib" data-act="eqv-open" data-mid="'+mh.id+'" data-idx="'+ii+'" aria-label="Cambiar '+esc(it.food)+' por un equivalente" title="Cambiar por un equivalente (solo hoy)">⇄</button>':'');
         rows+='<div class="dx-it"><div class="nm"><span>'+esc(it.food)+foodConflictChip(foodConflict(aid,it.food))+'</span><span class="q'+(it.swapped?' sw':'')+'">'+esc(it.qty||'')+(it.swapped?' · hoy en lugar de '+esc(it.orig.food)+(it.orig.qty?' '+esc(it.orig.qty):''):'')+'</span></div><span class="kc">'+k+'</span>'+bt+'</div>';});
+      rows=ochips+rows;
     }else{
       const tt=dxTarget(n,s);kc=sl.length?extraK:tt.kcal;
       if(tt.kcal>0)rows='<div class="dx-obj">Objetivo de esta comida ≈ '+tt.kcal+' kcal · P '+dxN(tt.p)+' · C '+dxN(tt.c)+' · G '+dxN(tt.f)+'</div>';
@@ -11307,11 +11445,11 @@ Object.assign(ACTIONS,{
   'super-n':el=>{SUPER.n=Math.max(1,Math.min(14,SUPER.n+(+el.dataset.d)));SUPER.t=null;superOpen(el.dataset.aid);},
   'super-t':el=>{const L=superList(el.dataset.aid);if(!L)return;SUPER.t=Math.max(0,Math.min(L.n,L.t+(+el.dataset.d)));superOpen(el.dataset.aid);},
   'super-copy':async el=>{const L=superList(el.dataset.aid);if(!L)return;try{await navigator.clipboard.writeText(superTxt(L));toast('Lista copiada: pégala en WhatsApp o en tus notas');}catch(e){toast('No se pudo copiar en este teléfono','err');}},
-  'eqv-open':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;
+  'eqv-open':el=>{const aid=getSession().userId,m=mealById(athPlanOf(aid),el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;
     const ops=eqvOpts(aid,it),kc0=Math.round((it.p||0)*4+(it.c||0)*4+(it.f||0)*9);
     let rows='';ops.forEach((o,k)=>{rows+='<button class="mcheck u-w100 u-tl" data-act="eqv-pick" data-mid="'+m.id+'" data-idx="'+i+'" data-k="'+k+'"><span class="mt2"><b>'+esc(o.food)+'</b> · '+esc(o.qty)+(o.avoid?' <span class="badge orange">'+icx('prohibido')+'evitar</span>':'')+'<div class="tiny">'+o.kcal+' kcal ('+(o.dk>0?'+':'')+o.dk+') · P'+o.p+' C'+o.c+' G'+o.f+'</div></span></button>';});
     openModal('Cambiar '+esc(it.food),'<p class="tiny mb8">En tu menú: <b>'+esc(it.food)+(it.qty?' · '+esc(it.qty):'')+'</b> · '+kc0+' kcal · P'+(it.p||0)+' C'+(it.c||0)+' G'+(it.f||0)+'</p>'+(rows||'<div class="empty"><b>Sin equivalentes</b>No hay alimentos parecidos en la base de tu coach.</div>')+'<p class="tiny mt8">Cantidades calculadas para darte lo mismo de su macro principal con calorías parecidas. Solo vale hoy; tu coach verá el cambio.</p>','<button class="btn btn-g" data-act="modal-close">Cancelar</button>');},
-  'eqv-pick':el=>{const aid=getSession().userId,m=(athPlanOf(aid).meals||[]).find(x=>x.id===el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;const o=eqvOpts(aid,it)[+el.dataset.k];if(!o)return;
+  'eqv-pick':el=>{const aid=getSession().userId,m=mealById(athPlanOf(aid),el.dataset.mid),i=+el.dataset.idx,it=m&&(m.items||[])[i];if(!it)return;const o=eqvOpts(aid,it)[+el.dataset.k];if(!o)return;
     const e=todayNutriEntry(aid);e.swaps=Object.assign({},e.swaps||{});e.swaps[m.id+'|'+i]={from:it.food,food:o.food,qty:o.qty,grams:o.grams,p:o.p,c:o.c,f:o.f};
     syncNutriRow(aid);saveStateCola();closeModal();render();toast('Hoy: '+o.food+' en lugar de '+it.food);},
   'eqv-undo':el=>{const aid=getSession().userId,e=todayNutriEntry(aid);if(!e.swaps)return;e.swaps=Object.assign({},e.swaps);delete e.swaps[el.dataset.mid+'|'+el.dataset.idx];syncNutriRow(aid);saveStateCola();render();},
@@ -11946,7 +12084,7 @@ function applyTplNutri(aid,t){
   const d=athData(aid),dp=d.nutrition&&d.nutrition.dietProfile,cl=d.nutrition&&d.nutrition.clinico,ea=d.nutrition&&d.nutrition.eqvAllow;
   const plans=dcopy(t.plans||[]);let actId=null;
   const _pm={},_mm={}; /* ids viejos → nuevos: los suplementos «dentro de un platillo» apuntan a plan|comida */
-  plans.forEach(p=>{const old=p.id;p.id=uid();_pm[old]=p.id;(p.meals||[]).forEach(m=>{const om=m.id;m.id=uid();_mm[om]=m.id;});if(old===t.activePlan)actId=p.id;});
+  plans.forEach(p=>{const old=p.id;p.id=uid();_pm[old]=p.id;(p.meals||[]).forEach(m=>{const om=m.id;m.id=uid();_mm[om]=m.id;(m.opts||[]).forEach(o=>{o.id=uid();});});if(old===t.activePlan)actId=p.id;});
   if(!plans.length)plans.push({id:uid(),name:'Día normal',type:'normal',mode:'macros',kcal:0,protein:0,carbs:0,fat:0,mealsPerDay:4,meals:[],notes:''});
   const sups=dcopy(t.supplements||[]),_sm={};sups.forEach(s=>{const o=s.id;s.id=uid();_sm[o]=s.id;if(s.where){const w=String(s.where).split('|');s.where=(_pm[w[0]]&&_mm[w[1]])?_pm[w[0]]+'|'+_mm[w[1]]:'';}});
   plans.forEach(p=>(p.meals||[]).forEach(m=>(m.items||[]).forEach(it=>{if(it.supp){if(_sm[it.supp])it.supp=_sm[it.supp];else delete it.supp;}})));
@@ -12649,11 +12787,15 @@ function scaleRecipeIngredients(r,factor){
   const list=(r.ingredients||[]).map(ing=>{
     if(!ing||typeof ing!=='object')return ing;
     const fo=(S.foods||[]).find(x=>x.name.toLowerCase()===String(ing.food||'').toLowerCase());
-    const isU=fo&&fo.unit==='u';
+    /* La unidad la dice el propio ingrediente («2 huevo», «1 taza»): antes salía solo del alimento de la base y, si el
+       atleta o el coach no lo tenían, «2 huevos» se redondeaba en múltiplos de 5 g (2026-11-22). Los macros se escalan
+       en proporción a la cantidad redondeada; la base solo se usa si mide igual (piezas con piezas, gramos con gramos). */
+    const isU=ing.unit?ing.unit!=='g':!!(fo&&fo.unit==='u');
     const rawQty=(ing.grams||0)*factor;
     const newQty=isU?Math.max(0.5,Math.round(rawQty/0.5)*0.5):Math.max(1,Math.round(rawQty/5)*5);
-    const mac=fo?foodMacros(fo.name,newQty):{p:+((ing.p||0)*factor).toFixed(1),c:+((ing.c||0)*factor).toFixed(1),f:+((ing.f||0)*factor).toFixed(1)};
-    return{food:ing.food,grams:newQty,unit:isU?(fo.unitLabel||'unidad'):'g',p:mac?mac.p:0,c:mac?mac.c:0,f:mac?mac.f:0};
+    const rr=(+ing.grams>0)?newQty/ing.grams:factor;
+    const mac=(fo&&(fo.unit==='u')===isU&&foodMacros(fo.name,newQty))||{p:+((ing.p||0)*rr).toFixed(1),c:+((ing.c||0)*rr).toFixed(1),f:+((ing.f||0)*rr).toFixed(1)};
+    return{food:ing.food,grams:newQty,unit:isU?(ing.unit||(fo&&fo.unitLabel)||'unidad'):'g',p:mac?mac.p:0,c:mac?mac.c:0,f:mac?mac.f:0};
   });
   const tm=r.txtMac||{},tot={p:+tm.p||0,c:+tm.c||0,f:+tm.f||0};list.forEach(x=>{if(x&&typeof x==='object'){tot.p+=x.p||0;tot.c+=x.c||0;tot.f+=x.f||0;}});
   tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);tot.kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
