@@ -3900,6 +3900,7 @@ function foMicBuscar(q){
 }
 /* Renglones del menú (alimentos sueltos e ingredientes de recetas) → micros. Devuelve también cuánto del día
    (en kcal) tiene dato de cada micro, para no llamar «bajo» a lo que solo es falta de dato. */
+function micOptVista(m){const k=+_moptTab[m.id]||0,o=k&&(m.opts||[])[k-1];return (o&&mealConAlgo(o))?o:m;}
 function micDiaPlan(aid,plan){
   const rows=[],tot={},kc={},ids=[],sinLiga={};let kTot=0,kLig=0,nLig=0,nTot=0,nEqv=0;
   const add=(food,grams,isG,p,c,f)=>{
@@ -3927,7 +3928,9 @@ function micDiaPlan(aid,plan){
     Object.keys(sum).forEach(x=>{tot[x]=(tot[x]||0)+sum[x]/cnt[x]*n;kc[x]=(kc[x]||0)+k;});
   });
   const eqvEnComidas=(plan.meals||[]).some(m=>smaeHas(m));
-  (plan.meals||[]).forEach(m=>{
+  /* Comidas con opciones: cuenta la pestaña que el coach tiene abierta en el menú (micOptVista), así revisa los
+     micros de la opción 2 o 3 cambiando de pestaña. Sin pestaña elegida, la opción 1. */
+  (plan.meals||[]).map(micOptVista).forEach(m=>{
     if(m.recipe&&Array.isArray(m.recipe.ingredients)){m.recipe.ingredients.forEach(x=>{if(x&&typeof x==='object')add(x.food,x.grams,(x.unit==='g'||!x.unit),x.p,x.c,x.f);});return;}
     (m.items||[]).forEach(it=>{if(it.supp)return;const fo=_foodFind(it.food);add(it.food,piQty(it),!(fo&&fo.unit==='u'),it.p,it.c,it.f);});
     if(smaeHas(m))addEqv(m.eqv);
@@ -3965,6 +3968,7 @@ function micDiaHTML(aid,plan){
   return '<div class="card mb16"><div class="sect-h u-mb8"><h3 class="u-m0">Micronutrientes del día · «'+esc(plan.name)+'»</h3></div>'+
     '<p class="tiny u-m0 u-mb12">Menú + suplementos de '+(D.dia==='rest'?'día de descanso':'día de entreno')+' · recomendado y límites de <b>'+SUPP_REF[ref]+'</b> para '+sexo+(p.age?' de '+p.age+' años':'')+
       ' · con micros: '+D.nLig+' de '+D.nTot+(D.nEqv?' alimentos y grupos':' alimentos')+' ('+cob+' % de las kcal)'+(D.cargando?' · cargando…':'')+'</p>'+
+    ((plan.meals||[]).some(m=>(m.opts||[]).length)?'<p class="tiny u-m0 u-mb12">Comidas con opciones: cuenta la opción que tienes abierta en el menú'+((plan.meals||[]).filter(m=>(m.opts||[]).length&&+_moptTab[m.id]>0).map(m=>' · '+esc(m.name)+': opción '+(+_moptTab[m.id]+1)).join(''))+'. Cambia de pestaña para ver otra.</p>':'')+
     (D.nEqv?'<p class="tiny u-m0 u-mb12">Equivalentes: cada porción cuenta como el promedio de las opciones de tu lista que ve el atleta en ese grupo. Es una estimación: depende de lo que elija.</p>':'')+
     (D.sinLiga.length?'<div class="micd-sl tiny u-mb12">Sin micros (no están ligados al catálogo): '+D.sinLiga.map(x=>x.fid?'<button class="btn btn-g btn-sm" data-act="food-edit-modal" data-fid="'+esc(x.fid)+'">'+esc(x.name)+' · ligar</button>':'<span>'+esc(x.name)+' (no está en tu base)</span>').join(' ')+'</div>':'')+
     '<div class="micd">'+filas+'</div>'+
@@ -4600,13 +4604,18 @@ function superList(aid){
     (m.items||[]).forEach(it=>{const fo=eqvFood(it.food),isU=(+it.grams||0)<=0;add(it.food,isU?piQty(it):+it.grams,isU,isU?((fo&&fo.unitLabel)||'unidades'):'',k);});
   });};
   sumPlan(pl.tr,t);if(pl.rs!==pl.tr)sumPlan(pl.rs,n-t);
+  /* Opciones 2, 3…: la lista cuenta la opción 1 (no se sabe cuál elegirá cada día y sumarlas todas compraría de
+     más). Lo de las otras va aparte, por día, para que compre lo que sabe que va a elegir (Luis, 2026-11-22). */
+  const otras=[];[pl.tr].concat(pl.rs!==pl.tr?[pl.rs]:[]).forEach(pln=>(pln.meals||[]).forEach(m=>mealOpts(m).forEach(o=>{
+    const ing=o.recipe?(o.recipe.ingredients||[]).map(x=>typeof x==='string'?x:(x.food+' '+(+x.grams||0)+' '+(x.unit&&x.unit!=='g'?x.unit:'g'))):(o.items||[]).filter(it=>!it.supp).map(it=>it.food+(it.qty?' '+it.qty:''));
+    if(ing.length)otras.push({lbl:(pl.rs!==pl.tr?pln.name+' · ':'')+(m.name||'Comida')+' · opción '+mealOptN(m,o.id)+(o.recipe&&o.recipe.name?' ('+o.recipe.name+')':''),ing});})));
   const grupos={};Object.values(acc).forEach(a=>{const fo=eqvFood(a.food),c=(fo&&FOOD_CATS.indexOf(fo.cat)>=0)?fo.cat:'Otros';(grupos[c]=grupos[c]||[]).push(a);});
   Object.values(grupos).forEach(g=>g.sort((a,b)=>a.food.localeCompare(b.food)));
-  return{pl,td,n,t,grupos,sueltos};
+  return{pl,td,n,t,grupos,sueltos,otras};
 }
 /* cantidad para comprar: gramos redondeados hacia arriba a 10 g (kg desde 1000), piezas enteras hacia arriba */
 function superCant(a){if(a.isU)return Math.ceil(a.q-1e-9)+' '+a.lbl;const g=Math.ceil(a.q/10-1e-9)*10;return g>=1000?(g/1000).toLocaleString('es-MX',{maximumFractionDigits:1})+' kg':g+' g';}
-function superTxt(L){let t='🛒 Lista del súper · '+L.n+' '+(L.n===1?'día':'días')+'\n';FOOD_CATS.forEach(c=>{const g=L.grupos[c];if(!g)return;t+='\n'+c+'\n';g.forEach(a=>{t+='• '+a.food+' — '+superCant(a)+'\n';});});const sl=Object.keys(L.sueltos);if(sl.length){t+='\nDe tus recetas\n';sl.forEach(x=>{t+='• '+x+(L.sueltos[x]>1?' (×'+L.sueltos[x]+')':'')+'\n';});}return t;}
+function superTxt(L){let t='🛒 Lista del súper · '+L.n+' '+(L.n===1?'día':'días')+'\n';FOOD_CATS.forEach(c=>{const g=L.grupos[c];if(!g)return;t+='\n'+c+'\n';g.forEach(a=>{t+='• '+a.food+' — '+superCant(a)+'\n';});});const sl=Object.keys(L.sueltos);if(sl.length){t+='\nDe tus recetas\n';sl.forEach(x=>{t+='• '+x+(L.sueltos[x]>1?' (×'+L.sueltos[x]+')':'')+'\n';});}if((L.otras||[]).length){t+='\nSi eliges otra opción (por cada día que la comas)\n';L.otras.forEach(o=>{t+='• '+o.lbl+': '+o.ing.join(', ')+'\n';});}return t;}
 function superOpen(aid){
   const L=superList(aid);if(!L){openModal('Lista del súper','<div class="empty"><b>Sin menú</b>Tu plan es de macros flexibles; la lista se arma cuando tu coach te da un menú con alimentos.</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');return;}
   const ctl=(lbl,v,act)=>'<div class="u-dflex u-aic u-jcsb u-gap8 u-mb8"><span>'+lbl+'</span><span class="u-dflex u-aic u-gap8"><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="-1">−</button><b>'+v+'</b><button class="btn btn-g btn-sm" data-act="'+act+'" data-aid="'+aid+'" data-d="1">+</button></span></div>';
@@ -4617,6 +4626,7 @@ function superOpen(aid){
   }
   let cuerpo='';FOOD_CATS.forEach(c=>{const g=L.grupos[c];if(!g)return;cuerpo+='<div class="tiny mt8 u-fw7">'+c+'</div><ul style="margin:4px 0 0;padding-left:18px">'+g.map(a=>'<li>'+esc(a.food)+' — <b>'+superCant(a)+'</b></li>').join('')+'</ul>';});
   const sl=Object.keys(L.sueltos);if(sl.length)cuerpo+='<div class="tiny mt8 u-fw7">De tus recetas</div><ul style="margin:4px 0 0;padding-left:18px">'+sl.map(x=>'<li>'+esc(x)+(L.sueltos[x]>1?' <span class="tiny">(×'+L.sueltos[x]+')</span>':'')+'</li>').join('')+'</ul>';
+  if((L.otras||[]).length)cuerpo+='<details class="mt8"><summary class="tiny u-fw7">Si eliges otra opción ('+L.otras.length+')</summary><p class="tiny">La lista de arriba cuenta la opción 1 de cada comida. Esto es lo que lleva cada otra opción, por cada día que la comas.</p><ul style="margin:4px 0 0;padding-left:18px">'+L.otras.map(o=>'<li><b>'+esc(o.lbl)+':</b> '+esc(o.ing.join(', '))+'</li>').join('')+'</ul></details>';
   h+='<hr class="hr">'+(cuerpo||'<div class="empty"><b>Lista vacía</b>Tu menú no tiene alimentos con cantidad.</div>')+'<p class="tiny mt8">Cantidades en crudo tal como vienen en tu menú, redondeadas hacia arriba.</p>';
   openModal('Lista del súper',h,'<button class="btn btn-g" data-act="modal-close">Cerrar</button><button class="btn btn-p" data-act="super-copy" data-aid="'+aid+'">Copiar</button>');
 }
