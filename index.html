@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-22.2">
+<meta name="lr-build" content="2026-11-22.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -319,6 +319,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .meal{border:1px solid var(--line);border-radius:var(--r-s);margin-bottom:12px;overflow:hidden}
 .meal-h{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--card2);font-weight:600;font-size:var(--fs-3)}
 .meal-h .tm{color:var(--tx3);font-weight:500;font-size:var(--fs-2)}
+/* hora o referencia del tiempo de comida en su propia línea: «45 min antes de entrenar» no cabe junto a las kcal */
+.meal-h .mh-hora{display:flex;align-items:center;gap:4px;color:var(--tx2)}.mh-hora svg{flex:none}
 .meal-h .sp{margin-left:auto;display:flex;gap:4px}
 /* Armado de menú (2026-11-02) */
 .mgap{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 14px 0}
@@ -363,6 +365,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 @media(min-width:921px){.mprog{position:sticky;top:12px}}
 .ncalc .acc-body>.card{margin-bottom:24px}
 .chkl{display:flex;gap:8px;align-items:center;margin-top:12px;text-transform:none;letter-spacing:0;font-size:var(--fs-3);font-weight:400;color:var(--tx)}
+/* la regla general de input (width:100%) estiraba la casilla y la separaba de su texto */
+.chkl input{width:auto;flex:none;margin:0;padding:0}
 .mq-foot{display:flex;align-items:baseline;gap:10px;margin:-4px 14px 10px}
 .mq-foot .mq-sug{margin:0;flex:1}
 .mq-man{margin-left:auto;background:none;border:0;padding:2px 0;color:var(--tx3);font-size:var(--fs-2);text-decoration:underline;cursor:pointer;white-space:nowrap}
@@ -1259,6 +1263,11 @@ input.meta-in.old{border-style:dashed}
 .dx-sh{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
 .dx-sh h3{flex:1;min-width:0;margin:0;font-size:var(--fs-5)}
 .dx-sh h3 small{font-family:var(--font-b);font-weight:500;font-size:var(--fs-3);color:var(--tx2)}
+.dx-sh h3 .dx-hora,.hx-next .dx-hora{display:flex;align-items:center;gap:4px;margin-top:2px}
+.hx-next .dx-hora{font-size:var(--fs-2);color:var(--tx2);margin:-2px 0 6px}
+.dx-hora svg{flex:none}
+.mtchips{margin:6px 0 4px}
+.eqmb .mvh svg{transform:rotate(-90deg)}
 .dx-sh .k{font-weight:600;white-space:nowrap}.dx-sh .k.pend{color:var(--tx2)}
 .dx-ck{width:26px;height:26px;border-radius:50%;border:2px solid var(--bd-input);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--ink);padding:0;transition:background-color .15s,border-color .15s}
 .dx-ck svg{width:14px;height:14px;opacity:0}
@@ -5331,6 +5340,7 @@ const I={
   video:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/></svg>',
   chat:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></svg>',
   cal:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  reloj:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   enlace:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
   campana:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>',
   movil:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>',
@@ -6974,6 +6984,35 @@ function miQtySet(el){
   m.items[i]=Object.assign({},it,{qty:isU?(q+' '+(fo.unitLabel||'unidades')):(q+' g'),grams:isU?0:q,p:mac.p,c:mac.c,f:mac.f});
   saveState();render();
 }
+/* Tiempos de comida (2026-11-22, pedido de Luis): en vez de «Comida 1, Comida 2…» el coach elige el tiempo
+   con un toque (chips) o escribe uno propio. No hay campo nuevo: el tiempo ES `m.name` y la hora o referencia
+   es `m.time` (texto libre: vale «07:30» o «45 min antes de entrenar»), los dos de siempre. Por eso un plan
+   viejo con «Comida 1» se ve igual y, al editarlo, sale como nombre propio sin chip marcado.
+   Todo lo del atleta (mealsDone, meal_logs.slot, swaps) va por `m.id`, así que renombrar o reordenar no pierde
+   nada. Lo que SÍ depende del orden es el «le toca» de cada comida (mealShareW pesa por posición); el total del
+   día no cambia.
+   Solo las colaciones traen `snack` de fábrica: Luis decidió que pre, intra y post-entreno NO son colación
+   (cuentan como comida entera al repartir). La casilla del modal deja cambiarlo en cada caso. */
+const MEAL_TIEMPOS=[{n:'Desayuno'},{n:'Colación AM',snack:true},{n:'Pre-entreno'},{n:'Intra-entreno'},{n:'Post-entreno'},{n:'Comida'},{n:'Colación PM',snack:true},{n:'Cena'}];
+function mtIdx(name){const k=String(name||'').trim().toLowerCase();return MEAL_TIEMPOS.findIndex(t=>t.n.toLowerCase()===k);}
+function mtSnack(name){const i=mtIdx(name);return i>=0?!!MEAL_TIEMPOS[i].snack:/^(colación|antes de dormir)/i.test(String(name||'').trim());}
+/* Sugerencia al añadir: el siguiente tiempo del día que el plan aún no tiene, en orden de reloj para que la
+   comida nueva (que va al final) quede en su sitio. Los de entreno no se sugieren: dependen de a qué hora
+   entrena el atleta, así que los elige el coach. Si ya están todos, «Comida N». */
+function mtSugerido(ap){const ms=ap.meals||[],us=ms.map(m=>String(m.name||'').trim().toLowerCase());
+  return ['Desayuno','Colación AM','Comida','Colación PM','Cena'].find(n=>us.indexOf(n.toLowerCase())<0)||'Comida '+(ms.length+1);}
+/* Nombres para los repartos automáticos de N comidas («Repartir objetivo en N», «Crear N comidas»). */
+function mtPorN(N){return({1:['Comida'],2:['Desayuno','Comida'],3:['Desayuno','Comida','Cena'],4:['Desayuno','Colación AM','Comida','Cena'],5:['Desayuno','Colación AM','Comida','Colación PM','Cena'],6:['Desayuno','Colación AM','Comida','Colación PM','Cena','Antes de dormir']})[N]||Array.from({length:N},(x,i)=>'Comida '+(i+1));}
+/* Cuerpo del modal de añadir/editar tiempo. conSnack=false en el modo macros por comida: ahí cada comida
+   lleva sus P/C/G a mano y la casilla de colación no cambiaría nada. */
+function mtModalBody(name,time,snack,conSnack){const i=mtIdx(name);
+  return '<label id="mt_l">Tiempo de comida</label><div class="planchips mtchips" role="group" aria-labelledby="mt_l">'+MEAL_TIEMPOS.map((t,j)=>'<button type="button" class="planchip'+(j===i?' on':'')+'" data-act="mt-pick" data-k="'+j+'" aria-pressed="'+(j===i)+'">'+esc(t.n)+'</button>').join('')+'</div>'+
+    '<div class="frow2 mt12"><div><label for="m_name">Nombre</label><input id="m_name" value="'+esc(name||'')+'" maxlength="40" autocomplete="off" data-live="mt-name" placeholder="O escribe uno: Antes de dormir"></div>'+
+    '<div><label for="m_time">Hora o referencia (opcional)</label><input id="m_time" value="'+esc(time||'')+'" maxlength="40" autocomplete="off" placeholder="07:30 · 45 min antes de entrenar"></div></div>'+
+    (conSnack?'<label class="chkl"><input type="checkbox" id="m_snack"'+(snack?' checked':'')+'> Es colación: lleva la mitad que una comida al repartir el objetivo</label>':'');}
+function mtChipsSync(){const i=mtIdx(val('m_name'));document.querySelectorAll('.mtchips .planchip').forEach(b=>{const on=+b.dataset.k===i;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});}
+function mtLeer(){const name=val('m_name');if(!name){toast('Elige un tiempo o escribe el nombre de la comida','err','m_name');return null;}
+  const sn=document.getElementById('m_snack');return{name,time:val('m_time'),snack:sn?sn.checked:null};}
 function mealCopy(m){const c=JSON.parse(JSON.stringify(m));c.id=uid();(c.opts||[]).forEach(o=>{o.id=uid();});return c;}
 /* ===== Plan por equivalentes SMAE (2026-11-07) =====
    Luis pidió armar el plan «por equivalentes como en Avena». Es un TERCER modo del plan (ap.mode='eqv'),
@@ -7149,7 +7188,7 @@ function smaeCoachHTML(aid,ap){
   }else{
     const MT=mealTargetsOf(ap),gs=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
     let h='<thead><tr><th>Grupo</th>'+cols.map(x=>'<th class="num eqmh"><span>'+esc(x.m.name)+'</span>'+(x.m.time?'<span class="tiny">'+esc(x.m.time)+'</span>':'')+
-      '<span class="eqmb"><button class="btn-mi" data-act="pmeal-edit" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Nombre, hora y colación" aria-label="Editar '+esc(x.m.name)+'">'+I.edit+'</button><button class="btn-mi" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Eliminar comida" aria-label="Eliminar '+esc(x.m.name)+'">'+I.trash+'</button></span></th>').join('')+'<th class="num">Total</th></tr></thead><tbody>';
+      '<span class="eqmb">'+(x.i>0?'<button class="btn-mi mvh" data-act="pmeal-move" data-aid="'+aid+'" data-meal="'+x.m.id+'" data-dir="-1" title="Mover antes" aria-label="Mover antes · '+esc(x.m.name)+'">'+I.up+'</button>':'')+(x.i<ms.length-1?'<button class="btn-mi mvh" data-act="pmeal-move" data-aid="'+aid+'" data-meal="'+x.m.id+'" data-dir="1" title="Mover después" aria-label="Mover después · '+esc(x.m.name)+'">'+I.down+'</button>':'')+'<button class="btn-mi" data-act="pmeal-edit" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Nombre, hora y colación" aria-label="Editar '+esc(x.m.name)+'">'+I.edit+'</button><button class="btn-mi" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Eliminar comida" aria-label="Eliminar '+esc(x.m.name)+'">'+I.trash+'</button></span></th>').join('')+'<th class="num">Total</th></tr></thead><tbody>';
     gs.forEach(g=>{const v=+day[g.k]||0,a=+asg[g.k]||0,ok=Math.abs(a-v)<.01;
       h+='<tr><td><b>'+g.s+'</b></td>'+cols.map(x=>'<td class="num">'+smaeStep('data-aid="'+aid+'" data-k="'+g.k+'" data-meal="'+x.m.id+'"',+((x.m.eqv||{})[g.k])||0,g.n+' en '+x.m.name)+'</td>').join('')+
         '<td class="num'+(ok?' u-c-green':' u-c-orange')+'" title="Repartidas / del día">'+smaeN(a)+' / '+smaeN(v)+(ok?' ✓':'')+'</td></tr>';});
@@ -7296,8 +7335,7 @@ Object.assign(ACTIONS,{
     const go=()=>{smaeDistribute(ap);saveState();render();toast('Porciones repartidas: ajusta a mano lo que quieras');};
     if(has){_smaePend=go;confirmModal('Distribuir','Se reemplazará lo que ya repartiste en las comidas por un reparto nuevo según «'+((DAY_SHAPES.find(x=>x[0]===(ap.shape||'igual'))||DAY_SHAPES[0])[1])+'».','smae-suggest-do','');}else go();},
   'smae-meals':el=>{const ap=activePlanOf(el.dataset.aid),N=Math.min(8,Math.max(1,ap.mealsPerDay||4));
-    const nm={1:['Comida'],2:['Desayuno','Comida'],3:['Desayuno','Comida','Cena'],4:['Desayuno','Colación','Comida','Cena'],5:['Desayuno','Colación 1','Comida','Colación 2','Cena'],6:['Desayuno','Colación 1','Comida','Colación 2','Cena','Colación 3']}[N]||Array.from({length:N},(x,i)=>'Comida '+(i+1));
-    ap.meals=(ap.meals||[]).concat(nm.map(x=>({id:uid(),name:x,time:'',items:[],eqv:{},snack:/^Colación/.test(x)||undefined})));
+    ap.meals=(ap.meals||[]).concat(mtPorN(N).map(x=>({id:uid(),name:x,time:'',items:[],eqv:{},snack:mtSnack(x)||undefined})));
     if(Object.keys(ap.eqvDay||{}).length)smaeDistribute(ap);saveState();render();},
   'smae-list':el=>{smaeListOpen(el.dataset.k||'cer_sg');},
   'smae-hide-tog':el=>{const n=nutriOf(el.dataset.aid),k=el.dataset.key,al=new Set(n.eqvAllow||[]);if(al.has(k))al.delete(k);else al.add(k);
@@ -7382,7 +7420,7 @@ function coachTabNutri(aid){
     const MT=mealTargetsOf(ap),nM=(ap.meals||[]).length,dp0=n.dietProfile||{};
     const bt=(act,m,ic,tl,extra)=>'<button class="btn btn-g btn-sm btn-mi" data-act="'+act+'" data-aid="'+aid+'" data-meal="'+m.id+'"'+(extra||'')+' title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';
     const mHead=(m,i,x)=>{x=x||m;const mt=mealMacros(x);
-      return '<div class="meal-h"><span>'+(x.recipe?I.recipe+' ':'')+esc(m.name)+(x.recipe?' <span class="badge">receta</span>':'')+(m.snack?' <span class="badge">colación</span>':'')+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp">'+
+      return '<div class="meal-h"><span>'+(x.recipe?I.recipe+' ':'')+esc(m.name)+(x.recipe?' <span class="badge">receta</span>':'')+(m.snack?' <span class="badge">colación</span>':'')+'</span><span class="tm">'+(m.time?'<span class="mh-hora">'+I.reloj+esc(m.time)+'</span>':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp">'+
         (i>0?bt('pmeal-move',m,I.up,'Subir',' data-dir="-1"'):'')+(i<nM-1?bt('pmeal-move',m,I.down,'Bajar',' data-dir="1"'):'')+
         ((m.opts||[]).length?'':'<button class="btn btn-g btn-sm" data-act="mopt-add" data-aid="'+aid+'" data-meal="'+m.id+'" title="Otra versión de esta comida con macros parecidos: el atleta elige cada día cuál come">'+I.plus+' Opción</button>')+
         bt('pmeal-dup',m,I.copy,'Duplicar o copiar a otro plan')+
@@ -7435,8 +7473,8 @@ function coachTabNutri(aid){
     const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     let ms='';
-    mm.forEach(m=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':'');ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp"><button class="btn btn-g btn-sm" data-act="'+(m.recipe?'pmeal-recipe-edit':'pmacmeal-edit')+'" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
-    macMealsHTML='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmacmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
+    mm.forEach((m,i)=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':''),mv=(d,ic,tl)=>'<button class="btn btn-g btn-sm btn-mi" data-act="pmeal-move" data-aid="'+aid+'" data-meal="'+m.id+'" data-dir="'+d+'" title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+(m.time?'<span class="mh-hora">'+I.reloj+esc(m.time)+'</span>':'')+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp">'+(i>0?mv(-1,I.up,'Subir'):'')+(i<mm.length-1?mv(1,I.down,'Bajar'):'')+'<button class="btn btn-g btn-sm" data-act="'+(m.recipe?'pmeal-recipe-edit':'pmacmeal-edit')+'" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+(m.recipe?mealRecipeBox(m):'')+'</div>';});
+    macMealsHTML='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">Comidas con macros · «'+esc(ap.name)+'» <span class="hint">opcional · define P/C/G por comida para precisión al marcar</span></h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-g btn-sm" data-act="pmacmeal-autosplit" data-aid="'+aid+'">Repartir objetivo en '+(ap.mealsPerDay||4)+'</button><button class="btn btn-p btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Sin comidas definidas</b>Si no defines comidas, el atleta verá un reparto estimado (objetivo ÷ nº de comidas). Define P/C/G por comida para que al marcar se reste el valor exacto.</div>')+'</div>'+
       '<div><h4 class="mg-h">Suma de comidas vs objetivo</h4>'+bars+suppAislLine(aid,ap,tot)+'<p class="tiny mt8">Opcional. Lo que el atleta marque como cumplido restará estos macros exactos; el resto lo completa con comida libre.</p></div></div></div>';
   }
@@ -8623,12 +8661,25 @@ Object.assign(ACTIONS,{
   'smae-mode-go':el=>{const ap=activePlanOf(el.dataset.aid),keep=el.dataset.keep==='1';smaeModeSwitch(ap,'eqv',keep);ap.mode='eqv';closeModal();saveState();render();
     toast(keep?'Los alimentos quedaron como fijos: revisa el total del plan':'Menú guardado aparte: vuelve a «Menú cerrado» y reaparece');},
   'pnutri-save':el=>{pnutriReadTargets(el.dataset.aid);saveState();toast('Plan guardado');render();},
-  /* En modo menú la comida se crea al instante («Comida N») y el foco va a su buscador; nombre, hora y
-     colación se cambian con el lápiz. En modo macros sigue el modal de siempre. */
-  'pmeal-add':el=>{const ap=activePlanOf(el.dataset.aid);
-    if(ap.mode==='menu'||ap.mode==='eqv'){ap.meals=ap.meals||[];const m={id:uid(),name:'Comida '+(ap.meals.length+1),time:'',items:[]};if(ap.mode==='eqv')m.eqv={};ap.meals.push(m);saveState();render();const q=document.getElementById('mq_'+m.id);if(q){q.scrollIntoView({block:'center'});q.focus();}return;}
-    openModal('Nueva comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" placeholder="Comida 1 · Desayuno"></div><div><label>Hora</label><input id="m_time" placeholder="08:00"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>');},
-  'pmeal-add-save':el=>{const nm=val('m_name');if(!nm){toast('Escribe el nombre de la comida','err','m_name');return;}const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];p.meals.push({id:uid(),name:nm,time:val('m_time'),items:[]});saveState();closeModal();render();},
+  /* Añadir comida, los tres modos: modal de tiempos (ver MEAL_TIEMPOS) con el siguiente tiempo sugerido.
+     Antes, en menú y equivalentes se creaba al instante como «Comida N» y se renombraba con el lápiz; Luis
+     aceptó el toque de más a cambio de que nazca con nombre (2026-11-22). En menú el foco sigue yendo al
+     buscador de la comida nueva. nofocus: en el teléfono el teclado taparía los chips. */
+  'pmeal-add':el=>{const ap=activePlanOf(el.dataset.aid),sug=mtSugerido(ap);
+    openModal('Nuevo tiempo de comida',mtModalBody(sug,'',mtSnack(sug),ap.mode!=='macros'),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-add-save" data-aid="'+el.dataset.aid+'">Añadir</button>',{nofocus:true});},
+  'pmeal-add-save':el=>{const r=mtLeer();if(!r)return;const ap=activePlanOf(el.dataset.aid);ap.meals=ap.meals||[];
+    const m={id:uid(),name:r.name,time:r.time,items:[]};
+    /* Modo macros: antes cada comida nueva llevaba objetivo ÷ «Comidas al día» aunque ya hubiera más tiempos
+       que ese número (4 en el campo y 6 tiempos = 150 % del día). Ahora «Comidas al día» sube sola si se
+       rebasa, y la comida nueva lleva su parte pero nunca más de lo que aún queda del objetivo del día. */
+    if(ap.mode==='macros'){const N=Math.max(ap.meals.length+1,ap.mealsPerDay||4);ap.mealsPerDay=N;
+      const us={p:0,c:0,f:0};ap.meals.forEach(x=>{const t=mealMacros(x);us.p+=+t.p||0;us.c+=+t.c||0;us.f+=+t.f||0;});
+      const pt=(obj,u)=>Math.round(Math.max(0,Math.min(obj/N,obj-u)));m.p=pt(+ap.protein||0,us.p);m.c=pt(+ap.carbs||0,us.c);m.f=pt(+ap.fat||0,us.f);}
+    else{if(r.snack)m.snack=true;if(ap.mode==='eqv')m.eqv={};}
+    ap.meals.push(m);saveState();closeModal();render();
+    const q=document.getElementById('mq_'+m.id);if(q){q.scrollIntoView({block:'center'});q.focus();}},
+  'mt-pick':el=>{const t=MEAL_TIEMPOS[+el.dataset.k],n=document.getElementById('m_name');if(!t||!n)return;n.value=t.n;n.removeAttribute('aria-invalid');
+    const sn=document.getElementById('m_snack');if(sn)sn.checked=!!t.snack;mtChipsSync();},
   'pmeal-recipe-pick':el=>{const aid=el.dataset.aid;_recPickTo=el.dataset.to?{aid:aid,mid:el.dataset.to}:null;if(!RECIPES.length){openModal('Asignar receta','<p>Tu recetario está vacío. Importa el recetario base o crea una receta desde la vista <b>Recetario</b> y vuelve a intentarlo.</p>','<button class="btn btn-p" data-act="modal-close">Entendido</button>');return;}openModal('Asignar receta al plan','<p class="tiny mb8">Se añade como una comida del menú con sus macros. <b>Tal cual</b> usa las cantidades originales; <b>Adaptar</b> escala toda la receta (solo si está marcada «Escalable») para acercarse a lo que toca en esta comida: lo que le falta al plan repartido entre las comidas que quedan. Arriba salen las que mejor encajan. Ya asignada, la puedes editar con ✎.</p><input class="u-w100 u-mb12" id="recpick_q" placeholder="Buscar receta por nombre o ingrediente…" data-live="recpick-q" data-aid="'+aid+'"><div id="recpick_list">'+recPickList(aid,'')+'</div>','<button class="btn btn-g" data-act="modal-close">Cerrar</button>');},
   'pmeal-recipe-add':el=>{const aid=el.dataset.aid,r=recById(el.dataset.rec);if(!r){toast('Receta no encontrada','err');return;}const p=activePlanOf(aid);p.meals=p.meals||[];const m=r.macros||{};recPickPut(aid,p,{id:uid(),name:r.name,time:r.time||'',p:+m.p||0,c:+m.c||0,f:+m.g||0,recipe:{rid:r.id,name:r.name,kcal:recKcal(r),time:r.time||'',ingredients:Array.isArray(r.ingredients)?r.ingredients:[],steps:Array.isArray(r.steps)?r.steps:[],txtMac:r.txtMac||null}});saveState();closeModal();render();toast('«'+r.name+'» añadida al plan');},
   'pmeal-recipe-adapt':el=>{
@@ -8700,8 +8751,8 @@ Object.assign(ACTIONS,{
     m.recipe=Object.assign({},m.recipe,{rid:d.rid,kcal:t.kcal,ingredients:ings,steps,txtMac,scaleFactor:null,edited:true});
     _pmr=null;saveState();closeModal();render();toast('Receta del plan actualizada'+(d.toRec?' y guardada en tu recetario':''));
   },
-  'pmeal-edit':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);openModal('Editar comida','<div class="frow2"><div><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div><label>Hora</label><input id="m_time" value="'+esc(m.time||'')+'"></div></div><label class="chkl"><input type="checkbox" id="m_snack"'+(m.snack?' checked':'')+'> Es colación: lleva la mitad que una comida al repartir el objetivo</label>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
-  'pmeal-edit-save':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);m.name=val('m_name')||m.name;m.time=val('m_time');const sn=document.getElementById('m_snack');if(sn)m.snack=sn.checked;saveState();closeModal();render();},
+  'pmeal-edit':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;openModal('Editar tiempo de comida',mtModalBody(m.name,m.time,!!m.snack,true),'<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>',{nofocus:true});},
+  'pmeal-edit-save':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;const r=mtLeer();if(!r)return;m.name=r.name;m.time=r.time;if(r.snack!==null)m.snack=r.snack;saveState();closeModal();render();},
   'pmeal-del':el=>{const m=(activePlanOf(el.dataset.aid).meals||[]).find(x=>x.id===el.dataset.meal);if(!m)return;confirmModal('Eliminar comida','Se quitará «'+m.name+'»'+((m.items||[]).length===1?' con su alimento':(m.items||[]).length?' con sus '+m.items.length+' alimentos':'')+((m.opts||[]).length?' (y '+(m.opts.length===1?'su otra opción':'sus otras '+m.opts.length+' opciones')+')':'')+' de este plan.','pmeal-del-do','data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'"');},
   'pmeal-del-do':el=>{const p=activePlanOf(el.dataset.aid);p.meals=p.meals.filter(x=>x.id!==el.dataset.meal);saveState();closeModal();render();},
   'pmeal-move':el=>{const p=activePlanOf(el.dataset.aid),ms=p.meals||[],i=ms.findIndex(x=>x.id===el.dataset.meal),j=i+(+el.dataset.dir||0);if(i<0||j<0||j>=ms.length)return;const t=ms[i];ms[i]=ms[j];ms[j]=t;saveState();render();},
@@ -8721,11 +8772,11 @@ Object.assign(ACTIONS,{
     const mac=foodMacros(fo.name,qty);if(!mac){toast('No pude calcular los macros de «'+fo.name+'»','err');return;}
     m.items=m.items||[];m.items.push({food:fo.name,qty:isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel(qid+'_g')||(qty+' g')),grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f});
     fpUsed(fo);saveState();render();const nx=document.getElementById(qid);if(nx)nx.focus();},
-  'pmacmeal-add':el=>{const p=activePlanOf(el.dataset.aid);p.meals=p.meals||[];const N=Math.max(1,p.mealsPerDay||4);p.meals.push({id:uid(),name:'Comida '+(p.meals.length+1),p:Math.round((p.protein||0)/N),c:Math.round((p.carbs||0)/N),f:Math.round((p.fat||0)/N),items:[]});saveState();render();},
+  'pmacmeal-add':el=>ACTIONS['pmeal-add'](el),
   'pmacmeal-autosplit':el=>{const N=Math.max(1,activePlanOf(el.dataset.aid).mealsPerDay||4);confirmModal('Repartir objetivo','Se reemplazarán las comidas actuales por '+N+' comidas iguales (objetivo ÷ '+N+'). ¿Continuar?','pmacmeal-autosplit-do','data-aid="'+el.dataset.aid+'"');},
-  'pmacmeal-autosplit-do':el=>{const p=activePlanOf(el.dataset.aid),N=Math.max(1,p.mealsPerDay||4),P=p.protein||0,C=p.carbs||0,F=p.fat||0;p.meals=[];for(let i=0;i<N;i++)p.meals.push({id:uid(),name:'Comida '+(i+1),p:+(P/N).toFixed(1),c:+(C/N).toFixed(1),f:+(F/N).toFixed(1),items:[]});saveState();closeModal();render();},
-  'pmacmeal-edit':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;openModal('Editar comida','<div class="frow"><label>Nombre</label><input id="m_name" value="'+esc(m.name)+'"></div><div class="frow3"><div><label>Prot (g)</label><input id="mm_p" type="number" min="0" step="1" value="'+(m.p||0)+'"></div><div><label>Carb (g)</label><input id="mm_c" type="number" min="0" step="1" value="'+(m.c||0)+'"></div><div><label>Gras (g)</label><input id="mm_f" type="number" min="0" step="1" value="'+(m.f||0)+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmacmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>');},
-  'pmacmeal-edit-save':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;m.name=val('m_name')||m.name;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
+  'pmacmeal-autosplit-do':el=>{const p=activePlanOf(el.dataset.aid),N=Math.max(1,p.mealsPerDay||4),P=p.protein||0,C=p.carbs||0,F=p.fat||0;p.meals=[];const nms=mtPorN(N);for(let i=0;i<N;i++)p.meals.push({id:uid(),name:nms[i],time:'',p:+(P/N).toFixed(1),c:+(C/N).toFixed(1),f:+(F/N).toFixed(1),items:[]});saveState();closeModal();render();},
+  'pmacmeal-edit':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;openModal('Editar tiempo de comida',mtModalBody(m.name,m.time,false,false)+'<div class="frow3 mt12"><div><label>Prot (g)</label><input id="mm_p" type="number" min="0" step="1" value="'+(m.p||0)+'"></div><div><label>Carb (g)</label><input id="mm_c" type="number" min="0" step="1" value="'+(m.c||0)+'"></div><div><label>Gras (g)</label><input id="mm_f" type="number" min="0" step="1" value="'+(m.f||0)+'"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pmacmeal-edit-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Guardar</button>',{nofocus:true});},
+  'pmacmeal-edit-save':el=>{const m=mealById(activePlanOf(el.dataset.aid),el.dataset.meal);if(!m)return;const r=mtLeer();if(!r)return;m.name=r.name;m.time=r.time;m.p=num('mm_p');m.c=num('mm_c');m.f=num('mm_f');m.items=[];saveState();closeModal();render();},
   'pitem-add':el=>{const dl='<datalist id="pifoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>';openModal('Añadir alimento',dl+'<label>Desde tu base ('+(S.foods||[]).length+') o el catálogo de 15 mil alimentos</label><div class="frow2"><div><input id="pi_food" list="pifoods" placeholder="Busca un alimento…" autocomplete="off" data-live="food-hint" data-hint-target="pi_g" aria-label="Alimento"></div><div><input id="pi_g" type="number" min="0.5" step="5" placeholder="gramos" aria-label="Cantidad"></div></div>'+fpxHTML('pi_food')+fpmHTML('pi_g')+'<p class="tiny">Las macros se calculan solas. O bien introdúcelas manualmente:</p><div class="frow2"><div><label>Nombre manual (opcional)</label><input id="pi_name" placeholder="Guiso casero"></div><div><label>Cantidad (texto)</label><input id="pi_qty" placeholder="1 plato"></div></div><div class="frow3"><div><label>Prot (g)</label><input id="pi_p" type="number" min="0" step="1"></div><div><label>Carb (g)</label><input id="pi_c" type="number" min="0" step="1"></div><div><label>Gras (g)</label><input id="pi_f" type="number" min="0" step="1"></div></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="pitem-add-save" data-aid="'+el.dataset.aid+'" data-meal="'+el.dataset.meal+'">Añadir</button>');},
   'pitem-add-save':el=>{const p=activePlanOf(el.dataset.aid),m=mealById(p,el.dataset.meal);if(!m)return;const fname=val('pi_food'),qty=medGrams('pi_g');let it=null;
     if(fname&&qty>0){const fo=eqvFood(fname);const mac=foodMacros(fname,qty);if(!mac){toast('Elige un alimento de la lista o usa la entrada manual','err','pi_food');return;}const isU=fo&&fo.unit==='u';const qtyLabel=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('pi_g')||(qty+' g'));it={food:fname,qty:qtyLabel,grams:isU?0:qty,p:mac.p,c:mac.c,f:mac.f};fpUsed(fo);}
@@ -9730,7 +9781,7 @@ function hxNutriCard(aid){
   if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=mh.recipe?esc((mh.recipe&&mh.recipe.name)||s.name):(smaeHas(s.meal)?'<div>'+esc(smaeSummary(s.meal))+'</div>':'')+'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';que=dxOptHint(s.meal,mh)+que;}
   else{const tt=dxTarget(n,s);kc=tt.kcal;que='Objetivo ≈ P '+dxN(tt.p)+' · C '+dxN(tt.c)+' · G '+dxN(tt.f)+'. Registra lo que comas.';}
   const pr=dxProyeccion(aid);
-  return card+'<div class="hx-next"><div class="h"><span class="dx-k">Sigue · '+esc(s.name)+(s.time?' · '+esc(s.time):'')+'</span><span class="tiny">'+(fijo?'':'≈ ')+kc+' kcal</span></div><div>'+que+'</div>'+
+  return card+'<div class="hx-next"><div class="h"><span class="dx-k">Sigue · '+esc(s.name)+'</span><span class="tiny">'+(fijo?'':'≈ ')+kc+' kcal</span></div>'+(s.time?'<div class="dx-hora">'+I.reloj+esc(s.time)+'</div>':'')+'<div>'+que+'</div>'+
     '<div class="hx-btns">'+(fijo?'<button class="btn btn-p" data-act="dx-toggle" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+I.check+' Ya la comí</button><button class="btn btn-g" data-act="nav" data-view="ath-nutri" data-params=\'{}\'>Cambiar algo</button>'
       :'<button class="btn btn-p" data-act="dx-add-open" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+I.plus+' Añadir lo que comí</button>')+'</div>'+
     (pr?dxProyTxt(pr):'')+'</div>';
@@ -10530,7 +10581,7 @@ VIEWS['ath-nutri']=function(u){
     const add='<button class="btn '+(fijo?'btn-g':'btn-p')+'" data-act="dx-add-open" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+I.plus+(fijo?' Añadir':' Añadir lo que comí')+'</button>';
     const ft=fijo?(hecha?'<button class="btn btn-g" data-act="dx-toggle" data-sid="'+esc(s.id)+'" data-d="'+iso+'">Desmarcar</button>':'<button class="btn btn-p" data-act="dx-toggle" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+I.check+' Ya la comí</button>')+add
       :add+(sl.length?'':'<button class="btn btn-g" data-act="dx-toggle" data-sid="'+esc(s.id)+'" data-d="'+iso+'">'+(hecha?'Desmarcar':'La cumplí sin detallar')+'</button>');
-    secs+='<section class="dx-sec'+(next?' next':'')+'"><div class="dx-sh">'+ck+'<h3>'+esc(s.name)+'<small>'+(s.time?' · '+esc(s.time):'')+'</small>'+(next?'<span class="dx-sigue">Sigue</span>':'')+'</h3><span class="k'+(hecha?'':' pend')+'">'+(!fijo&&!sl.length?'≈ ':'')+kc+' kcal</span></div>'+rows+'<div class="dx-ft">'+ft+'</div></section>';
+    secs+='<section class="dx-sec'+(next?' next':'')+'"><div class="dx-sh">'+ck+'<h3>'+esc(s.name)+(next?'<span class="dx-sigue">Sigue</span>':'')+(s.time?'<small class="dx-hora">'+I.reloj+esc(s.time)+'</small>':'')+'</h3><span class="k'+(hecha?'':' pend')+'">'+(!fijo&&!sl.length?'≈ ':'')+kc+' kcal</span></div>'+rows+'<div class="dx-ft">'+ft+'</div></section>';
   });
   /* Registros viejos sin comida, o de una comida que el coach quitó del plan: no se pierden. */
   const otros=logs.filter(l=>ids.indexOf(l.slot)<0);
@@ -11631,6 +11682,7 @@ document.addEventListener('input',e=>{
   if(el.id==='dxa_u'&&_dxSel){const v=el.value,mi=(v==='u'||v==='g')?v:+v,fo=_dxSel.fo,g=dxaCant(fo,_dxSel.mi,_dxSel.q),m=dxaMeds(fo)[mi];
     _dxSel.mi=mi;if(mi==='g')_dxSel.q=Math.max(5,Math.round(g));else if(m)_dxSel.q=Math.max(0.5,Math.round(g/m.g*2)/2);
     const i=document.getElementById('dxa_q');if(i)i.value=fmtG(_dxSel.q);dxaPrev();}
+  if(el.dataset&&el.dataset.live==='mt-name')mtChipsSync();
   if(el.dataset&&el.dataset.live==='food-hint'){
     const fo=_foodFind(el.value);
     const t=document.getElementById(el.dataset.hintTarget);
@@ -14379,7 +14431,7 @@ function niaPreviewHTML(){
   let h='<div class="rec-detail"><div class="rec-macros">'+cell('kcal',t.kcal,T.kcal,'')+cell('proteína',t.p,T.p,' g')+cell('carbos',t.c,T.c,' g')+cell('grasa',t.f,T.f,' g')+'</div></div>';
   z.meals.forEach(m=>{
     const mt=mealItemsTotals(m);
-    h+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+(m.time?esc(m.time)+' · ':'')+mt.kcal+' kcal · P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</span></div><ul class="rec-ing" style="padding:2px 14px 10px 32px">';
+    h+='<div class="meal"><div class="meal-h"><span>'+esc(m.name)+'</span><span class="tm">'+(m.time?'<span class="mh-hora">'+I.reloj+esc(m.time)+'</span>':'')+mt.kcal+' kcal · P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</span></div><ul class="rec-ing" style="padding:2px 14px 10px 32px">';
     m.items.forEach(it=>{h+='<li>'+esc(it.food)+' — <b>'+esc(it.qty)+'</b></li>';});
     h+='</ul></div>';
   });
