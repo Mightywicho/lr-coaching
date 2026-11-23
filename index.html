@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-22.1">
+<meta name="lr-build" content="2026-11-22.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -250,7 +250,6 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .badge.orange{background:var(--orange-12);border-color:var(--orange-35);color:var(--orange)}
 .badge.red{background:var(--danger-10);border-color:var(--danger-35);color:var(--red)}
 .badge.green{background:var(--green-12);border-color:var(--green-35);color:var(--green)}
-.semadot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 
 /* ---------- tabs ---------- */
@@ -422,12 +421,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 /* ---------- adherence ---------- */
 
 /* ---------- week strip ---------- */
-.week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-.wday{background:var(--card);border:1px solid var(--line);border-radius:var(--r-s);padding:10px 6px;text-align:center}
-.wday.today{border-color:var(--volt)}
-.wday .d{font-size:var(--fs-1);color:var(--tx3);font-weight:600}
-.wday .n{font-family:var(--font-d);font-weight:700;font-size:var(--fs-5);margin:2px 0 6px}
-.wday .dots{display:flex;gap:4px;justify-content:center;min-height:7px}
 
 /* ---------- charts ---------- */
 .chart-wrap{width:100%}
@@ -505,18 +498,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .wch-tip b{display:block;font-weight:600;color:var(--tx);margin-bottom:2px}
 .wch-tip span{display:flex;justify-content:space-between;gap:14px;color:var(--tx3)}
 .wch-tip em{font-style:normal;font-weight:700;color:var(--tx)}
-.legend{display:flex;gap:14px;font-size:var(--fs-2);color:var(--tx2);margin-top:8px;flex-wrap:wrap}
-.legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
 
 /* ---------- logs feed ---------- */
-.revrow{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
-.revrow.riesgo{border-left:3px solid var(--red)}.revrow.decision{border-left:3px solid var(--tx2)}.revrow.novedades{border-left:3px solid var(--blue)}
 .revrow-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .revrow-h .nm{display:flex;flex-direction:column;min-width:0;flex:1}
 select.revsel{width:auto;flex:none;padding:6px 10px;font-size:var(--fs-3)}
 .revchips{display:flex;gap:6px;flex-wrap:wrap}
 .revbtns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.revurg{font-size:var(--fs-3);color:var(--red)}.revurg.dec{color:var(--tx2)}
 .revit{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:var(--fs-3);border-bottom:1px solid var(--line)}
 .revit .badge{flex:none}
 .revnota{font-size:var(--fs-3);color:var(--tx2);background:var(--card2);border-radius:var(--r-s);padding:7px 10px}
@@ -1010,7 +998,7 @@ input.meta-in.old{border-style:dashed}
   body.kbd-open .sidebar{transform:translateY(110%);pointer-events:none}
   body.kbd-open .content{padding-bottom:24px}
 }
-@media(max-width:560px){.g3,.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}.week{gap:4px}}
+@media(max-width:560px){.g3,.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
 /* ---- Barra de abajo en teléfono: más delgada, se esconde al bajar y se puede colapsar (2026-10-04) ----
    Medía ~115 px (nombres en dos líneas). Ahora ~60 px con nombres en una línea. body.nav-hide la
    esconde mientras se hace scroll hacia abajo (navScrollWatch) y body.nav-col la deja colapsada a
@@ -4630,7 +4618,6 @@ function superOpen(aid){
   h+='<hr class="hr">'+(cuerpo||'<div class="empty"><b>Lista vacía</b>Tu menú no tiene alimentos con cantidad.</div>')+'<p class="tiny mt8">Cantidades en crudo tal como vienen en tu menú, redondeadas hacia arriba.</p>';
   openModal('Lista del súper',h,'<button class="btn btn-g" data-act="modal-close">Cerrar</button><button class="btn btn-p" data-act="super-copy" data-aid="'+aid+'">Copiar</button>');
 }
-function swapsHoy(aid){const e=athData(aid).logs.nutrition.find(x=>x.date===todayISO());return (e&&e.swaps)||{};}
 /* ===== Diario de comidas tipo MyFitnessPal (pedido de Luis, 2026-11-03; maqueta aprobada ese día) =====
    Antes la nutrición del atleta vivía en tres sitios (casillas en «Hoy», comida libre en otro acordeón y el
    menú en «Mi nutrición»), y lo que comía fuera del plan no pertenecía a ninguna comida. Ahora la pestaña
@@ -4675,7 +4662,6 @@ function doneMealsMacrosFor(aid,iso){
     else{if(logs.some(l=>l.slot===s.id))return;mt=dxTarget(p,s);}
     if(mt){t.p+=mt.p;t.c+=mt.c;t.f+=mt.f;}});
   t.p=+t.p.toFixed(1);t.c=+t.c.toFixed(1);t.f=+t.f.toFixed(1);t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
-function doneMealsMacros(aid){return doneMealsMacrosFor(aid,todayISO());}
 /* Suplementos aislados marcados: solo se saben para hoy (suppsHoy depende del día de entreno/descanso elegido hoy). */
 function consumedFor(aid,iso){const a=doneMealsMacrosFor(aid,iso),b=intakeForDate(aid,iso),sp=iso===todayISO()?suppTakenMac(aid):{p:0,c:0,f:0};const t={p:+(a.p+b.p+sp.p).toFixed(1),c:+(a.c+b.c+sp.c).toFixed(1),f:+(a.f+b.f+sp.f).toFixed(1)};t.kcal=Math.round(t.p*4+t.c*4+t.f*9);return t;}
 function consumedToday(aid){return consumedFor(aid,todayISO());}
@@ -4817,16 +4803,6 @@ function dxaDet(){const box=document.getElementById('dx_det');if(!box)return;con
     '<button type="button" class="btn btn-p dxa-ok" id="dxa_ok" data-act="dxa-add">Añadir a '+esc(a.name)+'</button></div>';}
 /* Tras añadir o quitar dentro de la hoja: se repinta solo su lista (el buscador y lo escrito se quedan) y la vista de abajo. */
 function dxAddRefresh(){const b=document.getElementById('dx_added');if(b)b.innerHTML=dxAddedHTML();const fx=document.querySelector('#modal-root .fpx[data-for="mf_food"]');if(fx)fx.innerHTML=fpxInner('mf_food');render();}
-/* barras de macros restantes: objetivo − (marcadas + registradas) */
-function remainingBars(aid,n){
-  const tgt={kcal:n.kcal||kcalFromMacros(n),p:n.protein||0,c:n.carbs||0,f:n.fat||0};
-  const t=consumedToday(aid);
-  const rows=[['Calorías',t.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',t.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',t.c,tgt.c,'g','#52d98a'],['Grasas',t.f,tgt.f,'g','#ffb45c']];
-  let bars='';
-  rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);
-    const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';
-    bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
-  return bars;}
 
 /* ---------- base de alimentos (macros por 100 g, valores de referencia USDA/BEDCA — editable por el coach) ---------- */
 const FOOD_CATS=['Proteínas','Lácteos','Carbohidratos','Frutas','Verduras','Grasas','Bebidas','Suplementos','Otros'];
@@ -4902,7 +4878,6 @@ const KCAL_PER_KG=7700; /* equivalente energético aprox. de 1 kg de peso corpor
    abre «Hoy», aunque no marque nada, y esos null convertían la media en NaN. */
 function adherenceAvg(aid,days){const cutoff=daysAgoISO(days);const l=athData(aid).logs.nutrition.filter(n=>n.date>=cutoff&&n.adherence!=null);if(!l.length)return null;return +(l.reduce((a,b)=>a+b.adherence,0)/l.length).toFixed(1);}
 function kcalFromMacros(n){return Math.round(n.protein*4+n.carbs*4+n.fat*9);}
-function lastWorkoutForDay(aid,dayId){const ws=athData(aid).logs.workouts.filter(w=>w.dayId===dayId&&w.entries&&Object.keys(w.entries).length);return ws.length?ws[ws.length-1]:null;}
 /* Referencia «Última sesión» de UN ejercicio (placeholders en gris + la línea de abajo).
    ⚠ Se busca por ejercicio, no por día. Antes se tomaba el último entreno del día y de ahí se
    leían todos los ejercicios, y eso enseñaba la sesión equivocada en tres casos reales:
@@ -5055,8 +5030,6 @@ function semaforo(aid){
   if(days>=2)return{k:'yellow',hint:'Sin registrar desde hace '+days+' días'};
   return{k:'green',hint:days===0?'Registró hoy':'Registró ayer'};
 }
-const SEMA_COLOR={red:'--red',yellow:'--orange',green:'--green'};
-function semaDot(sm){return sm?'<span class="semadot" title="'+esc(sm.hint)+'" style="background:var('+SEMA_COLOR[sm.k]+')"></span>':'';}
 
 /* ===== RENDIMIENTO Y CARGA: 1RM estimado · comparación de sesiones · ACWR ===== */
 /* 1RM estimado: Epley y Brzycki promediadas. Reps efectivas = reps + RIR (proximidad al fallo). */
@@ -5219,15 +5192,15 @@ function drCard(aid){
    Lo pendiente de antes (datos raros viejos, cambios sin decidir) sale como chip, pero no deja al
    atleta atorado arriba después de marcarlo revisado: ahí ya no hay nada nuevo que mirar. */
 const REV_CADAS=[[1,'Cada día'],[2,'Cada 2 días'],[3,'Cada 3 días'],[7,'Cada semana'],[14,'Cada 2 semanas']];
-/* lbl = título del grupo (Panel y Monitoreo); uno = etiqueta de UN atleta; bd = color de su borde */
+/* lbl = título del grupo (Panel); uno = etiqueta de UN atleta; bd = color de su borde */
 const REV_NIVELES={riesgo:{lbl:'Necesitan atención',uno:'Necesita atención',cls:'red',bd:'--red'},decision:{lbl:'Esperan una decisión tuya',uno:'Espera tu decisión',cls:'',bd:'--tx2'},toca:{lbl:'Toca revisión de rutina',uno:'Toca revisión',cls:'',bd:'--line2'},novedades:{lbl:'Con novedades',uno:'Con novedades',cls:'blue',bd:'--blue'},aldia:{lbl:'Al día',uno:'Al día',cls:'green',bd:'--green'}};
 function revOf(aid){const r=athData(aid).profile.revision||{};return{cada:+r.cada||7,ult:r.ult||null,vistos:Array.isArray(r.vistos)?r.vistos:[],notas:Array.isArray(r.notas)?r.notas:[]};}
-/* La barra lateral (contador), el Panel y Monitoreo piden lo mismo en cada pintada, y datosRaros
+/* La barra lateral (contador) y el Panel piden lo mismo en cada pintada, y datosRaros
    recorre todo el historial: se calcula una vez por atleta. La memoria solo existe mientras
    render() pinta; fuera de ahí (acciones, pruebas) se calcula siempre, así nunca sale vieja. */
 let _revMemo=null;
 function revNovedades(aid){if(!_revMemo)return revNovedadesCalc(aid);return _revMemo[aid]||(_revMemo[aid]=revNovedadesCalc(aid));}
-/* ¿este registro es posterior a la última revisión? (misma regla para la bandeja y el Historial)
+/* ¿este registro es posterior a la última revisión? (misma regla para el Panel y el Historial)
    Sin revisión anotada (todos los atletas el día que salió esto) solo cuenta lo de su último
    periodo de revisión: si no, faltas y datos raros de hace meses los mandaban a todos a
    «Revisar ya» y la bandeja nacía igual de revuelta que lo que venía a ordenar. */
@@ -5295,14 +5268,8 @@ function revNotaHTML(nv){const n=nv.rv.notas[0];return n?'<div class="revnota">'
    por buenos (cada uno se confirma ahí, y eso es lo que quita el «dudoso» de récords y estados). */
 function revChipsHTML(nv){return nv.chips.map(c=>c.act?'<button type="button" class="badge '+c.cls+' revchip-btn" data-act="'+c.act+'" data-aid="'+nv.aid+'" title="'+esc(c.tt||'Ir a «Datos a revisar» en su Resumen: ahí se confirma cada uno')+'">'+esc(c.txt)+' →</button>':'<span class="badge '+c.cls+'">'+esc(c.txt)+'</span>').join('');}
 function revCadaSel(aid,nv){return '<select class="revsel" data-change="rev-cada" data-aid="'+aid+'" title="Cada cuánto revisas a este atleta">'+REV_CADAS.map(o=>'<option value="'+o[0]+'"'+(nv.rv.cada===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select>';}
-function revFilaHTML(a,nv){
-  /* «sin registrar» ya sale como ficha: aquí no se repite */
-  const urg=nv.items.filter(x=>x.urg&&x.k!=='sinreg').slice(0,3).map(x=>'<div class="revurg'+(x.rg?'':' dec')+'">• '+esc(x.txt)+' <span class="tiny">'+fmtDate(x.date)+'</span></div>').join('');
-  return '<div class="revrow '+nv.nivel+'"><div class="revrow-h">'+semaDot(nv.sm)+ava(a)+'<span class="nm"><b>'+esc(a.name)+'</b><span class="tiny">'+revUltTxt(nv)+'</span></span>'+revCadaSel(a.id,nv)+'</div>'+
-    (nv.chips.length?'<div class="revchips">'+revChipsHTML(nv)+'</div>':'<div class="tiny">Nada nuevo desde tu última revisión.</div>')+urg+revNotaHTML(nv)+
-    '<div class="revbtns"><button class="btn btn-g btn-sm" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+a.id+'","tab":"historial"}\'>Abrir</button><button class="btn btn-g btn-sm" data-act="rev-nota-modal" data-aid="'+a.id+'" title="Marcar revisado y apuntar qué decidiste">'+icx('nota')+'Con nota</button><button class="btn btn-g btn-sm" data-act="rev-ok" data-aid="'+a.id+'">'+I.check+' Revisado</button></div></div>';
-}
-/* tarjeta de arriba del Historial: lo mismo que la bandeja, pero de este atleta y con el detalle */
+/* tarjeta de arriba del Historial: lo mismo que su fila del Panel, con el detalle, la nota y la frecuencia de revisión.
+   Desde que Monitoreo se fundió en el Panel (2026-11-22), nota y frecuencia solo se tocan aquí. */
 function revCard(aid){
   const nv=revNovedades(aid),n=nv.items.length,niv=REV_NIVELES[nv.nivel];
   const list=nv.items.slice(0,12).map(x=>'<div class="revit"><span class="badge '+x.cls+'">'+(x.k==='sinreg'?'hoy':fmtDate(x.date))+'</span><span>'+esc(x.txt)+'</span></div>').join('');
@@ -5316,7 +5283,7 @@ function revCard(aid){
 }
 function revBadgeTotal(){let n=0;athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const lv=revNovedades(a.id).nivel;if(lv==='riesgo'||lv==='decision'||lv==='toca')n++;});return n;}
 /* Atletas activos por nivel, cada grupo con el que lleva más sin revisar primero (nunca revisado = el
-   que más). Lo usan el Panel y Monitoreo: una sola cuenta, para que las dos pantallas digan lo mismo. */
+   que más). Lo usa el Panel; Monitoreo, que repetía estos mismos grupos, se fundió en él el 2026-11-22. */
 function revGrupos(){
   const G={riesgo:[],decision:[],toca:[],novedades:[],aldia:[]};
   athleteUsers().forEach(a=>{if(athStatus(a.id).k==='inactivo')return;const nv=revNovedades(a.id);G[nv.nivel].push({a,nv});});
@@ -5409,13 +5376,8 @@ const ava=(u,lg)=>'<span class="ava'+(lg?' ava-lg':'')+'" style="background:'+u.
 
 /* ===== Tema de marca: un color de acento → re-tematiza toda la app (acento + peligro) ===== */
 const BRAND_DEFAULT='#c80508';
-const BRAND_PRESETS=[
-  ['#c80508','Rojo Physique'],['#cdf563','Lima'],['#2e90fa','Azul'],
-  ['#12b981','Esmeralda'],['#8b5cf6','Violeta'],['#f97316','Naranja']
-];
 function ensureBrand(st){if(st&&!st.brandColor)st.brandColor=BRAND_DEFAULT;}
 function _hexToRgb(h){h=(h||'').replace('#','').trim();if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);if(h.length!==6||isNaN(n))return null;return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
-function isHex(h){return !!_hexToRgb(h);}
 function _rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0,l=(mx+mn)/2;const d=mx-mn;if(d){s=l>.5?d/(2-mx-mn):d/(mx+mn);if(mx===r)h=(g-b)/d+(g<b?6:0);else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return{h,s,l};}
 function _hslToRgb(h,s,l){h=((h%360)+360)%360/360;let r,g,b;if(!s){r=g=b=l;}else{const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;const hue=t=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<.5)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};r=hue(h+1/3);g=hue(h);b=hue(h-1/3);}return{r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)};}
 function _relLum(r,g,b){const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);};return .2126*f(r)+.7152*f(g)+.0722*f(b);}
@@ -5631,7 +5593,7 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div></div><div class="login-foot">LR Coaching · <a class="u-c-volt" href="#" data-act="show-signup">Cuenta coach</a> · <a class="u-c-blue" href="#" data-act="show-ath-signup">Soy atleta</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div></div><div class="login-foot">LR Coaching · <a class="u-c-blue" href="#" data-act="show-ath-signup">Soy atleta</a></div></div></div>';
   setTimeout(()=>{
     const em=document.getElementById('l_email');if(em)em.focus();
     const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
@@ -5651,7 +5613,7 @@ function renderNewPass(){
 }
 function navItemsFor(u){
   if(u.role==='coach'){
-    return[{v:'coach-dash',icon:I.panel,label:'Panel',match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'coach-mon',icon:I.check,label:'Monitoreo',badge:revBadgeTotal()},{v:'apoyo',icon:I.folder,label:'Material de apoyo',corto:'Material',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración',corto:'Ajustes'}];
+    return[{v:'coach-dash',icon:I.panel,label:'Panel',badge:revBadgeTotal(),match:r=>r.view==='coach-dash'||r.view==='coach-ath'},{v:'apoyo',icon:I.folder,label:'Material de apoyo',corto:'Material',match:r=>['apoyo','tpl','lib','foods','recetario','ref'].includes(r.view)},{v:'coach-chats',icon:ICON_CHAT,label:'Mensajes',badge:chatUnreadCoachTotal(),match:r=>r.view==='coach-chats'||r.view==='coach-chat'},{v:'ajustes',icon:I.gear,label:'Configuración',corto:'Ajustes'}];
   }
   const sv=svcOf(u.id);
   const items=[{v:'ath-hoy',icon:I.panel,label:'Hoy'}];
@@ -5662,8 +5624,8 @@ function navItemsFor(u){
   if(sv.nu)items.push({v:'ath-nutri',icon:I.food,label:'Comidas'});
   if(sv.tr)items.push({v:'ath-rutina',icon:I.dumbbell,label:'Mi rutina',corto:'Entreno',match:r=>r.view==='ath-rutina'||r.view==='ath-wlog'});
   items.push({v:'ath-chat',icon:ICON_CHAT,label:'Mensajes',badge:chatUnread(u.id,'ath'),mas:true});
-  items.push({v:'ath-prog',icon:I.chart,label:'Progreso'});
-  items.push({v:'ath-reporte',icon:I.copy,label:'Mi reporte',mas:true});
+  /* «Mi reporte» salió del menú (2026-11-22): repetía Progreso. Se abre desde un botón de Progreso. */
+  items.push({v:'ath-prog',icon:I.chart,label:'Progreso',match:r=>r.view==='ath-prog'||r.view==='ath-reporte'});
   items.push({v:'ath-perfil',icon:I.user,label:'Perfil',mas:true});
   return items;
 }
@@ -5925,7 +5887,7 @@ function renderUnsafe(){
     '<button type="button" class="nav-tab" data-act="nav-tab" aria-label="Mostrar u ocultar la barra" title="Mostrar / ocultar la barra"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>'+
     (u.role==='coach'?'<button type="button" class="side-tog" data-act="side-tog" title="Colapsar / expandir el menú"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="lbl">Colapsar menú</span></button>':'')+navHTML+
     '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item'+(u.role!=='coach'?' nav-mas-i':'')+'" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
-  const topHTML=(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+(u.role==='coach'?'<button class="btn btn-g btn-ic" title="Exportar datos (respaldo JSON)" data-act="export">'+I.dl+'</button>':'')+'</div>';
+  const topHTML=(page.back?'<button class="btn btn-g btn-ic" data-act="nav" data-view="'+page.back.v+'" data-params=\''+JSON.stringify(page.back.p||{})+'\'>'+I.back+'</button>':'')+'<div><h1>'+page.title+'</h1>'+(page.crumb?'<div class="crumb">'+page.crumb+'</div>':'')+'</div><div class="top-actions">'+(page.actions||'')+'</div>';
   const bodyHTML=page.body;
 
   const app=$('#app');
@@ -5994,10 +5956,6 @@ const ACTIONS={
     if(error){if(err)err.textContent='Email o contraseña incorrectos';if(btn){btn.disabled=false;btn.textContent='Entrar →';}return;}
     await initAfterAuth(data.user);
   },
-  'show-signup':async(el)=>{
-    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Crea tu cuenta de coach</p></div><div class="login-card"><h3>Registro</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Nombre</label><input type="text" id="r_name" placeholder="Tu nombre"><label class="u-mt4">Email</label><input type="email" id="r_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="r_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Código de acceso</label><input type="text" id="r_code" placeholder="Código de invitación" autocomplete="off"><button class="btn btn-p" data-act="auth-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="r_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
-    setTimeout(()=>{document.getElementById('r_name')?.focus();},50);
-  },
   'back-login':()=>render(),
   'show-forgot':()=>renderForgot(),
   'auth-forgot':async()=>{
@@ -6034,62 +5992,6 @@ const ACTIONS={
     if(!u){try{u=(await supa.auth.getUser()).data.user;}catch(e){}}
     if(!u){renderLogin();const le=document.getElementById('l_err');if(le){le.style.color='var(--green)';le.textContent='Contraseña actualizada. Entra con ella.';}return;}
     await initAfterAuth(u);
-  },
-  'auth-signup':async()=>{
-    const name=(document.getElementById('r_name')?.value||'').trim();
-    const email=(document.getElementById('r_email')?.value||'').trim().toLowerCase();
-    const pass=document.getElementById('r_pass')?.value||'';
-    const code=(document.getElementById('r_code')?.value||'').trim();
-    const err=document.getElementById('r_err');
-    if(err)err.textContent='';
-    if(!name||!email||!pass||!code){if(err)err.textContent='Completa todos los campos';return;}
-    if(pass.length<8||!/[a-zA-Z]/.test(pass)||!/[0-9]/.test(pass)){if(err)err.textContent='La contraseña debe tener al menos 8 caracteres con letras y números';return;}
-    /* Invitación individual de un solo uso (coach_invites), no la clave maestra vieja.
-       Al canjearla, use_coach_invite registra al coach en coach_access y le siembra
-       biblioteca, alimentos y recetario del coach que lo invitó. */
-    const{data:valid,error:codeErr}=await supa.rpc('check_coach_invite',{p_code:code});
-    if(codeErr||!valid){if(err)err.textContent='Código inválido, vencido o ya utilizado';return;}
-    const btn=document.querySelector('[data-act="auth-signup"]');
-    if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
-    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'coach'},emailRedirectTo:location.origin+location.pathname}});
-    if(signUpCorreoRepetido(data,error)){if(err)err.textContent=MSG_CORREO_REPETIDO;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-    if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-    if(data.user){
-      const{data:link,error:linkErr}=await supa.rpc('use_coach_invite',{invite_code:code,p_coach_uid:data.user.id});
-      if(linkErr||!(link&&link.success)){if(err)err.textContent='Tu cuenta se creó pero no se pudo activar como coach. Pide un código nuevo.';if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-      if(!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
-      await initAfterAuth(data.user);
-    }
-  },
-  'invite-coach-form':()=>openModal('Invitar a un coach',
-    '<div class="frow"><label>¿Para quién es? (opcional)</label><input id="ci_label" placeholder="Ej. Ana — nutrióloga" autocomplete="off">'+
-    '<p class="tiny u-mt8">Solo para que reconozcas el código en tu lista. El coach nuevo no lo ve.</p>'+
-    '<p class="tiny u-mt8">Al canjearlo recibirá una copia de tus <b>'+(S.library||[]).length+' ejercicios</b>, tus <b>'+(S.foods||[]).length+' alimentos</b> y tu recetario.</p></div>',
-    '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="invite-coach">Generar código</button>'),
-  'coach-invites-list':async()=>{
-    const{data,error}=await supa.from('coach_invites').select('code,label,used,used_by,created_at,expires_at').order('created_at',{ascending:false});
-    if(error){toast('No pude cargar los códigos: '+error.message,'err');return;}
-    const rows=(data||[]);
-    const body=rows.length?('<div class="tblwrap"><table class="tbl" style="min-width:420px"><thead><tr><th>Código</th><th>Para</th><th>Estado</th></tr></thead><tbody>'+
-      rows.map(r=>{
-        const venc=new Date(r.expires_at)<new Date();
-        const st=r.used?'<span class="badge">Usado</span>':(venc?'<span class="badge red">Vencido</span>':'<span class="chip volt">Disponible</span>');
-        return '<tr><td style="font-family:monospace">'+esc(r.code)+'</td><td>'+esc(r.label||'—')+'</td><td>'+st+'</td></tr>';
-      }).join('')+'</tbody></table></div>'):'<p class="tiny">Todavía no has generado ningún código.</p>';
-    openModal('Códigos de coach',body,'<button class="btn btn-p" data-act="modal-close">Cerrar</button>');
-  },
-  'invite-coach':async()=>{
-    const code='LRC-'+inviteCode(6);
-    const label=(val('ci_label')||'').trim();
-    if(!await sessionAlive())return;
-    const{error}=await supa.from('coach_invites').insert({code,created_by:_supabaseUser.id,label:label||null});
-    if(error){toast(authFail(error)||('Error: '+error.message),'err');return;}
-    openModal('Código de invitación de coach',
-      '<p class="u-mb12">Compártelo solo con quien vaya a trabajar contigo:</p>'+
-      '<div style="background:var(--s2);border-radius:var(--r-s);padding:20px;text-align:center;font-size:28px;font-family:monospace;letter-spacing:4px;color:var(--volt);font-weight:bold">'+esc(code)+'</div>'+
-      '<p class="tiny mt8 u-tc">Al usarlo recibirá una copia de tu biblioteca de ejercicios, tu base de alimentos y tu recetario.</p>'+
-      '<p class="tiny u-tc">Es de un solo uso y vence en 14 días.</p>',
-      '<button class="btn btn-p" data-act="modal-close">Listo</button>');
   },
   'invite-ath':async el=>{
     const aid=el.dataset.aid;
@@ -6223,8 +6125,6 @@ const ACTIONS={
   'cal-config':()=>openModal('Link de videollamada','<div class="frow"><label>Tu link de Calendly (u otro agendador)</label><input id="cal_url" value="'+esc(S.coachCalendly||'')+'" placeholder="calendly.com/tu-usuario/seguimiento"><p class="tiny u-mt8">Tus atletas verán un botón «Agendar videollamada» en su chat. Déjalo vacío para ocultarlo.</p></div>','<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="cal-save">Guardar</button>'),
   'cal-save':()=>{S.coachCalendly=normUrl(val('cal_url'));saveState();closeModal();render();toast(S.coachCalendly?'Link de videollamada guardado':'Link de videollamada eliminado');},
   'export':()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='lr-coaching-respaldo-'+todayISO()+'.json';a.click();toast('Respaldo descargado');},
-  'brand-set':el=>{let hx=(el.dataset.hex||val('brand_hex')||'').trim();if(hx&&hx[0]!=='#')hx='#'+hx;if(!isHex(hx)){toast('Color inválido. Usa formato #RRGGBB','err');return;}S.brandColor=hx;ensureBrand(S);applyBrand(hx);saveState();render();toast('Color de marca aplicado');},
-  'brand-reset':()=>{S.brandColor=BRAND_DEFAULT;applyBrand(BRAND_DEFAULT);saveState();render();toast('Color restablecido');}
 };
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-act]');if(!el)return;
@@ -6274,14 +6174,6 @@ Object.assign(ACTIONS,{
     _dxAdd={aid,d:iso,sid:s.id,name:s.name,fijo:dxFijo(s)};_dxSel=null;
     _dxTab=(_fp||[]).some(x=>x.food&&x.used_at)?'rec':(dxFijo(s)?'res':'plan');
     openModal('Añadir a '+esc(s.name)+(iso===todayISO()?'':' · '+esc(fmtDate(iso))),dxAddBody(),'',{cls:'dx-full',hdr:'<button type="button" class="dxa-listo" data-act="modal-close">Listo</button>'});},
-  'dx-add-food':()=>{const a=_dxAdd;if(!a)return;const fo=eqvFood(val('mf_food').toLowerCase());if(!fo){toast('Elige un alimento de la lista','err','mf_food');return;}
-    const isU=fo.unit==='u',qty=medGrams('mf_g');if(!qty||qty<=0||qty>(isU?50:3000)){toast(isU?'Indica la cantidad':'Indica los gramos','err','mf_g');return;}
-    const mac=foodMacros(fo.name,qty);if(!mac){toast('No encontré los datos de ese alimento','err');return;}
-    const label=isU?(qty+' '+(fo.unitLabel||'unidades')):(medQtyLabel('mf_g')||(qty+' g'));
-    fpUsed(fo);dxAddLog(a,fo.name+' · '+label,mac);
-    const i1=document.getElementById('mf_food'),i2=document.getElementById('mf_g'),mb=document.getElementById('mf_g_med');
-    if(i1){i1.value='';i1.dataset.picked='';}if(i2)i2.value='';if(mb)mb.dataset.food='';fpmFill('mf_g',null);
-    dxAddRefresh();toast('Añadido: '+mealKcal(mac)+' kcal');if(i1)try{i1.focus();}catch(e){}},
   'dx-add-quick':()=>{const a=_dxAdd;if(!a)return;const name=val('dx_qn'),p=num('dx_qp'),c=num('dx_qc'),f=num('dx_qf');
     if(!name){toast('Describe qué comiste','err','dx_qn');return;}if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)','err','dx_qp');return;}
     dxAddLog(a,name,{p,c,f});['dx_qn','dx_qp','dx_qc','dx_qf'].forEach(id=>{const x=document.getElementById(id);if(x)x.value='';});
@@ -6416,39 +6308,16 @@ VIEWS['coach-chats']=function(u){
 };
 VIEWS['ajustes']=function(u){
   if(u.role!=='coach')return VIEWS['ath-hoy'](u);
-  const cur=(S.brandColor||BRAND_DEFAULT);
-  const sw=BRAND_PRESETS.map(p=>{
-    const on=cur.toLowerCase()===p[0].toLowerCase();
-    return '<button data-act="brand-set" data-hex="'+p[0]+'" title="'+esc(p[1])+' · '+p[0]+'" style="width:44px;height:44px;border-radius:var(--r-s);background:'+p[0]+';border:2px solid '+(on?'var(--tx)':'transparent')+';box-shadow:0 0 0 1px var(--line);cursor:pointer;flex:none"></button>';
-  }).join('');
-  const brandCard='<div class="card mb16"><h3>Color de marca <span class="hint">tu identidad, visible para ti y tus atletas</span></h3>'+
-    '<p class="tiny u-m0 u-mb16">Elige el color de acento de toda la app. Se guarda en tu cuenta y tus atletas lo heredan automáticamente. En el tema oscuro ajusto el brillo para que siempre se lea bien.</p>'+
-    '<div class="u-dflex u-gap12 u-wrap u-mb16">'+sw+'</div>'+
-    '<div class="frow" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">'+
-      '<div style="flex:1;min-width:150px"><label>Color personalizado (HEX)</label><input id="brand_hex" value="'+esc(cur)+'" placeholder="#c80508" style="max-width:180px"></div>'+
-      '<button class="btn btn-p" data-act="brand-set">Aplicar</button>'+
-      '<button class="btn btn-g" data-act="brand-reset">Restablecer</button>'+
-    '</div>'+
-    '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)"><label>Vista previa</label>'+
-      '<div class="u-dflex u-gap12 u-aic u-wrap u-mt8">'+
-        '<button class="btn btn-p">Botón principal</button>'+
-        '<button class="btn btn-d">'+I.trash+' Eliminar</button>'+
-        '<span class="chip volt">Acento</span>'+
-        '<span class="badge red">Alerta</span>'+
-      '</div>'+
-      '<p class="tiny u-mt12">Nota: si eliges un rojo, el color de «peligro / eliminar» pasa a ámbar para no competir con el acento.</p>'+
-    '</div></div>';
   const cal=(S.coachCalendly||'').trim();
   const calCard='<div class="card"><h3>Link de videollamada <span class="hint">agendador para tus atletas</span></h3>'+
     '<p class="tiny u-m0 u-mb12">'+(cal?'Actual: <b>'+esc(cal)+'</b>':'Sin configurar. Tus atletas verán un botón «Agendar videollamada» en su chat cuando lo pongas.')+'</p>'+
     '<button class="btn btn-g" data-act="cal-config">'+(cal?'Editar link':'Configurar link')+'</button></div>';
-  const teamCard='<div class="card"><h3>Equipo de coaches <span class="hint">invitaciones de un solo uso</span></h3>'+
-    '<p class="tiny u-m0 u-mb12">Genera un código para dar de alta a otro coach. Al usarlo recibe una <b>copia</b> de tu biblioteca de ejercicios, tu base de alimentos y tu recetario, y a partir de ahí los edita por su cuenta sin tocar los tuyos. Sin código nadie puede crear cuenta de coach.</p>'+
-    '<div class="u-dflex u-gap12 u-wrap">'+
-      '<button class="btn btn-p" data-act="invite-coach-form">Invitar a un coach</button>'+
-      '<button class="btn btn-g" data-act="coach-invites-list">Ver códigos generados</button>'+
-    '</div></div>';
-  return{title:'Configuración',crumb:'Personaliza la app',body:brandCard+calCard+teamCard+suppRefCard()};
+  /* El respaldo vivía como icono en la barra superior de TODAS las pantallas del coach (limpieza del
+     2026-11-22): es algo de una vez cada tanto, no del día a día, así que vive aquí. */
+  const backupCard='<div class="card mt16"><h3>Respaldo de datos <span class="hint">copia de seguridad en tu computadora</span></h3>'+
+    '<p class="tiny u-m0 u-mb12">Descarga en un archivo JSON todo lo que la app tiene cargado: atletas, rutinas, planes y registros. Lleva datos personales de tus atletas: guárdalo en un lugar seguro.</p>'+
+    '<button class="btn btn-g" data-act="export">'+I.dl+' Descargar respaldo</button></div>';
+  return{title:'Configuración',crumb:'Personaliza la app',body:calCard+backupCard+suppRefCard()};
 };
 VIEWS['coach-chat']=function(u){
   const aid=route.params.aid,a=userById(aid);
@@ -6471,8 +6340,7 @@ const svcOf=aid=>{const p=athData(aid)&&athData(aid).profile;return SERVICES[(p&
    sus 15 atletas: 14 traían etiqueta de revisión, los 15 «faltan N entrenos» en ámbar y la
    Adherencia salía «—» en 13. Cuando todo avisa nada destaca, y en pantalla solo cabían 6.
    Ahora: una fila por atleta, agrupadas por LO QUE LE TOCA HACER AL COACH. Los grupos son los
-   niveles de revNovedades, los mismos de Monitoreo (revGrupos), para que las dos pantallas
-   cuenten igual; aquí «Con novedades» y «Al día» van juntos porque ninguno pide nada.
+   niveles de revNovedades (revGrupos); aquí «Con novedades» y «Al día» van juntos porque ninguno pide nada.
    Solo «Necesitan atención» va en ámbar. Lo que describe la configuración del atleta (modo de
    asesoría, nombre del programa, tipo de plan, fechas) ya no sale aquí: vive en su ficha.
    Renovaciones, peso estancado, mensajes e inactivos aparecen solo cuando hay alguno. Los entrenos de la semana
@@ -6576,24 +6444,6 @@ VIEWS['coach-dash']=function(u){
     actions:'<button class="btn btn-p" data-act="ath-new-modal">'+I.plus+' Nuevo atleta</button>',body};
 };
 
-/* Bandeja «Monitoreo» (ver revNovedades). Va aquí y no junto a revNovedades porque VIEWS se
-   declara más abajo que aquella: asignarla antes rompe el arranque. */
-VIEWS['coach-mon']=function(u){
-  const G=revGrupos();
-  const sect=(k,hint)=>G[k].length?'<div class="sect-h"><h2>'+REV_NIVELES[k].lbl+'</h2><span class="tiny">'+hint+'</span></div>'+G[k].map(x=>revFilaHTML(x.a,x.nv)).join(''):'';
-  const stat=(k,n,sub,cls)=>'<div class="stat"><div class="k">'+REV_NIVELES[k].lbl+'</div><div class="v'+(cls&&n?' '+cls:'')+'">'+n+'</div><div class="sub">'+sub+'</div></div>';
-  /* las cuatro cifras son los cuatro grupos del Panel: «Al día» suma a los que traen novedades sin que les toque */
-  const nAl=G.novedades.length+G.aldia.length,pend=G.riesgo.length+G.decision.length+G.toca.length;
-  let body='<div class="grid g4 mb16">'+stat('riesgo',G.riesgo.length,'no registran, faltas o fatiga alta','down')+stat('decision',G.decision.length,'cambios de ejercicio o datos dudosos')+stat('toca',G.toca.length,'venció su frecuencia')+stat('aldia',nAl,G.novedades.length?G.novedades.length+' con registros nuevos':'nada nuevo')+'</div>'+
-    sect('riesgo','no registran, faltaron o reportaron fatiga alta')+
-    sect('decision','cambios de ejercicio o datos dudosos nuevos')+
-    sect('toca','ya pasó su frecuencia de revisión')+
-    sect('novedades','hay registros nuevos, pero todavía no le toca');
-  if(G.aldia.length)body+='<div class="mt16"></div>'+secPleg('plc-mon-aldia','Al día','',plural(G.aldia.length,'atleta','atletas'),G.aldia.map(x=>revFilaHTML(x.a,x.nv)).join(''));
-  if(!pend&&!nAl)body+='<div class="empty"><b>Sin atletas activos</b>Cuando tengas atletas activos, aquí verás a quién te toca revisar.</div>';
-  else if(!pend)body='<div class="notebox mb16 u-bl-green">Nadie pendiente de revisión.</div>'+body;
-  return{title:'Monitoreo',crumb:'A quién revisar y qué cambió desde tu última revisión',body};
-};
 /* pestañas visibles según el modo de asesoría del atleta */
 const COACH_TABS_ALL=[['resumen','Resumen',1],['entrenamiento','Entrenamiento','tr'],['semanas','Ajustes semanales','tr'],['nutricion','Nutrición','nu'],['cuestionarios','Cuestionarios',1],['historial','Historial',1],['progreso','Progreso','tr'],['fotos','Fotos',1],['reporte','Reporte',1]];
 const COACH_TAB_IDS=COACH_TABS_ALL.map(t=>t[0]);
@@ -8042,7 +7892,7 @@ document.addEventListener('keydown',ev=>{
 function coachTabRegistros(aid){
   const d=athData(aid);
   const drM={};drPendientes(aid).forEach(x=>{(drM[x.wid+'|'+x.exId]=drM[x.wid+'|'+x.exId]||[]).push(x);});
-  /* «nuevo» = posterior a tu última revisión (misma regla que Monitoreo) */
+  /* «nuevo» = posterior a tu última revisión (misma regla que el Panel) */
   const esNuevo=revNuevoFn(aid),nuevoB='<span class="badge blue" title="Registrado después de tu última revisión">nuevo</span>';
   const wCards=[];
   d.logs.workouts.slice().reverse().forEach(w=>{
@@ -8534,12 +8384,8 @@ Object.assign(ACTIONS,{
     const ta=el.dataset.nota?document.getElementById(el.dataset.nota):null,txt=ta?ta.value.trim().slice(0,600):'';
     const notas=txt?[{date:t,txt}].concat(rv.notas).slice(0,20):rv.notas;
     p.revision={cada:rv.cada,ult:t,vistos:(rv.ult===t?rv.vistos:[]).concat(hoy),notas};
-    if(el.dataset.nota==='rev_nota')closeModal();saveState();toast(txt?'Revisado, con nota':'Marcado como revisado');render();},
+    saveState();toast(txt?'Revisado, con nota':'Marcado como revisado');render();},
   'rev-ir-dr':el=>{nav('coach-ath',{aid:el.dataset.aid,tab:'resumen'});setTimeout(()=>{const c=document.getElementById('dr-card');if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'start'});},80);},
-  'rev-nota-modal':el=>{const aid=el.dataset.aid,a=userById(aid),ult=revOf(aid).notas[0];
-    openModal('Revisado · '+esc(a?a.name:''),(ult?'<p class="tiny mb8">Tu nota anterior ('+fmtDate(ult.date)+'): «'+esc(ult.txt)+'»</p>':'')+
-      '<label>Nota de esta revisión (opcional)</label><textarea id="rev_nota" placeholder="Qué decidiste o qué queda pendiente. Ej.: subí 2 series de pecho; preguntar por el sueño."></textarea>',
-      '<button class="btn btn-g" data-act="modal-close">Cancelar</button><button class="btn btn-p" data-act="rev-ok" data-aid="'+aid+'" data-nota="rev_nota">'+I.check+' Guardar revisión</button>');},
   'dr-ok':el=>{const p=athData(el.dataset.aid).profile;p.datosOk=p.datosOk||{};p.datosOk[el.dataset.key]=todayISO();saveState();toast('Marcado como revisado');render();},
   'dr-ok-all':el=>{const aid=el.dataset.aid,p=athData(aid).profile;p.datosOk=p.datosOk||{};const t=todayISO();drPendientes(aid).forEach(x=>{p.datosOk[x.key]=t;});saveState();toast('Todo marcado como revisado');render();},
   'dr-ask':el=>{
@@ -9864,19 +9710,6 @@ function athVolGlance(aid){
   });
   return{inRange,total,series,flagged};
 }
-/* abre un acordeón <details> por id y lo centra (usado por los chips de «Pendientes») */
-function openAcc(id){var e=document.getElementById(id);if(e){e.open=true;e.scrollIntoView({behavior:'smooth',block:'center'});}}
-function weekStrip(aid){
-  const d=athData(aid);
-  let h='<div class="week mb16">';
-  for(let i=6;i>=0;i--){
-    const iso=daysAgoISO(i);const[y,m,dd]=iso.split('-').map(Number);const dt=new Date(y,m-1,dd);
-    /* una sesión reportada como no realizada no puede encender el punto de «entreno registrado» */
-    const hasW=d.logs.workouts.some(w=>w.date===iso&&!isMissed(w)),hasN=d.logs.nutrition.some(n=>n.date===iso&&nutriHasData(n));
-    h+='<div class="wday'+(i===0?' today':'')+'"><div class="d">'+DIAS[dt.getDay()]+'</div><div class="n">'+dd+'</div><div class="dots">'+(hasW?'<span class="dot" style="background:var(--volt)"></span>':'')+(hasN?'<span class="dot" style="background:var(--orange)"></span>':'')+'</div></div>';
-  }
-  return h+'</div><div class="legend mb16"><span><i style="background:var(--volt)"></i>Entreno registrado</span><span><i style="background:var(--orange)"></i>Nutrición registrada</span></div>';
-}
 
 /* «Hoy» reordenado (Luis, 2026-11-03: «muchos datos mal aprovechados»; maqueta aprobada). Orden: nota del coach
    arriba (antes iba al final), entreno sin guardar, comidas de hoy (anillo + macros + la SIGUIENTE comida con
@@ -10736,7 +10569,7 @@ VIEWS['ath-nutri']=function(u){
    la primera con la más reciente, lado a lado o con una barra que se arrastra encima (cortina
    antes/después). Decisiones de Luis: poses fijas para que siempre se compare frente con frente;
    la frecuencia la elige el coach por atleta (pendiente en «Hoy» + aviso push, como los cuestionarios);
-   el coach se entera por Monitoreo, sin mensaje en el chat.
+   el coach se entera por el Panel, sin mensaje en el chat.
    Dónde vive cada cosa:
    - Archivos: bucket PRIVADO `progress-photos`, ruta <athlete_uid>/<fecha>_<pose>_<id>.jpg. Nada es
      público: se pintan con URLs firmadas (6 h) que se piden en lote después de cada pintada (fotosFill).
@@ -11019,7 +10852,7 @@ function coachTabFotos(aid){
       '<div class="fld"><label for="ft_hora">Hora del aviso</label><input type="time" id="ft_hora" value="'+esc(cfg.remind)+'" data-change="ft-cfg" data-aid="'+aid+'"></div>':'')+
     '</div>'+(cfg.cada?est:'<p class="tiny mt8 u-m0">Sin frecuencia, el atleta puede subirlas cuando quiera desde «Mi progreso», pero no se le recuerda.</p>')+'</div>';
   return cfgUI+'<div class="card"><h3>Comparar <span class="hint">'+(tomas.length?plural(tomas.length,'toma','tomas'):'sin fotos')+'</span></h3>'+
-    (tomas.length?fotoComparador(aid)+fotoListaHTML(aid,'c'):'<div class="empty"><b>Todavía no ha subido fotos</b>'+(cfg.cada?'Se le piden '+fotoCfgTxt(cfg)+'; en cuanto suba las primeras salen aquí y en Monitoreo.':'Elige arriba cada cuánto pedírselas, o espera a que las suba desde «Mi progreso».')+'</div>')+'</div>';
+    (tomas.length?fotoComparador(aid)+fotoListaHTML(aid,'c'):'<div class="empty"><b>Todavía no ha subido fotos</b>'+(cfg.cada?'Se le piden '+fotoCfgTxt(cfg)+'; en cuanto suba las primeras salen aquí y en el Panel.':'Elige arriba cada cuánto pedírselas, o espera a que las suba desde «Mi progreso».')+'</div>')+'</div>';
 }
 async function hydratePhotoLogs(){
   if(!_supabaseUser||!S)return;
@@ -11133,6 +10966,7 @@ VIEWS['ath-prog']=function(u){
     swTable='<div class="tblwrap mt16"><table class="tbl u-minwa"><thead><tr><th>Semana (desde lunes)</th><th>Media diaria</th><th>Días registrados</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
   return{title:'Mi progreso',crumb:tr?'Peso, pasos, cargas y adherencia':'Peso, pasos y adherencia',
+    actions:'<button class="btn btn-g btn-sm" data-act="nav" data-view="ath-reporte" data-params="{}">'+icx('copy')+'Mi reporte</button>',
     body:'<div class="grid g3 mb16">'+
     '<div class="stat"><div class="k">Cambio de peso 30d</div><div class="v '+(d30>0?'up':d30<0?'down':'')+'">'+(d30!=null?(d30>0?'+':'')+d30+'<small> kg</small>':'—')+'</div></div>'+
     '<div class="stat"><div class="k">Ritmo semanal</div><div class="v '+(rate&&rate.delta>0?'up':rate&&rate.delta<0?'down':'')+'">'+(rate?(rate.delta>0?'+':'')+rate.delta.toFixed(2)+'<small> kg/sem</small>':'—')+'</div><div class="sub">'+(rate?(rate.pct>0?'+':'')+rate.pct.toFixed(2)+'% de tu peso/sem · semanas con ≥3 pesajes':'necesita 2 semanas con ≥3 pesajes')+'</div></div>'+
@@ -11465,8 +11299,6 @@ Object.assign(ACTIONS,{
   'eqv-undo':el=>{const aid=getSession().userId,e=todayNutriEntry(aid);if(!e.swaps)return;e.swaps=Object.assign({},e.swaps);delete e.swaps[el.dataset.mid+'|'+el.dataset.idx];syncNutriRow(aid);saveStateCola();render();},
   'plan-meal-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.mid);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.mid);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
   'plan-slot-toggle':el=>{const aid=getSession().userId,e=todayNutriEntry(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;e.mealsDone=e.mealsDone||[];const i=e.mealsDone.indexOf(el.dataset.slot);if(i>=0)e.mealsDone.splice(i,1);else e.mealsDone.push(el.dataset.slot);recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
-  'plan-all-done':()=>{const aid=getSession().userId,e=todayNutriEntry(aid),p=athPlanOf(aid),c=document.getElementById('adh_comment');if(c)e.comment=c.value;let all;if(p.mode==='menu'&&(p.meals||[]).length)all=(p.meals||[]).map(m=>m.id);else{all=[];for(let i=0;i<Math.max(1,p.mealsPerDay||1);i++)all.push('slot'+i);}e.mealsDone=((e.mealsDone||[]).length===all.length)?[]:all;recomputeAdherence(aid);syncNutriRow(aid);saveStateCola();render();},
-  'adh-save':()=>{const aid=getSession().userId,e=todayNutriEntry(aid);e.comment=val('adh_comment');keepClear('adh_comment');recomputeAdherence(aid,true);syncNutriRow(aid);saveStateCola();toast('Registro de nutrición guardado');render();},
   'weight-save':async()=>{
     const u=userById(getSession().userId),d=athData(u.id);
     const kg=num('w_today');
@@ -11592,35 +11424,11 @@ Object.assign(ACTIONS,{
     keepClearPrefix('ms_'); /* las 10 casillas de una vez */
     saveStateCola();toast('Medidas guardadas');render();
   },
-  'meal-add':()=>{
-    const u=userById(getSession().userId),d=athData(u.id);
-    const name=val('m_name'),p=num('m_p'),c=num('m_c'),f=num('m_f');
-    if(!name){toast('Describe qué comiste','err','m_name');return;}
-    if(p+c+f<=0){toast('Indica al menos un macro (P, C o G)','err','m_p');return;}
-    if(!d.logs.meals)d.logs.meals=[];
-    const _m={id:uid(),date:todayISO(),name,p,c,f};
-    d.logs.meals.push(_m);syncMealAdd(u.id,_m);
-    saveStateCola();toast('Comida añadida: '+mealKcal({p,c,f})+' kcal');render();
-  },
   'meal-del':el=>{
     const u=userById(getSession().userId),d=athData(u.id);
     d.logs.meals=(d.logs.meals||[]).filter(m=>m.id!==el.dataset.id);
     syncMealDel(u.id,el.dataset.id);
     saveStateCola();toast('Comida eliminada');render();
-  },
-  'meal-add-food':()=>{
-    const u=userById(getSession().userId),d=athData(u.id);
-    const q=val('mf_food').toLowerCase(),qty=medGrams('mf_g');
-    const food=eqvFood(q);
-    if(!food){toast('Elige un alimento de la lista','err','mf_food');return;}
-    const isUnit=food.unit==='u';
-    if(!qty||qty<=0||qty>(isUnit?50:3000)){toast(isUnit?'Indica la cantidad':'Indica los gramos','err','mf_g');return;}
-    const mac=foodMacros(food.name,qty);
-    const label=isUnit?(qty+' '+(food.unitLabel||'unidades')):(medQtyLabel('mf_g')||(qty+' g'));
-    if(!d.logs.meals)d.logs.meals=[];fpUsed(food);
-    const _m={id:uid(),date:todayISO(),name:food.name+' · '+label,p:mac.p,c:mac.c,f:mac.f};
-    d.logs.meals.push(_m);syncMealAdd(u.id,_m);
-    saveStateCola();toast('Añadido: '+mealKcal(mac)+' kcal');render();
   },
   /* gestión de la base de alimentos (coach) */
   'food-new-modal':()=>{
@@ -12773,14 +12581,6 @@ function recMacroStr(r){const m=r.macros;if(!m)return '';return 'P '+(m.p||0)+' 
    («Salsa al gusto», «Pico de gallo ½ taza»): basta con que haya al menos un ligado y que lo demás sea texto.
    Las líneas de texto no se escalan; lo que aportan va en `txtMac` y se suma tal cual. */
 function recIsScalable(r){return Array.isArray(r.ingredients)&&r.ingredients.some(x=>x&&typeof x==='object')&&r.ingredients.every(x=>x&&(typeof x==='object'||typeof x==='string'));}
-/* macros que le faltan al plan activo (objetivo − lo ya sumado por sus comidas), sirve para adaptar una receta */
-function planRemainingMacros(ap){
-  const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
-  let tot;
-  if(ap.mode==='menu')tot=planMenuTotals(ap);
-  else{tot={p:0,c:0,f:0};(ap.meals||[]).forEach(m=>{const mt=mealMacros(m);tot.p+=mt.p;tot.c+=mt.c;tot.f+=mt.f;});tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);}
-  return{kcal:Math.max(0,tgt.kcal-tot.kcal),p:Math.max(0,+(tgt.p-tot.p).toFixed(1)),c:Math.max(0,+(tgt.c-tot.c).toFixed(1)),f:Math.max(0,+(tgt.f-tot.f).toFixed(1))};
-}
 /* factor de escala: la razón MÁS LIMITANTE entre lo que falta y lo que aporta la receta, para no pasarse de ningún macro */
 function recScaleFactor(r,rem){
   const m=r.macros||{};const cands=[];
@@ -15034,7 +14834,7 @@ VIEWS['ath-reporte']=function(u){
   const aid=u.id, rw=[4,8,12].includes(+route.params.rw)?+route.params.rw:8;
   const sel=[[4,'4 sem'],[8,'8 sem'],[12,'12 sem']].map(w=>'<button class="btn btn-sm '+(rw===w[0]?'btn-p':'btn-g')+'" data-act="nav" data-view="ath-reporte" data-params=\'{"rw":'+w[0]+'}\'>'+w[1]+'</button>').join(' ');
   const controls='<div class="rep-controls u-mb16"><span class="tiny u-c-tx3 u-mr8">Periodo</span>'+sel+'</div>';
-  return{title:'Mi reporte',crumb:'Tu progreso · solo lectura',body:'<div class="card mb16">'+controls+reportSheet(aid,rw,true)+'</div>'};
+  return{title:'Mi reporte',crumb:'Tu progreso · solo lectura',back:{v:'ath-prog'},body:'<div class="card mb16">'+controls+reportSheet(aid,rw,true)+'</div>'};
 };
 /* html2canvas bajo demanda. Se pide una sola vez: la promesa se guarda, así que dos
    pulsaciones seguidas no disparan dos descargas ni dos <script>. Devuelve null si el

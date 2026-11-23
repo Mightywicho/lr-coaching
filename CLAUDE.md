@@ -116,7 +116,9 @@ se atasca: se le añade una línea y se sube.
   bloque entero sin querer. Se separó visualmente (caja de aviso aparte) y el modal de
   confirmación lleva una advertencia explícita antes de archivar. Si vuelves a tocar ese panel,
   no los juntes de nuevo.
-- **Monitoreo** (vista `coach-mon`, 2026-10-27): la última revisión del coach por atleta vive en
+- **Revisión del coach** (antes vista `coach-mon` «Monitoreo», 2026-10-27; fundida en el Panel el 2026-11-22:
+  sus grupos ya salían de `revGrupos`, igual que los del Panel; nota y frecuencia viven en `revCard` del Historial):
+  la última revisión del coach por atleta vive en
   `profile.revision` {cada, ult, vistos}, clave **privada** en `splitProfile` (como `notes`/`datosOk`).
   «Qué es nuevo» lo decide `revNuevoFn(aid)`; úsala en vez de comparar fechas a mano. El Historial
   es el archivo de registros; todo lo que compara vive en la pestaña Progreso.
