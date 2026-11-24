@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-24.2">
+<meta name="lr-build" content="2026-11-24.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1263,7 +1263,7 @@ input.meta-in.old{border-style:dashed}
   .dx-ck::before{content:"";position:absolute;inset:-9px;border-radius:50%}
   .supp-ck::before{content:"";position:absolute;inset:-6px;border-radius:50%}
   .dx .planchip{min-height:44px}
-  .dxa-listo,.dxa-tab{height:44px}
+  .dxa-listo.dxa-listo,.dxa-tab.dxa-tab{height:44px} /* doble clase: las reglas base van más abajo en el archivo */
   .dxa-k button{min-height:44px}
   .hx-lnk{min-height:44px}
 }
@@ -4570,7 +4570,7 @@ function dxRecRow(mh,pm,esHoy){const nm=(mh.recipe&&mh.recipe.name)||mh.name||''
   const top=mh.recSwapped
     ?'<div class="dx-it"><div class="nm"><span>'+esc(nm)+'</span><span class="q sw">hoy en lugar de '+esc(mh.recOrigName||'tu receta')+'</span></div>'+(esHoy?'<button class="dx-ib" data-act="rsw-undo" data-mid="'+mh.id+'" aria-label="Volver a la receta de tu plan" title="Volver a la receta de tu plan">↺</button>':'')+'</div>'
     :(esHoy?'<div class="dx-it"><div class="nm"><span>'+esc(nm)+'</span><span class="q">Puedes cambiarla por otra con macros parecidos</span></div><button class="dx-ib" data-act="rsw-open" data-mid="'+mh.id+'" aria-label="Cambiar '+esc(nm)+' por otra receta" title="Cambiar por otra receta (solo hoy)">⇄</button></div>':'');
-  return top+'<details class="dx-rec"><summary>'+I.recipe+' Receta · P '+dxN(pm.p)+' · C '+dxN(pm.c)+' · G '+dxN(pm.f)+'</summary>'+mealRecipeBox(mh)+'</details>';}
+  return top+'<details class="dx-rec"><summary>'+I.recipe+' Receta · prot '+dxN(pm.p)+' g · carbos '+dxN(pm.c)+' g · grasa '+dxN(pm.f)+' g</summary>'+mealRecipeBox(mh)+'</details>';}
 /* Recetario base (recetario-base.json, público): el atleta no puede leer la tabla `recipes` del coach. */
 let _recBase=null,_rsw=null;
 function recBaseLoad(){if(_recBase)return Promise.resolve(_recBase);
