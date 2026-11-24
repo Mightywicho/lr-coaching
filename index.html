@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-24.6">
+<meta name="lr-build" content="2026-11-24.7">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1732,6 +1732,14 @@ const _recovery=(function(){
     if((p.get('type')||q.get('type'))==='recovery')return{ok:true};
   }catch(e){}
   return null;
+})();
+/* Enlace de invitación (?codigo=XXXX, 2026-11-24): el coach manda por WhatsApp un enlace que abre
+   directo «Crear cuenta» con el código puesto. Antes el atleta tenía que dar con «Soy atleta» al pie
+   del login y teclear 8 letras, y 5 de 16 altas acabaron necesitando un segundo código. El parámetro
+   se deja en la barra hasta que el alta sale bien: si el atleta recarga a medias, no lo pierde. */
+const normInviteCode=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const _inviteFromUrl=(function(){
+  try{return normInviteCode(new URLSearchParams((location.search||'').replace(/^\?/,'')).get('codigo'))||null;}catch(e){return null;}
 })();
 let _supabaseUser=null;
 let _currentUserId=null;
@@ -5782,11 +5790,74 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password"><button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div></div><div class="login-foot">LR Coaching · <a class="u-c-blue" href="#" data-act="show-ath-signup">Soy atleta</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label>'+passField('l_pass','••••••••','current-password')+'<button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div><div style="border-top:1px solid var(--bd-input);margin-top:18px;padding-top:16px;text-align:center"><p class="tiny u-m0">¿Primera vez? Tu coach te dio un código o un enlace.</p><button class="btn btn-g" data-act="show-ath-signup" style="width:100%;margin-top:8px;padding:11px;justify-content:center">Crear mi cuenta de atleta</button></div></div><div class="login-foot">LR Coaching</div></div></div>';
   setTimeout(()=>{
     const em=document.getElementById('l_email');if(em)em.focus();
     const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
   },50);
+}
+/* ===== Alta del atleta (rehecha 2026-11-24) =====
+   Caso real que la motivó: una atleta creó bien su cuenta, no vio que faltaba confirmar el correo,
+   intentó entrar y la app le dijo «Email o contraseña incorrectos» (Supabase había dicho «correo sin
+   confirmar»). Volvió a meter el código —ya canjeado por ella misma— y leyó «inválido, vencido o ya
+   utilizado»; con un código nuevo le salió «pídele un código nuevo» porque su cuenta ya estaba ligada.
+   Tardó 40 min en entrar. Regla de aquí en adelante: cada mensaje dice qué pasó DE VERDAD y qué hacer. */
+function passField(id,ph,ac){
+  return '<div style="position:relative"><input type="password" id="'+id+'" placeholder="'+esc(ph)+'" autocomplete="'+ac+'" style="padding-right:84px"><button type="button" data-act="toggle-pass" data-for="'+id+'" aria-label="Mostrar contraseña" aria-pressed="false" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--tx2);font-size:var(--fs-2);font-weight:600;padding:8px 10px;cursor:pointer;min-height:40px">Mostrar</button></div>';
+}
+/* Pantalla de login con el correo ya puesto y, si toca, un aviso debajo del botón. */
+function loginCon(email,html,ok){
+  renderLogin();
+  const em=document.getElementById('l_email');if(em&&email)em.value=email;
+  const le=document.getElementById('l_err');if(le&&html){le.style.color=ok?'var(--green)':'var(--red)';le.innerHTML=html;}
+  if(email)setTimeout(()=>{document.getElementById('l_pass')?.focus();},70);
+}
+function renderAthSignup(code){
+  const c=normInviteCode(code);
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3>'+
+    '<p class="tiny u-mt8">'+(c?'Tu código ya viene puesto. Solo llena tus datos.':'Necesitas el código de 8 letras que te dio tu coach.')+'</p>'+
+    '<div class="u-dflex u-col u-gap12 u-mt16"><label for="a_name">Nombre</label><input type="text" id="a_name" placeholder="Tu nombre" autocomplete="name">'+
+    '<label class="u-mt4" for="a_email">Email</label><input type="email" id="a_email" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false"><p class="tiny u-m0">Usa uno que revises: ahí te llega el enlace para confirmar tu cuenta.</p>'+
+    '<label class="u-mt4" for="a_pass">Contraseña</label>'+passField('a_pass','Mínimo 8, con letras y números','new-password')+
+    '<label class="u-mt4" for="a_code">Código de tu coach</label><input type="text" id="a_code" value="'+esc(c)+'" placeholder="Ej. K7MP3QXA" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace">'+
+    '<button class="btn btn-p" data-act="auth-ath-signup" style="margin-top:6px;width:100%;padding:12px;justify-content:center">Crear cuenta →</button><div id="a_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div>'+
+    '<div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">¿Ya creaste tu cuenta? Entra aquí</a></div></div></div>';
+  setTimeout(()=>{document.getElementById('a_name')?.focus();},50);
+}
+/* Tras crear la cuenta: el paso que la gente no veía. Muestra el correo tal como lo escribió
+   (si se equivocó, se nota aquí) y deja reenviar sin volver a llenar nada. */
+function renderAthConfirm(email,yaEstaba){
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Último paso: confirma tu correo</h3>'+
+    '<p class="u-mt8">'+(yaEstaba?'Tu cuenta ya estaba creada y ligada con tu coach; no necesitas otro código. ':'Tu cuenta ya está creada y ligada con tu coach. ')+'Te mandamos un enlace a <b>'+esc(email)+'</b>. Ábrelo y entrarás directo.</p>'+
+    '<p class="tiny u-mt8">Si no llega en un par de minutos, búscalo en Spam o Promociones. Hasta que lo confirmes no vas a poder entrar.</p>'+
+    '<div class="u-dflex u-col u-gap12 u-mt16"><button class="btn btn-p" data-act="login-con" data-email="'+esc(email)+'" style="width:100%;padding:12px;justify-content:center">Ya lo confirmé: entrar</button>'+
+    '<button class="btn btn-g" data-act="ath-resend" data-email="'+esc(email)+'" data-msg="c_msg" style="width:100%;padding:11px;justify-content:center">Reenviar el correo</button>'+
+    '<div id="c_msg" style="font-size:var(--fs-3);min-height:18px;text-align:center"></div></div>'+
+    '<p class="tiny u-tc u-mt8">¿Ese no es tu correo? Avísale a tu coach para que lo corrija.</p></div></div></div>';
+}
+/* Estado del código: 'ok' | 'used' | 'expired' | 'invalid'. Si la RPC nueva no responde, cae a la
+   vieja (solo sí/no) para no dejar a nadie sin poder darse de alta. */
+async function inviteStatus(code){
+  const{data,error}=await supa.rpc('athlete_invite_status',{p_code:code});
+  if(!error&&typeof data==='string')return data;
+  const r=await supa.rpc('check_athlete_invite',{p_code:code});
+  if(r.error)throw r.error;
+  return r.data?'ok':'invalid';
+}
+function msgCodigo(st,code,email){
+  const entrar=' <a href="#" class="u-c-volt" data-act="login-con" data-email="'+esc(email)+'">Ir a entrar</a>';
+  if(st==='used')return'Este código ya se usó. Si tú ya creaste tu cuenta con él, no necesitas otro: entra con tu correo y contraseña.'+entrar+'<br>Si no fuiste tú, pídele uno nuevo a tu coach.';
+  if(st==='expired')return'Este código ya venció (duran 7 días). Pídele uno nuevo a tu coach.';
+  if(/[01IO]/.test(code))return'Ese código no existe. Los códigos nunca llevan O, I, 0 ni 1: revisa esos caracteres.';
+  if(code.length!==8)return'Ese código no existe. Los códigos tienen 8 caracteres y escribiste '+code.length+'.';
+  return'Ese código no existe. Compáralo letra por letra con el que te mandó tu coach.';
+}
+function errAlta(e){
+  const c=(e&&e.code)||'',m=(e&&e.message)||'';
+  if(c==='weak_password'||/weak|pwned|compromised/i.test(m))return'Esa contraseña es muy débil o aparece en filtraciones conocidas. Elige otra.';
+  if(c==='over_email_send_rate_limit'||/rate limit/i.test(m))return'Se mandaron demasiados correos seguidos. Espera unos minutos e inténtalo de nuevo.';
+  if(c==='email_address_invalid'||/invalid/i.test(m)&&/email/i.test(m))return'Ese correo no parece válido. Revísalo.';
+  return'No se pudo crear la cuenta. '+(m||'Inténtalo de nuevo.');
 }
 /* Pide el correo de recuperación. Vive fuera de VIEWS a propósito: como el resto de
    pantallas de acceso, se pinta con innerHTML directo porque aquí todavía no hay sesión
@@ -6142,7 +6213,16 @@ const ACTIONS={
     const btn=document.querySelector('[data-act="auth-login"]');
     if(btn){btn.disabled=true;btn.textContent='Entrando…';}
     const{data,error}=await supa.auth.signInWithPassword({email,password:pass});
-    if(error){if(err)err.textContent='Email o contraseña incorrectos';if(btn){btn.disabled=false;btn.textContent='Entrar →';}return;}
+    if(error){
+      if(err){
+        err.style.color='var(--red)';
+        /* Supabase distingue «correo sin confirmar» de «contraseña mala»; antes los dos decían lo mismo
+           y el atleta sin confirmar se ponía a probar contraseñas (ver «Alta del atleta», 2026-11-24). */
+        if(error.code==='email_not_confirmed'||/not confirmed/i.test(error.message||''))
+          err.innerHTML='Todavía no confirmas tu correo. Abre el enlace que te mandamos (revisa Spam). <a href="#" class="u-c-volt" data-act="ath-resend" data-email="'+esc(email)+'" data-msg="l_err">Reenviar el correo</a>';
+        else err.textContent='Email o contraseña incorrectos. Si no recuerdas la contraseña, usa «¿Olvidaste tu contraseña?».';
+      }
+      if(btn){btn.disabled=false;btn.textContent='Entrar →';}return;}
     await initAfterAuth(data.user);
   },
   'back-login':()=>render(),
@@ -6188,41 +6268,74 @@ const ACTIONS={
     const code=inviteCode(8);
     const{error}=await supa.from('athlete_invites').insert({code,coach_uid:_supabaseUser.id,athlete_id:aid});
     if(error){toast(authFail(error)||('Error: '+error.message),'err');return;}
-    openModal('Código de acceso del atleta',
-      '<p class="u-mb12">Comparte este código con el atleta:</p>'+
-      '<div style="background:var(--s2);border-radius:var(--r-s);padding:20px;text-align:center;font-size:32px;font-family:monospace;letter-spacing:6px;color:var(--volt);font-weight:bold">'+esc(code)+'</div>'+
-      '<p class="tiny mt8 u-tc">El atleta entra a <b>mightywicho.github.io/lr-coaching</b>, hace clic en "Soy atleta" e ingresa este código.</p>'+
-      '<p class="tiny u-tc">Este código vence en 7 días. Si caduca, genera uno nuevo desde aquí.</p>',
+    /* El enlace lleva el código dentro (?codigo=, ver _inviteFromUrl): el atleta no teclea nada. El
+       mensaje ya avisa del correo de confirmación, que es donde más gente se atoraba. */
+    const link=location.origin+location.pathname+'?codigo='+code;
+    const nom=String((userById(aid)||{}).name||'').trim().split(/\s+/)[0]||'';
+    const msg='Hola'+(nom?' '+nom:'')+', crea tu cuenta de LR Coaching con este enlace (ya trae tu código):\n'+link+
+      '\n\nAl terminar te llega un correo para confirmar tu cuenta: ábrelo, si no, no vas a poder entrar. Revisa Spam si no lo ves. El enlace vence en 7 días.';
+    openModal('Invitar atleta',
+      '<p class="u-mb12">Mándale este enlace: abre la app con su código ya puesto.</p>'+
+      '<div class="u-dflex u-gap8" style="flex-wrap:wrap"><a class="btn btn-p" href="https://wa.me/?text='+encodeURIComponent(msg)+'" target="_blank" rel="noopener" style="justify-content:center;flex:1 1 150px">Enviar por WhatsApp</a><button class="btn btn-g" data-act="invite-copy" data-txt="'+esc(msg)+'" style="justify-content:center;flex:1 1 150px">Copiar mensaje</button></div>'+
+      '<p class="tiny mt8">Si prefiere teclearlo: entra a <b>mightywicho.github.io/lr-coaching</b>, toca «Crear mi cuenta de atleta» y escribe este código:</p>'+
+      '<div style="background:var(--s2);border-radius:var(--r-s);padding:14px;text-align:center;font-size:26px;font-family:monospace;letter-spacing:5px;color:var(--volt);font-weight:bold;user-select:all">'+esc(code)+'</div>'+
+      '<p class="tiny mt8 u-tc">Vence en 7 días. Si caduca, genera uno nuevo desde aquí.</p>',
       '<button class="btn btn-p" data-act="modal-close">Listo</button>');
   },
-  'show-ath-signup':()=>{
-    $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Nombre</label><input type="text" id="a_name" placeholder="Tu nombre"><label class="u-mt4">Email</label><input type="email" id="a_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label><input type="password" id="a_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Código de atleta</label><input type="text" id="a_code" placeholder="Código que te dio tu coach" autocomplete="off" style="text-transform:uppercase"><button class="btn btn-p" data-act="auth-ath-signup" style="margin-top:6px;width:100%;padding:12px">Crear cuenta →</button><div id="a_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
-    setTimeout(()=>{document.getElementById('a_name')?.focus();},50);
+  'invite-copy':async el=>{
+    try{await navigator.clipboard.writeText(el.dataset.txt||'');toast('Mensaje copiado: pégalo en WhatsApp');}
+    catch(e){toast('No se pudo copiar. Mantén presionado el código para copiarlo.','err');}
+  },
+  'show-ath-signup':()=>renderAthSignup(''),
+  'login-con':el=>loginCon(el.dataset.email||''),
+  'toggle-pass':el=>{
+    const i=document.getElementById(el.dataset.for);if(!i)return;
+    const ver=i.type==='password';i.type=ver?'text':'password';
+    el.textContent=ver?'Ocultar':'Mostrar';el.setAttribute('aria-pressed',ver?'true':'false');el.setAttribute('aria-label',ver?'Ocultar contraseña':'Mostrar contraseña');
+    try{i.focus();}catch(e){}
+  },
+  'ath-resend':async el=>{
+    const email=el.dataset.email||'',box=document.getElementById(el.dataset.msg||'');
+    const say=(t,ok)=>{if(box){box.style.color=ok?'var(--green)':'var(--red)';box.textContent=t;}};
+    if(!email)return;
+    const{error}=await supa.auth.resend({type:'signup',email,options:{emailRedirectTo:location.origin+location.pathname}});
+    if(error){say(error.code==='over_email_send_rate_limit'||/rate limit|seconds/i.test(error.message||'')?'Ya te lo mandamos hace poco. Espera un minuto y vuelve a pedirlo.':'No se pudo reenviar. '+(error.message||'Inténtalo de nuevo.'));return;}
+    say('Listo, te lo reenviamos a '+email+'. Revisa también Spam.',true);
   },
   'auth-ath-signup':async()=>{
     const name=(document.getElementById('a_name')?.value||'').trim();
     const email=(document.getElementById('a_email')?.value||'').trim().toLowerCase();
     const pass=document.getElementById('a_pass')?.value||'';
-    const code=(document.getElementById('a_code')?.value||'').trim().toUpperCase();
+    const ci=document.getElementById('a_code');
+    const code=normInviteCode(ci?.value);if(ci)ci.value=code;
     const err=document.getElementById('a_err');
-    if(err)err.textContent='';
-    if(!name||!email||!pass||!code){if(err)err.textContent='Completa todos los campos';return;}
-    if(pass.length<8||!/[a-zA-Z]/.test(pass)||!/[0-9]/.test(pass)){if(err)err.textContent='La contraseña debe tener al menos 8 caracteres con letras y números';return;}
-    /* C4: validar por RPC SECURITY DEFINER; la tabla ya no es legible por anon */
-    const{data:invOk,error:invErr}=await supa.rpc('check_athlete_invite',{p_code:code});
-    if(invErr||!invOk){if(err)err.textContent='Código inválido, vencido o ya utilizado';return;}
+    const say=(html)=>{if(err){err.style.color='var(--red)';err.innerHTML=html;}};
+    say('');
+    if(!name||!email||!pass||!code){say('Completa todos los campos');return;}
+    if(!RE_CORREO.test(email)){say('Revisa el correo: parece incompleto.');return;}
+    if(pass.length<8||!/[a-zA-Z]/.test(pass)||!/[0-9]/.test(pass)){say('La contraseña debe tener al menos 8 caracteres con letras y números');return;}
     const btn=document.querySelector('[data-act="auth-ath-signup"]');
+    const suelta=()=>{if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}};
     if(btn){btn.disabled=true;btn.textContent='Creando cuenta…';}
-    const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'},emailRedirectTo:location.origin+location.pathname}});
-    /* correo repetido: ANTES de canjear el código, para no quemarlo (ver signUpCorreoRepetido) */
-    if(signUpCorreoRepetido(data,error)){if(err)err.textContent=MSG_CORREO_REPETIDO;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-    if(error){if(err)err.textContent=error.message;if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-    if(data.user){
+    try{
+      /* C4: validar por RPC SECURITY DEFINER; la tabla ya no es legible por anon */
+      const st=await inviteStatus(code);
+      if(st!=='ok'){say(msgCodigo(st,code,email));suelta();return;}
+      const{data,error}=await supa.auth.signUp({email,password:pass,options:{data:{name,role:'athlete'},emailRedirectTo:location.origin+location.pathname}});
+      /* correo repetido (ya confirmado): ANTES de canjear el código, para no quemarlo (ver signUpCorreoRepetido) */
+      if(signUpCorreoRepetido(data,error)){say(esc(MSG_CORREO_REPETIDO)+' <a href="#" class="u-c-volt" data-act="login-con" data-email="'+esc(email)+'">Ir a entrar</a>');suelta();return;}
+      if(error){say(esc(errAlta(error)));suelta();return;}
+      if(!data||!data.user){say('No se pudo crear la cuenta. Inténtalo de nuevo.');suelta();return;}
+      /* Correo repetido SIN confirmar: GoTrue reenvía la confirmación y devuelve el uid real. Si ese uid
+         ya está ligado, la RPC responde already_linked (va antes de la ventana de 30 min desde
+         2026-11-24): la cuenta está bien, solo falta el correo. El código nuevo queda sin canjear. */
       const{data:link,error:linkErr}=await supa.rpc('use_athlete_invite',{invite_code:code,p_athlete_uid:data.user.id});
-      if(linkErr||!(link&&link.success)){if(err){err.textContent='Tu cuenta se creó pero no se pudo vincular con tu coach. Pídele un código nuevo.';}if(btn){btn.disabled=false;btn.textContent='Crear cuenta →';}return;}
-      if(!data.session){if(err){err.style.color='var(--green)';err.textContent='¡Cuenta creada! Revisa tu email para confirmar y luego entra.';}if(btn)btn.textContent='✓ Revisa tu email';return;}
-      await initAfterAuth(data.user);
-    }
+      const yaEstaba=!!(link&&link.reason==='already_linked');
+      if(linkErr||!(link&&(link.success||yaEstaba))){say('Tu cuenta se creó, pero no pudimos ligarla con tu coach. Toca «Crear cuenta» otra vez; si vuelve a salir este mensaje, mándale captura a tu coach.');suelta();return;}
+      try{history.replaceState(null,'',location.pathname);}catch(e){}
+      if(data.session){await initAfterAuth(data.user);return;}
+      renderAthConfirm(email,yaEstaba);
+    }catch(e){say('No hubo respuesta del servidor. Revisa tu conexión e inténtalo de nuevo.');suelta();}
   },
   /* ---- Perfil del atleta (ver VIEWS['ath-perfil'] y applySelfPerfil) ---- */
   'perfil-save':async()=>{
@@ -16231,7 +16344,7 @@ try{
     try{history.replaceState(null,'',location.pathname);}catch(e){}
     renderLogin();
     const le=document.getElementById('l_err');
-    if(le)le.textContent='Ese enlace ya caducó o se usó. Pide uno nuevo.';
+    if(le)le.textContent='Ese enlace ya caducó o ya se usó. Si era para confirmar tu correo, prueba entrar con tu contraseña: si aún falta confirmarlo, aquí te ofrecemos reenviarlo.';
     startVersionWatch();return;
   }
   let{data:{session}}=await supa.auth.getSession();
@@ -16244,10 +16357,14 @@ try{
     if(session){renderNewPass();startVersionWatch();return;}
     renderLogin();
     const le=document.getElementById('l_err');
-    if(le)le.textContent='Ese enlace ya caducó o se usó. Pide uno nuevo.';
+    if(le)le.textContent='Ese enlace ya caducó o ya se usó. Si era para confirmar tu correo, prueba entrar con tu contraseña: si aún falta confirmarlo, aquí te ofrecemos reenviarlo.';
     startVersionWatch();return;
   }
-  if(session){await initAfterAuth(session.user);}
+  if(session){
+    if(_inviteFromUrl){try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}}
+    await initAfterAuth(session.user);
+  }
+  else if(_inviteFromUrl){renderAthSignup(_inviteFromUrl);}
   else{render();}
   startVersionWatch(); /* también en la pantalla de login: una pestaña ahí también envejece */
 })();
