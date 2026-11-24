@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-23.7">
+<meta name="lr-build" content="2026-11-23.8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -344,6 +344,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .eqd th.eqmh>span{display:block}
 .eqmb{display:flex;justify-content:flex-end;gap:2px;margin-top:2px}
 .eqd tfoot td{background:var(--bg2);vertical-align:top}
+.eqd tfoot tr.eqrec td{font-size:var(--fs-2);line-height:1.45;min-width:132px}
+.eqd tfoot tr.eqrec td>div+div{margin-top:2px}
 .eqmas{margin-top:8px}.eqmas summary{cursor:pointer;font-size:var(--fs-3);color:var(--tx2);padding:6px 0}
 .eql input,.eql select{min-height:32px;padding:4px 6px}
 .eql td:nth-child(3) input{width:70px}
@@ -7017,11 +7019,49 @@ function mtGuia(name,kg){const g=MT_GUIA.find(x=>x[0].test(String(name||'')));if
    12 nov». Si tiene más de 14 días sale en naranja como «peso de hace N sem»: los gramos pueden estar desfasados.
    OJO: la app no distingue el peso de la báscula oficial de uno normal; en un corte el último puede ser el del pesaje. */
 function mtPeso(aid){const w=lastWeight(aid);return w&&+w.kg>0?{kg:+w.kg,date:w.date||''}:null;}
-function mtRefHTML(name,pw){const kg=pw?pw.kg:0,t=mtGuia(name,kg);if(!t)return '';let pie='';
-  if(kg>0){const d=pw.date?Math.round((Date.parse(todayISO())-Date.parse(pw.date))/864e5):NaN;
-    pie=d>14?' · <span class="u-c-orange">con '+suppFmt(kg)+' kg · peso de hace '+Math.round(d/7)+' sem</span>'
-      :' · con '+suppFmt(kg)+' kg'+(pw.date&&/^\d{4}-\d\d-\d\d/.test(pw.date)?' del '+(+pw.date.slice(8,10))+' '+MESES[+pw.date.slice(5,7)-1]:'');}
+function mtPesoPie(pw){const kg=pw?pw.kg:0;if(!(kg>0))return '';
+  const d=pw.date?Math.round((Date.parse(todayISO())-Date.parse(pw.date))/864e5):NaN;
+  return d>14?'<span class="u-c-orange">con '+suppFmt(kg)+' kg · peso de hace '+Math.round(d/7)+' sem</span>'
+    :'con '+suppFmt(kg)+' kg'+(pw.date&&/^\d{4}-\d\d-\d\d/.test(pw.date)?' del '+(+pw.date.slice(8,10))+' '+MESES[+pw.date.slice(5,7)-1]:'');}
+function mtRefHTML(name,pw){const kg=pw?pw.kg:0,t=mtGuia(name,kg);if(!t)return '';const pie=kg>0?' · '+mtPesoPie(pw):'';
   return '<p class="mtref"'+(kg>0?'':' title="Sin peso registrado: registra el peso del atleta para ver los gramos"')+'>Ref: '+esc(t)+pie+'</p>';}
+/* Recomendado en equivalentes (2026-11-23, solo coach, paso 2 del modo Equivalentes): las mismas guías de MT_GUIA
+   pasadas a porciones. Los CHO van en Cereal/Fruta (15 g) y la PRO en AOA (7 g), DESCONTANDO lo que ya aportan los
+   demás grupos y los alimentos fijos de esa comida (leche, leguminosas, la proteína de los cereales, un scoop…), por
+   eso el rango cambia si el coach mueve otras porciones. El ✓ compara lo que lleva con el rango (±¼ de margen).
+   Pre-entreno junta las dos ventanas (1–2 h y 30–60 min) para el ✓. Intra y post-pesaje son por hora: la app no sabe
+   cuánto dura, así que solo se muestra el rango, sin ✓. Mismo reconocimiento por nombre que MT_GUIA. */
+const MT_EQV=[
+  [/pre[\s-]?entren/i,{c:[[1,2,'1–2 h antes'],[0.5,1,'30–60 min antes']],p:[0.25,0.4],gr:10}],
+  [/intra[\s-]?entren/i,{abs:1,h:1,c:[[30,60,'']],gr:5,x:'+ agua 500–750 ml/h con sodio'}],
+  [/post[\s-]?entren/i,{c:[[0.8,1.2,'']],p:[0.3,0.5]}],
+  [/post[\s-]?pesaje|rehidrat/i,{h:1,c:[[1,1.5,'']],p:[0.3,0.4],gr:10,x:'+ líquidos 125–150% de lo perdido'}]];
+function mtEqvG(name){const g=MT_EQV.find(x=>x[0].test(String(name||'')));return g?g[1]:null;}
+/* Ventana del pre-entreno según la hora/referencia de la comida (texto libre): «45 min antes» → corta (1),
+   «1.5 h antes» / «90 min» → larga (0). Si no dice cuánto antes (p. ej. «17:00»), -1 y se muestran las dos. */
+function mtVentana(t){t=String(t||'').toLowerCase().replace(',','.');if(!/antes|previo|pre/.test(t)&&!/\d\s*(min|h)\b/.test(t))return -1;
+  const mi=t.match(/(\d+)\s*(?:-|–|a)?\s*(\d+)?\s*min/),ho=t.match(/(\d+(?:\.\d+)?)\s*(?:-|–|a)?\s*(\d+(?:\.\d+)?)?\s*(h\b|hr|hora)/);
+  if(mi&&!ho)return +(mi[2]||mi[1])<=60?1:0;if(ho)return +(ho[2]||ho[1])>=1?0:1;return -1;}
+function mtEqvRec(m,kg){const g0=mtEqvG(m&&m.name);if(!g0)return '';
+  const vi=g0.c.length>1?mtVentana(m.time):-1,g=vi>=0?Object.assign({},g0,{c:[g0.c[vi]]}):g0;
+  if(!g.abs&&!(kg>0))return '<span class="tiny">Registra su peso para ver las porciones</span>';
+  const e=m.eqv||{},n=k=>+e[k]||0,mt=mealMacros(m),cf=n('cer_sg')+n('cer_cg')+n('fruta'),aoa=n('aoa_mb')+n('aoa_b')+n('aoa_m')+n('aoa_a');
+  const cO=mt.c-15*cf,pO=mt.p-7*aoa,h5=v=>Math.max(0,Math.round(v*2)/2),f=g.abs?1:kg;
+  const rg=(lo,hi,per,otr)=>[h5((lo*f-otr)/per),h5((hi*f-otr)/per)],rt=r=>r[0]===r[1]?smaeN(r[0]):smaeN(r[0])+'–'+smaeN(r[1]);
+  const ok=(v,r)=>v>=r[0]-.25&&v<=r[1]+.25,st=(v,lo,hi)=>ok(v,[lo,hi])?' <span class="u-c-green">✓</span>'
+    :' <span class="u-c-orange">'+(v<lo?'faltan ~'+smaeN(h5(lo-v)):'sobran ~'+smaeN(h5(v-hi)))+'</span>';
+  const L=[],cr=g.c.map(c=>rg(c[0],c[1],15,cO)),w=cr.findIndex(r=>ok(cf,r));
+  /* CHO por hora: sin ✓ (no sabemos la duración). Con dos ventanas, el ✓ dice con cuál coincide. */
+  L.push('Cereal/Fruta '+rt(cr[0])+(g.h?' <span class="tiny">por hora · lleva '+smaeN(cf)+'</span>'
+    :cr.length>1?(w>=0?' <span class="u-c-green">✓'+(w>0?' '+g.c[w][2]:'')+'</span>'
+      :(()=>{const lo=Math.min(...cr.map(r=>r[0])),hi=Math.max(...cr.map(r=>r[1])),j=cr.findIndex(r=>r[0]===lo||r[1]===hi&&cf>hi);
+        return st(cf,lo,hi)+(j>0&&cf<lo?' <span class="tiny">('+g.c[j][2]+')</span>':'');})()):st(cf,cr[0][0],cr[0][1])));
+  g.c.forEach((c,i)=>{if(i)L.push('<span class="tiny">'+c[2]+': '+rt(cr[i])+'</span>');else if(c[2]&&cr.length>1)L[L.length-1]+='<div class="tiny">'+c[2]+'</div>';
+    else if(c[2]&&vi>=0)L[L.length-1]+='<div class="tiny">'+c[2]+' (por la hora que pusiste)</div>';});
+  if(g.p){const r=rg(g.p[0],g.p[1],7,pO);L.push(r[1]>0?'AOA '+rt(r)+st(aoa,r[0],r[1]):'AOA 0 <span class="tiny">ya la cubre lo demás</span>'+(aoa>0?' <span class="u-c-orange">sobran ~'+smaeN(aoa)+'</span>':''));}
+  if(g.gr)L.push('Grasa baja <span class="tiny">≤'+g.gr+' g · lleva '+Math.round(mt.f)+' g</span>'+(mt.f>g.gr?' <span class="u-c-orange">alta</span>':' <span class="u-c-green">✓</span>'));
+  if(g.x)L.push('<span class="tiny">'+g.x+'</span>');
+  return L.map(x=>'<div>'+x+'</div>').join('');}
 let _mtPw=null;
 /* Sugerencia al añadir: el siguiente tiempo del día que el plan aún no tiene, en orden de reloj para que la
    comida nueva (que va al final) quede en su sitio. Los de entreno no se sugieren: dependen de a qué hora
@@ -7223,7 +7263,9 @@ function smaeCoachHTML(aid,ap){
       h+='<tr><td><b>'+g.s+'</b></td>'+cols.map(x=>'<td class="num">'+smaeStep('data-aid="'+aid+'" data-k="'+g.k+'" data-meal="'+x.m.id+'"',+((x.m.eqv||{})[g.k])||0,g.n+' en '+x.m.name)+'</td>').join('')+
         '<td class="num'+(ok?' u-c-green':' u-c-orange')+'" title="Repartidas / del día">'+smaeN(a)+' / '+smaeN(v)+(ok?' ✓':'')+'</td></tr>';});
     if(!gs.length)h+='<tr><td colspan="'+(cols.length+2)+'" class="tiny">Primero define las porciones del día (paso 1).</td></tr>';
-    h+='</tbody><tfoot><tr><td><b>kcal</b></td>'+cols.map(x=>{const mt=mealMacros(x.m);return '<td class="num"><b>'+mt.kcal+'</b><div class="tiny">P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</div>'+'</td>';}).join('')+'<td></td></tr></tfoot>';
+    h+='</tbody><tfoot><tr><td><b>kcal</b></td>'+cols.map(x=>{const mt=mealMacros(x.m);return '<td class="num"><b>'+mt.kcal+'</b><div class="tiny">P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</div>'+'</td>';}).join('')+'<td></td></tr>'+
+      (cols.some(x=>mtEqvG(x.m.name))?(()=>{const pw=mtPeso(aid);return '<tr class="eqrec"><td><b>Recomendado</b><div class="tiny">'+(pw?mtPesoPie(pw):'sin peso registrado')+'</div></td>'+
+        cols.map(x=>'<td class="num">'+(mtEqvRec(x.m,pw?pw.kg:0)||'<span class="tiny">—</span>')+'</td>').join('')+'<td></td></tr>';})():'')+'</tfoot>';
     dist='<div class="tblwrap"><table class="tbl eqt eqd">'+h+'</table></div>';
   }
   const ptot=planMenuTotals(ap);
