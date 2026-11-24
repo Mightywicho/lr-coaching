@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-24.3">
+<meta name="lr-build" content="2026-11-24.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -4681,7 +4681,6 @@ function superOpen(aid){
    (dxPlanFor); sin marcas, el plan actual. */
 const DX_DIAS=6;
 let _dxPop=null,_dxAdd=null;
-const _dxAdhSel={}; /* número elegido en «Cerrar el día» y aún sin guardar, por fecha (A4) */
 const _dxLast={};
 function nutriEntryFor(aid,iso){return athData(aid).logs.nutrition.find(x=>x.date===iso)||null;}
 /* Como todayNutriEntry pero para cualquier fecha: CREA la entrada. Solo en acciones del atleta, nunca al pintar. */
@@ -6273,11 +6272,12 @@ Object.assign(ACTIONS,{
     d.logs.meals=d.logs.meals.filter(m=>m.id!==l.id);syncMealDel(aid,l.id);if(l.slot)dxTrasLog(aid,l.date,l.slot);saveStateCola();
     const pinta=()=>{if(document.getElementById('dx_added'))dxAddRefresh();else render();};pinta();
     toastUndo('Quitado: '+(l.name||'').split(' · ')[0],()=>{const dd=athData(aid);dd.logs.meals=dd.logs.meals||[];if(dd.logs.meals.some(m=>m.id===l.id))return;dd.logs.meals.push(l);syncMealAdd(aid,l);if(l.slot)dxTrasLog(aid,l.date,l.slot);saveStateCola();pinta();});},
-  'dx-adh':el=>{const iso=el.dataset.d||todayISO(),v=+el.dataset.v;_dxAdhSel[iso]=_dxAdhSel[iso]===v?null:v;render();},
-  'dx-adh-auto':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.adhManual=false;delete _dxAdhSel[iso];recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();render();},
+  'dx-adh':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso),c=document.getElementById('dx_cmt');
+    if(c&&c.value.trim()){e.comment=c.value.trim();keepClear('dx_cmt_'+iso);}
+    e.adherence=+el.dataset.v;e.adhManual=true;syncNutriRowE(aid,e);saveStateCola();toast('Guardado: '+e.adherence+' de 5. Tu coach la ve.');render();},
+  'dx-adh-auto':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.adhManual=false;recomputeAdherenceFor(aid,iso);syncNutriRowE(aid,e);saveStateCola();render();},
   'dx-save':el=>{const aid=getSession().userId,iso=el.dataset.d||todayISO(),e=nutriEntryMake(aid,iso);e.comment=val('dx_cmt');keepClear('dx_cmt_'+iso);
-    const sel=_dxAdhSel[iso];delete _dxAdhSel[iso];if(sel){e.adherence=sel;e.adhManual=true;}
-    else if(e.adherence==null)recomputeAdherenceFor(aid,iso,true);syncNutriRowE(aid,e);saveStateCola();toast('Día guardado. Tu coach ya lo ve.');render();},
+    if(e.adherence==null)recomputeAdherenceFor(aid,iso,true);syncNutriRowE(aid,e);saveStateCola();toast('Comentario enviado a tu coach');render();},
 });
 /* acciones de la hoja «Añadir» (2026-11-04): van aquí, después de `const ACTIONS`; antes de él la app no arranca */
 Object.assign(ACTIONS,{
@@ -10820,16 +10820,19 @@ VIEWS['ath-nutri']=function(u){
   if(esHoy){const sc=suppAthCard(aid);if(sc)supp='<section class="dx-sec"><div class="dx-sh"><h3>Suplementos</h3><span class="k pend">'+(sc.tot?sc.n+' de '+sc.tot:'')+'</span></div><div style="padding:10px 14px">'+sc.html+'</div></section>';}
 
   /* CERRAR EL DÍA: la adherencia la elige el atleta; mientras no, se ve la calculada (punteada). */
-  /* Auditoría 2026-11-24 (A4): antes tocar un número YA guardaba la calificación (y la dejaba fija) y «Guardar el día»
-     hacía casi lo mismo: dos maneras de cerrar y no quedaba claro cuál contaba. Ahora el número solo se elige
-     (_dxAdhSel, en memoria) y «Guardar el día» guarda número + comentario de una vez. Sin elegir, guarda la calculada. */
-  const adh=e&&e.adherence!=null?Math.round(e.adherence):null,man=!!(e&&e.adhManual),sel=_dxAdhSel[iso]||null,ver=sel||adh;
+  /* Auditoría 2026-11-24 (A4): antes había dos maneras de «cerrar» (tocar el número y «Guardar el día») y no quedaba
+     claro cuál contaba. Primero se probó que el número solo se eligiera y el botón lo guardara, pero eso pedía un toque
+     más y la calificación se perdía si el atleta cerraba la app antes (con 4 de 13 atletas registrando, cada toque
+     cuenta). Luis eligió (mismo día): el número se guarda al tocarlo, y el botón solo existe para mandar el comentario:
+     aparece cuando hay texto nuevo (data-live dx-cmt), así ya no hay dos botones que parezcan hacer lo mismo. */
+  const adh=e&&e.adherence!=null?Math.round(e.adherence):null,man=!!(e&&e.adhManual);
+  const cmtGuardado=(e&&e.comment)||'',cmtBorr=Object.prototype.hasOwnProperty.call(KEEP,'dx_cmt_'+iso)?String(KEEP['dx_cmt_'+iso]):cmtGuardado;
   const close='<section class="card dx-close mb16"><h3>'+(esHoy?'Cerrar el día':'Calificación de ese día')+'</h3>'+
-    '<p class="tiny">'+(sel?'Elegiste '+sel+' de 5. Toca «Guardar el día» para que le llegue a tu coach.':man?'Guardaste '+adh+' de 5. Tu coach la ve.':adh!=null?'Con lo que marcaste van '+adh+' de 5. Si no te cuadra, elige otro número.':'¿Qué tanto seguiste tu plan? 1 = casi nada, 5 = todo.')+'</p>'+
-    '<div class="dx-adh" role="group" aria-label="Qué tanto seguiste tu plan">'+[1,2,3,4,5].map(v=>'<button class="'+(ver===v?'on'+(sel||man?'':' auto'):'')+'" aria-pressed="'+(ver===v&&!!(sel||man))+'" data-act="dx-adh" data-v="'+v+'" data-d="'+iso+'">'+v+'</button>').join('')+'</div>'+
-    (man&&!sel?'<button class="hx-lnk" data-act="dx-adh-auto" data-d="'+iso+'">Que la calcule la app</button>':'')+
-    '<label for="dx_cmt" class="mt16">Comentario para tu coach</label><textarea id="dx_cmt" rows="3" data-keep="dx_cmt_'+iso+'" placeholder="Opcional: cómo te fue, hambre, antojos, eventos…">'+esc((e&&e.comment)||'')+'</textarea>'+
-    '<button class="btn '+(!sel&&esHoy&&dxSigue(aid)?'btn-o':'btn-p')+' mt8 u-w100 u-jcc" data-act="dx-save" data-d="'+iso+'">'+I.check+' Guardar el día</button></section>';
+    '<p class="tiny">'+(man?'Guardaste '+adh+' de 5. Tu coach la ve. Puedes cambiarla tocando otro número.':adh!=null?'Con lo que marcaste van '+adh+' de 5. Si no te cuadra, toca otro número y queda guardado.':'¿Qué tanto seguiste tu plan? Toca un número y queda guardado: 1 = casi nada, 5 = todo.')+'</p>'+
+    '<div class="dx-adh" role="group" aria-label="Qué tanto seguiste tu plan">'+[1,2,3,4,5].map(v=>'<button class="'+(adh===v?'on'+(man?'':' auto'):'')+'" aria-pressed="'+(adh===v&&man)+'" data-act="dx-adh" data-v="'+v+'" data-d="'+iso+'">'+v+'</button>').join('')+'</div>'+
+    (man?'<button class="hx-lnk" data-act="dx-adh-auto" data-d="'+iso+'">Que la calcule la app</button>':'')+
+    '<label for="dx_cmt" class="mt16">Comentario para tu coach</label><textarea id="dx_cmt" rows="3" data-keep="dx_cmt_'+iso+'" data-live="dx-cmt" data-guardado="'+esc(cmtGuardado)+'" placeholder="Opcional: cómo te fue, hambre, antojos, eventos…">'+esc(cmtGuardado)+'</textarea>'+
+    '<button id="dx_cmt_btn" class="btn btn-p mt8 u-w100 u-jcc" data-act="dx-save" data-d="'+iso+'"'+(cmtBorr.trim()!==cmtGuardado.trim()?'':' hidden')+'>'+I.check+' Enviar comentario</button></section>';
 
   const ayD=esHoy?dxAyerDia(aid):[],ayDK=ayD.reduce((a,x)=>a+mealKcal(x.m),0);
   const copyDay=ayD.length?'<div class="dx-copyday"><span class="tiny">Ayer registraste '+ayD.length+' alimento'+(ayD.length>1?'s':'')+' que hoy no tienes ('+Math.round(ayDK)+' kcal).</span><button class="btn btn-g btn-sm" data-act="dx-copy-day">'+I.copy+' Repetir lo de ayer</button></div>':'';
@@ -11917,6 +11920,7 @@ document.addEventListener('input',e=>{
     _dxSel.mi=mi;if(mi==='g')_dxSel.q=Math.max(5,Math.round(g));else if(m)_dxSel.q=Math.max(0.5,Math.round(g/m.g*2)/2);
     const i=document.getElementById('dxa_q');if(i)i.value=fmtG(_dxSel.q);dxaPrev();}
   if(el.dataset&&el.dataset.live==='mt-name')mtChipsSync();
+  if(el.dataset&&el.dataset.live==='dx-cmt'){const b=document.getElementById('dx_cmt_btn');if(b)b.hidden=el.value.trim()===(el.dataset.guardado||'').trim();}
   if(el.dataset&&el.dataset.live==='food-hint'){
     const fo=_foodFind(el.value);
     const t=document.getElementById(el.dataset.hintTarget);
