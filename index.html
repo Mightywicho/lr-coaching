@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-24.1">
+<meta name="lr-build" content="2026-11-24.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -2823,7 +2823,7 @@ function swapCandidates(ex,day,reason){
     .slice(0,12);
 }
 /* ---- NutritionLog + MealLog: 3ª serie migrada del blob ---- */
-function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed),swaps:e.swaps||{},supps:e.supps||{},adh_manual:!!e.adhManual};}
+function nutriCloudRow(aid,e){const auid=_athleteUidByAppId[aid];if(!auid)return null;return{athlete_uid:auid,coach_uid:_coachUid,date:e.date,adherence:(e.adherence!=null?e.adherence:null),comment:e.comment||'',meals_done:e.mealsDone||[],plan_followed:(e.planFollowed==null?null:e.planFollowed),swaps:e.swaps||{},supps:e.supps||{},adh_manual:!!e.adhManual,plan_id:e.planId||null};}
 /* Las tres van por la cola de envíos (outboxAdd): se guardan al instante y suben solas. */
 function syncNutriRowE(aid,e){if(!_supabaseUser)return;const row=nutriCloudRow(aid,e);if(!row){toast('Nutri no sincronizó: sin athlete_uid','err');return;}outboxAdd('nutrition','nutrition_logs',row.date,'athlete_uid,date',row,e);}
 function syncNutriRow(aid){if(!_supabaseUser)return;syncNutriRowE(aid,todayNutriEntry(aid));}
@@ -2844,10 +2844,10 @@ async function backfillNutritionLogs(){
 async function hydrateNutritionLogs(){
   if(!_supabaseUser||!S||!S.athletes)return;
   try{
-    const{data,error}=await supa.from('nutrition_logs').select('athlete_uid,date,adherence,comment,meals_done,plan_followed,swaps,supps,adh_manual').order('date',{ascending:true});
+    const{data,error}=await supa.from('nutrition_logs').select('athlete_uid,date,adherence,comment,meals_done,plan_followed,swaps,supps,adh_manual,plan_id').order('date',{ascending:true});
     if(error||!data)return;
     const byUid={};
-    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,adherence:(r.adherence!=null?+r.adherence:null),comment:r.comment||'',mealsDone:r.meals_done||[],planFollowed:(r.plan_followed==null?null:r.plan_followed),swaps:r.swaps||{},supps:r.supps||{},adhManual:!!r.adh_manual});});
+    data.forEach(r=>{(byUid[r.athlete_uid]=byUid[r.athlete_uid]||[]).push({date:r.date,adherence:(r.adherence!=null?+r.adherence:null),comment:r.comment||'',mealsDone:r.meals_done||[],planFollowed:(r.plan_followed==null?null:r.plan_followed),swaps:r.swaps||{},supps:r.supps||{},adhManual:!!r.adh_manual,planId:r.plan_id||null});});
     Object.keys(byUid).forEach(uid=>{const appId=_appIdByAthleteUid[uid];if(appId&&S.athletes[appId]&&S.athletes[appId].logs)S.athletes[appId].logs.nutrition=byUid[uid];});outboxOverlay();
   }catch(e){}
 }
@@ -3568,8 +3568,12 @@ function athPickGet(aid){try{const o=JSON.parse(localStorage.getItem(LS_PICK)||'
 function athPickSet(aid,pid){try{const o=JSON.parse(localStorage.getItem(LS_PICK)||'{}');o[aid]={d:todayISO(),pid:pid};localStorage.setItem(LS_PICK,JSON.stringify(o));}catch(e){}}
 function athPlanHoyInfer(aid,n){const e=athData(aid).logs.nutrition.find(x=>x.date===todayISO()),done=(e&&e.mealsDone)||[];if(!done.length)return null;
   let best=null,bn=0;(n.plans||[]).forEach(p=>{const k=(p.meals||[]).filter(m=>done.indexOf(m.id)>=0).length;if(k>bn){bn=k;best=p;}});return best;}
+/* 2026-11-24 (F7 de la auditoría, con columna nutrition_logs.plan_id): la elección también se guarda en la
+   entrada de nutrición del día (`e.planId`), así la ve otro dispositivo y el coach, y los días pasados saben qué
+   plan usó el atleta (dxPlanFor). Va antes que lo guardado en este teléfono porque es lo que vale en todos lados. */
+function athPlanGuardado(aid,iso){const e=athData(aid).logs.nutrition.find(x=>x.date===iso);return (e&&e.planId)||null;}
 function athPlanOf(aid){const n=nutriOf(aid),d=athData(aid),por=id=>id&&n.plans.find(p=>p.id===id);
-  return por(d.nutriPick)||por(athPickGet(aid))||athPlanHoyInfer(aid,n)||activePlanOf(aid);}
+  return por(d.nutriPick)||por(athPlanGuardado(aid,todayISO()))||por(athPickGet(aid))||athPlanHoyInfer(aid,n)||activePlanOf(aid);}
 /* ===== Suplementación con base propia (pedido de Luis, 2026-11-02; maqueta aprobada del 2026-10-31) =====
    Antes: nombre + dosis en texto libre + momento, común a todos los días y sin poder editar. Ahora el coach
    tiene SU base de suplementos (S.suppBase, en el blob: es un catálogo suyo, no lleva nada del atleta) y al
@@ -4685,6 +4689,7 @@ function nutriEntryMake(aid,iso){if(iso===todayISO())return todayNutriEntry(aid)
 function dxPlanFor(aid,iso){
   if(iso===todayISO())return athPlanOf(aid);
   const e=nutriEntryFor(aid,iso),done=(e&&e.mealsDone)||[];let best=null,bn=0;
+  const g=e&&e.planId&&(nutriOf(aid).plans||[]).find(p=>p.id===e.planId);if(g)return g;
   (nutriOf(aid).plans||[]).forEach(p=>{const k=(p.meals||[]).filter(m=>done.indexOf(m.id)>=0).length;if(k>bn){bn=k;best=p;}});
   return best||athPlanOf(aid);}
 /* Secciones del día: las comidas del plan (con menú o con macros por comida), o «Comida 1..N» si no trae comidas. */
@@ -8224,7 +8229,7 @@ function coachTabRegistros(aid){
      deshacerlo la deja con swaps {}. Sin este filtro salía en el Historial como «sin datos · Adherencia», un día
      que parecía registrado. Se muestra solo si tiene datos (nutriHasData) o cambios vivos, y la de solo cambios
      va rotulada como tal, sin la etiqueta de adherencia (2026-10-27). */
-  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const md=(n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':'');const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>x.kind==='opt'?esc(x.from)+': eligió la '+esc(x.food):x.kind==='rec'?esc(x.fromName||'')+' → '+esc(x.food):esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(!soloSw&&esNuevo(n.date,'n:'+n.date)?nuevoB:'')+(soloSw?'<b>Cambio en su menú</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
+  d.logs.nutrition.slice().reverse().forEach(n=>{const soloSw=!nutriHasData(n);if(soloSw&&!Object.keys(n.swaps||{}).length)return;const pl=n.planId&&(nutriOf(aid).plans||[]).find(p=>p.id===n.planId),md=(pl?'<span class="tiny">'+esc(pl.name)+' · </span>':'')+((n.mealsDone&&n.mealsDone.length)?'<span class="tiny">'+n.mealsDone.length+' comidas del plan seguidas</span>':(n.planFollowed!=null?'<span class="tiny">'+(n.planFollowed?'siguió su plan':'no siguió del todo')+'</span>':''));const sws=Object.values(n.swaps||{});const swTxt=sws.length?'<div class="tiny">⇄ Cambió: '+sws.map(x=>x.kind==='opt'?esc(x.from)+': eligió la '+esc(x.food):x.kind==='rec'?esc(x.fromName||'')+' → '+esc(x.food):esc(x.from)+' → '+esc(x.food)+' '+esc(x.qty||'')).join(' · ')+'</div>':'';nCards.push({date:n.date,log:n,html:'<div class="logitem"><div class="lh">'+(!soloSw&&esNuevo(n.date,'n:'+n.date)?nuevoB:'')+(soloSw?'<b>Cambio en su menú</b><span class="tiny">no registró su nutrición</span>':adhBadge(n.adherence)+'<b>Adherencia</b>'+md)+'<span class="dt">'+fmtDateFull(n.date)+'</span></div>'+(n.comment?'<div class="cm">'+esc(n.comment)+'</div>':'')+swTxt+'</div>'});});
   let nut='';
   blockGroupsOf(aid,nCards).forEach((b,bi)=>{
     const sem=b.weeks.map((g,i)=>wkAcc('wkacc','wkh-nu-'+aid+'-'+b.key+'-s'+g.week,'Semana '+g.week,
@@ -9060,8 +9065,11 @@ Object.assign(ACTIONS,{
   /* Auditoría 2026-11-24 (F7): los suplementos tenían su propio «Hoy entreno / Hoy descanso» y suppDiaHoy solo
      miraba el plan si ese interruptor estaba vacío: cambiar el plan a «Descanso» después dejaba los suplementos de
      entreno. Al elegir plan, el día de suplementos vuelve a seguirlo (si el atleta luego lo cambia a mano, manda eso). */
-  'ath-plan-pick':el=>{const aid=el.dataset.aid,d=athData(aid);d.nutriPick=el.dataset.pid;athPickSet(aid,el.dataset.pid);
-    const e=suppHoyEntry(aid);if(e&&e.supps&&e.supps.dia){const sp=Object.assign({},e.supps);delete sp.dia;e.supps=sp;syncNutriRow(aid);saveStateCola();}
+  'ath-plan-pick':el=>{const aid=el.dataset.aid,d=athData(aid),pid=el.dataset.pid;d.nutriPick=pid;athPickSet(aid,pid);
+    /* Solo el atleta guarda su elección en el servidor: la vista del atleta que abre el coach no debe escribirla. */
+    if(getSession().userId===aid){const e=todayNutriEntry(aid);e.planId=pid;
+      if(e.supps&&e.supps.dia){const sp=Object.assign({},e.supps);delete sp.dia;e.supps=sp;}
+      syncNutriRowE(aid,e);saveStateCola();}
     saveState();render();},
   'rm-calc':el=>{
     const w=num('rm_w'),r=num('rm_r'),rirRaw=val('rm_rir'),useRir=val('rm_userir')!=='0';
