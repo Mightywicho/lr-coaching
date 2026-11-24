@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-23.4">
+<meta name="lr-build" content="2026-11-23.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -323,10 +323,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .meal-h .mh-hora{display:flex;align-items:center;gap:4px;color:var(--tx2)}.mh-hora svg{flex:none}
 .meal-h .sp{margin-left:auto;display:flex;gap:4px}
 /* Armado de menú (2026-11-02) */
-.mgap{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 14px 0}
-.mgap .tiny{margin-right:auto}
-.mg{font-size:var(--fs-2);font-weight:600;padding:2px 8px;border-radius:var(--r-pill);background:var(--bg2);border:1px solid var(--line2);font-variant-numeric:tabular-nums;color:var(--tx2)}
-.mg.ok{color:var(--green)}.mg.over{color:var(--red)}
 .meal li.mi{align-items:center}
 .mi-n{flex:1;min-width:0}
 .mi-lbl{display:block}
@@ -338,8 +334,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .meal .fpm{margin:0 14px 10px}
 .mq-sug:empty{visibility:hidden}
 .btn-mi{padding:4px 7px;line-height:0}
-.mshape{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-size:var(--fs-3);color:var(--tx2)}
-.mshape select{min-height:32px;padding:4px 8px;width:auto}
 /* plan por equivalentes (smaeCoachHTML / smaeAthRows) */
 .eqt td,.eqt th{padding:6px 8px}
 .eqt .num{text-align:right;white-space:nowrap}
@@ -6939,27 +6933,17 @@ function pnutriReadTargets(aid){
    empezaba vacío y solo se veía el total del día. Referencias: Harbiz (todo en una ventana, cantidad
    editable en la fila, el buscador no se cierra, objetivo siempre visible) y Avena («forma del día» que
    reparte el objetivo entre los tiempos y dice cuánto lleva cada uno). Aquí, en gramos (no equivalentes).
-   - Objetivo por comida = objetivo del día × peso de la comida según `ap.shape`; las colaciones (m.snack)
-     llevan la mitad. Pesos: igual 1; mañana fuerte 1.35→0.65; noche fuerte 0.65→1.35; comida fuerte
-     0.7 en las puntas y 1.5 en medio. Se normalizan para que sumen el día.
+   - Objetivo por comida = objetivo del día en partes iguales; las colaciones (m.snack) llevan la mitad.
+     El selector «Reparto» (mañana/comida/noche fuerte, `ap.shape`) se quitó el 2026-11-23 a pedido de Luis
+     («me hace ruido»); un `ap.shape` viejo guardado en el plan ya no se lee. Ese objetivo ya NO se le
+     muestra al coach en cada comida («Le toca ≈ …» lo confundía): solo alimenta la cantidad sugerida
+     al añadir un alimento, «Distribuir» de equivalentes y el plan automático.
    - Sugerencia de cantidad al elegir alimento: lo que falta en ESA comida del macro que más aporta el
      alimento (gramsFor, el mismo cálculo del plan automático), con tope de 600 g / 20 piezas. */
-const DAY_SHAPES=[['igual','Igual en todas'],['manana','Mañana fuerte'],['comida','Comida fuerte'],['noche','Noche fuerte']];
-function mealShareW(ap){
-  const ms=ap.meals||[],n=ms.length,sh=ap.shape||'igual';
-  return ms.map((m,i)=>{const x=n>1?i/(n-1):.5;let w=1;
-    if(sh==='manana')w=1.35-.7*x;else if(sh==='noche')w=.65+.7*x;else if(sh==='comida')w=.7+.8*(1-Math.abs(x-.5)*2);
-    if(m.snack)w*=.5;return w;});
-}
+function mealShareW(ap){return (ap.meals||[]).map(m=>m.snack?.5:1);}
 function mealTargetsOf(ap){
   const W=mealShareW(ap),tot=W.reduce((a,b)=>a+b,0)||1,P=+ap.protein||0,C=+ap.carbs||0,F=+ap.fat||0;
   return W.map(w=>{const k=w/tot;return{p:Math.round(P*k),c:Math.round(C*k),f:Math.round(F*k),kcal:Math.round((P*4+C*4+F*9)*k)};});
-}
-function mealGapHTML(t,mt){
-  if(!t||!(t.p+t.c+t.f))return '';
-  const ch=(l,nm,a,b)=>{const d=Math.round(a-b),ok=Math.abs(d)<=Math.max(3,b*.1);
-    return '<span class="mg'+(ok?' ok':d>0?' over':'')+'" title="'+nm+': lleva '+a+' g de '+b+' g">'+l+' '+(ok?'✓':(d>0?'+':'−')+Math.abs(d)+' g')+'</span>';};
-  return '<div class="mgap"><span class="tiny">Le toca ≈ '+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span>'+ch('P','Proteína',mt.p,t.p)+ch('C','Carbohidratos',mt.c,t.c)+ch('G','Grasas',mt.f,t.f)+'</div>';
 }
 function mqSuggest(aid,mid,fo){
   const ap=activePlanOf(aid),ms=ap.meals||[],i=ms.findIndex(x=>x.id===mid||(x.opts||[]).some(o=>o.id===mid));if(i<0||!fo)return null;
@@ -6968,7 +6952,8 @@ function mqSuggest(aid,mid,fo){
   const rem=t[k]-mt[k];if(!(rem>1))return null;
   const isU=fo.unit==='u';let q=gramsFor(fo,k,rem);if(isU)q=Math.min(q,20);else q=Math.min(q,600);
   if(!(q>0))return null;
-  return {q:q,txt:'Sugerido '+q+' '+(isU?(fo.unitLabel||'unidades'):'g')+': completa '+({p:'la proteína',c:'los carbohidratos',f:'la grasa'})[k]+' de esta comida ('+Math.round(rem)+' g)'};
+  const ap2=foodMacros(fo.name,q),g2=ap2?Math.round(+ap2[k]||0):Math.round(rem);
+  return {q:q,txt:'Sugerido '+q+' '+(isU?(fo.unitLabel||'unidades'):'g')+' (aporta '+g2+' g de '+({p:'proteína',c:'carbohidratos',f:'grasa'})[k]+')'};
 }
 function mqHint(el){
   const fo=_foodFind(el.value),g=document.getElementById(el.id+'_g'),sg=document.getElementById(el.id+'_sug');
@@ -6993,8 +6978,7 @@ function miQtySet(el){
    es `m.time` (texto libre: vale «07:30» o «45 min antes de entrenar»), los dos de siempre. Por eso un plan
    viejo con «Comida 1» se ve igual y, al editarlo, sale como nombre propio sin chip marcado.
    Todo lo del atleta (mealsDone, meal_logs.slot, swaps) va por `m.id`, así que renombrar o reordenar no pierde
-   nada. Lo que SÍ depende del orden es el «le toca» de cada comida (mealShareW pesa por posición); el total del
-   día no cambia.
+   nada. El reparto entre comidas ya no depende del orden (mealShareW es parejo desde 2026-11-23).
    Solo las colaciones traen `snack` de fábrica: Luis decidió que pre, intra y post-entreno NO son colación
    (cuentan como comida entera al repartir). La casilla del modal deja cambiarlo en cada caso. */
 const MEAL_TIEMPOS=[{n:'Desayuno'},{n:'Colación AM',snack:true},{n:'Pre-entreno'},{n:'Intra-entreno'},{n:'Post-entreno'},{n:'Comida'},{n:'Colación PM',snack:true},{n:'Cena'},{n:'Post-pesaje'}];
@@ -7050,7 +7034,7 @@ function mealCopy(m){const c=JSON.parse(JSON.stringify(m));c.id=uid();(c.opts||[
    junto a «Macros flexibles» y «Menú cerrado»:
    1 · Porciones del día por grupo (ap.eqvDay = {grupo: n}), cuadrando contra las kcal y macros objetivo.
    2 · Distribuye: tabla grupos × comidas (m.eqv = {grupo: n} en cada comida del plan) con «Distribuir»
-       según la forma del día (DAY_SHAPES, la misma del menú cerrado).
+       en partes iguales (las colaciones llevan la mitad; mealShareW).
    Las comidas siguen siendo las de ap.meals, así que el diario del atleta, «Hoy», la adherencia y lo
    consumido no necesitan otra ruta: mealMacros suma los equivalentes con los valores SMAE del grupo, y
    dxFijo trata la comida como «con contenido del coach» (la ✓ suma esos macros).
@@ -7163,7 +7147,7 @@ function smaeSuggest(ap){
   d.aoa_m=am;d.aoa_b=ab;d.aoa_mb=+(rest-ab).toFixed(1);m=smaeMac(d);
   const gr=smaeR2((F-m.f)/5),gcp=Math.min(2,Math.floor(gr/3));d.gras_cp=gcp;d.gras_sp=+(gr-gcp).toFixed(1);
   Object.keys(d).forEach(k=>{if(!(d[k]>0))delete d[k];});return d;}
-/* Reparte las porciones del día entre las comidas según la forma del día (mealShareW). Las comidas-receta no entran. */
+/* Reparte las porciones del día entre las comidas en partes iguales (mealShareW). Las comidas-receta no entran. */
 function smaeDistribute(ap){
   const ms=ap.meals||[],W=mealShareW(ap),idx=ms.map((m,i)=>i).filter(i=>!ms[i].recipe);if(!idx.length)return false;
   const tw=idx.reduce((a,i)=>a+W[i],0)||1,day=ap.eqvDay||{},dk=smaeMac(day).kcal,cur={},tg={},sob=[];
@@ -7217,20 +7201,19 @@ function smaeCoachHTML(aid,ap){
   if(!cols.length){
     dist='<div class="empty"><b>Sin comidas</b>Crea los tiempos de comida para repartir las porciones.<div class="u-mt12"><button class="btn btn-p" data-act="smae-meals" data-aid="'+aid+'">Crear '+(ap.mealsPerDay||4)+' comidas</button></div></div>';
   }else{
-    const MT=mealTargetsOf(ap),gs=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
+    const gs=SMAE_G.filter(g=>(+day[g.k]||0)>0||(+asg[g.k]||0)>0);
     let h='<thead><tr><th>Grupo</th>'+cols.map(x=>'<th class="num eqmh"><span'+(mtGuia(x.m.name)?' title="Ref: '+esc(mtGuia(x.m.name,suppPeso(aid)))+(suppPeso(aid)?' · con '+suppFmt(suppPeso(aid))+' kg':'')+'"':'')+'>'+esc(x.m.name)+'</span>'+(x.m.time?'<span class="tiny">'+esc(x.m.time)+'</span>':'')+
       '<span class="eqmb">'+(x.i>0?'<button class="btn-mi mvh" data-act="pmeal-move" data-aid="'+aid+'" data-meal="'+x.m.id+'" data-dir="-1" title="Mover antes" aria-label="Mover antes · '+esc(x.m.name)+'">'+I.up+'</button>':'')+(x.i<ms.length-1?'<button class="btn-mi mvh" data-act="pmeal-move" data-aid="'+aid+'" data-meal="'+x.m.id+'" data-dir="1" title="Mover después" aria-label="Mover después · '+esc(x.m.name)+'">'+I.down+'</button>':'')+'<button class="btn-mi" data-act="pmeal-edit" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Nombre, hora y colación" aria-label="Editar '+esc(x.m.name)+'">'+I.edit+'</button><button class="btn-mi" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+x.m.id+'" title="Eliminar comida" aria-label="Eliminar '+esc(x.m.name)+'">'+I.trash+'</button></span></th>').join('')+'<th class="num">Total</th></tr></thead><tbody>';
     gs.forEach(g=>{const v=+day[g.k]||0,a=+asg[g.k]||0,ok=Math.abs(a-v)<.01;
       h+='<tr><td><b>'+g.s+'</b></td>'+cols.map(x=>'<td class="num">'+smaeStep('data-aid="'+aid+'" data-k="'+g.k+'" data-meal="'+x.m.id+'"',+((x.m.eqv||{})[g.k])||0,g.n+' en '+x.m.name)+'</td>').join('')+
         '<td class="num'+(ok?' u-c-green':' u-c-orange')+'" title="Repartidas / del día">'+smaeN(a)+' / '+smaeN(v)+(ok?' ✓':'')+'</td></tr>';});
     if(!gs.length)h+='<tr><td colspan="'+(cols.length+2)+'" class="tiny">Primero define las porciones del día (paso 1).</td></tr>';
-    h+='</tbody><tfoot><tr><td><b>kcal</b></td>'+cols.map(x=>{const mt=mealMacros(x.m),t=MT[x.i];return '<td class="num"><b>'+mt.kcal+'</b><div class="tiny">P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</div>'+(t&&t.kcal?'<div class="tiny">le toca ≈ '+t.kcal+'</div>':'')+'</td>';}).join('')+'<td></td></tr></tfoot>';
+    h+='</tbody><tfoot><tr><td><b>kcal</b></td>'+cols.map(x=>{const mt=mealMacros(x.m);return '<td class="num"><b>'+mt.kcal+'</b><div class="tiny">P'+Math.round(mt.p)+' C'+Math.round(mt.c)+' G'+Math.round(mt.f)+'</div>'+'</td>';}).join('')+'<td></td></tr></tfoot>';
     dist='<div class="tblwrap"><table class="tbl eqt eqd">'+h+'</table></div>';
   }
-  const shSel='<label class="mshape">Reparto <select data-change="pday-shape" data-aid="'+aid+'" aria-label="Cómo se reparte el día entre las comidas">'+DAY_SHAPES.map(x=>'<option value="'+x[0]+'"'+((ap.shape||'igual')===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')+'</select></label>';
   const ptot=planMenuTotals(ap);
-  const distCard='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">2 · Distribuye en comidas</h3><span class="sp">'+shSel+
-    (cols.length?'<button class="btn btn-p btn-sm" data-act="smae-dist" data-aid="'+aid+'" title="Reparte las porciones del día entre las comidas según el reparto elegido (las colaciones llevan la mitad)">Distribuir</button>':'')+
+  const distCard='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">2 · Distribuye en comidas</h3><span class="sp">'+
+    (cols.length?'<button class="btn btn-p btn-sm" data-act="smae-dist" data-aid="'+aid+'" title="Reparte las porciones del día en partes iguales entre las comidas (las colaciones llevan la mitad)">Distribuir</button>':'')+
     '<button class="btn btn-g btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+dist+
     '<div class="grid g2 u-mt12"><div class="tiny">Lo que el atleta ve en cada comida: «2 × Cereales sin grasa» y, al tocarlo, tu lista de opciones con la cantidad que le toca. Total del plan (equivalentes + alimentos fijos): <b>'+ptot.kcal+' kcal</b> · P'+ptot.p+' C'+ptot.c+' G'+ptot.f+'.</div><div>'+suppAislLine(aid,ap,ptot)+'</div></div></div>';
   /* 3 · mezcla: alimentos fijos en gramos por comida */
@@ -7364,7 +7347,7 @@ Object.assign(ACTIONS,{
   'smae-dist':el=>{const ap=activePlanOf(el.dataset.aid);if(!Object.keys(ap.eqvDay||{}).length){toast('Primero define las porciones del día','err');return;}
     const has=(ap.meals||[]).some(m=>smaeHas(m));
     const go=()=>{smaeDistribute(ap);saveState();render();toast('Porciones repartidas: ajusta a mano lo que quieras');};
-    if(has){_smaePend=go;confirmModal('Distribuir','Se reemplazará lo que ya repartiste en las comidas por un reparto nuevo según «'+((DAY_SHAPES.find(x=>x[0]===(ap.shape||'igual'))||DAY_SHAPES[0])[1])+'».','smae-suggest-do','');}else go();},
+    if(has){_smaePend=go;confirmModal('Distribuir','Se reemplazará lo que ya repartiste en las comidas por un reparto nuevo en partes iguales (las colaciones llevan la mitad).','smae-suggest-do','');}else go();},
   'smae-meals':el=>{const ap=activePlanOf(el.dataset.aid),N=Math.min(8,Math.max(1,ap.mealsPerDay||4));
     ap.meals=(ap.meals||[]).concat(mtPorN(N).map(x=>({id:uid(),name:x,time:'',items:[],eqv:{},snack:mtSnack(x)||undefined})));
     if(Object.keys(ap.eqvDay||{}).length)smaeDistribute(ap);saveState();render();},
@@ -7448,7 +7431,7 @@ function coachTabNutri(aid){
     const tot=planMenuTotals(ap),tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
     const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
-    const MT=mealTargetsOf(ap),nM=(ap.meals||[]).length,dp0=n.dietProfile||{},kgRef=mtPeso(aid);
+    const nM=(ap.meals||[]).length,dp0=n.dietProfile||{},kgRef=mtPeso(aid);
     const bt=(act,m,ic,tl,extra)=>'<button class="btn btn-g btn-sm btn-mi" data-act="'+act+'" data-aid="'+aid+'" data-meal="'+m.id+'"'+(extra||'')+' title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';
     const mHead=(m,i,x)=>{x=x||m;const mt=mealMacros(x);
       return '<div class="meal-h"><span>'+(x.recipe?I.recipe+' ':'')+esc(m.name)+(x.recipe?' <span class="badge">receta</span>':'')+(m.snack?' <span class="badge">colación</span>':'')+'</span><span class="tm">'+(m.time?'<span class="mh-hora">'+I.reloj+esc(m.time)+'</span>':'')+mt.kcal+' kcal · P'+mt.p+' C'+mt.c+' G'+mt.f+'</span><span class="sp">'+
@@ -7456,7 +7439,7 @@ function coachTabNutri(aid){
         ((m.opts||[]).length?'':'<button class="btn btn-g btn-sm" data-act="mopt-add" data-aid="'+aid+'" data-meal="'+m.id+'" title="Otra versión de esta comida con macros parecidos: el atleta elige cada día cuál come">'+I.plus+' Opción</button>')+
         bt('pmeal-dup',m,I.copy,'Duplicar o copiar a otro plan')+
         bt(x.recipe?'pmeal-recipe-edit':'pmeal-edit',x.recipe?{id:x.id,name:m.name}:m,I.edit,x.recipe?'Editar ingredientes, cantidades y pasos solo para este plan':'Nombre, hora y colación')+
-        bt('pmeal-del',m,I.trash,'Eliminar comida')+'</span></div>'+mealGapHTML(MT[i],mt)+mtRefHTML(m.name,kgRef);};
+        bt('pmeal-del',m,I.trash,'Eliminar comida')+'</span></div>'+mtRefHTML(m.name,kgRef);};
     /* opciones de la comida (ver «Opciones por comida» junto a mealHoy): pestaña por opción, la que se ve es la que se edita */
     const optStrip=(m,k,x)=>{const os=m.opts||[];if(!os.length)return '';
       const tabs=[m].concat(os).map((o,j)=>'<button class="planchip'+(j===k?' on':'')+'" data-act="mopt-tab" data-meal="'+m.id+'" data-k="'+j+'" aria-pressed="'+(j===k)+'">Opción '+(j+1)+' <span class="tiny">'+(mealConAlgo(o)?mealMacros(o).kcal+' kcal':'vacía')+'</span></button>').join('');
@@ -7485,13 +7468,11 @@ function coachTabNutri(aid){
         '</div>'+fpmHTML(qid+'_g')+'<div class="mq-foot"><p class="tiny mq-sug" id="'+qid+'_sug"></p><button class="mq-man" data-act="pitem-add" data-aid="'+aid+'" data-meal="'+x.id+'" title="Para algo que no está en la base: nombre y macros a mano">¿No está? Escríbelo a mano</button></div>';
       ms+='<div class="meal">'+mHead(m,i,x)+st+'<ul>'+(items||'<li class="tiny">Sin alimentos aún: escribe uno abajo y te sugiero la cantidad.</li>')+'</ul>'+add+'</div>';
     });
-    const shSel='<label class="mshape">Reparto <select data-change="pday-shape" data-aid="'+aid+'" aria-label="Cómo se reparte el objetivo del día entre las comidas">'+DAY_SHAPES.map(x=>'<option value="'+x[0]+'"'+((ap.shape||'igual')===x[0]?' selected':'')+'>'+x[1]+'</option>').join('')+'</select></label>';
     const warn=(dp0.allergies||dp0.dislikes)?'<div class="notebox u-bl-orange u-m0 u-mb12 nbi">'+I.alerta+' Evita: '+esc([dp0.allergies,dp0.dislikes].filter(Boolean).join(' · '))+'</div>':'';
-    const shTxt=(DAY_SHAPES.find(x=>x[0]===(ap.shape||'igual'))||DAY_SHAPES[0])[1].toLowerCase();
     menuHTML='<div class="card mb16"><datalist id="mqfoods">'+(S.foods||[]).map(fo=>'<option value="'+esc(fo.name)+'"></option>').join('')+'</datalist>'+
-      '<div class="sect-h u-mb12"><h3 class="u-m0">Menú · «'+esc(ap.name)+'»</h3><span class="sp">'+shSel+'<button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-p btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+warn+
+      '<div class="sect-h u-mb12"><h3 class="u-m0">Menú · «'+esc(ap.name)+'»</h3><span class="sp"><button class="btn btn-g btn-sm" data-act="pmeal-recipe-pick" data-aid="'+aid+'">'+I.recipe+' Asignar receta</button><button class="btn btn-p btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+warn+
       '<div class="grid g2"><div>'+(ms||'<div class="empty"><b>Menú vacío</b>Añade la primera comida del plan.</div>')+'</div>'+
-      '<div><div class="mprog"><h4 class="mg-h">Progreso del día vs objetivo</h4>'+bars+suppAislLine(aid,ap,planMenuTotals(ap))+'<p class="tiny mt8">Cada comida dice cuánto le toca según el reparto («'+esc(shTxt)+'»; las colaciones llevan la mitad) y cuánto le falta o le sobra. ✓ = a menos del 10 %. Cambia los gramos en la misma fila.</p></div></div></div></div>';
+      '<div><div class="mprog"><h4 class="mg-h">Progreso del día vs objetivo</h4>'+bars+suppAislLine(aid,ap,planMenuTotals(ap))+'<p class="tiny mt8">Cada comida muestra sus kcal y macros; las barras dicen cuánto falta o sobra en el día. Cambia los gramos en la misma fila.</p></div></div></div></div>';
   }
   if(ap.mode==='eqv')menuHTML=smaeCoachHTML(aid,ap);
   /* modo macros: comidas con P/C/G por comida (opcional, para precisión al marcar) */
@@ -11783,7 +11764,6 @@ document.addEventListener('change',e=>{
     if(k==='amount'){const v=parseFloat(String(el.value).replace(',','.'));if(v>0)sp.amount=+v.toFixed(3);if(sp.where)suppSyncMeal(el.dataset.aid,sp);saveState();render();return;}
     if(['dose','timing','until','notes'].indexOf(k)<0)return;sp[k]=String(el.value||'').trim();saveState();if(k==='until')render();}
   else if(el.dataset.change&&el.dataset.change.indexOf('smae-')===0){smaeChange(el);}
-  else if(el.dataset.change==='pday-shape'){const ap=activePlanOf(el.dataset.aid);ap.shape=el.value;saveState();render();}
   else if(el.dataset.change==='fd-copy'&&FD){
     const v=el.value;let src=null;
     if(v==='tpl:checkin')src=FM_TPL_CHECKIN;
@@ -14143,7 +14123,7 @@ function gramsFor(food,key,targetMacro){const per=food[key];if(!per||per<=0)retu
      toma uno distinto.
    - Orden: verdura (comidas alternas) → fruta (alternas) → carbohidrato → proteína → grasa con lo que falte.
      Al final se reescalan carbo, grasa y proteína del día para cerrar el objetivo.
-   - Reparto entre comidas según la «forma del día» del plan (mealShareW). */
+   - Reparto entre comidas en partes iguales, colaciones a la mitad (mealShareW). */
 const AUTO_NO=/az[uú]car|miel|mermelada|panditas|gatorade|\bgel\b|cereal|concha|galleta|mordisko|crout|harina|totopo|refresco|gerber|pur[eé]|granola|helado|pizza|splenda|stevia|canela|vainilla|salsa|gelatina|jam[oó]n|salchicha|surimi|\bpam\b|spray|mayonesa|vinagreta|crema de leche|mantequilla|chocolate|coco rallado|jugo|d[aá]tiles|leche con chocolate|barrita/i;
 function autoNorm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 function autoWords(t){return autoNorm(t).split(/[^a-zñ0-9]+/).filter(w=>w.length>=3&&!/^(con|sin|los|las|del|que|para|muy|poco|nada|todo|tipo)$/.test(w));}
