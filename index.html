@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-23.9">
+<meta name="lr-build" content="2026-11-23.10">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -361,6 +361,10 @@ table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs-3);min-width:56
 .dx-smaeo{list-style:none;margin:0;padding:0 14px 10px}
 .dx-smaeo li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:var(--fs-3)}
 .dx-smaeo li b{font-weight:600;text-align:right}
+.dx-smae .dx-smaex>summary{padding:4px 14px 10px;color:var(--tx2);font-size:var(--fs-3);text-decoration:underline;text-underline-offset:3px}
+.dx-smaex>p{margin:0;padding:0 14px 6px}
+.dx-smaex .dx-smaeo li{color:var(--tx2)}
+.dx-smaeo.u-dn{display:none}
 @media(min-width:921px){.mprog{position:sticky;top:12px}}
 .ncalc .acc-body>.card{margin-bottom:24px}
 .chkl{display:flex;gap:8px;align-items:center;margin-top:12px;text-transform:none;letter-spacing:0;font-size:var(--fs-3);font-weight:400;color:var(--tx)}
@@ -7200,7 +7204,11 @@ function smaeList(k){const L=S&&S.eqvList&&S.eqvList[k];return (Array.isArray(L)
 /* Lo que el atleta ve de un grupo en una comida: sin las ocultas por perfil y, si es de entreno, solo las
    recomendadas para ese tiempo. todo=true → no había ninguna marcada y se muestra la lista entera. */
 function smaeOpts(gk,mealName,hid){const L=smaeList(gk).filter(o=>!(hid&&hid.has(normTxt(o[0]).trim()))),t=gk==='libre'?'':mtTiempo(mealName);
-  if(!t)return{L,t:'',todo:false};const R=L.filter(o=>o[4].indexOf(t)>=0);return R.length?{L:R,t,todo:false}:{L,t,todo:true};}
+  if(!t)return{L,t:'',todo:false,otras:[]};const R=L.filter(o=>o[4].indexOf(t)>=0);
+  return R.length?{L:R,t,todo:false,otras:L.filter(o=>o[4].indexOf(t)<0)}:{L,t,todo:true,otras:[]};}
+/* «Distribuir»: una comida de entreno solo recibe los grupos que tienen alguna opción recomendada para ese tiempo
+   (Luis, 2026-11-23: si no, el intra se llevaba Cereal y el atleta veía tortilla y arroz). Libres siempre. */
+function smaeGrupoVa(k,m){return k==='libre'||!mtTiempo(m&&m.name)||!smaeOpts(k,m.name,null).todo;}
 /* ícono en línea con el texto (reemplaza a los emojis): hereda el color del texto */
 function icx(k){return '<span class="ei">'+(I[k]||'')+'</span>';}
 function smaeR2(x){return Math.max(0,Math.round((+x||0)*2)/2);}
@@ -7238,13 +7246,14 @@ function smaeDistribute(ap){
   const tw=idx.reduce((a,i)=>a+W[i],0)||1,day=ap.eqvDay||{},dk=smaeMac(day).kcal,cur={},tg={},sob=[];
   idx.forEach(i=>{ms[i].eqv={};cur[i]=0;tg[i]=dk*W[i]/tw;});
   /* 1) la parte entera que le toca a cada comida (nadie quiere ½ huevo en cada comida) */
-  Object.keys(day).forEach(k=>{const g=SMAE_BY[k],n=+day[k]||0;if(!g||!(n>0))return;let used=0;
-    idx.forEach(i=>{const v=Math.floor(n*W[i]/tw+1e-9);if(v>0){ms[i].eqv[k]=v;cur[i]+=smaeKcal(g)*v;used+=v;}});
+  const va={};Object.keys(day).forEach(k=>{const v=idx.filter(i=>smaeGrupoVa(k,ms[i]));va[k]=v.length?v:idx;});
+  Object.keys(day).forEach(k=>{const g=SMAE_BY[k],n=+day[k]||0;if(!g||!(n>0))return;let used=0;const ix=va[k],twk=ix.reduce((a,i)=>a+W[i],0)||1;
+    ix.forEach(i=>{const v=Math.floor(n*W[i]/twk+1e-9);if(v>0){ms[i].eqv[k]=v;cur[i]+=smaeKcal(g)*v;used+=v;}});
     let l=n-used;while(l>=1-1e-9){sob.push([k,1]);l-=1;}if(l>.25)sob.push([k,.5]);});
   /* 2) lo que sobra, de lo más calórico a lo menos, a la comida que más lejos está de su parte de kcal
         (sin repetir comida dentro del mismo grupo mientras haya otras) */
   sob.sort((a,b)=>smaeKcal(SMAE_BY[b[0]])*b[1]-smaeKcal(SMAE_BY[a[0]])*a[1]);
-  const dio={};sob.forEach(([k,v])=>{const ya=dio[k]||(dio[k]=[]);let pool=idx.filter(i=>ya.indexOf(i)<0);if(!pool.length)pool=idx;
+  const dio={};sob.forEach(([k,v])=>{const ya=dio[k]||(dio[k]=[]);let pool=va[k].filter(i=>ya.indexOf(i)<0);if(!pool.length)pool=va[k];
     const i=pool.reduce((b,x)=>(tg[x]-cur[x])>(tg[b]-cur[b])?x:b,pool[0]);
     ms[i].eqv[k]=(ms[i].eqv[k]||0)+v;cur[i]+=smaeKcal(SMAE_BY[k])*v;ya.push(i);});
   return true;}
@@ -7302,7 +7311,7 @@ function smaeCoachHTML(aid,ap){
   }
   const ptot=planMenuTotals(ap);
   const distCard='<div class="card mb16"><div class="sect-h u-mb12"><h3 class="u-m0">2 · Distribuye en comidas</h3><span class="sp">'+
-    (cols.length?'<button class="btn btn-p btn-sm" data-act="smae-dist" data-aid="'+aid+'" title="Reparte las porciones del día en partes iguales entre las comidas (las colaciones llevan la mitad)">Distribuir</button>':'')+
+    (cols.length?'<button class="btn btn-p btn-sm" data-act="smae-dist" data-aid="'+aid+'" title="Reparte las porciones del día en partes iguales entre las comidas (las colaciones llevan la mitad). Las comidas de entreno solo reciben grupos con opciones recomendadas para ese tiempo.">Distribuir</button>':'')+
     '<button class="btn btn-g btn-sm" data-act="pmeal-add" data-aid="'+aid+'">'+I.plus+' Añadir comida</button></span></div>'+dist+
     '<div class="grid g2 u-mt12"><div class="tiny">Lo que el atleta ve en cada comida: «2 × Cereales sin grasa» y, al tocarlo, tu lista de opciones con la cantidad que le toca. Total del plan (equivalentes + alimentos fijos): <b>'+ptot.kcal+' kcal</b> · P'+ptot.p+' C'+ptot.c+' G'+ptot.f+'.</div><div>'+suppAislLine(aid,ap,ptot)+'</div></div></div>';
   /* 3 · mezcla: alimentos fijos en gramos por comida */
@@ -7365,8 +7374,10 @@ function smaeAthRows(m,np){
      La indicación de cómo elegir va UNA vez arriba, no repetida bajo cada grupo. */
   const gs=SMAE_G.filter(g=>(+m.eqv[g.k]||0)>0);if(!gs.length)return '';
   const tt=mtTiempo(m.name),filt=tt&&gs.some(g=>{const r=smaeOpts(g.k,m.name,hid);return r.t&&!r.todo;});
-  return '<p class="tiny dx-smaeh">Toca un grupo para ver tus opciones. Elige una o combina mitades (½ y ½).'+(filt?' Solo salen las recomendadas para tu '+mtTiempoTxt(tt)+'.':'')+'</p>'+gs.map(g=>{const n=+m.eqv[g.k],L=smaeOpts(g.k,m.name,hid).L,k=Math.round(smaeKcal(g)*n);
-    const ops=L.map(o=>'<li><span>'+esc(o[0])+'</span><b>'+smaeQty(o,n)+'</b></li>').join('');
+  return '<p class="tiny dx-smaeh">Toca un grupo para ver tus opciones. Elige una o combina mitades (½ y ½).'+(filt?' Primero salen las recomendadas para tu '+mtTiempoTxt(tt)+'.':'')+'</p>'+gs.map(g=>{const n=+m.eqv[g.k],r=smaeOpts(g.k,m.name,hid),L=r.L,k=Math.round(smaeKcal(g)*n);
+    const li=o=>'<li><span>'+esc(o[0])+'</span><b>'+smaeQty(o,n)+'</b></li>';
+    /* en una comida de entreno las no recomendadas siguen a la mano: el atleta puede elegir otra si no tiene las de arriba */
+    const ops=L.map(li).join('')+(r.otras.length?'</ul><details class="dx-smaex"><summary>Ver otras opciones ('+r.otras.length+')</summary><p class="tiny">Menos recomendadas para el '+mtTiempoTxt(r.t)+'. Úsalas si no tienes las de arriba.</p><ul class="dx-smaeo">'+r.otras.map(li).join('')+'</ul></details><ul class="dx-smaeo u-dn">':'');
     return '<details class="dx-smae"><summary><span class="nm"><b>'+smaeFmtQ(n)+' × '+esc(g.a||g.n)+'</b>'+(g.ae&&L.length?'<span class="tiny">'+esc(smaeEjemplos(L))+'</span>':g.k==='libre'?'<span class="tiny">sin límite</span>':'')+'</span><span class="kc">'+(k?k+' kcal':'')+'</span></summary>'+
       (ops?'<ul class="dx-smaeo">'+ops+'</ul>':'<p class="tiny">'+(hid.size?'Pregúntale a tu coach qué opciones te tocan en este grupo.':'Tu coach aún no tiene opciones en este grupo.')+'</p>')+'</details>';}).join('');
 }
@@ -7439,7 +7450,7 @@ Object.assign(ACTIONS,{
   'smae-dist':el=>{const ap=activePlanOf(el.dataset.aid);if(!Object.keys(ap.eqvDay||{}).length){toast('Primero define las porciones del día','err');return;}
     const has=(ap.meals||[]).some(m=>smaeHas(m));
     const go=()=>{smaeDistribute(ap);saveState();render();toast('Porciones repartidas: ajusta a mano lo que quieras');};
-    if(has){_smaePend=go;confirmModal('Distribuir','Se reemplazará lo que ya repartiste en las comidas por un reparto nuevo en partes iguales (las colaciones llevan la mitad).','smae-suggest-do','');}else go();},
+    if(has){_smaePend=go;confirmModal('Distribuir','Se reemplazará lo que ya repartiste en las comidas por un reparto nuevo en partes iguales (las colaciones llevan la mitad; las comidas de entreno solo reciben grupos con opciones recomendadas para ese tiempo).','smae-suggest-do','');}else go();},
   'smae-meals':el=>{const ap=activePlanOf(el.dataset.aid),N=Math.min(8,Math.max(1,ap.mealsPerDay||4));
     ap.meals=(ap.meals||[]).concat(mtPorN(N).map(x=>({id:uid(),name:x,time:'',items:[],eqv:{},snack:mtSnack(x)||undefined})));
     if(Object.keys(ap.eqvDay||{}).length)smaeDistribute(ap);saveState();render();},
