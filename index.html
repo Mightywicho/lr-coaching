@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-24.7">
+<meta name="lr-build" content="2026-11-25.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -6846,7 +6846,7 @@ function coachTabResumen(aid){
   comments.sort((x,y)=>y.date<x.date?-1:1).slice(0,6).forEach(c=>{
     feed+='<div class="logitem"><div class="lh"><span class="badge '+c.tagCls+'">'+esc(c.tag)+'</span><b>'+esc(c.extra)+'</b><span class="dt">'+fmtDateFull(c.date)+'</span></div><div class="cm">'+esc(c.txt)+'</div></div>';});
   const _ico='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>';
-  const _vac=[],_nW=d.logs.weight.length,_sinTasa=!weightStats(aid,28)||!lw,_sinGraf=pts.length<2;
+  const _vac=[],_nW=d.logs.weight.length,_sinTasa=!(weightStats(aid,28)||{}).ok||!lw,_sinGraf=pts.length<2;
   if(_sinTasa&&_sinGraf)_vac.push(_nW<2?'Faltan '+(2-_nW)+' pesaje'+(2-_nW===1?'':'s')+' para la tasa de cambio y la gráfica de peso':'Faltan pesajes recientes para la tasa de cambio y la gráfica de peso');
   if(!feed)_vac.push('Sin comentarios recientes del atleta');
   const vacios=_vac.length?'<div class="vacios">'+_vac.map(t=>'<div>'+_ico+'<span>'+t+'</span></div>').join('')+'</div>':'';
@@ -14035,7 +14035,19 @@ function weightStats(aid,days){
   const cur=ys[ys.length-1];
   const fitStart=my+slope*(xs[0]-mx), fitCur=my+slope*(xs[xs.length-1]-mx);
   const pctWk=+(kgWk/(cur||1)*100).toFixed(2);
-  return {kgWk,pctWk,slope,cur,fitStart,fitCur,nPts:n,spanDays:Math.round(xs[xs.length-1]-xs[0]),pts};
+  const spanDays=Math.round(xs[xs.length-1]-xs[0]);
+  /* ok: hay tendencia de verdad. Con 2 pesajes de días seguidos la pendiente es puro vaivén
+     de agua y, llevada a 7 días, salía «bajando 7,70 kg/sem» (Viviana, 2026-11-25). */
+  const ok=n>=RATE_MIN_PTS&&spanDays>=RATE_MIN_DAYS;
+  return {kgWk,pctWk,slope,cur,fitStart,fitCur,nPts:n,spanDays,pts,ok};
+}
+const RATE_MIN_PTS=3, RATE_MIN_DAYS=7;
+/* qué le falta a weightStats para dar tendencia, en texto («2 pesajes más y 5 días más») */
+function rateFalta(st){
+  const fp=Math.max(0,RATE_MIN_PTS-st.nPts), fd=Math.max(0,RATE_MIN_DAYS-st.spanDays), r=[];
+  if(fp)r.push(fp+' pesaje'+(fp===1?'':'s')+' más');
+  if(fd)r.push(fd+' día'+(fd===1?'':'s')+' más');
+  return r.join(' y ');
 }
 /* Objetivo de ritmo: usa el del plan (déficit/superávit fijado por el coach) si existe; si no, el de la fase. */
 function targetRateFor(aid){
@@ -14334,7 +14346,8 @@ function progressCard(aid,forAth){
     const prog=Math.abs(span)<0.05?100:Math.max(0,Math.min(100,done/span*100));
     const st=weightStats(aid,28);let eta='',etaISO=null;
     if(Math.abs(falta)<0.3)eta=forAth?'¡Estás en tu meta!':'En la meta.';
-    else if(st&&Math.abs(st.kgWk)>=0.05&&Math.sign(st.kgWk)===-Math.sign(falta)){
+    else if(!st||!st.ok)eta=forAth?'Cuando tengas una semana de pesajes te diremos una fecha estimada.':'Aún sin tendencia (mínimo '+RATE_MIN_PTS+' pesajes en '+RATE_MIN_DAYS+' días): sin fecha estimada.';
+    else if(Math.abs(st.kgWk)>=0.05&&Math.sign(st.kgWk)===-Math.sign(falta)){
       const wks=Math.abs(falta/st.kgWk);if(wks<=104)etaISO=addDaysISO(todayISO(),Math.round(wks*7));
       eta=wks>104?'A este ritmo aún queda lejos.':'A este ritmo, '+(forAth?'llegarías':'llegaría')+' hacia el <b>'+fmtDate(addDaysISO(todayISO(),Math.round(wks*7)))+'</b> ('+Math.round(wks)+' sem).';
     }else eta=forAth?'Cuando el ritmo vaya hacia la meta te diremos una fecha estimada.':'El ritmo actual no va hacia la meta: sin fecha estimada.';
@@ -14350,6 +14363,7 @@ function weightTrendCard(aid){
   const d=athData(aid),p=d.profile,lw=lastWeight(aid);
   const st=weightStats(aid,28);
   if(!st||!lw)return '<div class="card mb16"><h3>Tasa de cambio de peso</h3><div class="empty"><b>Faltan pesajes</b>Se necesitan al menos 2 registros de peso para calcular la tasa.</div></div>';
+  if(!st.ok)return '<div class="card mb16"><h3>Tasa de cambio de peso</h3><div class="empty"><b>Aún sin tendencia</b>Hay '+st.nPts+' pesaje'+(st.nPts===1?'':'s')+' en '+st.spanDays+' día'+(st.spanDays===1?'':'s')+'; con tan pocos pesa más el vaivén diario de agua que el cambio real. Se necesitan al menos '+RATE_MIN_PTS+' pesajes en '+RATE_MIN_DAYS+' días (faltan '+rateFalta(st)+').</div></div>';
   const cur=lw.kg, tgt=targetRateFor(aid), v=rateVerdict(tgt,st.pctWk,st.kgWk), ws=weightWeeksStatus(aid);
   const tkgLo=+(cur*tgt.lo/100).toFixed(2), tkgHi=+(cur*tgt.hi/100).toFixed(2);
   const sign=n=>(n>0?'+':'')+n;
@@ -14378,7 +14392,9 @@ function blockSummary(aid,startISO,endISO){
   const W=inR(d.logs.weight).slice().sort((a,b)=>a.date<b.date?-1:1);
   let wStart=null,wEnd=null,wDelta=null,kgWk=null,pctWk=null;
   if(W.length>=1){wStart=W[0].kg;wEnd=W[W.length-1].kg;}
-  if(W.length>=2){wDelta=+(wEnd-wStart).toFixed(1);const wkSpan=(daysBetweenISO(W[0].date,W[W.length-1].date)/7)||1;kgWk=+(wDelta/wkSpan).toFixed(2);pctWk=+(kgWk/(wEnd||1)*100).toFixed(2);}
+  if(W.length>=2){wDelta=+(wEnd-wStart).toFixed(1);const spanD=daysBetweenISO(W[0].date,W[W.length-1].date);
+    /* misma regla que weightStats: sin ≥3 pesajes en ≥7 días no hay tasa (salía ×7 con 2 días seguidos) */
+    if(W.length>=RATE_MIN_PTS&&spanD>=RATE_MIN_DAYS){kgWk=+(wDelta/(spanD/7)).toFixed(2);pctWk=+(kgWk/(wEnd||1)*100).toFixed(2);}}
   const wk=inR(d.logs.workouts), rpes=wk.map(x=>x.rpe).filter(x=>x!=null);
   const adh=inR(d.logs.nutrition).map(x=>x.adherence).filter(x=>x!=null);
   const fat=inR(d.logs.fatigue).map(x=>x.total).filter(x=>x!=null);
@@ -15363,7 +15379,7 @@ function reportSheet(aid,rw,readOnly){
     pesoBody='<div class="grid g3 mb16">'+
       '<div class="stat u-m0"><div class="k">Peso inicial</div><div class="v">'+start.toFixed(1)+'<small> kg</small></div><div class="sub">'+fmtDate(ws.pts[0].date)+'</div></div>'+
       '<div class="stat u-m0"><div class="k">Peso actual</div><div class="v">'+cur.toFixed(1)+'<small> kg</small></div><div class="sub">'+ws.nPts+' pesajes</div></div>'+
-      '<div class="stat u-m0"><div class="k">Cambio</div><div class="v">'+(delta>0?'+':'')+delta+'<small> kg</small></div><div class="sub">'+(ws.kgWk>0?'+':'')+ws.kgWk+' kg/sem · '+(ws.pctWk>0?'+':'')+ws.pctWk+'%/sem</div></div>'+
+      '<div class="stat u-m0"><div class="k">Cambio</div><div class="v">'+(delta>0?'+':'')+delta+'<small> kg</small></div><div class="sub">'+(ws.ok?(ws.kgWk>0?'+':'')+ws.kgWk+' kg/sem · '+(ws.pctWk>0?'+':'')+ws.pctWk+'%/sem':'aún sin tendencia semanal')+'</div></div>'+
       '</div>'+svgWeight(wpts,{h:180,ranges:false,hero:false});
   }else pesoBody='<div class="empty"><b>Sin pesajes en el periodo</b>Se necesitan al menos 2 registros de peso para la tendencia.</div>';
   /* ---- MEDIDAS + %GRASA ---- */
