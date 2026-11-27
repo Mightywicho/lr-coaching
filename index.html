@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-27.2">
+<meta name="lr-build" content="2026-11-27.3">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mighty · Entrenamiento y nutrición</title>
 <meta name="description" content="Mighty — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -85,8 +85,9 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
   --volt:#00aeef; --volt-dim:#008cc2; --on-volt:#000000; --ink:#0d1015; --mn-ink:#231f20;
   --volt-08:rgba(0,174,239,.08); --volt-12:rgba(0,174,239,.12); --volt-16:rgba(0,174,239,.16); --volt-22:rgba(0,174,239,.22); --volt-40:rgba(0,174,239,.4); --volt-50:rgba(0,174,239,.5); --sel:rgba(0,174,239,.25);
   /* peligro/negativo (--red) — SIEMPRE ámbar (Luis, 2026-11-27): avisos y errores se reconocen así.
-     --blue = violeta azulado #8f9cff (notas, enlaces de video, prioridad 2): el azul claro de antes se confundía con el cian */
-  --blue:#8f9cff; --orange:#ffb45c; --red:#f59e0b; --green:#52d98a; --purple:#b69cff;
+     --blue = violeta azulado #8f9cff (notas, proteína, línea de peso): el azul claro de antes se confundía con el cian.
+     --purple = orquídea #e58cff (recomposición): el lavanda #b69cff se confundía con el violeta azulado en la gráfica de peso */
+  --blue:#8f9cff; --orange:#ffb45c; --red:#f59e0b; --green:#52d98a; --purple:#e58cff;
   --danger-08:rgba(245,158,11,.08); --danger-10:rgba(245,158,11,.1); --danger-12:rgba(245,158,11,.12); --danger-14:rgba(245,158,11,.14); --danger-16:rgba(245,158,11,.16); --danger-30:rgba(245,158,11,.3); --danger-35:rgba(245,158,11,.35);
   --r:14px; --r-s:10px;
   --shadow:0 10px 30px rgba(0,0,0,.35);
@@ -97,7 +98,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
   /* color de datos (carbohidratos, calorías, gráficas); no es el de marca */
   --lime:#cdf563;
   --danger-45:rgba(245,158,11,.45);
-  --blue-08:rgba(143,156,255,.08);--blue-12:rgba(143,156,255,.12);--blue-35:rgba(143,156,255,.35);--blue-50:rgba(143,156,255,.50);--blue-75:rgba(143,156,255,.75);--green-08:rgba(82,217,138,.08);--green-12:rgba(82,217,138,.12);--green-16:rgba(82,217,138,.16);--green-22:rgba(82,217,138,.22);--green-35:rgba(82,217,138,.35);--green-60:rgba(82,217,138,.60);--orange-08:rgba(255,180,92,.08);--orange-12:rgba(255,180,92,.12);--orange-16:rgba(255,180,92,.16);--orange-35:rgba(255,180,92,.35);--orange-50:rgba(255,180,92,.50);--purple-12:rgba(182,156,255,.12);--purple-16:rgba(182,156,255,.16);--purple-35:rgba(182,156,255,.35);
+  --blue-08:rgba(143,156,255,.08);--blue-12:rgba(143,156,255,.12);--blue-35:rgba(143,156,255,.35);--blue-50:rgba(143,156,255,.50);--blue-75:rgba(143,156,255,.75);--green-08:rgba(82,217,138,.08);--green-12:rgba(82,217,138,.12);--green-16:rgba(82,217,138,.16);--green-22:rgba(82,217,138,.22);--green-35:rgba(82,217,138,.35);--green-60:rgba(82,217,138,.60);--orange-08:rgba(255,180,92,.08);--orange-12:rgba(255,180,92,.12);--orange-16:rgba(255,180,92,.16);--orange-35:rgba(255,180,92,.35);--orange-50:rgba(255,180,92,.50);--purple-12:rgba(229,140,255,.12);--purple-16:rgba(229,140,255,.16);--purple-35:rgba(229,140,255,.35);
   --font-d:'Sora',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -5683,7 +5684,7 @@ function svgLine(points,opts){
    Colores en hex (WCOL), no var(--x): html2canvas convierte el SVG a imagen fuera del
    documento y ahí las variables CSS no existen. */
 const WCH_DAY=86400000;
-const WCOL={blue:'#8f9cff',grid:'#1e1e22',zero:'#3a3a40',tx:'#ededed',tx2:'#b3b3b3',tx3:'#8e8e95',card:'#0c0c0d',green:'#52d98a',orange:'#ffb45c',red:'#f2557a',purple:'#b69cff'};
+const WCOL={blue:'#8f9cff',grid:'#1e1e22',zero:'#3a3a40',tx:'#ededed',tx2:'#b3b3b3',tx3:'#8e8e95',card:'#0c0c0d',green:'#52d98a',orange:'#ffb45c',red:'#f2557a',purple:'#e58cff'};
 function wchNiceStep(span){const raw=span/4;for(const s of[.1,.2,.5,1,2,5,10,20])if(s>=raw)return s;return 50;}
 const wchT=(x,y,s,a)=>'<text x="'+(+x).toFixed(1)+'" y="'+(+y).toFixed(1)+'" '+(a||'')+'>'+s+'</text>';
 function wchSvg(pts,opts){
@@ -6653,7 +6654,7 @@ VIEWS['coach-chat']=function(u){
 };
 
 /* ================= PANEL DEL COACH ================= */
-const PALETTE=['#8f9cff','#ffb45c','#b69cff','#52d98a','#ff8fab','#f6e05e'];
+const PALETTE=['#8f9cff','#ffb45c','#e58cff','#52d98a','#ff8fab','#f6e05e'];
 const adhBadge=v=>{if(v==null)return'<span class="badge">sin datos</span>';const cls=v>=4.5?'green':v>=3.5?'volt':v>=2.5?'orange':'red';return'<span class="badge '+cls+'">'+v+' / 5</span>';};
 
 /* modo de asesoría por atleta: qué áreas tiene contratadas */
@@ -8524,7 +8525,7 @@ function coachTabRendimiento(aid,soloCalc){
     let topts='';histEx.forEach(e=>{topts+='<option value="'+e.id+'"'+(e.id===selId?' selected':'')+'>'+esc(e.name)+'</option>';});
     const hist=e1rmHistory(aid,selId);
     let chart='<div class="empty"><b>1 sesión registrada</b>Registra otra para ver la curva.</div>',tbl='';
-    if(hist.length>=2)chart=svgLine(hist.map(h=>({x:h.date,y:h.e1rm})),{color:'#b69cff',unit:'kg'});
+    if(hist.length>=2)chart=svgLine(hist.map(h=>({x:h.date,y:h.e1rm})),{color:'#e58cff',unit:'kg'});
     if(hist.length){
       const first=hist[0].e1rm,last=hist[hist.length-1].e1rm,dl=Math.round((last-first)*10)/10,pct=first>0?Math.round((last-first)/first*1000)/10:0;
       let rows='';hist.slice().reverse().slice(0,8).forEach(h=>{const s=h.set;rows+='<tr><td>'+fmtDateFull(h.date)+'</td><td class="num">'+(s?(s.w||0)+'×'+(s.r||0)+(s.rir!=null?' @RIR '+s.rir:''):'—')+'</td><td class="num"><b>'+h.e1rm+' kg</b></td></tr>';});
@@ -8810,7 +8811,7 @@ function pgExTabla(L,selId){
     const pill=ser.length<2?'<span class="delta-pill flat">—</span>':dl===0?'<span class="delta-pill flat">=</span>':'<span class="delta-pill '+(dl>0?'up':'down')+'">'+(dl>0?'+':'')+dl+' kg</span>';
     const lbl=(PG_EX_LBL[st.k]||st.lbl||'')+(st.dudoso?' · dudoso':'');
     return '<tr class="pgexrow'+(o.e.id===selId?' on':'')+'" data-act="pg-ex-pick" data-v="'+o.e.id+'" title="1RM est.: '+ser.map(x=>x.e1rm).join(' → ')+' kg">'+
-      '<td class="exname">'+esc(o.e.name)+'<div class="u-mt4"><span class="badge '+(st.cls||'')+'">'+esc(lbl)+'</span></div></td><td>'+pgSpark(ser.map(x=>x.e1rm),'#b69cff')+'</td>'+
+      '<td class="exname">'+esc(o.e.name)+'<div class="u-mt4"><span class="badge '+(st.cls||'')+'">'+esc(lbl)+'</span></div></td><td>'+pgSpark(ser.map(x=>x.e1rm),'#e58cff')+'</td>'+
       '<td class="num"><b>'+l.e1rm+'</b> kg</td><td>'+pill+'</td>'+
       '<td class="num pgx-op">'+l.topW+'×'+l.topR+(l.topRir!=null?' <span class="tiny">@'+l.topRir+'</span>':'')+'</td>'+
       '<td class="num pgx-op">'+ser.length+'</td></tr>';
@@ -8843,7 +8844,7 @@ function pgLevelEjercicio(aid,win){
   });
   const selEx=histEx.find(e=>e.id===selId);
   return pgExTabla(orden,selId)+'<div class="card" id="pg-ex-det"><h3>'+esc(selEx?selEx.name:'')+' <span class="hint">detalle · '+esc(win.label)+'</span></h3>'+banner+stats+
-    '<div class="grid g2"><div><h4 class="mg-h">1RM estimado <span class="hint">pondera reps y RIR</span></h4>'+svgLine(e1Pts,{color:'#b69cff',unit:'kg'})+'</div><div><h4 class="mg-h">Tonelaje por sesión</h4>'+svgLine(tonPts,{color:'#cdf563',unit:'kg'})+'</div></div>'+
+    '<div class="grid g2"><div><h4 class="mg-h">1RM estimado <span class="hint">pondera reps y RIR</span></h4>'+svgLine(e1Pts,{color:'#e58cff',unit:'kg'})+'</div><div><h4 class="mg-h">Tonelaje por sesión</h4>'+svgLine(tonPts,{color:'#cdf563',unit:'kg'})+'</div></div>'+
     '<div class="tblwrap u-mt16"><table class="tbl u-minwa"><thead><tr><th>Fecha</th><th>Mejor serie (peso×reps @RIR)</th><th>Tonelaje</th><th>1RM est.</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '<p class="tiny mt8">El 1RM estimado ya incorpora reps y RIR: un mismo peso con más reps o más lejos del fallo (RIR mayor) sube la curva aunque la carga no cambie. '+icx('trofeo')+'marca récords históricos.</p></div>';
 }
@@ -11636,7 +11637,7 @@ VIEWS['ath-prog']=function(u){
     fotoCardAth(aid)+
     '<div class="card"><h3>Peso corporal <span class="hint">'+d.logs.weight.length+' registros</span></h3>'+svgWeight(wpts,{goal:d.profile.goalWeight})+wwTable+'</div>'+
     (function(){const wm=measureLogs(aid).filter(m=>m&&m.waist!=null).slice().sort((a,b)=>a.date<b.date?-1:1);
-      return wm.length>=2?'<div class="card"><h3>Cintura <span class="hint">'+wm.length+' medidas</span></h3>'+svgLine(wm.map(m=>({x:m.date,y:+m.waist})),{color:'#b69cff',unit:'cm'})+'</div>':'';})()+
+      return wm.length>=2?'<div class="card"><h3>Cintura <span class="hint">'+wm.length+' medidas</span></h3>'+svgLine(wm.map(m=>({x:m.date,y:+m.waist})),{color:'#e58cff',unit:'cm'})+'</div>':'';})()+
     '<div class="card"><h3>Pasos diarios <span class="hint">'+spts.length+' registros</span></h3>'+(spts.length>=2?svgLine(spts,{color:'#ffb45c'}):'<div class="empty"><b>Sin datos de pasos suficientes</b>Registra tus pasos cada día desde «Hoy» para ver la gráfica.</div>')+swTable+'</div>'+
     (tr?'<div class="card"><h3>Progresión de cargas</h3><div class="frow"><label>Ejercicio</label><select data-change="prog-ex">'+opts+'</select></div>'+exChart+exTable+'</div>':'')};
 };
@@ -15444,7 +15445,7 @@ function reportSheet(aid,rw,readOnly){
       const cmp=h.length>=2;if(cmp){sumPct+=pct;nPct++;}
       const pill=cmp?'<span class="delta-pill '+(dl>0?'up':dl<0?'down':'flat')+'">'+(dl>0?'+':'')+dl+' kg · '+(pct>0?'+':'')+pct+'%</span>':'<span class="tiny u-c-tx3">1 sesión</span>';
       rows+='<tr><td class="exname">'+esc(name)+'</td><td class="num">'+setTxt(f.set)+'<div class="tiny">'+f.e1rm+' kg 1RM</div></td><td class="num">'+setTxt(l.set)+'<div class="tiny">'+l.e1rm+' kg 1RM</div></td><td>'+pill+'</td></tr>';
-      if(cmp)rendCharts+='<h4 class="mg-h mt16">'+esc(name)+' <span class="hint">1RM estimado</span></h4>'+svgLine(h.map(x=>({x:x.date,y:x.e1rm})),{color:'#b69cff',unit:'kg',h:120});
+      if(cmp)rendCharts+='<h4 class="mg-h mt16">'+esc(name)+' <span class="hint">1RM estimado</span></h4>'+svgLine(h.map(x=>({x:x.date,y:x.e1rm})),{color:'#e58cff',unit:'kg',h:120});
     });
     const avgPct=nPct?Math.round(sumPct/nPct*10)/10:null;
     const head=avgPct!=null?'<div class="grid g3 mb16">'+
@@ -15681,7 +15682,7 @@ function fatigueCard(aid){
    const sigBar=(label,v,desc,dv,dir)=>{
      if(v==null)return'';
      const pct=Math.max(0,Math.min(100,v/5*100));
-     const col=dir==='neutral'?'#b69cff':(v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066');
+     const col=dir==='neutral'?'#e58cff':(v>=4?'#52d98a':v>=3?'#ffb45c':'#ff7066');
      let arrow='';
      if(dv!=null){
        if(dv===0)arrow=' <span class="tiny u-c-tx3">=</span>';
@@ -15709,7 +15710,7 @@ function fatigueCard(aid){
      '<h4 class="mg-h mt16">Desglose del check-in <span class="hint">1-5 · ▲▼ vs semana previa · Global '+last.gs+'/25</span></h4>'+breakdown+
      (last.comment?'<div class="cm u-mt12">'+esc(last.comment)+'</div>':'')+flags+
      (pend?'<p class="tiny mt8 u-c-orange">El check-in de esta semana sigue pendiente — este es el de la semana '+last.week+'.</p>':'')+
-     (pts.length>=2?'<hr class="hr">'+svgLine(pts,{color:'#b69cff',unit:'/25',h:150}):'')+
+     (pts.length>=2?'<hr class="hr">'+svgLine(pts,{color:'#e58cff',unit:'/25',h:150}):'')+
      (hist?'<div class="tblwrap mt16"><table class="tbl u-minwa"><thead><tr><th>Sem.</th><th>Fecha</th><th>Global</th><th>Total</th><th>Decisión</th></tr></thead><tbody>'+hist+'</tbody></table></div>':'');
  }
  return '<div class="card mb16"><h3>Fatiga global y decisión semanal <span class="hint">cuestionario de monitoreo · ≤6 sube 2 · 7-9 sube 1 · 10-12 mantén · ≥13 reduce</span></h3>'+body+'</div>';
