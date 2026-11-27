@@ -1,5 +1,5 @@
 /* ============================================================================
-   Service Worker de LR Coaching — PWA de solo lectura offline
+   Service Worker de Mighty — PWA de solo lectura offline
    ============================================================================
    Qué resuelve: que la app abra al instante (y que abra aunque no haya señal)
    en el celular del atleta, sin volver a bajar los ~700 KB del index cada vez.
@@ -33,7 +33,7 @@
 /* Sube este número cuando cambien PRECACHE o la estrategia. No hace falta
    tocarlo en cada deploy de index.html: el HTML no se versiona por aquí, se
    revalida solo en cada apertura (ver cacheLuegoRed). */
-const SW_VERSION = 'v5';
+const SW_VERSION = 'v6'; /* v6: íconos nuevos de Mighty */
 const CACHE_SHELL = 'lrc-shell-' + SW_VERSION;  /* archivos propios */
 const CACHE_DEPS  = 'lrc-deps-'  + SW_VERSION;  /* CDN y fuentes */
 const VIGENTES = [CACHE_SHELL, CACHE_DEPS];
@@ -328,7 +328,7 @@ self.addEventListener('fetch', ev => {
 self.addEventListener('push', ev => {
   let d = {};
   try { d = ev.data ? ev.data.json() : {}; } catch (e) { d = { body: ev.data ? ev.data.text() : '' }; }
-  ev.waitUntil(self.registration.showNotification(d.title || 'LR Coaching', {
+  ev.waitUntil(self.registration.showNotification(d.title || 'Mighty', {
     body: d.body || '', icon: './icon-192.png', badge: './icon-192.png',
     tag: d.tag || 'lrc', data: { url: d.url || './' }
   }));

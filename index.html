@@ -2,24 +2,24 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-27.1">
+<meta name="lr-build" content="2026-11-27.2">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LR Coaching · Entrenamiento & Nutrición</title>
-<meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
+<title>Mighty · Entrenamiento y nutrición</title>
+<meta name="description" content="Mighty — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="site.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="LR Coaching">
+<meta name="apple-mobile-web-app-title" content="Mighty">
 <meta name="mobile-web-app-capable" content="yes">
 <meta property="og:type" content="website">
-<meta property="og:title" content="LR Coaching · Entrenamiento & Nutrición">
+<meta property="og:title" content="Mighty · Entrenamiento y nutrición">
 <meta property="og:description" content="Diseña rutinas, asigna volumen, planifica macros y monitorea el progreso de tus atletas.">
 <meta property="og:image" content="og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="LR Coaching · Entrenamiento & Nutrición">
+<meta name="twitter:title" content="Mighty · Entrenamiento y nutrición">
 <meta name="twitter:description" content="Diseña rutinas, asigna volumen, planifica macros y monitorea el progreso de tus atletas.">
 <meta name="twitter:image" content="og-image.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,15 +77,16 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
      esa primera vez también funciona sin señal. -->
 <style>
 :root{
-  /* Negro y rojo (fase 3, 2026-11-05, pedido de Luis): fondos negros; líneas y bordes salen del color de
-     marca (applyBrand los recalcula); textos secundarios en gris neutro claro para que se lean. */
+  /* Marca Mighty (2026-11-27, logo de Luis): fondos negros; acento = cian del logo #00AEEF con texto NEGRO encima
+     (el blanco no se lee sobre cian); líneas neutras; textos secundarios en gris neutro claro. */
   --bg:#000000; --bg2:#050505; --card:#0c0c0d; --card2:#000000; --line:#222226; --line2:#2f2f34;
   --tx:#ededed; --tx2:#b3b3b3; --tx3:#a6a6a6; --bd-input:rgba(255,255,255,.16);
-  /* acento de marca (--volt) — lo recalcula applyBrand() desde S.brandColor. Default = rojo Physique legible en oscuro */
-  --volt:#f5484b; --volt-dim:#e23539; --on-volt:#f6f6f6; --ink:#0d1015;
-  --volt-08:rgba(245,72,75,.08); --volt-12:rgba(245,72,75,.12); --volt-16:rgba(245,72,75,.16); --volt-22:rgba(245,72,75,.22); --volt-40:rgba(245,72,75,.4); --volt-50:rgba(245,72,75,.5); --sel:rgba(245,72,75,.25);
-  /* peligro/negativo (--red) — ámbar cuando el acento es rojo, coral si el acento es de otra familia. También lo fija applyBrand() */
-  --blue:#7cd0fb; --orange:#ffb45c; --red:#f59e0b; --green:#52d98a; --purple:#b69cff;
+  /* acento de marca (--volt) = cian Mighty. applyBrand(BRAND_DEFAULT) lo vuelve a poner al arrancar */
+  --volt:#00aeef; --volt-dim:#008cc2; --on-volt:#000000; --ink:#0d1015; --mn-ink:#231f20;
+  --volt-08:rgba(0,174,239,.08); --volt-12:rgba(0,174,239,.12); --volt-16:rgba(0,174,239,.16); --volt-22:rgba(0,174,239,.22); --volt-40:rgba(0,174,239,.4); --volt-50:rgba(0,174,239,.5); --sel:rgba(0,174,239,.25);
+  /* peligro/negativo (--red) — SIEMPRE ámbar (Luis, 2026-11-27): avisos y errores se reconocen así.
+     --blue = violeta azulado #8f9cff (notas, enlaces de video, prioridad 2): el azul claro de antes se confundía con el cian */
+  --blue:#8f9cff; --orange:#ffb45c; --red:#f59e0b; --green:#52d98a; --purple:#b69cff;
   --danger-08:rgba(245,158,11,.08); --danger-10:rgba(245,158,11,.1); --danger-12:rgba(245,158,11,.12); --danger-14:rgba(245,158,11,.14); --danger-16:rgba(245,158,11,.16); --danger-30:rgba(245,158,11,.3); --danger-35:rgba(245,158,11,.35);
   --r:14px; --r-s:10px;
   --shadow:0 10px 30px rgba(0,0,0,.35);
@@ -96,7 +97,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||/^(localhost|127
   /* color de datos (carbohidratos, calorías, gráficas); no es el de marca */
   --lime:#cdf563;
   --danger-45:rgba(245,158,11,.45);
-  --blue-08:rgba(124,208,251,.08);--blue-12:rgba(124,208,251,.12);--blue-35:rgba(124,208,251,.35);--blue-50:rgba(124,208,251,.50);--blue-75:rgba(124,208,251,.75);--green-08:rgba(82,217,138,.08);--green-12:rgba(82,217,138,.12);--green-16:rgba(82,217,138,.16);--green-22:rgba(82,217,138,.22);--green-35:rgba(82,217,138,.35);--green-60:rgba(82,217,138,.60);--orange-08:rgba(255,180,92,.08);--orange-12:rgba(255,180,92,.12);--orange-16:rgba(255,180,92,.16);--orange-35:rgba(255,180,92,.35);--orange-50:rgba(255,180,92,.50);--purple-12:rgba(182,156,255,.12);--purple-16:rgba(182,156,255,.16);--purple-35:rgba(182,156,255,.35);
+  --blue-08:rgba(143,156,255,.08);--blue-12:rgba(143,156,255,.12);--blue-35:rgba(143,156,255,.35);--blue-50:rgba(143,156,255,.50);--blue-75:rgba(143,156,255,.75);--green-08:rgba(82,217,138,.08);--green-12:rgba(82,217,138,.12);--green-16:rgba(82,217,138,.16);--green-22:rgba(82,217,138,.22);--green-35:rgba(82,217,138,.35);--green-60:rgba(82,217,138,.60);--orange-08:rgba(255,180,92,.08);--orange-12:rgba(255,180,92,.12);--orange-16:rgba(255,180,92,.16);--orange-35:rgba(255,180,92,.35);--orange-50:rgba(255,180,92,.50);--purple-12:rgba(182,156,255,.12);--purple-16:rgba(182,156,255,.16);--purple-35:rgba(182,156,255,.35);
   --font-d:'Sora',system-ui,sans-serif; --font-b:'Inter',system-ui,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -158,7 +159,8 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
 .sidebar{background:var(--bg2);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px}
-.brand-mark{width:38px;height:38px;border-radius:var(--r-s);background:var(--volt);display:flex;align-items:center;justify-content:center;font-family:var(--font-d);font-weight:600;color:var(--on-volt);font-size:var(--fs-5);flex:none}
+.brand-mark{width:38px;height:38px;border-radius:var(--r-s);background:var(--mn-ink);display:flex;align-items:center;justify-content:center;flex:none}.brand-mark .mn-mark{width:29px;height:auto;display:block}
+.brand-name .mn-word{display:block;height:13px;width:auto;color:var(--tx)}
 .brand-name{font-family:var(--font-d);font-weight:700;font-size:var(--fs-5);line-height:1.15}
 .brand-name small{display:block;font-family:var(--font-b);font-weight:500;font-size:var(--fs-1);color:var(--tx3);letter-spacing:0}
 .nav-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-s);color:var(--tx2);font-weight:500;font-size:var(--fs-4);transition:background .15s,color .15s;width:100%;text-align:left}
@@ -545,8 +547,7 @@ button.revchip-btn{cursor:pointer;font-family:inherit;line-height:inherit;backgr
 .login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden}
 .login-box{width:100%;max-width:480px;position:relative;z-index:1}
 .login-brand{text-align:center;margin-bottom:28px}
-.login-brand .brand-mark{width:58px;height:58px;border-radius:var(--r);font-size:var(--fs-8);margin:0 auto 14px}
-.login-brand h1{font-size:var(--fs-8)}
+.login-brand h1{margin:0 auto 14px;line-height:0}.login-brand .mn-full{width:min(220px,70vw);height:auto}
 .login-brand p{color:var(--tx2);font-size:var(--fs-3);margin-top:5px}
 .login-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow)}
 .login-card h3{font-size:var(--fs-2);letter-spacing:0;color:var(--tx3);margin-bottom:12px;font-family:var(--font-b);font-weight:600}
@@ -740,7 +741,7 @@ label.fm-opt{display:inline-flex;margin:0;text-transform:none;letter-spacing:0;f
    se pinta antes de que nada pueda redefinir el color de marca, y un valor heredado a
    medias se vería como un parpadeo de color justo en el primer fotograma. */
 .boot{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px;color:#9aa5b6}
-.boot-mark{width:54px;height:54px;border-radius:var(--r);background:var(--volt);color:var(--on-volt);display:flex;align-items:center;justify-content:center;font:800 20px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em}
+.boot-mark{width:54px;height:54px;border-radius:var(--r);background:#231f20;display:flex;align-items:center;justify-content:center}.boot-mark .mn-mark{width:40px;height:auto;display:block}
 .boot-name{font:700 17px/1 ui-sans-serif,system-ui,sans-serif;color:#e9edf4}
 .boot-row{display:flex;align-items:center;gap:8px;font:500 13.5px/1 ui-sans-serif,system-ui,sans-serif}
 .boot-spin{width:13px;height:13px;border-radius:50%;border:2px solid #2f3845;border-top-color:var(--volt);animation:lrgira .7s linear infinite}
@@ -1620,12 +1621,14 @@ input.meta-in.old{border-style:dashed}
      sigue sin responder hasta que el script acaba; lo que se elimina es la pantalla
      muerta. El JS luego solo cambia el texto (ver pantallaArranque) en vez de rehacer
      esto, para que no haya un parpadeo entre una versión y otra. -->
-<div id="app"><div class="boot"><div class="boot-mark">LR</div><div class="boot-name">LR Coaching</div><div class="boot-row"><span class="boot-spin"></span><span id="bootmsg">Iniciando…</span></div></div></div>
+<div id="app"><div class="boot"><div class="boot-mark"><svg class="mn-mark" xmlns="http://www.w3.org/2000/svg" viewBox="68.2 141.28 425.78 161.37" aria-hidden="true" focusable="false"><path fill="#00AEEF" d="M269.27 158.92 C270.13 157.33 270.56 155.86 270.56 154.51 C270.56 151.57 268.84 150.1 265.41 150.1 C262.96 150.1 260.39 150.96 257.7 152.68 C255.01 154.4 252.99 156.48 251.64 158.94 L210.84 229.51 C209.38 231.96 207.29 234.04 204.59 235.75 C201.9 237.47 199.32 238.32 196.87 238.32 L152.75 238.32 C149.31 238.32 147.6 236.85 147.6 233.9 C147.6 232.55 148.08 231.08 149.04 229.48 L189.66 158.91 C190.66 157.32 191.16 155.85 191.16 154.5 C191.16 151.57 189.44 150.1 186.01 150.1 C183.56 150.1 180.99 150.96 178.29 152.67 C175.6 154.39 173.51 156.47 172.04 158.92 L131.43 229.5 C129.96 231.95 127.87 234.03 125.18 235.75 C122.48 237.47 119.91 238.32 117.46 238.32 L73.35 238.32 C69.92 238.32 68.2 236.85 68.2 233.91 C68.2 232.56 68.69 231.09 69.67 229.5 L115.44 150.1 C116.91 147.65 118.99 145.57 121.69 143.85 C124.38 142.14 126.95 141.28 129.4 141.28 L332.31 141.28 C335.74 141.28 337.46 142.75 337.46 145.69 C337.46 147.04 336.97 148.51 335.99 150.1 L250.71 297.87 C248.87 301.06 246.97 302.65 245.01 302.65 C243.91 302.65 242.99 302.03 242.25 300.81 L217.81 259.45 C217.07 258.11 216.71 256.39 216.71 254.31 C216.71 251.24 217.44 248.49 218.91 246.04 L269.27 158.92"/><path fill="#00AEEF" d="M488.84 141.28 C492.27 141.28 493.98 142.75 493.98 145.69 C493.98 147.04 493.55 148.51 492.7 150.1 L446.75 229.5 C445.4 231.95 443.35 234.03 440.59 235.75 C437.83 237.47 435.29 238.32 432.96 238.32 L388.85 238.32 C385.42 238.32 383.71 236.85 383.71 233.91 C383.71 232.56 384.14 231.09 384.99 229.5 L425.8 158.92 C426.65 157.33 427.08 155.86 427.08 154.51 C427.08 151.57 425.43 150.1 422.13 150.1 C419.68 150.1 417.07 150.96 414.32 152.68 C411.56 154.39 409.51 156.48 408.17 158.93 L367.37 229.51 C366.02 231.96 363.96 234.04 361.21 235.75 C358.45 237.47 355.91 238.32 353.58 238.32 L309.46 238.32 C306.02 238.32 304.31 236.85 304.31 233.91 C304.31 232.56 304.74 231.09 305.6 229.5 L351.54 150.1 C352.89 147.65 354.94 145.57 357.7 143.85 C360.46 142.14 363 141.28 365.33 141.28 L488.84 141.28"/></svg></div><div class="boot-name">Mighty</div><div class="boot-row"><span class="boot-spin"></span><span id="bootmsg">Iniciando…</span></div></div></div>
 <div id="modal-root"></div>
 <div id="toast-root" aria-live="assertive"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
+/* Logo de Mighty (2026-11-27), sacado en vector del PDF de Luis. Aquí arriba para que existan antes de cualquier pantalla. */
+const LOGO_MARK='<svg class="mn-mark" xmlns="http://www.w3.org/2000/svg" viewBox="68.2 141.28 425.78 161.37" aria-hidden="true" focusable="false"><path fill="#00AEEF" d="M269.27 158.92 C270.13 157.33 270.56 155.86 270.56 154.51 C270.56 151.57 268.84 150.1 265.41 150.1 C262.96 150.1 260.39 150.96 257.7 152.68 C255.01 154.4 252.99 156.48 251.64 158.94 L210.84 229.51 C209.38 231.96 207.29 234.04 204.59 235.75 C201.9 237.47 199.32 238.32 196.87 238.32 L152.75 238.32 C149.31 238.32 147.6 236.85 147.6 233.9 C147.6 232.55 148.08 231.08 149.04 229.48 L189.66 158.91 C190.66 157.32 191.16 155.85 191.16 154.5 C191.16 151.57 189.44 150.1 186.01 150.1 C183.56 150.1 180.99 150.96 178.29 152.67 C175.6 154.39 173.51 156.47 172.04 158.92 L131.43 229.5 C129.96 231.95 127.87 234.03 125.18 235.75 C122.48 237.47 119.91 238.32 117.46 238.32 L73.35 238.32 C69.92 238.32 68.2 236.85 68.2 233.91 C68.2 232.56 68.69 231.09 69.67 229.5 L115.44 150.1 C116.91 147.65 118.99 145.57 121.69 143.85 C124.38 142.14 126.95 141.28 129.4 141.28 L332.31 141.28 C335.74 141.28 337.46 142.75 337.46 145.69 C337.46 147.04 336.97 148.51 335.99 150.1 L250.71 297.87 C248.87 301.06 246.97 302.65 245.01 302.65 C243.91 302.65 242.99 302.03 242.25 300.81 L217.81 259.45 C217.07 258.11 216.71 256.39 216.71 254.31 C216.71 251.24 217.44 248.49 218.91 246.04 L269.27 158.92"/><path fill="#00AEEF" d="M488.84 141.28 C492.27 141.28 493.98 142.75 493.98 145.69 C493.98 147.04 493.55 148.51 492.7 150.1 L446.75 229.5 C445.4 231.95 443.35 234.03 440.59 235.75 C437.83 237.47 435.29 238.32 432.96 238.32 L388.85 238.32 C385.42 238.32 383.71 236.85 383.71 233.91 C383.71 232.56 384.14 231.09 384.99 229.5 L425.8 158.92 C426.65 157.33 427.08 155.86 427.08 154.51 C427.08 151.57 425.43 150.1 422.13 150.1 C419.68 150.1 417.07 150.96 414.32 152.68 C411.56 154.39 409.51 156.48 408.17 158.93 L367.37 229.51 C366.02 231.96 363.96 234.04 361.21 235.75 C358.45 237.47 355.91 238.32 353.58 238.32 L309.46 238.32 C306.02 238.32 304.31 236.85 304.31 233.91 C304.31 232.56 304.74 231.09 305.6 229.5 L351.54 150.1 C352.89 147.65 354.94 145.57 357.7 143.85 C360.46 142.14 363 141.28 365.33 141.28 L488.84 141.28"/></svg>', LOGO_WORD='<svg class="mn-word" xmlns="http://www.w3.org/2000/svg" viewBox="135.68 100.56 164.78 30.18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M163.34 100.56 L163.34 130.74 L157.33 130.74 L157.33 110.85 L153.16 130.74 L145.88 130.74 L141.67 110.85 L141.67 130.74 L135.68 130.74 L135.68 100.56 L144 100.56 L149.52 125.09 L155.02 100.56 L163.34 100.56"/><path fill="currentColor" d="M176.97 100.56 H182.97 V130.74 H176.97 Z"/><path fill="currentColor" d="M207.98 119.98 L205.14 119.98 L205.14 114.4 L213.99 114.4 L213.99 126.63 C213.99 127.77 213.54 128.74 212.65 129.54 C211.79 130.34 210.76 130.74 209.55 130.74 L200.74 130.74 C199.54 130.74 198.5 130.34 197.63 129.54 C196.75 128.74 196.31 127.77 196.31 126.63 L196.31 104.67 C196.31 103.53 196.75 102.55 197.63 101.74 C198.5 100.95 199.54 100.56 200.74 100.56 L209.55 100.56 C210.76 100.56 211.79 100.95 212.65 101.74 C213.54 102.55 213.99 103.53 213.99 104.67 L213.99 110.74 L207.98 110.74 L207.98 106.13 L202.3 106.13 L202.3 125.16 L207.98 125.16 L207.98 119.98"/><path fill="currentColor" d="M233.01 118.44 L233.01 130.74 L227.01 130.74 L227.01 100.56 L233.01 100.56 L233.01 112.84 L238.68 112.84 L238.68 100.56 L244.69 100.56 L244.69 130.74 L238.68 130.74 L238.68 118.44 L233.01 118.44"/><path fill="currentColor" d="M261.98 106.13 L256.12 106.13 L256.12 100.56 L273.79 100.56 L273.79 106.13 L267.95 106.13 L267.95 130.74 L261.98 130.74 L261.98 106.13"/><path fill="currentColor" d="M294.18 120.41 L294.18 130.74 L288.17 130.74 L288.17 120.43 L281.88 100.56 L288 100.56 C288.88 103.49 289.93 108.3 291.16 115 C292.41 108.3 293.47 103.49 294.33 100.56 L300.46 100.56 L294.18 120.41"/></svg>', LOGO_FULL='<svg class="mn-full" xmlns="http://www.w3.org/2000/svg" viewBox="68.2 100.56 463.61 202.09" aria-hidden="true" focusable="false"><path fill="#FFFFFF" d="M269.27 158.92 C270.13 157.33 270.56 155.86 270.56 154.51 C270.56 151.57 268.84 150.1 265.41 150.1 C262.96 150.1 260.39 150.96 257.7 152.68 C255.01 154.4 252.99 156.48 251.64 158.94 L210.84 229.51 C209.38 231.96 207.29 234.04 204.59 235.75 C201.9 237.47 199.32 238.32 196.87 238.32 L152.75 238.32 C149.31 238.32 147.6 236.85 147.6 233.9 C147.6 232.55 148.08 231.08 149.04 229.48 L189.66 158.91 C190.66 157.32 191.16 155.85 191.16 154.5 C191.16 151.57 189.44 150.1 186.01 150.1 C183.56 150.1 180.99 150.96 178.29 152.67 C175.6 154.39 173.51 156.47 172.04 158.92 L131.43 229.5 C129.96 231.95 127.87 234.03 125.18 235.75 C122.48 237.47 119.91 238.32 117.46 238.32 L73.35 238.32 C69.92 238.32 68.2 236.85 68.2 233.91 C68.2 232.56 68.69 231.09 69.67 229.5 L115.44 150.1 C116.91 147.65 118.99 145.57 121.69 143.85 C124.38 142.14 126.95 141.28 129.4 141.28 L332.31 141.28 C335.74 141.28 337.46 142.75 337.46 145.69 C337.46 147.04 336.97 148.51 335.99 150.1 L250.71 297.87 C248.87 301.06 246.97 302.65 245.01 302.65 C243.91 302.65 242.99 302.03 242.25 300.81 L217.81 259.45 C217.07 258.11 216.71 256.39 216.71 254.31 C216.71 251.24 217.44 248.49 218.91 246.04 L269.27 158.92"/><path fill="#FFFFFF" d="M488.84 141.28 C492.27 141.28 493.98 142.75 493.98 145.69 C493.98 147.04 493.55 148.51 492.7 150.1 L446.75 229.5 C445.4 231.95 443.35 234.03 440.59 235.75 C437.83 237.47 435.29 238.32 432.96 238.32 L388.85 238.32 C385.42 238.32 383.71 236.85 383.71 233.91 C383.71 232.56 384.14 231.09 384.99 229.5 L425.8 158.92 C426.65 157.33 427.08 155.86 427.08 154.51 C427.08 151.57 425.43 150.1 422.13 150.1 C419.68 150.1 417.07 150.96 414.32 152.68 C411.56 154.39 409.51 156.48 408.17 158.93 L367.37 229.51 C366.02 231.96 363.96 234.04 361.21 235.75 C358.45 237.47 355.91 238.32 353.58 238.32 L309.46 238.32 C306.02 238.32 304.31 236.85 304.31 233.91 C304.31 232.56 304.74 231.09 305.6 229.5 L351.54 150.1 C352.89 147.65 354.94 145.57 357.7 143.85 C360.46 142.14 363 141.28 365.33 141.28 L488.84 141.28"/><path fill="#00AEEF" d="M163.34 100.56 L163.34 130.74 L157.33 130.74 L157.33 110.85 L153.16 130.74 L145.88 130.74 L141.67 110.85 L141.67 130.74 L135.68 130.74 L135.68 100.56 L144 100.56 L149.52 125.09 L155.02 100.56 L163.34 100.56"/><path fill="#00AEEF" d="M176.97 100.56 H182.97 V130.74 H176.97 Z"/><path fill="#00AEEF" d="M207.98 119.98 L205.14 119.98 L205.14 114.4 L213.99 114.4 L213.99 126.63 C213.99 127.77 213.54 128.74 212.65 129.54 C211.79 130.34 210.76 130.74 209.55 130.74 L200.74 130.74 C199.54 130.74 198.5 130.34 197.63 129.54 C196.75 128.74 196.31 127.77 196.31 126.63 L196.31 104.67 C196.31 103.53 196.75 102.55 197.63 101.74 C198.5 100.95 199.54 100.56 200.74 100.56 L209.55 100.56 C210.76 100.56 211.79 100.95 212.65 101.74 C213.54 102.55 213.99 103.53 213.99 104.67 L213.99 110.74 L207.98 110.74 L207.98 106.13 L202.3 106.13 L202.3 125.16 L207.98 125.16 L207.98 119.98"/><path fill="#00AEEF" d="M233.01 118.44 L233.01 130.74 L227.01 130.74 L227.01 100.56 L233.01 100.56 L233.01 112.84 L238.68 112.84 L238.68 100.56 L244.69 100.56 L244.69 130.74 L238.68 130.74 L238.68 118.44 L233.01 118.44"/><path fill="#00AEEF" d="M261.98 106.13 L256.12 106.13 L256.12 100.56 L273.79 100.56 L273.79 106.13 L267.95 106.13 L267.95 130.74 L261.98 130.74 L261.98 106.13"/><path fill="#00AEEF" d="M294.18 120.41 L294.18 130.74 L288.17 130.74 L288.17 120.43 L281.88 100.56 L288 100.56 C288.88 103.49 289.93 108.3 291.16 115 C292.41 108.3 293.47 103.49 294.33 100.56 L300.46 100.56 L294.18 120.41"/><path fill="#00AEEF" d="M301.37 263.62 L301.37 283.06 L295.38 283.06 L295.38 252.87 L303.7 252.87 L308.6 272.41 L308.6 252.87 L314.6 252.87 L314.6 283.06 L306.29 283.06 L301.37 263.62"/><path fill="#00AEEF" d="M334.09 277.48 L339.76 277.48 L339.76 252.87 L345.77 252.87 L345.77 278.94 C345.77 280.08 345.32 281.05 344.43 281.85 C343.57 282.66 342.54 283.06 341.34 283.06 L332.53 283.06 C331.32 283.06 330.28 282.66 329.41 281.85 C328.53 281.05 328.09 280.08 328.09 278.94 L328.09 252.87 L334.09 252.87 L334.09 277.48"/><path fill="#00AEEF" d="M362.98 258.45 L357.12 258.45 L357.12 252.87 L374.8 252.87 L374.8 258.45 L368.96 258.45 L368.96 283.06 L362.98 283.06 L362.98 258.45"/><path fill="#00AEEF" d="M394.89 266.72 C395.46 266.72 395.97 266.52 396.39 266.13 C396.82 265.77 397.03 265.31 397.03 264.76 L397.03 258.45 L391.36 258.45 L391.36 266.72 L394.89 266.72 M391.36 272.29 L391.36 283.06 L385.37 283.06 L385.37 252.87 L398.61 252.87 C399.81 252.87 400.84 253.27 401.71 254.06 C402.6 254.87 403.04 255.85 403.04 256.99 L403.04 264.76 C403.04 266.74 402.27 268.32 400.73 269.5 C402.27 270.67 403.04 272.26 403.04 274.27 L403.04 283.06 L397.03 283.06 L397.03 274.27 C397.03 273.72 396.82 273.25 396.39 272.86 C395.97 272.48 395.46 272.29 394.89 272.29 L391.36 272.29"/><path fill="#00AEEF" d="M416.44 252.87 H422.44 V283.06 H416.44 Z"/><path fill="#00AEEF" d="M439.73 258.45 L433.87 258.45 L433.87 252.87 L451.54 252.87 L451.54 258.45 L445.7 258.45 L445.7 283.06 L439.73 283.06 L439.73 258.45"/><path fill="#00AEEF" d="M462.11 252.87 H468.1 V283.06 H462.11 Z"/><path fill="#00AEEF" d="M487.44 258.45 H493.11 V277.48 H487.44 Z M494.69 252.87 C495.89 252.87 496.92 253.27 497.79 254.05 C498.68 254.87 499.12 255.85 499.12 256.99 L499.12 278.94 C499.12 280.08 498.68 281.05 497.79 281.85 C496.92 282.65 495.89 283.06 494.69 283.06 L485.88 283.06 C484.68 283.06 483.64 282.65 482.76 281.85 C481.89 281.05 481.45 280.08 481.45 278.94 L481.45 256.99 C481.45 255.85 481.89 254.87 482.76 254.05 C483.64 253.27 484.68 252.87 485.88 252.87 L494.69 252.87"/><path fill="#00AEEF" d="M518.59 263.62 L518.59 283.06 L512.6 283.06 L512.6 252.87 L520.92 252.87 L525.82 272.41 L525.82 252.87 L531.82 252.87 L531.82 283.06 L523.51 283.06 L518.59 263.62"/></svg>';
 /* ================= DATOS ================= */
 const LS_KEY='lrc_state_v1', LS_SES='lrc_session_v1';
 /* Copia del navegador TAL COMO QUEDÓ antes de que esta sesión escriba nada.
@@ -2108,7 +2111,7 @@ window._lrLogout=async function(){_selfSignOut=true;try{await supa.auth.signOut(
 function pantallaArranque(msg){
   const m=document.getElementById('bootmsg');
   if(m){m.textContent=msg;return;}
-  $('#app').innerHTML='<div class="boot"><div class="boot-mark">LR</div><div class="boot-name">LR Coaching</div><div class="boot-row"><span class="boot-spin"></span><span id="bootmsg">'+esc(msg)+'</span></div></div>';
+  $('#app').innerHTML='<div class="boot"><div class="boot-mark"><svg class="mn-mark" xmlns="http://www.w3.org/2000/svg" viewBox="68.2 141.28 425.78 161.37" aria-hidden="true" focusable="false"><path fill="#00AEEF" d="M269.27 158.92 C270.13 157.33 270.56 155.86 270.56 154.51 C270.56 151.57 268.84 150.1 265.41 150.1 C262.96 150.1 260.39 150.96 257.7 152.68 C255.01 154.4 252.99 156.48 251.64 158.94 L210.84 229.51 C209.38 231.96 207.29 234.04 204.59 235.75 C201.9 237.47 199.32 238.32 196.87 238.32 L152.75 238.32 C149.31 238.32 147.6 236.85 147.6 233.9 C147.6 232.55 148.08 231.08 149.04 229.48 L189.66 158.91 C190.66 157.32 191.16 155.85 191.16 154.5 C191.16 151.57 189.44 150.1 186.01 150.1 C183.56 150.1 180.99 150.96 178.29 152.67 C175.6 154.39 173.51 156.47 172.04 158.92 L131.43 229.5 C129.96 231.95 127.87 234.03 125.18 235.75 C122.48 237.47 119.91 238.32 117.46 238.32 L73.35 238.32 C69.92 238.32 68.2 236.85 68.2 233.91 C68.2 232.56 68.69 231.09 69.67 229.5 L115.44 150.1 C116.91 147.65 118.99 145.57 121.69 143.85 C124.38 142.14 126.95 141.28 129.4 141.28 L332.31 141.28 C335.74 141.28 337.46 142.75 337.46 145.69 C337.46 147.04 336.97 148.51 335.99 150.1 L250.71 297.87 C248.87 301.06 246.97 302.65 245.01 302.65 C243.91 302.65 242.99 302.03 242.25 300.81 L217.81 259.45 C217.07 258.11 216.71 256.39 216.71 254.31 C216.71 251.24 217.44 248.49 218.91 246.04 L269.27 158.92"/><path fill="#00AEEF" d="M488.84 141.28 C492.27 141.28 493.98 142.75 493.98 145.69 C493.98 147.04 493.55 148.51 492.7 150.1 L446.75 229.5 C445.4 231.95 443.35 234.03 440.59 235.75 C437.83 237.47 435.29 238.32 432.96 238.32 L388.85 238.32 C385.42 238.32 383.71 236.85 383.71 233.91 C383.71 232.56 384.14 231.09 384.99 229.5 L425.8 158.92 C426.65 157.33 427.08 155.86 427.08 154.51 C427.08 151.57 425.43 150.1 422.13 150.1 C419.68 150.1 417.07 150.96 414.32 152.68 C411.56 154.39 409.51 156.48 408.17 158.93 L367.37 229.51 C366.02 231.96 363.96 234.04 361.21 235.75 C358.45 237.47 355.91 238.32 353.58 238.32 L309.46 238.32 C306.02 238.32 304.31 236.85 304.31 233.91 C304.31 232.56 304.74 231.09 305.6 229.5 L351.54 150.1 C352.89 147.65 354.94 145.57 357.7 143.85 C360.46 142.14 363 141.28 365.33 141.28 L488.84 141.28"/></svg></div><div class="boot-name">Mighty</div><div class="boot-row"><span class="boot-spin"></span><span id="bootmsg">'+esc(msg)+'</span></div></div>';
 }
 function showBootError(msg){
   $('#app').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui"><div style="text-align:center;max-width:340px;padding:24px"><p style="color:#ddd;font-size:15px;margin-bottom:16px">'+msg+'</p><button onclick="window.lrRecargar?lrRecargar():location.reload()" style="background:#cdf563;color:#111;border:0;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer">Reintentar</button><br><button onclick="window._lrLogout&&window._lrLogout()" style="background:none;border:0;color:#888;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline">Cerrar sesión</button></div></div>';
@@ -3392,7 +3395,7 @@ async function refreshAllData(only){
       const _keepLib=_libHydrated&&S?S.library:null,_keepFoods=_foodsHydrated&&S?S.foods:null;
       if(!error&&data&&data.state){S=data.state;
         if(_keepLib)S.library=_keepLib;if(_keepFoods)S.foods=_keepFoods;
-        ensureAll(S);ensureBrand(S);applyBrand(S.brandColor);}}catch(e){}
+        ensureAll(S);ensureBrand(S);applyBrand(BRAND_DEFAULT);}}catch(e){}
     await buildAthleteUidMaps();
   }
   const names=Object.keys(_HYDRATORS).filter(t=>full||only.has(t));
@@ -4849,7 +4852,7 @@ function dxBar(key,cons,obj,color){const fr=obj?Math.min(1,cons/obj):0;return '<
 function dxRing(key,cons,tgt){const fr=tgt?Math.min(1,cons/tgt):0,over=tgt&&cons>tgt;
   return '<div class="hx-ring"><svg viewBox="0 0 120 120" role="img" aria-label="Comido '+cons+' de '+tgt+' kcal"><circle cx="60" cy="60" r="50" class="hx-ring-bg"></circle><circle cx="60" cy="60" r="50" class="hx-ring-v'+(over?' over':'')+'" data-dxp="'+key+'" style="--v:'+fr.toFixed(3)+'"></circle></svg>'+
     '<div class="hx-ring-t"><b>'+Math.abs(tgt-cons)+'</b><span>'+(over?'kcal de más':'kcal restan')+'</span></div></div>';}
-const DX_MACS=[['Proteína','p','#7cd0fb'],['Carbohidratos','c','#52d98a'],['Grasas','f','#ffb45c']];
+const DX_MACS=[['Proteína','p','#8f9cff'],['Carbohidratos','c','#52d98a'],['Grasas','f','#ffb45c']];
 /* Una línea registrada: «Alimento · cantidad» se parte en nombre y cantidad; la entrada rápida no trae cantidad. */
 function dxLogRow(l,extra){const i=(l.name||'').indexOf(' · '),nm=i>0?l.name.slice(0,i):(l.name||'Comida'),q=i>0?l.name.slice(i+3):('Prot '+dxN(l.p)+' g · Carbos '+dxN(l.c)+' g · Grasa '+dxN(l.f)+' g');
   return '<div class="dx-it'+(extra?' extra':'')+'"><div class="nm"><span>'+esc(nm)+(extra?'<span class="dx-tag">Extra</span>':'')+'</span><span class="q">'+esc(q)+'</span></div><span class="kc">'+mealKcal(l)+'</span><button class="dx-ib" data-act="dx-del" data-id="'+esc(l.id)+'" aria-label="Quitar '+esc(nm)+'" title="Quitar">'+I.trash+'</button></div>';}
@@ -5566,7 +5569,7 @@ const I={
 const ava=(u,lg)=>'<span class="ava'+(lg?' ava-lg':'')+'" style="background:'+u.color+'">'+esc(u.initials)+'</span>';
 
 /* ===== Tema de marca: un color de acento → re-tematiza toda la app (acento + peligro) ===== */
-const BRAND_DEFAULT='#c80508';
+const BRAND_DEFAULT='#00aeef'; /* cian Mighty. El color guardado en el blob (S.brandColor) ya no manda: se quitó el selector */
 function ensureBrand(st){if(st&&!st.brandColor)st.brandColor=BRAND_DEFAULT;}
 function _hexToRgb(h){h=(h||'').replace('#','').trim();if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);if(h.length!==6||isNaN(n))return null;return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
 function _rgbToHsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0,l=(mx+mn)/2;const d=mx-mn;if(d){s=l>.5?d/(2-mx-mn):d/(mx+mn);if(mx===r)h=(g-b)/d+(g<b?6:0);else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return{h,s,l};}
@@ -5578,10 +5581,10 @@ function applyBrand(hex){
   let{h,s,l}=_rgbToHsl(rgb.r,rgb.g,rgb.b);
   const neutral=s<0.08; /* gris: no le inyectamos color */
   /* tema OSCURO: garantizar que el acento se lea (subir brillo si es muy oscuro; algo de saturación) */
-  if(!neutral){if(l<0.52)l=0.52;if(l>0.68)l=0.68;s=Math.max(s,0.5);}
+  if(!neutral){if(l<0.45)l=0.45;if(l>0.68)l=0.68;s=Math.max(s,0.5);} /* 0.45: deja el cian del logo exacto (l≈0.47) */
   const acc=_hslToRgb(h,s,l);
   const dim=_hslToRgb(h,s,Math.max(0.28,l-0.1));
-  const onAcc=_relLum(acc.r,acc.g,acc.b)>0.45?'#161f07':'#f6f6f6';
+  const _L=_relLum(acc.r,acc.g,acc.b);const onAcc=((_L+.05)/.05)>=(1.05/(_L+.05))?'#000000':'#f6f6f6'; /* el que más contraste dé */
   const av=a=>`rgba(${acc.r},${acc.g},${acc.b},${a})`;
   const sh=k=>`rgb(${Math.round(acc.r*k)},${Math.round(acc.g*k)},${Math.round(acc.b*k)})`;
   /* líneas neutras: teñidas del acento ensuciaban todas las tarjetas */root.style.setProperty('--line','#222226');root.style.setProperty('--line2','#2f2f34');root.style.setProperty('--bd-input','rgba(255,255,255,.16)');/* neutro: con el acento parecían campos con error */
@@ -5589,9 +5592,8 @@ function applyBrand(hex){
   root.style.setProperty('--volt-dim',`rgb(${dim.r},${dim.g},${dim.b})`);
   root.style.setProperty('--on-volt',onAcc);
   root.style.setProperty('--volt-08',av(.08));root.style.setProperty('--volt-12',av(.12));root.style.setProperty('--volt-16',av(.16));root.style.setProperty('--volt-22',av(.22));root.style.setProperty('--volt-40',av(.4));root.style.setProperty('--volt-50',av(.5));root.style.setProperty('--sel',av(.25));
-  /* peligro: si el acento es rojo, choca con el rojo de peligro → pasar a ámbar; si no, coral estándar */
-  const redFam=!neutral&&(h<=18||h>=340);
-  const d=redFam?{r:245,g:158,b:11}:{r:255,g:112,b:102};
+  /* peligro: SIEMPRE ámbar (Luis, 2026-11-27). Antes pasaba a coral si el acento no era rojo */
+  const d={r:245,g:158,b:11};
   const dv=a=>`rgba(${d.r},${d.g},${d.b},${a})`;
   root.style.setProperty('--red',`rgb(${d.r},${d.g},${d.b})`);
   root.style.setProperty('--danger-08',dv(.08));root.style.setProperty('--danger-10',dv(.1));root.style.setProperty('--danger-12',dv(.12));root.style.setProperty('--danger-14',dv(.14));root.style.setProperty('--danger-16',dv(.16));root.style.setProperty('--danger-30',dv(.3));root.style.setProperty('--danger-35',dv(.35));
@@ -5681,7 +5683,7 @@ function svgLine(points,opts){
    Colores en hex (WCOL), no var(--x): html2canvas convierte el SVG a imagen fuera del
    documento y ahí las variables CSS no existen. */
 const WCH_DAY=86400000;
-const WCOL={blue:'#7cd0fb',grid:'#1e1e22',zero:'#3a3a40',tx:'#ededed',tx2:'#b3b3b3',tx3:'#8e8e95',card:'#0c0c0d',green:'#52d98a',orange:'#ffb45c',red:'#f2557a',purple:'#b69cff'};
+const WCOL={blue:'#8f9cff',grid:'#1e1e22',zero:'#3a3a40',tx:'#ededed',tx2:'#b3b3b3',tx3:'#8e8e95',card:'#0c0c0d',green:'#52d98a',orange:'#ffb45c',red:'#f2557a',purple:'#b69cff'};
 function wchNiceStep(span){const raw=span/4;for(const s of[.1,.2,.5,1,2,5,10,20])if(s>=raw)return s;return 50;}
 const wchT=(x,y,s,a)=>'<text x="'+(+x).toFixed(1)+'" y="'+(+y).toFixed(1)+'" '+(a||'')+'>'+s+'</text>';
 function wchSvg(pts,opts){
@@ -5787,7 +5789,7 @@ function svgWeight(points,opts){
 const planSinObjetivos=n=>!(n.kcal>0)&&!(n.protein>0)&&!(n.carbs>0)&&!(n.fat>0);
 function macroBars(n,big){
   const kcal=n.kcal||kcalFromMacros(n);
-  const rows=[['Proteína',n.protein,'g','#7cd0fb',n.protein*4],['Carbohidratos',n.carbs,'g','#cdf563',n.carbs*4],['Grasas',n.fat,'g','#ffb45c',n.fat*9]];
+  const rows=[['Proteína',n.protein,'g','#8f9cff',n.protein*4],['Carbohidratos',n.carbs,'g','#cdf563',n.carbs*4],['Grasas',n.fat,'g','#ffb45c',n.fat*9]];
   let html=big?'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:18px"><span class="kcal-big">'+kcal+'</span><small class="u-c-tx2">kcal / día</small></div>':'';
   rows.forEach(r=>{const pct=kcal>0?Math.min(100,Math.round(r[4]/kcal*100)):0; /* sin metas, 0 y no NaN */
     html+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+r[1]+' '+r[2]+' · '+pct+'%</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+r[3]+'"></i></div></div>';});
@@ -5796,7 +5798,7 @@ function macroBars(n,big){
 
 /* ---------- login & shell ---------- */
 function renderLogin(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label>'+passField('l_pass','••••••••','current-password')+'<button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div><div style="border-top:1px solid var(--bd-input);margin-top:18px;padding-top:16px;text-align:center"><p class="tiny u-m0">¿Primera vez? Tu coach te dio un código o un enlace.</p><button class="btn btn-g" data-act="show-ath-signup" style="width:100%;margin-top:8px;padding:11px;justify-content:center">Crear mi cuenta de atleta</button></div></div><div class="login-foot">LR Coaching</div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><h1 aria-label="Mighty">'+LOGO_FULL+'</h1><p>Plataforma de entrenamiento y nutrición · asesoramiento online</p></div><div class="login-card"><h3>Accede a tu cuenta</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="l_email" placeholder="tu@email.com" autocomplete="email"><label class="u-mt4">Contraseña</label>'+passField('l_pass','••••••••','current-password')+'<button class="btn btn-p" data-act="auth-login" style="margin-top:6px;width:100%;padding:12px">Entrar →</button><div id="l_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div><div class="u-tc u-mt4"><a href="#" data-act="show-forgot" style="color:var(--tx3);font-size:var(--fs-2);text-decoration:underline">¿Olvidaste tu contraseña?</a></div></div><div style="border-top:1px solid var(--bd-input);margin-top:18px;padding-top:16px;text-align:center"><p class="tiny u-m0">¿Primera vez? Tu coach te dio un código o un enlace.</p><button class="btn btn-g" data-act="show-ath-signup" style="width:100%;margin-top:8px;padding:11px;justify-content:center">Crear mi cuenta de atleta</button></div></div><div class="login-foot">Mighty</div></div></div>';
   setTimeout(()=>{
     const em=document.getElementById('l_email');if(em)em.focus();
     const ps=document.getElementById('l_pass');if(ps)ps.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-login"]')?.click();}});
@@ -5820,7 +5822,7 @@ function loginCon(email,html,ok){
 }
 function renderAthSignup(code){
   const c=normInviteCode(code);
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3>'+
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><h1 aria-label="Mighty">'+LOGO_FULL+'</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Crear cuenta de atleta</h3>'+
     '<p class="tiny u-mt8">'+(c?'Tu código ya viene puesto. Solo llena tus datos.':'Necesitas el código de 8 letras que te dio tu coach.')+'</p>'+
     '<div class="u-dflex u-col u-gap12 u-mt16"><label for="a_name">Nombre</label><input type="text" id="a_name" placeholder="Tu nombre" autocomplete="name">'+
     '<label class="u-mt4" for="a_email">Email</label><input type="email" id="a_email" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false"><p class="tiny u-m0">Usa uno que revises: ahí te llega el enlace para confirmar tu cuenta.</p>'+
@@ -5833,7 +5835,7 @@ function renderAthSignup(code){
 /* Tras crear la cuenta: el paso que la gente no veía. Muestra el correo tal como lo escribió
    (si se equivocó, se nota aquí) y deja reenviar sin volver a llenar nada. */
 function renderAthConfirm(email,yaEstaba){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Último paso: confirma tu correo</h3>'+
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><h1 aria-label="Mighty">'+LOGO_FULL+'</h1><p>Acceso de atleta</p></div><div class="login-card"><h3>Último paso: confirma tu correo</h3>'+
     '<p class="u-mt8">'+(yaEstaba?'Tu cuenta ya estaba creada y ligada con tu coach; no necesitas otro código. ':'Tu cuenta ya está creada y ligada con tu coach. ')+'Te mandamos un enlace a <b>'+esc(email)+'</b>. Ábrelo y entrarás directo.</p>'+
     '<p class="tiny u-mt8">Si no llega en un par de minutos, búscalo en Spam o Promociones. Hasta que lo confirmes no vas a poder entrar.</p>'+
     '<div class="u-dflex u-col u-gap12 u-mt16"><button class="btn btn-p" data-act="login-con" data-email="'+esc(email)+'" style="width:100%;padding:12px;justify-content:center">Ya lo confirmé: entrar</button>'+
@@ -5869,12 +5871,12 @@ function errAlta(e){
    pantallas de acceso, se pinta con innerHTML directo porque aquí todavía no hay sesión
    ni estado que render() pueda usar. */
 function renderForgot(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny u-mt8">Escribe el email con el que te diste de alta y te mandamos un enlace para crear una contraseña nueva. Tiene que ser esa misma dirección, no otra.</p><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:var(--fs-3);min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><h1 aria-label="Mighty">'+LOGO_FULL+'</h1><p>Recuperar el acceso</p></div><div class="login-card"><h3>¿Olvidaste tu contraseña?</h3><p class="tiny u-mt8">Escribe el email con el que te diste de alta y te mandamos un enlace para crear una contraseña nueva. Tiene que ser esa misma dirección, no otra.</p><div class="u-dflex u-col u-gap12 u-mt16"><label>Email</label><input type="email" id="f_email" placeholder="tu@email.com" autocomplete="email"><button class="btn btn-p" data-act="auth-forgot" style="margin-top:6px;width:100%;padding:12px">Enviarme el enlace</button><div id="f_msg" style="font-size:var(--fs-3);min-height:18px;text-align:center;color:var(--tx2)"></div></div></div><div class="login-foot"><a class="u-c-volt" href="#" data-act="back-login">← Volver al login</a></div></div></div>';
   setTimeout(()=>{const em=document.getElementById('f_email');if(em){em.focus();em.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-forgot"]')?.click();}});}},50);
 }
 /* Se pinta solo cuando el atleta vuelve del enlace del correo (ver _recovery y el arranque). */
 function renderNewPass(){
-  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><div class="brand-mark">LR</div><h1>LR Coaching</h1><p>Elige tu contraseña nueva</p></div><div class="login-card"><h3>Contraseña nueva</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Contraseña</label><input type="password" id="n_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Repítela</label><input type="password" id="n_pass2" placeholder="La misma otra vez" autocomplete="new-password"><button class="btn btn-p" data-act="auth-newpass" style="margin-top:6px;width:100%;padding:12px">Guardar y entrar →</button><div id="n_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot">Este enlace funciona una sola vez</div></div></div>';
+  $('#app').innerHTML='<div class="login"><div class="login-box"><div class="login-brand"><h1 aria-label="Mighty">'+LOGO_FULL+'</h1><p>Elige tu contraseña nueva</p></div><div class="login-card"><h3>Contraseña nueva</h3><div class="u-dflex u-col u-gap12 u-mt16"><label>Contraseña</label><input type="password" id="n_pass" placeholder="Mínimo 8 caracteres, letras y números" autocomplete="new-password"><label class="u-mt4">Repítela</label><input type="password" id="n_pass2" placeholder="La misma otra vez" autocomplete="new-password"><button class="btn btn-p" data-act="auth-newpass" style="margin-top:6px;width:100%;padding:12px">Guardar y entrar →</button><div id="n_err" style="color:var(--red);font-size:var(--fs-3);min-height:18px;text-align:center"></div></div></div><div class="login-foot">Este enlace funciona una sola vez</div></div></div>';
   setTimeout(()=>{const p=document.getElementById('n_pass');if(p){p.focus();}const p2=document.getElementById('n_pass2');if(p2)p2.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('[data-act="auth-newpass"]')?.click();}});},50);
 }
 function navItemsFor(u){
@@ -6149,7 +6151,7 @@ function renderUnsafe(){
   });
   if(u.role!=='coach'){const mi=navMasItems(u),onM=mi.some(it=>route.view===it.v),bM=mi.reduce((s,it)=>s+(+it.badge||0),0);
     navHTML+='<button type="button" class="nav-item nav-mas'+(onM?' on':'')+'" title="Más" data-act="nav-mas" aria-haspopup="dialog">'+I.mas+'<span class="lbl">Más</span>'+(bM?'<span class="navbadge">'+bM+'</span>':'')+'</button>';}
-  const sideHTML='<div class="brand"><div class="brand-mark">LR</div><div class="brand-name">LR Coaching<small>Entrenamiento · Nutrición</small></div></div>'+
+  const sideHTML='<div class="brand"><div class="brand-mark">'+LOGO_MARK+'</div><div class="brand-name"><span class="u-dblock" role="img" aria-label="Mighty">'+LOGO_WORD+'</span><small>Entrenamiento · Nutrición</small></div></div>'+
     '<button type="button" class="nav-tab" data-act="nav-tab" aria-label="Mostrar u ocultar la barra" title="Mostrar / ocultar la barra"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>'+
     (u.role==='coach'?'<button type="button" class="side-tog" data-act="side-tog" title="Colapsar / expandir el menú"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span class="lbl">Colapsar menú</span></button>':'')+navHTML+
     '<div class="side-foot"><div class="side-user">'+ava(u)+'<span class="who"><b>'+esc(u.name)+'</b><span>'+(u.role==='coach'?'Coach':'Atleta')+'</span></span></div><button class="nav-item'+(u.role!=='coach'?' nav-mas-i':'')+'" data-act="logout">'+I.logout+'<span class="lbl">Salir</span></button></div>';
@@ -6278,7 +6280,7 @@ const ACTIONS={
        mensaje ya avisa del correo de confirmación, que es donde más gente se atoraba. */
     const link=location.origin+location.pathname+'?codigo='+code;
     const nom=String((userById(aid)||{}).name||'').trim().split(/\s+/)[0]||'';
-    const msg='Hola'+(nom?' '+nom:'')+', crea tu cuenta de LR Coaching con este enlace (ya trae tu código):\n'+link+
+    const msg='Hola'+(nom?' '+nom:'')+', crea tu cuenta de Mighty con este enlace (ya trae tu código):\n'+link+
       '\n\nAl terminar te llega un correo para confirmar tu cuenta: ábrelo, si no, no vas a poder entrar. Revisa Spam si no lo ves. El enlace vence en 7 días.';
     openModal('Invitar atleta',
       '<p class="u-mb12">Mándale este enlace: abre la app con su código ya puesto.</p>'+
@@ -6651,7 +6653,7 @@ VIEWS['coach-chat']=function(u){
 };
 
 /* ================= PANEL DEL COACH ================= */
-const PALETTE=['#7cd0fb','#ffb45c','#b69cff','#52d98a','#ff8fab','#f6e05e'];
+const PALETTE=['#8f9cff','#ffb45c','#b69cff','#52d98a','#ff8fab','#f6e05e'];
 const adhBadge=v=>{if(v==null)return'<span class="badge">sin datos</span>';const cls=v>=4.5?'green':v>=3.5?'volt':v>=2.5?'orange':'red';return'<span class="badge '+cls+'">'+v+' / 5</span>';};
 
 /* modo de asesoría por atleta: qué áreas tiene contratadas */
@@ -7588,7 +7590,7 @@ function smaeDistribute(ap){
   return true;}
 function smaeAssigned(ap){const a={};(ap.meals||[]).forEach(m=>{if(m.recipe)return;Object.keys(m.eqv||{}).forEach(k=>{a[k]=+((a[k]||0)+(+m.eqv[k]||0)).toFixed(1);});});return a;}
 function smaeBars(tot,tgt){
-  const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
+  const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#8f9cff'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
   /* ±3 % es «cuadra»: con 28 kcal de más sobre 2400 las cuatro barras gritaban y ninguna destacaba. Solo lo que
      se sale del margen lleva color; lo que cuadra va en neutro con ✓. */
   return rows.map(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1),ok=obj&&Math.abs(left)<=obj*0.03;
@@ -7871,7 +7873,7 @@ function coachTabNutri(aid){
     const tot=planMenuTotals({meals:(ap.meals||[]).map(micOptVista)}),tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
     const optVis=(ap.meals||[]).filter(m=>(m.opts||[]).length&&(m.opts||[])[(+_moptTab[m.id]||0)-1]);
     const optNota=optVis.length?'<p class="tiny mt8">Cuenta la opción que tienes abierta'+optVis.map(m=>{const o=m.opts[_moptTab[m.id]-1];return ' · '+esc(m.name)+': opción '+(+_moptTab[m.id]+1)+(mealConAlgo(o)?'':' (vacía)');}).join('')+'. El atleta ve la que elija cada día.</p>':'';
-    const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
+    const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#8f9cff'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     const nM=(ap.meals||[]).length,dp0=n.dietProfile||{},kgRef=mtPeso(aid);
     const bt=(act,m,ic,tl,extra)=>'<button class="btn btn-g btn-sm btn-mi" data-act="'+act+'" data-aid="'+aid+'" data-meal="'+m.id+'"'+(extra||'')+' title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';
@@ -7924,7 +7926,7 @@ function coachTabNutri(aid){
     const tot={p:0,c:0,f:0};mm.forEach(m=>{const t=mealMacros(m);tot.p+=t.p;tot.c+=t.c;tot.f+=t.f;});
     tot.p=+tot.p.toFixed(1);tot.c=+tot.c.toFixed(1);tot.f=+tot.f.toFixed(1);tot.kcal=Math.round(tot.p*4+tot.c*4+tot.f*9);
     const tgt={kcal:ap.kcal||kcalFromMacros(ap),p:ap.protein||0,c:ap.carbs||0,f:ap.fat||0};
-    const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#7cd0fb'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
+    const rows=[['Calorías',tot.kcal,tgt.kcal,'kcal','#cdf563'],['Proteína',tot.p,tgt.p,'g','#8f9cff'],['Carbohidratos',tot.c,tgt.c,'g','#52d98a'],['Grasas',tot.f,tgt.f,'g','#ffb45c']];
     let bars='';rows.forEach(r=>{const cons=r[1],obj=r[2]||0,pct=obj?Math.min(100,Math.round(cons/obj*100)):0,left=+(obj-cons).toFixed(1);const status=obj?(left>=0?'faltan '+left+' '+r[3]:'<span class="u-c-red">+'+(-left)+' '+r[3]+' de más</span>'):'sin objetivo';bars+='<div class="macro-row"><div class="t"><b>'+r[0]+'</b><span>'+cons+' / '+obj+' '+r[3]+' · '+status+'</span></div><div class="mbar"><i style="width:'+pct+'%;background:'+(left<0?'var(--red)':r[4])+'"></i></div></div>';});
     let ms='';const kgRef=mtPeso(aid);
     mm.forEach((m,i)=>{const t=mealMacros(m);const nm=esc(m.name)+(m.recipe?' <span class="badge">receta</span>':''),mv=(d,ic,tl)=>'<button class="btn btn-g btn-sm btn-mi" data-act="pmeal-move" data-aid="'+aid+'" data-meal="'+m.id+'" data-dir="'+d+'" title="'+tl+'" aria-label="'+tl+' · '+esc(m.name)+'">'+ic+'</button>';ms+='<div class="meal"><div class="meal-h"><span>'+nm+'</span><span class="tm">'+(m.time?'<span class="mh-hora">'+I.reloj+esc(m.time)+'</span>':'')+t.kcal+' kcal · P'+t.p+' C'+t.c+' G'+t.f+'</span><span class="sp">'+(i>0?mv(-1,I.up,'Subir'):'')+(i<mm.length-1?mv(1,I.down,'Bajar'):'')+'<button class="btn btn-g btn-sm" data-act="'+(m.recipe?'pmeal-recipe-edit':'pmacmeal-edit')+'" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.edit+'</button><button class="btn btn-g btn-sm" data-act="pmeal-del" data-aid="'+aid+'" data-meal="'+m.id+'">'+I.trash+'</button></span></div>'+mtRefHTML(m.name,kgRef)+(m.recipe?mealRecipeBox(m):'')+'</div>';});
@@ -8094,9 +8096,9 @@ function buildMacroGuide(aid){
 
   /* A · Rangos recomendados de macros (mín/máx) */
   const macroRows=[
-    [dot('#7cd0fb')+'Proteína — mantener/ganar músculo','1.4–2.0 g/kg',gw(1.4,2.0),'Rango suficiente para la mayoría de personas activas (ISSN).'],
-    [dot('#7cd0fb')+'Proteína — objetivo hipertrofia','1.6–2.2 g/kg',gw(1.6,2.2),'Sin ganancias extra de MLG por encima de ~1.6 g/kg con suplementación (Morton).'],
-    [dot('#7cd0fb')+'Proteína — en déficit (preservar masa)','2.3–3.1 g/kg',gw(2.3,3.1),'Corte/physique. Helms lo define sobre g/kg de MLG (ver tabla de proteína).'],
+    [dot('#8f9cff')+'Proteína — mantener/ganar músculo','1.4–2.0 g/kg',gw(1.4,2.0),'Rango suficiente para la mayoría de personas activas (ISSN).'],
+    [dot('#8f9cff')+'Proteína — objetivo hipertrofia','1.6–2.2 g/kg',gw(1.6,2.2),'Sin ganancias extra de MLG por encima de ~1.6 g/kg con suplementación (Morton).'],
+    [dot('#8f9cff')+'Proteína — en déficit (preservar masa)','2.3–3.1 g/kg',gw(2.3,3.1),'Corte/physique. Helms lo define sobre g/kg de MLG (ver tabla de proteína).'],
     [dot('#ffb45c')+'Grasa — mínimo','0.5–1.0 g/kg',gw(0.5,1.0),'No bajar de aquí: hormonas y vitaminas liposolubles.'],
     [dot('#ffb45c')+'Grasa — rango habitual','20–35% de kcal','según objetivo','Se ajusta junto con los carbohidratos.'],
     [dot('#cdf563')+'Carbohidratos — rango total','3–12 g/kg',gw(3,12),'Depende de la carga de entrenamiento (ver tabla por intensidad).']
@@ -8148,7 +8150,7 @@ function buildMacroGuide(aid){
     '<h4 class="mg-h">'+dot('#cdf563')+'Carbohidratos por ventana: pre · peri · post / recovery</h4>'+
     '<div class="tblwrap mb16"><table class="tbl"><thead><tr><th>Momento</th><th>Recomendación</th><th class="num">Para '+W+' kg</th></tr></thead><tbody>'+mC+'</tbody></table></div>'+
 
-    '<h4 class="mg-h">'+dot('#7cd0fb')+'Proteína: total y post-ejercicio — por peso y por MLG</h4>'+
+    '<h4 class="mg-h">'+dot('#8f9cff')+'Proteína: total y post-ejercicio — por peso y por MLG</h4>'+
     '<div class="tblwrap mb16"><table class="tbl"><thead><tr><th>Concepto</th><th>g/kg</th><th class="num">Por peso ('+W+' kg)</th><th class="num">Por MLG'+(FFM?' ('+FFM+' kg)':'')+'</th></tr></thead><tbody>'+mD+'</tbody></table></div>'+
     (FFM?'':'<p class="tiny u-c-orange">Añade el % de grasa corporal en el perfil del atleta para calcular la columna por MLG.</p>')+
 
@@ -8608,7 +8610,7 @@ function pgLevelSemana(aid,win,wk){
   const charts='<div class="grid g2">'+
     '<div class="card u-m0"><h3>Tonelaje por semana <span class="hint">Σ peso×reps</span></h3>'+svgLine(tonPts,{color:'#cdf563',unit:'kg'})+'</div>'+
     '<div class="card u-m0"><h3>Carga sRPE por semana <span class="hint">RPE×duración</span></h3>'+svgLine(srpePts,{color:'#ff8fab',unit:'UA'})+'</div>'+
-    '<div class="card u-m0"><h3>Series totales por semana</h3>'+svgLine(setPts,{color:'#7cd0fb'})+'</div>'+
+    '<div class="card u-m0"><h3>Series totales por semana</h3>'+svgLine(setPts,{color:'#8f9cff'})+'</div>'+
     '<div class="card u-m0"><h3>Peso corporal (media semanal)</h3>'+svgLine(wPts,{color:'#52d98a',unit:'kg'})+'</div></div>';
   const weeks=[];for(let w2=win.wkA;w2<=win.wkB;w2++)weeks.push(w2);
   const shown=weeks.length>7?weeks.slice(-6):weeks,gap=weeks.length>7;
@@ -8668,9 +8670,9 @@ function pgSemTabla(aid,win,wk){
   let body='';
   R.forEach(([lbl,k])=>{
     const vals=C.map(c=>c[k]).filter(v=>v!=null);
-    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>td(i)+(k==='faltas'&&c[k]?'<b class="u-c-red">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#7cd0fb'))+'</td></tr>';
+    body+='<tr><td class="exname">'+lbl+'</td>'+C.map((c,i)=>td(i)+(k==='faltas'&&c[k]?'<b class="u-c-red">'+c[k]+'</b>':num(c[k]))+(k==='faltas'?'':dl(c,C[i-1],k))+'</td>').join('')+'<td>'+(k==='faltas'?'':pgSpark(vals,'#8f9cff'))+'</td></tr>';
   });
-  if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map((c,i)=>td(i)+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#7cd0fb')+'</td></tr>';
+  if(nu)body+='<tr><td class="exname">Adherencia nutrición</td>'+C.map((c,i)=>td(i)+(c.adh==null?'—':adhBadge(c.adh))+'</td>').join('')+'<td>'+pgSpark(C.map(c=>c.adh).filter(v=>v!=null),'#8f9cff')+'</td></tr>';
   body+='<tr><td class="exname">Fatiga (check-in)</td>'+C.map((c,i)=>td(i)+(c.fq?'<span class="badge '+fqDecision(c.fq.total).cls+'" title="'+esc(fqDecision(c.fq.total).short)+'">'+c.fq.total+'/15</span>':'—')+'</td>').join('')+'<td></td></tr>';
   const head='<tr><th></th>'+C.map((c,i)=>'<th class="num'+(nb(c,i)?' wknb':'')+'">'+(varios?'B'+c.c.b.block+(c.c.b.dup?(c.c.b.cur?' actual':' ant.'):'')+'·':'')+'S'+c.w+(c.cur?' <span class="tiny">en curso</span>':'')+'<div class="tiny" style="font-weight:400;text-transform:none">'+fmtDate(c.from)+'</div></th>').join('')+'<th>Tendencia</th></tr>';
   return '<div class="card mb16"><h3>Semana a semana <span class="hint">'+(varios?'semanas de cada bloque':'semanas del bloque')+(nTot>8?' · las 8 últimas del rango':'')+' · ▲▼ = cambio vs la semana anterior</span></h3>'+
@@ -15376,7 +15378,7 @@ function measuresCard(aid){
     const bpts=logs.map(m=>({x:m.date,y:navyBF(p,m)})).filter(pt=>pt.y!=null);
     let charts='';
     if(wpts.length>=2)charts+='<h4 class="mg-h mt16">Cintura (cm)</h4>'+svgLine(wpts,{color:'#ffb45c',unit:'cm',h:150});
-    if(bpts.length>=2)charts+='<h4 class="mg-h mt16">% grasa estimado (Navy)</h4>'+svgLine(bpts,{color:'#7cd0fb',unit:'%',h:150});
+    if(bpts.length>=2)charts+='<h4 class="mg-h mt16">% grasa estimado (Navy)</h4>'+svgLine(bpts,{color:'#8f9cff',unit:'%',h:150});
     body='<div class="sub u-mb8">Último registro · '+fmtDate(last.date)+'</div>'+strip+table+charts;
   }
   return '<div class="card mb16"><h3>Medidas corporales <span class="hint">circunferencias · 1×/mes · % grasa por método Navy</span></h3>'+body+'</div>';
@@ -15423,7 +15425,7 @@ function reportSheet(aid,rw,readOnly){
     const wpts=ml.filter(m=>m.waist!=null).map(m=>({x:m.date,y:m.waist}));
     const bpts=ml.map(m=>({x:m.date,y:navyBF(p,m)})).filter(pt=>pt.y!=null);
     if(wpts.length>=2)medBody+='<h4 class="mg-h mt16">Cintura (cm)</h4>'+svgLine(wpts,{color:'#ffb45c',unit:'cm',h:150});
-    if(bpts.length>=2)medBody+='<h4 class="mg-h mt16">% grasa estimado</h4>'+svgLine(bpts,{color:'#7cd0fb',unit:'%',h:150});
+    if(bpts.length>=2)medBody+='<h4 class="mg-h mt16">% grasa estimado</h4>'+svgLine(bpts,{color:'#8f9cff',unit:'%',h:150});
   }else medBody='<div class="empty"><b>Sin medidas en el periodo</b>El atleta registra sus circunferencias 1×/mes desde su panel.</div>';
   /* ---- RENDIMIENTO (ejercicios clave) ---- */
   ensureKeyEx(S);
@@ -15487,7 +15489,7 @@ function reportSheet(aid,rw,readOnly){
   const showRend=sv.tr&&(!readOnly||keyIds.length);
   const periodTxt='Últimas '+rw+' semanas · '+fmtDate(cutoff)+' → '+fmtDate(todayISO());
   return '<div id="reportSheet" class="report-sheet">'+
-    '<div class="rep-head"><div><div class="rep-brand">LR COACHING</div><h2 class="u-m0 u-mt8 u-mb4">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny u-tr u-c-tx3">Reporte de progreso<br>'+esc(sv.lbl)+'<br>Generado '+fmtDate(todayISO())+'</div></div>'+
+    '<div class="rep-head"><div><div class="rep-brand">MIGHTY</div><h2 class="u-m0 u-mt8 u-mb4">'+esc(a?a.name:'Atleta')+'</h2><div class="sub">'+periodTxt+'</div></div><div class="tiny u-tr u-c-tx3">Reporte de progreso<br>'+esc(sv.lbl)+'<br>Generado '+fmtDate(todayISO())+'</div></div>'+
     '<div class="rep-sect"><h3>Peso corporal</h3>'+pesoBody+'</div>'+
     (showRend?'<div class="rep-sect"><h3>Rendimiento en fuerza</h3>'+rendBody+'</div>':'')+
     '<div class="rep-sect"><h3>Medidas y composición</h3>'+medBody+'</div>'+
@@ -15610,7 +15612,7 @@ function acwrComboChart(series,opts){
   let bandRect='';if(opts.band){const _hi=Math.min(opts.band.hi,rightMax),yT=YR(_hi),yB=YR(opts.band.lo);bandRect='<rect x="'+padL+'" y="'+yT.toFixed(1)+'" width="'+iw+'" height="'+Math.max(0,yB-yT).toFixed(1)+'" fill="rgba(82,217,138,.10)"/>'+(opts.bandLabel?'<text x="'+(padL+6)+'" y="'+(yT+12).toFixed(1)+'" font-size="9.5" fill="#52d98a">objetivo · '+opts.bandLabel+'</text>':'');}
   let grid='',llab='';for(let i=0;i<=5;i++){const v=leftMax*i/5,y=YL(v);grid+='<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" stroke="#232a36" stroke-width="1"/>';llab+='<text x="'+(padL-7)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="10.5" fill="#8a96a8">'+Math.round(v)+'</text>';}
   let rlab='';const steps=Math.round(rightMax/0.5);for(let i=0;i<=steps;i++){const v=i*0.5,y=YR(v);rlab+='<text x="'+(W-padR+7)+'" y="'+(y+4).toFixed(1)+'" font-size="10.5" fill="#8a96a8">'+v.toFixed(1)+'</text>';}
-  let bars='';series.forEach((s,i)=>{const x=padL+i*slotW+slotW*0.20,bw=slotW*0.60,y=YL(s.load);bars+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(padT+ih-y).toFixed(1)+'" rx="2" fill="rgba(124,208,251,.40)" stroke="rgba(124,208,251,.75)" stroke-width="1"/>';});
+  let bars='';series.forEach((s,i)=>{const x=padL+i*slotW+slotW*0.20,bw=slotW*0.60,y=YL(s.load);bars+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(padT+ih-y).toFixed(1)+'" rx="2" fill="rgba(143,156,255,.40)" stroke="rgba(143,156,255,.75)" stroke-width="1"/>';});
   const yLow=YR(0.8),yHigh=YR(1.5);
   const thr='<line x1="'+padL+'" y1="'+yLow.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yLow.toFixed(1)+'" stroke="#52d98a" stroke-width="1.3" stroke-dasharray="5 4"/><line x1="'+padL+'" y1="'+yHigh.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yHigh.toFixed(1)+'" stroke="#ff7066" stroke-width="1.3" stroke-dasharray="5 4"/>';
   let path='',dots='',started=false;series.forEach((s,i)=>{if(s.acwr==null)return;const x=cx(i),y=YR(s.acwr);path+=(started?'L':'M')+x.toFixed(1)+','+y.toFixed(1);started=true;dots+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3" fill="#000" stroke="#cdf563" stroke-width="2"/>';});
@@ -15642,7 +15644,7 @@ function acwrCard(aid){
   const seg=(c,a,b)=>'<span style="position:absolute;top:0;bottom:0;left:'+(a/2*100)+'%;width:'+((b-a)/2*100)+'%;background:'+c+'"></span>';
   const pos=A.ratio==null?null:Math.max(0,Math.min(100,A.ratio/2*100));
   const bar='<div style="position:relative;height:12px;border-radius:var(--r-xs);overflow:hidden;background:var(--bg2);margin:6px 0 4px">'+
-    seg('rgba(124,208,251,.35)',0,0.8)+seg('rgba(82,217,138,.40)',0.8,1.3)+seg('rgba(255,180,92,.45)',1.3,1.5)+seg('rgba(255,112,102,.45)',1.5,2.0)+
+    seg('rgba(143,156,255,.35)',0,0.8)+seg('rgba(82,217,138,.40)',0.8,1.3)+seg('rgba(255,180,92,.45)',1.3,1.5)+seg('rgba(255,112,102,.45)',1.5,2.0)+
     (pos!=null?'<span style="position:absolute;top:-3px;width:3px;height:18px;background:var(--tx);border-radius:2px;left:'+pos+'%"></span>':'')+'</div>'+
     '<div class="tiny u-dflex u-jcsb u-c-tx3"><span>0</span><span>0,8</span><span>1,3 · 1,5</span><span>2,0</span></div>';
   const toggle='<span class="sp"><button class="btn btn-sm '+(metric==='srpe'?'btn-p':'btn-g')+'" data-act="acwr-set" data-aid="'+aid+'" data-m="srpe">sRPE</button> <button class="btn btn-sm '+(metric==='tonnage'?'btn-p':'btn-g')+'" data-act="acwr-set" data-aid="'+aid+'" data-m="tonnage">Tonelaje</button></span>';
@@ -16249,7 +16251,7 @@ async function initAfterAuthUnsafe(user){
   const ok=await loadStateFromSupabase();
   if(!ok)return;
   if(_currentUserId==='coach')aiDraftLoad(); /* analisis de IA sin guardar: sobrevive a recargar */
-  ensureBrand(S);applyBrand(S.brandColor); /* tema de marca (coach lo define; el atleta lo hereda del blob) */
+  ensureBrand(S);applyBrand(BRAND_DEFAULT); /* tema de marca (coach lo define; el atleta lo hereda del blob) */
   await buildAthleteUidMaps();
   /* Sin red no se hidrata nada. Son ~15 viajes al servidor que van a fallar de todas
      formas, y basta con que UNO se quede colgado para dejar al atleta mirando
@@ -16474,14 +16476,14 @@ function pwaModalIOS(){
   o.id='pwaIosModal';
   o.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(5,7,10,.72);display:flex;align-items:center;justify-content:center;padding:20px';
   o.innerHTML='<div style="background:#151921;border:1px solid #2f3845;border-radius:var(--r);padding:20px;max-width:330px;color:#e9edf4;font:14px/1.55 system-ui;box-shadow:0 18px 50px rgba(0,0,0,.6)">'+
-    '<p class="u-fw7 u-fs5 u-mb12">Instalar LR Coaching en tu iPhone</p>'+
+    '<p class="u-fw7 u-fs5 u-mb12">Instalar Mighty en tu iPhone</p>'+
     '<ol style="margin:0 0 4px 18px;color:#c9d2df">'+
       '<li class="u-mb8">Toca el botón <b>Compartir</b> abajo en Safari (el cuadrito con la flecha hacia arriba).</li>'+
       '<li class="u-mb8">Desliza y elige <b>Agregar a inicio</b>.</li>'+
       '<li>Toca <b>Agregar</b>. Te queda el icono en la pantalla, como cualquier app.</li>'+
     '</ol>'+
     '<p style="color:#8a96a8;font-size:var(--fs-3);margin-top:12px">Tiene que ser en Safari. Desde Chrome o el navegador de Instagram no aparece la opción.</p>'+
-    '<button id="pwaIosOk" style="background:var(--volt);color:#f6f6f6;border:0;border-radius:var(--r-s);padding:10px 0;width:100%;font:600 14px system-ui;margin-top:14px;cursor:pointer">Entendido</button>'+
+    '<button id="pwaIosOk" style="background:var(--volt);color:var(--on-volt);border:0;border-radius:var(--r-s);padding:10px 0;width:100%;font:600 14px system-ui;margin-top:14px;cursor:pointer">Entendido</button>'+
     '<button id="pwaIosNo" style="background:none;border:0;color:#8a96a8;font-size:var(--fs-3);margin-top:8px;width:100%;cursor:pointer;text-decoration:underline">No me lo vuelvas a mostrar</button>'+
   '</div>';
   o.addEventListener('click',function(ev){if(ev.target===o)o.remove();});
