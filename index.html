@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-25.1">
+<meta name="lr-build" content="2026-11-27.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LR Coaching · Entrenamiento & Nutrición</title>
 <meta name="description" content="LR Coaching — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -207,7 +207,11 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 /* ---------- Panel del coach en filas (2026-11-11; antes «athlete cards») ----------
    Una fila = un atleta. Las columnas tienen ancho fijo para que el ojo baje en línea recta;
    el motivo es la única que estira. Avatar gris a propósito: el color queda para lo que avisa. */
-.pn-bar{margin-bottom:16px;max-width:280px}
+.pn-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}
+.pn-bar input{max-width:280px}
+.pn-bar .seg b{font-weight:600;color:var(--tx3);margin-left:6px}
+.pn-bar .seg button.on b{color:var(--tx2)}
+.pn-ent.pn-nu{color:var(--tx3)}
 .pn-g{margin-bottom:12px}
 .pn-g>summary{padding:14px 16px;gap:4px 10px;flex-wrap:wrap}
 .pn-g .pn-c{font-family:var(--font-b);font-weight:600;color:var(--tx2)}
@@ -233,7 +237,9 @@ input:disabled,select:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
 .pn-vacio{border:0;border-radius:0}
 @media(max-width:1400px){.pn-ult{display:none}}
 @media(max-width:700px){
-  .pn-bar{max-width:none}
+  .pn-bar input{max-width:none}
+  .pn-bar .seg{width:100%}
+  .pn-bar .seg button{flex:1 1 auto;padding:6px 8px}
   .pn-g .pn-h,.pn-acts,.pn-seg{display:none}
   .pn-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto 16px;gap:0 12px;padding:10px 14px}
   .pn-av{grid-row:1/span 2}
@@ -6670,8 +6676,8 @@ function pnUltTxt(aid){
   const d=Math.max(0,daysBetweenISO(l,todayISO()));
   return d===0?'Registró hoy':d===1?'Registró ayer':'Registró el '+fmtDate(l);
 }
-function pnEntrenos(aid){
-  if(!svcOf(aid).tr)return '<span class="pn-ent"></span>';
+function pnEntrenos(aid,etq){
+  if(!svcOf(aid).tr)return '<span class="pn-ent pn-nu">'+(etq?'Solo nutrición':'')+'</span>';
   const w=weekWorkouts(aid);if(!w.total)return '<span class="pn-ent">Sin rutina</span>';
   let s='';for(let i=0;i<w.total;i++)s+='<i class="'+(i<w.done?'on':i<w.done+w.missed?'no':'')+'"></i>';
   return '<span class="pn-ent" title="Entrenos de esta semana: '+w.done+' de '+w.total+(w.missed?' · '+w.missed+' sin cumplir':'')+'"><span class="pn-seg" aria-hidden="true">'+s+'</span>'+w.done+' / '+w.total+'</span>';
@@ -6692,7 +6698,7 @@ function pnMotivo(nv,g){
   if(!visto&&!a&&!b)return '<span class="pn-why">Nada nuevo desde tu última revisión</span>';
   return '<span class="pn-why" title="'+[visto,a,b].filter(Boolean).join(' · ')+'">'+[visto?'<b class="rg">'+visto+'</b>':'',a?'<b'+(g==='riesgo'?' class="rg"':'')+'>'+a+'</b>':'',b].filter(Boolean).join(' · ')+'</span>';
 }
-function pnFila(a,nv,g){
+function pnFila(a,nv,g,etq){
   const aid=a.id,st=athStatus(aid),un=chatUnread(aid,'coach');
   const ir='data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+aid+'","tab":"resumen"}\'';
   const btn=g==='riesgo'?'<button class="btn btn-o btn-sm" data-act="nav" data-view="coach-chat" data-params=\'{"aid":"'+aid+'"}\'>Escribirle</button>'
@@ -6703,7 +6709,7 @@ function pnFila(a,nv,g){
   return '<div class="pn-row" data-n="'+esc(normTxt(a.name))+'" '+ir+'>'+
     '<span class="pn-av" aria-hidden="true">'+esc(a.initials)+'</span>'+
     '<button type="button" class="pn-nm" '+ir+'><b>'+esc(a.name)+'</b>'+(un?'<span class="cdot" title="Mensajes sin leer">'+un+'</span>':'')+tag+'</button>'+
-    (g==='inact'?'<span class="pn-why">Marcado como inactivo</span><span class="pn-ent"></span>':pnMotivo(nv,g)+pnEntrenos(aid))+
+    (g==='inact'?'<span class="pn-why">Marcado como inactivo</span><span class="pn-ent"></span>':pnMotivo(nv,g)+pnEntrenos(aid,etq))+
     '<span class="pn-ult">'+pnUltTxt(aid)+'</span><span class="pn-acts">'+btn+ok+'</span>'+PN_GO+'</div>';
 }
 /* Cada grupo es un plegable de los que ya recuerdan su estado (clase pleg + id fijo). «cerrado»
@@ -6721,11 +6727,29 @@ function pnBuscar(q){
   const n=normTxt(q).trim();
   if(!n){res.hidden=true;res.innerHTML='';gr.hidden=false;return;}
   const hits=Array.from(gr.querySelectorAll('.pn-row')).filter(r=>(r.dataset.n||'').indexOf(n)>=0);
-  res.innerHTML=hits.length?'<div class="pn-rows">'+hits.map(r=>r.outerHTML).join('')+'</div>':'<div class="empty pn-vacio"><b>Nadie con ese nombre</b>Revisa cómo lo escribiste o borra la búsqueda.</div>';
+  /* con el filtro de asesoría puesto, la búsqueda solo ve ese grupo: dilo, o parece que el atleta no existe */
+  const on=document.querySelector('.pn-bar .seg button.on'),filtro=on&&on.dataset.v!=='todos'?PN_SVC[on.dataset.v].lbl:'';
+  res.innerHTML=hits.length?'<div class="pn-rows">'+hits.map(r=>r.outerHTML).join('')+'</div>':'<div class="empty pn-vacio"><b>Nadie con ese nombre'+(filtro?' en «'+filtro+'»':'')+'</b>'+(filtro?'Estás viendo solo «'+filtro+'». Cambia a «Todos» para buscar entre todos tus atletas.':'Revisa cómo lo escribiste o borra la búsqueda.')+'</div>';
   res.hidden=false;gr.hidden=true;
 }
+/* Filtro por modo de asesoría (2026-11-27, Luis: «quiero separar a los que solo tienen nutrición,
+   porque la mayoría son peleadores»). Al de solo nutrición se le revisa otra cosa (no hay entrenos
+   que contar), y mezclado con los de entreno se pierde. Sale del mismo profile.service que se
+   elige en su ficha («Modo de asesoría»): no hay campo nuevo. Se recuerda por dispositivo porque es
+   una preferencia de vista, no un dato. «Con entreno» junta «ambos» y «solo entreno». Solo aparece
+   si hay atletas de los dos tipos; si no, separar no aporta nada. */
+const LS_PN_SVC='lr_pn_svc';
+const PN_SVC={todos:{lbl:'Todos',f:()=>true},entreno:{lbl:'Con entreno',f:aid=>svcOf(aid).tr},nutri:{lbl:'Solo nutrición',f:aid=>!svcOf(aid).tr}};
+function pnSvcGet(){let v='todos';try{v=localStorage.getItem(LS_PN_SVC)||'todos';}catch(e){}return PN_SVC[v]?v:'todos';}
 VIEWS['coach-dash']=function(u){
-  const aths=athleteUsers(),G=revGrupos();
+  const todos=athleteUsers(),act=todos.filter(a=>athStatus(a.id).k!=='inactivo');
+  const nNu=act.filter(a=>!svcOf(a.id).tr).length,conSel=nNu>0&&nNu<act.length;
+  const svc=conSel?pnSvcGet():'todos',fil=PN_SVC[svc].f;
+  const aths=todos.filter(a=>fil(a.id)),G=revGrupos();
+  Object.keys(G).forEach(k=>{G[k]=G[k].filter(x=>fil(x.a.id));});
+  const nPor={todos:act.length,entreno:act.length-nNu,nutri:nNu};
+  const selSvc=conSel?'<div class="seg" role="group" aria-label="Mostrar atletas">'+Object.keys(PN_SVC).map(k=>'<button type="button" data-act="pn-svc" data-v="'+k+'" aria-pressed="'+(svc===k)+'"'+(svc===k?' class="on"':'')+'>'+PN_SVC[k].lbl+'<b>'+nPor[k]+'</b></button>').join('')+'</div>':'';
+  const etq=conSel&&svc==='todos';
   const sts={};aths.forEach(a=>{sts[a.id]=athStatus(a.id);});
   const inact=aths.filter(a=>sts[a.id].k==='inactivo').sort((a,b)=>a.name.localeCompare(b.name));
   const nAct=aths.length-inact.length;
@@ -6746,19 +6770,19 @@ VIEWS['coach-dash']=function(u){
   est.sort((x,y)=>y.n-x.n||x.a.name.localeCompare(y.a.name));
   const estNotice=est.length?'<div class="card mb16"><b>'+plural(est.length,'atleta','atletas')+' con peso estancado</b><div class="planchips u-mt12">'+est.map(x=>'<button class="planchip" data-act="nav" data-view="coach-ath" data-params=\'{"aid":"'+x.a.id+'","tab":"resumen"}\'>'+esc(x.a.name)+' · '+x.n+' sem</button>').join('')+'</div></div>':'';
   const tel=window.innerWidth<=700;
-  const filas=(L,g)=>L.map(x=>pnFila(x.a,x.nv,g));
+  const filas=(L,g)=>L.map(x=>pnFila(x.a,x.nv,g,etq));
   const grupos=pnGrupo('riesgo',REV_NIVELES.riesgo.lbl,'No registran, faltaron o reportaron fatiga alta. Escríbeles hoy.',filas(G.riesgo,'riesgo'),false)+
     pnGrupo('decision',REV_NIVELES.decision.lbl,'Hay cambios de ejercicio o datos dudosos nuevos.',filas(G.decision,'decision'),false)+
     pnGrupo('toca',REV_NIVELES.toca.lbl,'Van bien; solo venció su frecuencia de revisión.',filas(G.toca,'toca'),tel)+
     pnGrupo('aldia',REV_NIVELES.aldia.lbl,'Sin pendientes desde tu última revisión.',filas(G.novedades.concat(G.aldia),'aldia'),tel)+
-    pnGrupo('inact','Inactivos','',inact.map(a=>pnFila(a,null,'inact')),true);
+    pnGrupo('inact','Inactivos','',inact.map(a=>pnFila(a,null,'inact',etq)),true);
   let body;
   if(!aths.length)body='<div class="empty"><b>Aún no tienes atletas</b>Crea el primero con «Nuevo atleta».</div>';
   else body=renNotice+estNotice+msgNotice+
-    '<div class="pn-bar"><input type="search" id="pn_q" placeholder="Buscar atleta" aria-label="Buscar atleta" autocomplete="off"></div>'+
+    '<div class="pn-bar"><input type="search" id="pn_q" placeholder="Buscar atleta" aria-label="Buscar atleta" autocomplete="off">'+selSvc+'</div>'+
     '<div class="acc pleg pn-g" id="pn_res" hidden></div>'+
     '<div id="pn_grupos">'+(nAct&&!G.riesgo.length&&!G.decision.length?'<div class="notebox mb16 u-bl-green">Nadie necesita atención ni espera una decisión tuya.</div>':'')+grupos+'</div>';
-  return{title:'Panel',crumb:fmtDateFull(todayISO())+' · '+plural(nAct,'atleta activo','atletas activos')+(w7?' · '+plural(w7,'entreno hecho','entrenos hechos')+' esta semana':''),
+  return{title:'Panel',crumb:fmtDateFull(todayISO())+' · '+plural(nAct,'atleta activo','atletas activos')+(svc==='entreno'?' con entreno':svc==='nutri'?' de solo nutrición':'')+(w7?' · '+plural(w7,'entreno hecho','entrenos hechos')+' esta semana':''),
     actions:'<button class="btn btn-p" data-act="ath-new-modal">'+I.plus+' Nuevo atleta</button>',body};
 };
 
@@ -8847,6 +8871,7 @@ Object.assign(ACTIONS,{
   /* «Revisado»: la fecha de hoy y las claves de lo de hoy que ya viste (ver revNovedades) */
   /* La nota (opcional) es lo que decidiste o dejaste pendiente: la próxima revisión arranca
      leyéndola. Se guardan las últimas 20, en la misma fila privada. */
+  'pn-svc':el=>{try{localStorage.setItem(LS_PN_SVC,el.dataset.v);}catch(e){}render();},
   'rev-ok':el=>{const aid=el.dataset.aid,p=athData(aid).profile,rv=revOf(aid),t=todayISO();
     const hoy=revNovedadesCalc(aid).items.filter(x=>x.date===t).map(x=>x.key);
     const ta=el.dataset.nota?document.getElementById(el.dataset.nota):null,txt=ta?ta.value.trim().slice(0,600):'';
