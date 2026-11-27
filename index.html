@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="lr-build" content="2026-11-27.3">
+<meta name="lr-build" content="2026-11-27.4">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mighty · Entrenamiento y nutrición</title>
 <meta name="description" content="Mighty — plataforma de entrenamiento y nutrición para asesoramiento online: diseña rutinas, asigna volumen por grupo muscular, planifica macros y monitorea el progreso de tus atletas.">
@@ -1326,6 +1326,23 @@ input.meta-in.old{border-style:dashed}
 .rsw-r .rec-noimg svg{width:20px;height:20px}
 .rsw-t{display:flex;flex-direction:column;gap:2px;min-width:0}
 .dx-rec summary{cursor:pointer;font-size:var(--fs-3);color:var(--tx2);display:flex;align-items:center;gap:6px}
+/* Receta del plan a la vista (2026-11-27): foto, nombre, macros e ingredientes sin tocar nada; solo los pasos se pliegan. */
+.dx-rhd{align-items:flex-start}
+.dx-rhd .rec-img{width:64px;height:64px;aspect-ratio:1;flex:none;margin:0;border-radius:var(--r-xs);max-height:none}
+.dx-rhd .rec-noimg svg{width:22px;height:22px}
+.dx-rhd .nm>span:first-child{font-weight:600}
+.dx-ingl{list-style:none;margin:0;padding:4px 14px 8px;border-bottom:1px solid var(--line)}
+.dx-ingl li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;font-size:var(--fs-3)}
+.dx-ingl li+li{border-top:1px solid var(--line)}
+.dx-ingl .q{color:var(--tx2);white-space:nowrap;text-align:right}
+.dx-rec ol.rec-steps{margin:8px 0 2px;padding-left:18px}
+.dx-rec ol.rec-steps li{font-size:var(--fs-3);margin:5px 0;color:var(--tx2);line-height:1.45}
+.dx-rcred{padding:0 14px 8px}
+.hx-rec{display:flex;gap:12px;align-items:flex-start}
+.hx-rec .rec-img{width:56px;height:56px;aspect-ratio:1;flex:none;margin:0;border-radius:var(--r-xs);max-height:none}
+.hx-rec .rec-noimg svg{width:20px;height:20px}
+.hx-rec>div{flex:1;min-width:0}
+.hx-rec .hx-items{margin-top:6px;grid-template-columns:1fr}
 .dx-ft{display:flex;gap:8px;padding:10px 14px;flex-wrap:wrap}
 .dx-ft .btn{flex:1;justify-content:center;min-height:42px}
 /* A1: respuesta de una comida en un toque. Tres (o dos) botones iguales que se parten en dos líneas si no caben. */
@@ -4623,11 +4640,22 @@ function dxOptChips(m,mh,esHoy){
   return '<div class="dx-opts" role="group" aria-label="Opciones de '+esc(m.name||'esta comida')+'">'+L.map(o=>{const on=o.id===cur,n=mealOptN(m,o.id);
     return '<button class="planchip'+(on?' on':'')+'" data-act="dx-opt" data-mid="'+m.id+'" data-opt="'+o.id+'" aria-pressed="'+on+'">Opción '+n+' <span class="tiny">'+mealMacros(o).kcal+' kcal</span></button>';}).join('')+'</div>';}
 function dxOptHint(m,mh){const os=mealOpts(m);if(!os.length)return '';return '<div class="tiny">Opción '+mealOptN(m,mh.optOf?mh.id:m.id)+' · tienes '+(os.length+(mealConAlgo(m)?1:0))+' para elegir en Comidas</div>';}
-function dxRecRow(mh,pm,esHoy){const nm=(mh.recipe&&mh.recipe.name)||mh.name||'';
-  const top=mh.recSwapped
-    ?'<div class="dx-it"><div class="nm"><span>'+esc(nm)+'</span><span class="q sw">hoy en lugar de '+esc(mh.recOrigName||'tu receta')+'</span></div>'+(esHoy?'<button class="dx-ib" data-act="rsw-undo" data-mid="'+mh.id+'" aria-label="Volver a la receta de tu plan" title="Volver a la receta de tu plan">↺</button>':'')+'</div>'
-    :(esHoy?'<div class="dx-it"><div class="nm"><span>'+esc(nm)+'</span><span class="q">Puedes cambiarla por otra con macros parecidos</span></div><button class="dx-ib" data-act="rsw-open" data-mid="'+mh.id+'" aria-label="Cambiar '+esc(nm)+' por otra receta" title="Cambiar por otra receta (solo hoy)">⇄</button></div>':'');
-  return top+'<details class="dx-rec"><summary>'+I.recipe+' Receta · prot '+dxN(pm.p)+' g · carbos '+dxN(pm.c)+' g · grasa '+dxN(pm.f)+' g</summary>'+mealRecipeBox(mh)+'</details>';}
+/* Ingredientes de la receta: [nombre, cantidad]. Acepta texto suelto (recetas viejas) u objetos {food,grams,unit}. */
+function dxIngQ(x){if(typeof x==='string')return [x,''];const u=(x.unit==='g'||!x.unit)?foodU(x.food||''):x.unit;return [x.food||'',x.grams?(x.grams+' '+u):''];}
+/* Crédito de la foto en una línea (las de Wikimedia lo exigen); las de IA dicen «Imagen ilustrativa». */
+function recCredTxt(id){const f=id&&REC_FOTOS&&REC_FOTOS[id];if(!f)return '';if(f.ia)return '<p class="rec-cred">Imagen ilustrativa</p>';
+  return '<p class="rec-cred">Foto: <a href="'+esc(f.fuente)+'" target="_blank" rel="noopener">'+esc(f.autor)+'</a> · '+(f.licurl?'<a href="'+esc(f.licurl)+'" target="_blank" rel="noopener">'+esc(f.lic)+'</a>':esc(f.lic))+' · Wikimedia Commons</p>';}
+function dxRecRow(mh,pm,esHoy){const r=mh.recipe||{},nm=r.name||mh.name||'';
+  const mac='<span class="q">'+pm.kcal+' kcal · prot '+dxN(pm.p)+' g · carbos '+dxN(pm.c)+' g · grasa '+dxN(pm.f)+' g</span>';
+  const sub=mh.recSwapped?'<span class="q sw">hoy en lugar de '+esc(mh.recOrigName||'tu receta')+'</span>':(esHoy?'<span class="q">Puedes cambiarla por otra con macros parecidos</span>':'');
+  const bt=mh.recSwapped?(esHoy?'<button class="dx-ib" data-act="rsw-undo" data-mid="'+mh.id+'" aria-label="Volver a la receta de tu plan" title="Volver a la receta de tu plan">↺</button>':'')
+    :(esHoy?'<button class="dx-ib" data-act="rsw-open" data-mid="'+mh.id+'" aria-label="Cambiar '+esc(nm)+' por otra receta" title="Cambiar por otra receta (solo hoy)">⇄</button>':'');
+  const top='<div class="dx-it dx-rhd">'+recFotoHTML(r.rid,'card')+'<div class="nm"><span>'+esc(nm)+'</span>'+mac+sub+'</div>'+bt+'</div>';
+  const scale=(r.scaleFactor&&r.scaleFactor!==1)?'<p class="tiny" style="margin:8px 14px 0">Receta adaptada ×'+r.scaleFactor+' a lo que le faltaba al plan.</p>':'';
+  const ing=(r.ingredients||[]).map(x=>{const q=dxIngQ(x);return '<li><span>'+esc(q[0])+'</span><span class="q">'+esc(q[1])+'</span></li>';}).join('');
+  const st=(r.steps||[]).filter(Boolean),stH=st.length?'<details class="dx-rec"><summary>'+I.recipe+' Cómo se prepara · '+st.length+(st.length===1?' paso':' pasos')+'</summary><ol class="rec-steps">'+st.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol></details>':'';
+  const cred=recCredTxt(r.rid);
+  return top+scale+(ing?'<ul class="dx-ingl" aria-label="Ingredientes de '+esc(nm)+'">'+ing+'</ul>':'')+stH+(cred?'<div class="dx-rcred">'+cred+'</div>':'');}
 /* Recetario base (recetario-base.json, público): el atleta no puede leer la tabla `recipes` del coach. */
 let _recBase=null,_rsw=null;
 function recBaseLoad(){if(_recBase)return Promise.resolve(_recBase);
@@ -10263,7 +10291,7 @@ function hxNutriCard(aid){
   const s=dxSigue(aid),iso=todayISO();
   if(!s)return card+'<div class="hx-next"><div class="h"><span class="dx-k">Comidas de hoy</span></div><div>Ya marcaste todas tus comidas. Cierra el día con tu calificación y un comentario para tu coach.</div><div class="hx-btns"><button class="btn btn-g" data-act="nav" data-view="ath-nutri" data-params=\'{}\'>Cerrar el día</button></div></div>';
   const fijo=dxFijo(s),e=nutriEntryFor(aid,iso);let que='',kc=0;
-  if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=mh.recipe?esc((mh.recipe&&mh.recipe.name)||s.name):(smaeHas(mh)?'<div>'+esc(smaeSummary(mh))+'</div>':'')+'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';que=dxOptHint(s.meal,mh)+que;}
+  if(fijo){const mh=mealHoy(s.meal,e&&e.swaps);kc=mealMacros(mh).kcal;que=mh.recipe?'<div class="hx-rec">'+recFotoHTML(mh.recipe.rid,'card')+'<div><b>'+esc(mh.recipe.name||s.name)+'</b><div class="hx-items">'+(mh.recipe.ingredients||[]).map(x=>{const q=dxIngQ(x);return '<span>'+esc(q[0])+(q[1]?' <i>'+esc(q[1])+'</i>':'')+'</span>';}).join('')+'</div></div></div>':(smaeHas(mh)?'<div>'+esc(smaeSummary(mh))+'</div>':'')+'<div class="hx-items">'+(mh.items||[]).map(it=>'<span>'+esc(it.food)+(it.qty?' <i>'+esc(it.qty)+'</i>':'')+'</span>').join('')+'</div>';que=dxOptHint(s.meal,mh)+que;}
   else{const tt=dxTarget(n,s);kc=tt.kcal;que='Te toca ≈ '+dxN(tt.p)+' g de proteína, '+dxN(tt.c)+' g de carbos y '+dxN(tt.f)+' g de grasa.';}
   const pr=dxProyeccion(aid);
   return card+'<div class="hx-next"><div class="h"><span class="dx-k">Sigue · '+esc(s.name)+'</span><span class="tiny">'+(fijo?'':'≈ ')+kc+' kcal</span></div>'+(s.time?'<div class="dx-hora">'+I.reloj+esc(s.time)+'</div>':'')+'<div>'+que+'</div>'+
